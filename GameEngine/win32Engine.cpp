@@ -5,6 +5,7 @@
 static bool running = true;
 static HWND WindowHandle;
 static bool cursorLocked = false;
+static bool cursorHidden = false;
 
 static int64_t TICKS_PER_SECOND;
 
@@ -54,6 +55,18 @@ void Engine::UnlockCursor()
 	cursorLocked = false;
 }
 
+void Engine::HideCursor()
+{
+	cursorHidden = true;
+	::ShowCursor(false);
+}
+
+void Engine::ShowCursor()
+{
+	cursorHidden = false;
+	::ShowCursor(true);
+}
+
 
 void WarpMouseToWindowCenter()
 {
@@ -83,6 +96,10 @@ LRESULT CALLBACK WindowProc(_In_ HWND WindowHandle, _In_ UINT Message, _In_ WPAR
 	case WM_DESTROY:
 		running = false;
 		break;
+	case WM_SYSCOMMAND:
+		// Catch the behaviour of pressing the ALT button and discard it
+		if (wParam == SC_KEYMENU && (lParam >> 16) <= 0) return 0;
+		return DefWindowProc(WindowHandle, Message, wParam, lParam);
 	default:
 		return DefWindowProc(WindowHandle, Message, wParam, lParam);
 	}
@@ -142,7 +159,7 @@ int WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ L
 
 	Initialize(Renderer);
 
-	SetCursor(0);
+	//ShowCursor(!cursorHidden);
 
 	while (running)
 	{
@@ -161,10 +178,13 @@ int WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ L
 			Inputs.DeltaMouse.x = Inputs.LatestMouse.x - prevMousePosition.x;
 			Inputs.DeltaMouse.y = Inputs.LatestMouse.y - prevMousePosition.y;
 
-			if (GetFocus() == WindowHandle && cursorLocked)
+			if (GetFocus() == WindowHandle)
 			{
-				SetCursor(0);
-				WarpMouseToWindowCenter();
+				if (cursorLocked)
+				{
+					WarpMouseToWindowCenter();
+				}
+				//ShowCursor(!cursorHidden);
 			}
 
 			Vec2i screenSize = Engine::GetScreenSize();
@@ -175,6 +195,8 @@ int WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ L
 			Inputs.keysDown.s = GetAsyncKeyState('S');
 			Inputs.keysDown.d = GetAsyncKeyState('D');
 			Inputs.keysDown.space = GetAsyncKeyState(VK_SPACE);
+			Inputs.keysDown.alt = GetAsyncKeyState(VK_MENU);
+			Inputs.keysDown.tab = GetAsyncKeyState(VK_TAB);
 
 			Inputs.keysDown.esc = GetAsyncKeyState(VK_ESCAPE);
 

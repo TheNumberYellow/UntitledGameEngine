@@ -27,7 +27,28 @@
 
 #include "GUID.hpp"
 
+
+struct OpenGLShader
+{
+	unsigned int programID;
+
+	// Vertex locations
+	unsigned int PositionLocation;
+	unsigned int NormalLocation;
+	unsigned int ColourLocation;
+	unsigned int UVLocation;
+
+	// Uniform locations
+	unsigned int TimeLocation;
+	unsigned int CameraLocation;
+	unsigned int TransformationLocation;
+	unsigned int SunDirectionLocation;
+
+};
+
 // Globals
+static OpenGLShader defaultShader;
+
 static HDC deviceContext;
 static HGLRC glContext;
 
@@ -44,7 +65,14 @@ struct OpenGLMesh
 	int numVertices;
 	Texture texture;
 	Vec3f position = Vec3f(0.0f, 0.0f, 0.0f);
-	Vec3f scale = Vec3f(0.0f, 0.0f, 0.0f);
+	Vec3f scale = Vec3f(1.0f, 1.0f, 1.0f);
+	
+	Mat4x4f transform;
+	bool transformNeedsUpdate = true;
+
+	float rotationAroundXAxis = 0.0f;
+	float rotationAroundYAxis = 0.0f;
+	float rotationAroundZAxis = 0.0f;
 
 	DrawType drawType = DrawType::Triangle;
 };
@@ -110,21 +138,23 @@ Renderer::Renderer()
 	#version 400	
 	
 	uniform mat4x4 Transformation;
+	uniform mat4x4 Camera;
 
 	in vec4 VertPosition;
 	in vec4 VertNormal;
 	in vec4 VertColour;
 	in vec2 VertUV;
 	
-	smooth out vec4 FragNormal;
+	smooth out vec3 FragNormal;
 	smooth out vec4 FragColour;	
 	smooth out vec2 FragUV;
 
 	void main()
 	{
-		gl_Position = Transformation * VertPosition;
+		gl_Position = (Camera * Transformation) * VertPosition;
 		
-		FragNormal = VertNormal;
+		//TEMP(fraser): costly inverses
+		FragNormal = mat3(transpose(inverse(Transformation))) * VertNormal.xyz;
 		FragColour = VertColour;
 		FragUV = VertUV;
 	}
@@ -135,7 +165,7 @@ Renderer::Renderer()
 	
 	#version 400
 
-	smooth in vec4 FragNormal;
+	smooth in vec3 FragNormal;
 	smooth in vec4 FragColour;
 	smooth in vec2 FragUV;	
 
@@ -151,7 +181,7 @@ Renderer::Renderer()
 	{
 		vec3 sun = vec3(SunDirection.x, SunDirection.y, -SunDirection.z);
 
-		vec4 normalizedNormal = normalize(FragNormal);
+		vec3 normalizedNormal = normalize(FragNormal);
 		vec4 textureAt = texture(DiffuseTexture, FragUV);
 		float diffuse = ((dot(normalizedNormal.xyz, normalize(sun))) + 1.0) / 2.0;
 		
@@ -202,6 +232,7 @@ Renderer::Renderer()
 	glDeleteShader(defaultFragShaderID);
 
 	defaultShader.TimeLocation = glGetUniformLocation(defaultShader.programID, "Time");
+	defaultShader.CameraLocation = glGetUniformLocation(defaultShader.programID, "Camera");
 	defaultShader.TransformationLocation = glGetUniformLocation(defaultShader.programID, "Transformation");
 	defaultShader.SunDirectionLocation = glGetUniformLocation(defaultShader.programID, "SunDirection");
 
@@ -347,6 +378,22 @@ void Renderer::DrawMesh(Mesh_ID meshID)
 		UpdateCamTransform();
 	}
 	
+	glm::mat4 transformMatrix(1.0);
+	transformMatrix = glm::translate(transformMatrix, glm::vec3(mesh.position.x, mesh.position.y, mesh.position.z));
+	transformMatrix = glm::scale(transformMatrix, glm::vec3(mesh.scale.x, mesh.scale.y, mesh.scale.z));
+	transformMatrix = glm::rotate(transformMatrix, glm::radians(mesh.rotationAroundXAxis), glm::vec3(1.0f, 0.0f, 0.0f));
+	transformMatrix = glm::rotate(transformMatrix, glm::radians(mesh.rotationAroundYAxis), glm::vec3(0.0f, 1.0f, 0.0f));
+	transformMatrix = glm::rotate(transformMatrix, glm::radians(mesh.rotationAroundZAxis), glm::vec3(0.0f, 0.0f, 1.0f));
+
+	OpenGLMesh* meshPtr = GetOpenGLMeshFromID(meshID);
+
+	meshPtr->transform.m_Rows[0] = { transformMatrix[0][0], transformMatrix[1][0], transformMatrix[2][0], transformMatrix[3][0] };
+	meshPtr->transform.m_Rows[1] = { transformMatrix[0][1], transformMatrix[1][1], transformMatrix[2][1], transformMatrix[3][1] };
+	meshPtr->transform.m_Rows[2] = { transformMatrix[0][2], transformMatrix[1][2], transformMatrix[2][2], transformMatrix[3][2] };
+	meshPtr->transform.m_Rows[3] = { transformMatrix[0][3], transformMatrix[1][3], transformMatrix[2][3], transformMatrix[3][3] };
+
+	glUniformMatrix4fv(defaultShader.TransformationLocation, 1, GL_FALSE, glm::value_ptr(transformMatrix));
+
 	//glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, mesh.texture.m_TextureId);
 	glBindVertexArray(mesh.VAO);
@@ -469,6 +516,171 @@ void Renderer::SetMeshDrawType(Mesh_ID meshID, DrawType type)
 	mesh->drawType = type;
 }
 
+void Renderer::MoveMesh(Mesh_ID meshID, Vec3f move)
+{
+	OpenGLMesh* mesh = GetOpenGLMeshFromID(meshID);
+	mesh->position += move;
+}
+
+void Renderer::ScaleMesh(Mesh_ID meshID, Vec3f scaleFactor)
+{
+	OpenGLMesh* mesh = GetOpenGLMeshFromID(meshID);
+	mesh->scale += scaleFactor;
+}
+
+Vec3f Renderer::GetMeshPosition(Mesh_ID meshID)
+{
+	OpenGLMesh* mesh = GetOpenGLMeshFromID(meshID);
+	return mesh->position;
+}
+
+void Renderer::SetMeshPosition(Mesh_ID meshID, Vec3f newPos)
+{
+	OpenGLMesh* mesh = GetOpenGLMeshFromID(meshID);
+	mesh->position = newPos;
+}
+
+Vec3f Renderer::GetMeshScale(Mesh_ID meshID)
+{
+	OpenGLMesh* mesh = GetOpenGLMeshFromID(meshID);
+	return mesh->scale;
+}
+
+void Renderer::SetMeshScale(Mesh_ID meshID, Vec3f newScale)
+{
+	OpenGLMesh* mesh = GetOpenGLMeshFromID(meshID);
+	mesh->scale = newScale;
+}
+
+void Renderer::RotateMeshAroundXAxis(Mesh_ID meshID, float rotationAmount)
+{
+	OpenGLMesh* mesh = GetOpenGLMeshFromID(meshID);
+	mesh->rotationAroundXAxis += rotationAmount;
+}
+
+void Renderer::RotateMeshAroundYAxis(Mesh_ID meshID, float rotationAmount)
+{
+	OpenGLMesh* mesh = GetOpenGLMeshFromID(meshID);
+	mesh->rotationAroundYAxis += rotationAmount;
+}
+
+void Renderer::RotateMeshAroundZAxis(Mesh_ID meshID, float rotationAmount)
+{
+	OpenGLMesh* mesh = GetOpenGLMeshFromID(meshID);
+	mesh->rotationAroundZAxis += rotationAmount;
+}
+
+void Renderer::SetMeshRotationAroundXAxis(Mesh_ID meshID, float rotation)
+{
+	OpenGLMesh* mesh = GetOpenGLMeshFromID(meshID);
+	mesh->rotationAroundXAxis = rotation;
+}
+
+void Renderer::SetMeshRotationAroundYAxis(Mesh_ID meshID, float rotation)
+{
+	OpenGLMesh* mesh = GetOpenGLMeshFromID(meshID);
+	mesh->rotationAroundYAxis = rotation;
+}
+
+void Renderer::SetMeshRotationAroundZAxis(Mesh_ID meshID, float rotation)
+{
+	OpenGLMesh* mesh = GetOpenGLMeshFromID(meshID);
+	mesh->rotationAroundZAxis = rotation;
+}
+
+float Renderer::GetMeshRotationAroundXAxis(Mesh_ID meshID)
+{
+	OpenGLMesh* mesh = GetOpenGLMeshFromID(meshID);
+	return mesh->rotationAroundXAxis;
+}
+
+float Renderer::GetMeshRotationAroundYAxis(Mesh_ID meshID)
+{
+	OpenGLMesh* mesh = GetOpenGLMeshFromID(meshID);
+	return mesh->rotationAroundYAxis;
+}
+
+float Renderer::GetMeshRotationAroundZAxis(Mesh_ID meshID)
+{
+	OpenGLMesh* mesh = GetOpenGLMeshFromID(meshID);
+	return mesh->rotationAroundZAxis;
+}
+
+Mat4x4f Renderer::GetMeshTransform(Mesh_ID meshID)
+{
+	OpenGLMesh* mesh = GetOpenGLMeshFromID(meshID);
+
+	return mesh->transform;
+}
+
+void Renderer::EnableDepthTesting()
+{
+	glEnable(GL_DEPTH_TEST);
+}
+
+void Renderer::DisableDepthTesting()
+{
+	glDisable(GL_DEPTH_TEST);
+}
+
+void Renderer::ClearDepthBuffer()
+{
+	glClear(GL_DEPTH_BUFFER_BIT);
+}
+
+void Renderer::SetMeshColour(Mesh_ID meshID, Vec4f colour)
+{
+	std::vector<Vertex*> meshVertices = MapMeshVertices(meshID);
+
+	for (int i = 0; i < meshVertices.size(); ++i)
+	{
+		meshVertices[i]->colour = colour;
+	}
+
+	UnmapMeshVertices(meshID);
+
+}
+
+Mesh_ID Renderer::GenerateLineMeshFromMesh(Mesh_ID mesh, Vec4f colour)
+{
+	Mesh_ID newMesh;
+
+	std::vector<unsigned int*> meshElements = MapMeshElements(mesh);
+	std::vector<Vertex*> meshVertices = MapMeshVertices(mesh);
+
+
+	std::vector<unsigned int> lineElements;
+	std::vector<Vertex> lineVertices;
+
+	for (int i = 0; i < meshElements.size(); i += 3)
+	{
+		lineElements.push_back(*meshElements[i]);
+		lineElements.push_back(*meshElements[(size_t)i + 1]);
+		lineElements.push_back(*meshElements[(size_t)i + 1]);
+		lineElements.push_back(*meshElements[(size_t)i + 2]);
+		lineElements.push_back(*meshElements[(size_t)i + 2]);
+		lineElements.push_back(*meshElements[i]);
+	}
+	for (int i = 0; i < meshVertices.size(); ++i)
+	{
+		Vertex vert = Vertex(*meshVertices[i]);
+		vert.position += vert.normal * 0.005f;
+		vert.colour = colour;
+		lineVertices.push_back(vert);
+	}
+
+	newMesh = LoadMesh(lineVertices, lineElements);
+
+	SetMeshPosition(newMesh, GetMeshPosition(mesh));
+	SetMeshScale(newMesh, GetMeshScale(mesh));
+
+	SetMeshDrawType(newMesh, DrawType::Line);
+
+	UnmapMeshElements(mesh);
+	UnmapMeshVertices(mesh);
+
+	return newMesh;
+}
 
 void Renderer::SwapBuffer()
 {
@@ -509,9 +721,9 @@ void Renderer::UpdateCamTransform()
 
 	glm::mat4 projectionMatrix = glm::perspective(glm::radians(90.0f), (float)screenSize.x / (float)screenSize.y, 0.01f, 400.0f);
 
-	glm::mat4 transformMatrix = projectionMatrix * viewMatrix;
+	glm::mat4 camMatrix = projectionMatrix * viewMatrix;
 
-	glUniformMatrix4fv(defaultShader.TransformationLocation, 1, GL_FALSE, glm::value_ptr(transformMatrix));
+	glUniformMatrix4fv(defaultShader.CameraLocation, 1, GL_FALSE, glm::value_ptr(camMatrix));
 
 	defaultCamera.camMatrixNeedsUpdate = false;
 }

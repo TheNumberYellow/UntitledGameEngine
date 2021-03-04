@@ -17,5 +17,8 @@ namespace Engine
 	extern void LockCursor();
 	extern void UnlockCursor();
 
+	extern void HideCursor();
+	extern void ShowCursor();
+
 	extern void StopGame();
 }

@@ -1,8 +1,10 @@
 #pragma once
 
 #include "Math.hpp"
+#include "RendererPlatform.hpp"
 
 #include <cmath>
+#include <vector>
 #include <float.h>
 
 struct Triangle
@@ -23,5 +25,22 @@ struct RayCastHit
 	Vec3f hitPoint;
 };
 
+struct CollisionMesh
+{
+	std::vector<Triangle> m_Triangles;
+};
 
-RayCastHit RayCast(Ray ray, Triangle triangle);
+namespace Collisions
+{
+	RayCastHit RayCast(Ray ray, Triangle triangle);
+	RayCastHit RayCast(Ray ray, CollisionMesh collisionMesh);
+
+	RayCastHit RayCast(Ray ray, Triangle triangle, Mat4x4f transform);
+	RayCastHit RayCast(Ray ray, CollisionMesh collisionMesh, Mat4x4f transform);
+
+	RayCastHit FirstHit(RayCastHit left, RayCastHit right);
+
+	CollisionMesh GenerateCollisionGeometryFromMesh(Mesh_ID mesh, Renderer* renderer);
+
+	Triangle TransformTriangle(Triangle triangle, Mat4x4f transform);
+}

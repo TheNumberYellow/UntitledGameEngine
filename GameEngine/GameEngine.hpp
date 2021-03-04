@@ -11,7 +11,7 @@
 
 #include "Scene.h"
 #include "MeshGenerator.hpp"
-#include "ModelLoader.h"
+#include "FileLoader.h"
 
 // These functions are to be defined in client code
 extern void Initialize(Renderer& renderer);

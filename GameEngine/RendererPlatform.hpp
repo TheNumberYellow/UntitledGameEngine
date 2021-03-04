@@ -31,23 +31,6 @@ enum class DrawType
 	Triangle, Line
 };
 
-struct OpenGLShader
-{
-	unsigned int programID;
-
-	// Vertex locations
-	unsigned int PositionLocation;
-	unsigned int NormalLocation;
-	unsigned int ColourLocation;
-	unsigned int UVLocation;
-
-	// Uniform locations
-	unsigned int TimeLocation;
-	unsigned int TransformationLocation;
-	unsigned int SunDirectionLocation;
-
-};
-
 struct CamInfo
 {
 	Vec3f position;
@@ -88,9 +71,41 @@ public:
 	void SetMeshTexture(Mesh_ID meshID, Texture texture);
 	void SetMeshDrawType(Mesh_ID meshID, DrawType type);
 
-private:
+	void MoveMesh(Mesh_ID meshID, Vec3f move);
+	void ScaleMesh(Mesh_ID meshID, Vec3f scaleFactor);
 
-	OpenGLShader defaultShader;
+	Vec3f GetMeshPosition(Mesh_ID meshID);
+	void SetMeshPosition(Mesh_ID meshID, Vec3f newPos);
+
+	Vec3f GetMeshScale(Mesh_ID meshID);
+	void SetMeshScale(Mesh_ID meshID, Vec3f newScale);
+
+	void RotateMeshAroundXAxis(Mesh_ID meshID, float rotationAmount);
+	void RotateMeshAroundYAxis(Mesh_ID meshID, float rotationAmount);
+	void RotateMeshAroundZAxis(Mesh_ID meshID, float rotationAmount);
+
+	void SetMeshRotationAroundXAxis(Mesh_ID meshID, float rotation);
+	void SetMeshRotationAroundYAxis(Mesh_ID meshID, float rotation);
+	void SetMeshRotationAroundZAxis(Mesh_ID meshID, float rotation);
+
+	float GetMeshRotationAroundXAxis(Mesh_ID meshID);
+	float GetMeshRotationAroundYAxis(Mesh_ID meshID);
+	float GetMeshRotationAroundZAxis(Mesh_ID meshID);
+
+
+	Mat4x4f GetMeshTransform(Mesh_ID meshID);
+
+	void EnableDepthTesting();
+	void DisableDepthTesting();
+
+	void ClearDepthBuffer();
+
+	void SetMeshColour(Mesh_ID meshID, Vec4f colour);
+
+
+	Mesh_ID GenerateLineMeshFromMesh(Mesh_ID mesh, Vec4f colour);
+
+private:
 
 	CamInfo defaultCamera;
 

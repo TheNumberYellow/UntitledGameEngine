@@ -1,8 +1,8 @@
 #include "Collisions.hpp"
 
-RayCastHit RayCast(Ray ray, Triangle triangle)
+RayCastHit Collisions::RayCast(Ray ray, Triangle triangle)
 {
-	// TODO: Become better at math and understand this :)
+	// TODO: Become better at math and understand this better :)
 
 	RayCastHit result;
 	result.hit = false;
@@ -39,5 +39,83 @@ RayCastHit RayCast(Ray ray, Triangle triangle)
 		result.hitPoint = ray.origin + (ray.direction * t);
 	}
 
+	return result;
+}
+
+RayCastHit Collisions::RayCast(Ray ray, CollisionMesh collisionMesh)
+{
+	RayCastHit result;
+	result.hit = false;
+
+	for (int i = 0; i < collisionMesh.m_Triangles.size(); ++i)
+	{
+		RayCastHit newHit = RayCast(ray, collisionMesh.m_Triangles[i]);
+		if (newHit.hit && newHit.hitDistance < result.hitDistance)
+		{
+			result = newHit;
+		}
+	}
+
+	return result;
+}
+
+RayCastHit Collisions::RayCast(Ray ray, Triangle triangle, Mat4x4f transform)
+{
+	triangle = TransformTriangle(triangle, transform);
+	return RayCast(ray, triangle);
+}
+
+RayCastHit Collisions::RayCast(Ray ray, CollisionMesh collisionMesh, Mat4x4f transform)
+{
+	RayCastHit result;
+	result.hit = false;
+
+	for (int i = 0; i < collisionMesh.m_Triangles.size(); ++i)
+	{
+		RayCastHit newHit = RayCast(ray, collisionMesh.m_Triangles[i], transform);
+		if (newHit.hit && newHit.hitDistance < result.hitDistance)
+		{
+			result = newHit;
+		}
+	}
+	return result;
+}
+
+RayCastHit Collisions::FirstHit(RayCastHit left, RayCastHit right)
+{
+	return left.hitDistance < right.hitDistance ? left : right;
+}
+
+CollisionMesh Collisions::GenerateCollisionGeometryFromMesh(Mesh_ID mesh, Renderer* renderer)
+{
+	std::vector<unsigned int*> meshElements = renderer->MapMeshElements(mesh);
+	std::vector<Vertex*> meshVertices = renderer->MapMeshVertices(mesh);
+
+	std::vector<Triangle> resultTriangles;
+
+	for (int i = 0; i < meshElements.size(); i += 3)
+	{
+		Triangle newTriangle;
+		newTriangle.a = meshVertices[*meshElements[i]]->position;
+		newTriangle.b = meshVertices[*meshElements[(size_t)i + 1]]->position;
+		newTriangle.c = meshVertices[*meshElements[(size_t)i + 2]]->position;
+
+		resultTriangles.push_back(newTriangle);
+	}
+	renderer->UnmapMeshElements(mesh);
+	renderer->UnmapMeshVertices(mesh);
+
+	CollisionMesh collisionMesh;
+	collisionMesh.m_Triangles = resultTriangles;
+	return collisionMesh;
+}
+
+Triangle Collisions::TransformTriangle(Triangle triangle, Mat4x4f transform)
+{
+	Triangle result;
+	result.a = Math::mult(triangle.a, transform);
+	result.b = Math::mult(triangle.b, transform);
+	result.c = Math::mult(triangle.c, transform);
+	
 	return result;
 }

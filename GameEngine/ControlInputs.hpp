@@ -10,6 +10,8 @@ struct KeysDown
 	bool s = false;
 	bool d = false;
 	bool space = false;
+	bool alt = false;
+	bool tab = false;
 };
 
 struct Mouse
