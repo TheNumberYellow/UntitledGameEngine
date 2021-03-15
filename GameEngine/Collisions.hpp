@@ -12,8 +12,16 @@ struct Triangle
     Vec3f a, b, c;
 };
 
+struct Plane
+{
+	Vec3f center;
+	Vec3f normal;
+};
+
 struct Ray
 {
+	Ray() {}
+	Ray(Vec3f origin, Vec3f direction) : origin(origin), direction(direction) {}
 	Vec3f origin;
 	Vec3f direction;
 };
@@ -38,9 +46,13 @@ namespace Collisions
 	RayCastHit RayCast(Ray ray, Triangle triangle, Mat4x4f transform);
 	RayCastHit RayCast(Ray ray, CollisionMesh collisionMesh, Mat4x4f transform);
 
+	RayCastHit RayCast(Ray ray, Plane plane);
+
 	RayCastHit FirstHit(RayCastHit left, RayCastHit right);
 
 	CollisionMesh GenerateCollisionGeometryFromMesh(Mesh_ID mesh, Renderer* renderer);
 
 	Triangle TransformTriangle(Triangle triangle, Mat4x4f transform);
+
+
 }

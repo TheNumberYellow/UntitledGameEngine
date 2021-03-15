@@ -81,6 +81,26 @@ RayCastHit Collisions::RayCast(Ray ray, CollisionMesh collisionMesh, Mat4x4f tra
 	return result;
 }
 
+RayCastHit Collisions::RayCast(Ray ray, Plane plane)
+{
+	RayCastHit result;
+	result.hit = false;
+
+	float denom = Math::dot(plane.normal, ray.direction);
+	if (abs(denom) > 0.0001f)
+	{
+		float t = Math::dot((plane.center - ray.origin), plane.normal) / denom;
+		if (t >= 0)
+		{
+			result.hit = true;
+			result.hitDistance = t;
+			result.hitPoint = ray.origin + (ray.direction * t);
+		}
+	}
+
+	return result;
+}
+
 RayCastHit Collisions::FirstHit(RayCastHit left, RayCastHit right)
 {
 	return left.hitDistance < right.hitDistance ? left : right;

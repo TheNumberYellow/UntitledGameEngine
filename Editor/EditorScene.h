@@ -21,13 +21,15 @@ struct EditableMesh
 	void SetPosition(Vec3f position, Renderer* renderer);
 	void SetScale(Vec3f scale, Renderer* renderer);
 
-	void RotateMeshAroundXAxis(float rotationAmount, Renderer* renderer);
-	void RotateMeshAroundYAxis(float rotationAmount, Renderer* renderer);
-	void RotateMeshAroundZAxis(float rotationAmount, Renderer* renderer);
+	void RotateMeshAroundAxis(Vec3f axis, float rotationAmount, Renderer* renderer);
 
-	void SetRotationAroundXAxis(float rotation, Renderer* renderer);
-	void SetRotationAroundYAxis(float rotation, Renderer* renderer);
-	void SetRotationAroundZAxis(float rotation, Renderer* renderer);
+	//void RotateMeshAroundXAxis(float rotationAmount, Renderer* renderer);
+	//void RotateMeshAroundYAxis(float rotationAmount, Renderer* renderer);
+	//void RotateMeshAroundZAxis(float rotationAmount, Renderer* renderer);
+
+	//void SetRotationAroundXAxis(float rotation, Renderer* renderer);
+	//void SetRotationAroundYAxis(float rotation, Renderer* renderer);
+	//void SetRotationAroundZAxis(float rotation, Renderer* renderer);
 
 };
 

@@ -4,14 +4,17 @@
 
 float Math::dot(Vec3f leftVec, Vec3f rightVec)
 {
-	float glmDot = glm::dot(glm::vec3(leftVec.x, leftVec.y, leftVec.z), glm::vec3(rightVec.x, rightVec.y, rightVec.z));
-	return glmDot;
+	float result = (leftVec.x * rightVec.x) + (leftVec.y * rightVec.y) + (leftVec.z * rightVec.z);
+	return result;
 }
 
 Vec3f Math::cross(Vec3f leftVec, Vec3f rightVec)
 {
-	glm::vec3 glmVec = glm::cross(glm::vec3(leftVec.x, leftVec.y, leftVec.z), glm::vec3(rightVec.x, rightVec.y, rightVec.z));
-	return Vec3f(glmVec.x, glmVec.y, glmVec.z);
+	Vec3f result;
+	result.x = leftVec.y * rightVec.z - leftVec.z * rightVec.y;
+	result.y = leftVec.z * rightVec.x - leftVec.x * rightVec.z;
+	result.z = leftVec.x * rightVec.y - leftVec.y * rightVec.x;
+	return result;
 }
 
 Vec3f Math::rotate(Vec3f inputVec, float radians, Vec3f axis)
@@ -23,17 +26,13 @@ Vec3f Math::rotate(Vec3f inputVec, float radians, Vec3f axis)
 
 Vec3f Math::normalize(Vec3f vec)
 {
-	glm::vec3 glmVec = glm::vec3(vec.x, vec.y, vec.z);
-	glmVec = glm::normalize(glmVec);
-
-	return Vec3f(glmVec.x, glmVec.y, glmVec.z);
+	float mag_inv = 1.0f / magnitude(vec);
+	return vec * mag_inv;
 }
 
 float Math::magnitude(Vec3f vec)
 {
-	glm::vec3 glmVec = glm::vec3(vec.x, vec.y, vec.z);
-	
-	return glm::length(glmVec);
+	return sqrt(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z);
 }
 
 Vec3f Math::mult(Vec3f vec, Mat4x4f mat)

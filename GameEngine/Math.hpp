@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <utility>
 
+#define _USE_MATH_DEFINES
+#include <math.h>
 
 float RandomFloat(float min, float max);
 
@@ -121,6 +123,54 @@ public:
 
 	static float clamp(float input, float min, float max);
 
+	static float Pi() { return (float)M_PI; }
+
 	static std::pair<Vec3f, Vec3f> ClosestPointsOnLines(Line a, Line b);
+};
+
+struct Quaternion
+{
+	union
+	{
+		struct
+		{
+			float x, y, z;
+		};
+		Vec3f vec;
+	};
+	union
+	{
+		float scalar;
+		float w;
+	};
+
+	Quaternion() : x(0.0f), y(0.0f), z(0.0f), w(1.0f) {} // Identity quaternion
+	Quaternion(Vec3f axis, float rotation)
+	{
+		x = axis.x * (float)sin(rotation / 2.0f);
+		y = axis.y * (float)sin(rotation / 2.0f);
+		z = axis.z * (float)sin(rotation / 2.0f);
+		w = (float)cos(rotation / 2.0f);
+	}
+
+	Quaternion operator*(Quaternion rhs)
+	{
+		Quaternion result;
+
+		result.vec = rhs.vec * this->scalar + this->vec * rhs.scalar + Math::cross(this->vec, rhs.vec);
+		result.scalar = this->scalar * rhs.scalar - Math::dot(this->vec, rhs.vec);
+
+		return result;
+	}
+
+	Mat4x4f ToMatrix()
+	{
+		Mat4x4f result;
+		result[0] = Vec4f(1 - 2 * y * y - 2 * z * z, 2 * x * y + 2 * z * w, 2 * x * z - 2 * y * w, 0);
+		result[1] = Vec4f(2 * x * y - 2 * z * w, 1 - 2 * x * x - 2 * z * z, 2 * y * z + 2 * x * w, 0);
+		result[2] = Vec4f(2 * x * z + 2 * y * w, 2 * y * z - 2 * x * w, 1 - 2 * x * x - 2 * y * y, 0);
+		result[3] = Vec4f(0, 0, 0, 1);
+		return result;
+	}
 };
 

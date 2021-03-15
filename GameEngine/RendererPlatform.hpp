@@ -24,6 +24,12 @@ struct Vertex
 	Vec2f uv;
 };
 
+struct DebugLineSegment
+{
+	Vec3f a, b;
+};
+
+
 #define Mesh_ID unsigned int
 
 enum class DrawType
@@ -80,18 +86,13 @@ public:
 	Vec3f GetMeshScale(Mesh_ID meshID);
 	void SetMeshScale(Mesh_ID meshID, Vec3f newScale);
 
-	void RotateMeshAroundXAxis(Mesh_ID meshID, float rotationAmount);
-	void RotateMeshAroundYAxis(Mesh_ID meshID, float rotationAmount);
-	void RotateMeshAroundZAxis(Mesh_ID meshID, float rotationAmount);
+	void RotateMeshAroundAxis(Mesh_ID meshID, Vec3f axis, float rotationAmount);
 
-	void SetMeshRotationAroundXAxis(Mesh_ID meshID, float rotation);
-	void SetMeshRotationAroundYAxis(Mesh_ID meshID, float rotation);
-	void SetMeshRotationAroundZAxis(Mesh_ID meshID, float rotation);
+	void SetMeshRotation(Mesh_ID meshID, Quaternion rotation);
+	Quaternion GetMeshRotation(Mesh_ID meshID);
 
-	float GetMeshRotationAroundXAxis(Mesh_ID meshID);
-	float GetMeshRotationAroundYAxis(Mesh_ID meshID);
-	float GetMeshRotationAroundZAxis(Mesh_ID meshID);
-
+	void InitializeDebugDraw();
+	void DebugDrawLineSegment(DebugLineSegment lineSegment);
 
 	Mat4x4f GetMeshTransform(Mesh_ID meshID);
 
@@ -115,4 +116,6 @@ private:
 
 	// This function operates on the currently bound shader
 	void UpdateCamTransform();
+
+	void DrawDebugLines();
 };

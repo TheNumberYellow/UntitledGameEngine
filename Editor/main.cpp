@@ -11,6 +11,12 @@ struct Camera
     Vec3f up = Vec3f(0.0f, 0.0f, 1.0f);
 };
 
+inline double getAbsoluteDiff2Angles(const double x, const double y, const double c)
+{
+	// c can be PI (for radians) or 180.0 (for degrees);
+	return c - fabs(fmod(fabs(x - y), 2 * c) - c);
+}
+
 static Camera cam;
 
 Mesh_ID unitCube;
@@ -50,9 +56,9 @@ static Vec3f xAxisOffset;
 static Vec3f yAxisOffset;
 static Vec3f zAxisOffset;
 
-static float xAngleOffset;
-static float yAngleOffset;
-static float zAngleOffset;
+static float xAngleLast;
+static float yAngleLast;
+static float zAngleLast;
 
 bool editorMode = true;
 
@@ -235,73 +241,101 @@ void Update(Renderer& renderer, ControlInputs& inputs)
 			if (rotatingX)
 			{
 				// Get intersection between mouse ray and x plane
-				Vec3f axisNormal = Vec3f(0.0f, 1.0f, 0.0f);
-				float denom = Math::dot(axisNormal, cam.direction);
-				float t = Math::dot(renderer.GetMeshPosition(editingMesh->m_Mesh) - cam.position, axisNormal) / denom;
+				Plane xPlane;
+				xPlane.center = renderer.GetMeshPosition(editingMesh->m_Mesh);
+				xPlane.normal = Vec3f(1.0f, 0.0f, 0.0f);
 
-				Vec3f intersection = cam.position + (cam.direction * t);
+				RayCastHit intersection = Collisions::RayCast(Ray(cam.position, cam.direction), xPlane);
 
-				Vec3f vec = intersection - renderer.GetMeshPosition(editingMesh->m_Mesh);
+				Vec3f objectCenter = renderer.GetMeshPosition(editingMesh->m_Mesh);
+				if (intersection.hit)
+				{
+					Vec3f point = intersection.hitPoint - objectCenter;
+					Vec3f unitVec = Vec3f(0.0f, 0.0f, 1.0f);
+					float dot = Math::dot(point, unitVec);
+					float det = Math::dot(xPlane.normal, (Math::cross(point, unitVec)));
+					float angle = atan2(det, dot);
+					
+					float deltaAngle = xAngleLast - angle;
 
+					xAngleLast = angle;
 
-				Vec3f xAxis = Vec3f(0.0f, 0.0f, 1.0f);
-				
-				float dot = Math::dot(vec, xAxis);
-				float det = (vec.x * xAxis.y * axisNormal.z) + (xAxis.x * axisNormal.y * vec.z) + axisNormal.x * vec.y * xAxis.z - vec.z * xAxis.y * axisNormal.x - xAxis.z * axisNormal.y * vec.x - axisNormal.z * vec.y * xAxis.x;
+					editingMesh->RotateMeshAroundAxis(Vec3f(1.0f, 0.0f, 0.0f), deltaAngle, &renderer);
+					
+					DebugLineSegment debugLine;
+					debugLine.a = point + objectCenter;
+					debugLine.b = objectCenter;
+					renderer.DebugDrawLineSegment(debugLine);
 
-				float angle = -atan2(det, dot);
-				//float angle = std::acos(Math::dot(vec, xAxis) / (Math::magnitude(vec) * Math::magnitude(xAxis)));
-				
-				
-				editingMesh->SetRotationAroundYAxis((angle - xAngleOffset) * 57.2958, &renderer);
-
+					debugLine.a = unitVec + objectCenter;
+					renderer.DebugDrawLineSegment(debugLine);
+				}
 			}
 			if (rotatingY)
 			{
 				// Get intersection between mouse ray and y plane
-				Vec3f axisNormal = Vec3f(1.0f, 0.0f, 0.0f);
-				float denom = Math::dot(axisNormal, cam.direction);
-				float t = Math::dot(renderer.GetMeshPosition(editingMesh->m_Mesh) - cam.position, axisNormal) / denom;
+				Plane yPlane;
+				yPlane.center = renderer.GetMeshPosition(editingMesh->m_Mesh);
+				yPlane.normal = Vec3f(0.0f, 1.0f, 0.0f);
 
-				Vec3f intersection = cam.position + (cam.direction * t);
+				RayCastHit intersection = Collisions::RayCast(Ray(cam.position, cam.direction), yPlane);
 
-				Vec3f vec = intersection - renderer.GetMeshPosition(editingMesh->m_Mesh);
+				Vec3f objectCenter = renderer.GetMeshPosition(editingMesh->m_Mesh);
+				if (intersection.hit)
+				{
+					Vec3f point = intersection.hitPoint - objectCenter;
+					Vec3f unitVec = Vec3f(1.0f, 0.0f, 0.0f);
+					float dot = Math::dot(point, unitVec);
+					float det = Math::dot(yPlane.normal, (Math::cross(point, unitVec)));
+					float angle = atan2(det, dot);
 
+					float deltaAngle = yAngleLast - angle;
 
-				Vec3f xAxis = Vec3f(0.0f, 1.0f, 0.0f);
+					yAngleLast = angle;
 
-				float dot = Math::dot(vec, xAxis);
-				float det = (vec.x * xAxis.y * axisNormal.z) + (xAxis.x * axisNormal.y * vec.z) + axisNormal.x * vec.y * xAxis.z - vec.z * xAxis.y * axisNormal.x - xAxis.z * axisNormal.y * vec.x - axisNormal.z * vec.y * xAxis.x;
+					editingMesh->RotateMeshAroundAxis(Vec3f(0.0f, 1.0f, 0.0f), deltaAngle, &renderer);
 
-				float angle = -atan2(det, dot);
-				//float angle = std::acos(Math::dot(vec, xAxis) / (Math::magnitude(vec) * Math::magnitude(xAxis)));
+					DebugLineSegment debugLine;
+					debugLine.a = point + objectCenter;
+					debugLine.b = objectCenter;
+					renderer.DebugDrawLineSegment(debugLine);
 
-
-				editingMesh->SetRotationAroundXAxis((angle - yAngleOffset) * 57.2958, &renderer);
-
+					debugLine.a = unitVec + objectCenter;
+					renderer.DebugDrawLineSegment(debugLine);
+				}
 			}
 			if (rotatingZ)
 			{
-				// Get intersection between mouse ray and y plane
-				Vec3f axisNormal = Vec3f(0.0f, 0.0f, 1.0f);
-				float denom = Math::dot(axisNormal, cam.direction);
-				float t = Math::dot(renderer.GetMeshPosition(editingMesh->m_Mesh) - cam.position, axisNormal) / denom;
+				// Get intersection between mouse ray and z plane
+				Plane zPlane;
+				zPlane.center = renderer.GetMeshPosition(editingMesh->m_Mesh);
+				zPlane.normal = Vec3f(0.0f, 0.0f, 1.0f);
 
-				Vec3f intersection = cam.position + (cam.direction * t);
+				RayCastHit intersection = Collisions::RayCast(Ray(cam.position, cam.direction), zPlane);
 
-				Vec3f vec = intersection - renderer.GetMeshPosition(editingMesh->m_Mesh);
+				Vec3f objectCenter = renderer.GetMeshPosition(editingMesh->m_Mesh);
+				if (intersection.hit)
+				{
+					Vec3f point = intersection.hitPoint - objectCenter;
+					Vec3f unitVec = Vec3f(0.0f, 1.0f, 0.0f);
+					float dot = Math::dot(point, unitVec);
+					float det = Math::dot(zPlane.normal, (Math::cross(point, unitVec)));
+					float angle = atan2(det, dot);
 
+					float deltaAngle = zAngleLast - angle;
 
-				Vec3f xAxis = Vec3f(1.0f, 0.0f, 0.0f);
+					zAngleLast = angle;
 
-				float dot = Math::dot(vec, xAxis);
-				float det = (vec.x * xAxis.y * axisNormal.z) + (xAxis.x * axisNormal.y * vec.z) + axisNormal.x * vec.y * xAxis.z - vec.z * xAxis.y * axisNormal.x - xAxis.z * axisNormal.y * vec.x - axisNormal.z * vec.y * xAxis.x;
+					editingMesh->RotateMeshAroundAxis(Vec3f(0.0f, 0.0f, 1.0f), deltaAngle, &renderer);
+				
+					DebugLineSegment debugLine;
+					debugLine.a = point + objectCenter;
+					debugLine.b = objectCenter;
+					renderer.DebugDrawLineSegment(debugLine);
 
-				float angle = -atan2(det, dot);
-				//float angle = std::acos(Math::dot(vec, xAxis) / (Math::magnitude(vec) * Math::magnitude(xAxis)));
-
-
-				editingMesh->SetRotationAroundZAxis((angle - zAngleOffset) * 57.2958, &renderer);
+					debugLine.a = unitVec + objectCenter;
+					renderer.DebugDrawLineSegment(debugLine);
+				}
 			}
 		}
 		else {
@@ -342,59 +376,66 @@ void Update(Renderer& renderer, ControlInputs& inputs)
 					if (rayCastInfo.toolType == ToolType::X_RING)
 					{
 						// Get intersection between mouse ray and x plane
-						Vec3f axisNormal = Vec3f(0.0f, 1.0f, 0.0f);
-						float denom = Math::dot(axisNormal, cam.direction);
-						float t = Math::dot(renderer.GetMeshPosition(editingMesh->m_Mesh) - cam.position, axisNormal) / denom;
-
-						Vec3f intersection = cam.position + (cam.direction * t);
-						Vec3f vec = intersection - renderer.GetMeshPosition(editingMesh->m_Mesh);
-
-						Vec3f xAxis = Vec3f(0.0f, 0.0f, 1.0f);
-
-						float dot = Math::dot(vec, xAxis);
-						float det = (vec.x * xAxis.y * axisNormal.z) + (xAxis.x * axisNormal.y * vec.z) + axisNormal.x * vec.y * xAxis.z - vec.z * xAxis.y * axisNormal.x - xAxis.z * axisNormal.y * vec.x - axisNormal.z * vec.y * xAxis.x;
-
-						float angle = atan2(det, dot);
-						xAngleOffset = -angle - renderer.GetMeshRotationAroundYAxis(editingMesh->m_Mesh) * 0.0174533;
-						rotatingX = true;
+						Plane xPlane;
+						xPlane.center = renderer.GetMeshPosition(editingMesh->m_Mesh);
+						xPlane.normal = Vec3f(1.0f, 0.0f, 0.0f);
+						
+						RayCastHit intersection = Collisions::RayCast(Ray(cam.position, cam.direction), xPlane);
+						
+						Vec3f objectCenter = renderer.GetMeshPosition(editingMesh->m_Mesh);
+						if (intersection.hit)
+						{
+							Vec3f point = intersection.hitPoint - objectCenter;
+							Vec3f unitVec = Vec3f(0.0f, 0.0f, 1.0f);
+							float dot = Math::dot(point, unitVec);
+							float det = Math::dot(xPlane.normal, (Math::cross(point, unitVec)));
+							float angle = atan2(det, dot);
+							xAngleLast = angle;
+							rotatingX = true;
+						}
 					}
+
 					if (rayCastInfo.toolType == ToolType::Y_RING)
 					{
-						// Get intersection between mouse ray and x plane
-						Vec3f axisNormal = Vec3f(1.0f, 0.0f, 0.0f);
-						float denom = Math::dot(axisNormal, cam.direction);
-						float t = Math::dot(renderer.GetMeshPosition(editingMesh->m_Mesh) - cam.position, axisNormal) / denom;
+						// Get intersection between mouse ray and y plane
+						Plane yPlane;
+						yPlane.center = renderer.GetMeshPosition(editingMesh->m_Mesh);
+						yPlane.normal = Vec3f(0.0f, 1.0f, 0.0f);
 
-						Vec3f intersection = cam.position + (cam.direction * t);
-						Vec3f vec = intersection - renderer.GetMeshPosition(editingMesh->m_Mesh);
+						RayCastHit intersection = Collisions::RayCast(Ray(cam.position, cam.direction), yPlane);
 
-						Vec3f xAxis = Vec3f(0.0f, 1.0f, 0.0f);
-
-						float dot = Math::dot(vec, xAxis);
-						float det = (vec.x * xAxis.y * axisNormal.z) + (xAxis.x * axisNormal.y * vec.z) + axisNormal.x * vec.y * xAxis.z - vec.z * xAxis.y * axisNormal.x - xAxis.z * axisNormal.y * vec.x - axisNormal.z * vec.y * xAxis.x;
-
-						float angle = atan2(det, dot);
-						yAngleOffset = -angle - renderer.GetMeshRotationAroundXAxis(editingMesh->m_Mesh) * 0.0174533;
-						rotatingY = true;
+						Vec3f objectCenter = renderer.GetMeshPosition(editingMesh->m_Mesh);
+						if (intersection.hit)
+						{
+							Vec3f point = intersection.hitPoint - objectCenter;
+							Vec3f unitVec = Vec3f(1.0f, 0.0f, 0.0f);
+							float dot = Math::dot(point, unitVec);
+							float det = Math::dot(yPlane.normal, (Math::cross(point, unitVec)));
+							float angle = atan2(det, dot);
+							yAngleLast = angle;
+							rotatingY = true;
+						}
 					}
 					if (rayCastInfo.toolType == ToolType::Z_RING)
 					{
-						// Get intersection between mouse ray and x plane
-						Vec3f axisNormal = Vec3f(0.0f, 0.0f, 1.0f);
-						float denom = Math::dot(axisNormal, cam.direction);
-						float t = Math::dot(renderer.GetMeshPosition(editingMesh->m_Mesh) - cam.position, axisNormal) / denom;
+						// Get intersection between mouse ray and z plane
+						Plane zPlane;
+						zPlane.center = renderer.GetMeshPosition(editingMesh->m_Mesh);
+						zPlane.normal = Vec3f(0.0f, 0.0f, 1.0f);
 
-						Vec3f intersection = cam.position + (cam.direction * t);
-						Vec3f vec = intersection - renderer.GetMeshPosition(editingMesh->m_Mesh);
+						RayCastHit intersection = Collisions::RayCast(Ray(cam.position, cam.direction), zPlane);
 
-						Vec3f xAxis = Vec3f(1.0f, 0.0f, 0.0f);
-
-						float dot = Math::dot(vec, xAxis);
-						float det = (vec.x * xAxis.y * axisNormal.z) + (xAxis.x * axisNormal.y * vec.z) + axisNormal.x * vec.y * xAxis.z - vec.z * xAxis.y * axisNormal.x - xAxis.z * axisNormal.y * vec.x - axisNormal.z * vec.y * xAxis.x;
-
-						float angle = atan2(det, dot);
-						zAngleOffset = -angle - renderer.GetMeshRotationAroundZAxis(editingMesh->m_Mesh) * 0.0174533;
-						rotatingZ = true;
+						Vec3f objectCenter = renderer.GetMeshPosition(editingMesh->m_Mesh);
+						if (intersection.hit)
+						{
+							Vec3f point = intersection.hitPoint - objectCenter;
+							Vec3f unitVec = Vec3f(0.0f, 1.0f, 0.0f);
+							float dot = Math::dot(point, unitVec);
+							float det = Math::dot(zPlane.normal, (Math::cross(point, unitVec)));
+							float angle = atan2(det, dot);
+							zAngleLast = angle;
+							rotatingZ = true;
+						}
 					}
 					
 				}

@@ -6,11 +6,13 @@
 
 #include <gl/gl.h>
 
+// TODO(fraser): strip out all this glm stuff
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/quaternion.hpp>
 
-// TODO: Use another image loading library or something (million warnings)
+// TODO(fraser): Use another image loading library or something (million warnings) - or make my own!
 #define STB_IMAGE_IMPLEMENTATION
 #pragma warning(push)
 #pragma warning(disable : 26451 6385 6011 6262 6308)
@@ -54,6 +56,14 @@ static HGLRC glContext;
 
 static Texture whiteRenderTexture;
 
+//TODO(fraser) probably gonna want to move this elsewhere
+static std::vector<DebugLineSegment> debugLineSegments;
+
+GLuint debugLineDrawProgram;
+GLuint debugLineDrawVAO;
+GLuint debugLineDrawVBO;
+GLuint debugLineDrawCameraTransformLocation;
+
 struct OpenGLMesh
 {
 	OpenGLMesh() : texture(whiteRenderTexture)
@@ -66,13 +76,14 @@ struct OpenGLMesh
 	Texture texture;
 	Vec3f position = Vec3f(0.0f, 0.0f, 0.0f);
 	Vec3f scale = Vec3f(1.0f, 1.0f, 1.0f);
-	
+	Quaternion rotation;
+
 	Mat4x4f transform;
 	bool transformNeedsUpdate = true;
 
-	float rotationAroundXAxis = 0.0f;
-	float rotationAroundYAxis = 0.0f;
-	float rotationAroundZAxis = 0.0f;
+	//float rotationAroundXAxis = 0.0f;
+	//float rotationAroundYAxis = 0.0f;
+	//float rotationAroundZAxis = 0.0f;
 
 	DrawType drawType = DrawType::Triangle;
 };
@@ -129,7 +140,25 @@ Renderer::Renderer()
 		Engine::DEBUGPrint("Glew was not initialized.\n");
 	}
 
+	// Enable various OpenGL features
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+	// I prefer clockwise winding
+	glFrontFace(GL_CW);
+
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+
+	// TODO(fraser): come up with a way for the .lib to store textures I want to be included in the engine (ie. white texture)
+	// Will probably write something to load an image into a header file which can be included wherever it's needed
+	whiteRenderTexture = LoadTexture("images/white.png");
+
+	// TEMP(fraser)
+	glLineWidth(2.0f);
+
+	// Set up the default shader
 	GLuint defaultVertShaderID = glCreateShader(GL_VERTEX_SHADER);
 	GLuint defaultFragShaderID = glCreateShader(GL_FRAGMENT_SHADER);
 
@@ -231,6 +260,7 @@ Renderer::Renderer()
 	glDeleteShader(defaultVertShaderID);
 	glDeleteShader(defaultFragShaderID);
 
+	//Link default shader program's attributes and uniforms
 	defaultShader.TimeLocation = glGetUniformLocation(defaultShader.programID, "Time");
 	defaultShader.CameraLocation = glGetUniformLocation(defaultShader.programID, "Camera");
 	defaultShader.TransformationLocation = glGetUniformLocation(defaultShader.programID, "Transformation");
@@ -243,16 +273,7 @@ Renderer::Renderer()
 
 	glUseProgram(defaultShader.programID);
 	glUniform1i(glGetUniformLocation(defaultShader.programID, "DiffuseTexture"), GL_TEXTURE0);
-
-	// Enable various OpenGL features
-	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_CULL_FACE);
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-	// I prefer clockwise winding
-	glFrontFace(GL_CW);
-
+	
 	RECT screenRect;
 	GetClientRect(window, &screenRect);
 	screenSize = Vec2i(screenRect.right - screenRect.left, screenRect.bottom - screenRect.top);
@@ -260,14 +281,8 @@ Renderer::Renderer()
 	// Set uniform vec2 to screen size
 	glUniform2f(glGetUniformLocation(defaultShader.programID, "WindowSize"), (GLfloat)screenSize.x, (GLfloat)screenSize.y);
 
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	InitializeDebugDraw();
 
-	// TODO(fraser): come up with a way for the .lib to store textures I want to be included in the engine (ie. white texture)
-	// Will probably write something to load an image into a header file which can be included wherever it's needed
-	whiteRenderTexture = LoadTexture("images/white.png");
-
-	// TEMP(fraser)
-	glLineWidth(2.0f);
 }
 
 Renderer::~Renderer()
@@ -377,13 +392,14 @@ void Renderer::DrawMesh(Mesh_ID meshID)
 	{
 		UpdateCamTransform();
 	}
-	
+	// TODO(fraser): stop using glm here
+
 	glm::mat4 transformMatrix(1.0);
 	transformMatrix = glm::translate(transformMatrix, glm::vec3(mesh.position.x, mesh.position.y, mesh.position.z));
 	transformMatrix = glm::scale(transformMatrix, glm::vec3(mesh.scale.x, mesh.scale.y, mesh.scale.z));
-	transformMatrix = glm::rotate(transformMatrix, glm::radians(mesh.rotationAroundXAxis), glm::vec3(1.0f, 0.0f, 0.0f));
-	transformMatrix = glm::rotate(transformMatrix, glm::radians(mesh.rotationAroundYAxis), glm::vec3(0.0f, 1.0f, 0.0f));
-	transformMatrix = glm::rotate(transformMatrix, glm::radians(mesh.rotationAroundZAxis), glm::vec3(0.0f, 0.0f, 1.0f));
+	glm::quat quat = glm::quat(mesh.rotation.w, mesh.rotation.x, mesh.rotation.y, mesh.rotation.z);
+	glm::mat4 rotMat = glm::toMat4(quat);
+	transformMatrix = transformMatrix * rotMat;
 
 	OpenGLMesh* meshPtr = GetOpenGLMeshFromID(meshID);
 
@@ -552,58 +568,152 @@ void Renderer::SetMeshScale(Mesh_ID meshID, Vec3f newScale)
 	mesh->scale = newScale;
 }
 
-void Renderer::RotateMeshAroundXAxis(Mesh_ID meshID, float rotationAmount)
+void Renderer::RotateMeshAroundAxis(Mesh_ID meshID, Vec3f axis, float rotationAmount)
 {
 	OpenGLMesh* mesh = GetOpenGLMeshFromID(meshID);
-	mesh->rotationAroundXAxis += rotationAmount;
+	Quaternion quat(axis, rotationAmount);
+	mesh->rotation = quat * mesh->rotation;
 }
 
-void Renderer::RotateMeshAroundYAxis(Mesh_ID meshID, float rotationAmount)
+void Renderer::SetMeshRotation(Mesh_ID meshID, Quaternion rotation)
 {
 	OpenGLMesh* mesh = GetOpenGLMeshFromID(meshID);
-	mesh->rotationAroundYAxis += rotationAmount;
+	mesh->rotation = rotation;
 }
 
-void Renderer::RotateMeshAroundZAxis(Mesh_ID meshID, float rotationAmount)
+Quaternion Renderer::GetMeshRotation(Mesh_ID meshID)
 {
 	OpenGLMesh* mesh = GetOpenGLMeshFromID(meshID);
-	mesh->rotationAroundZAxis += rotationAmount;
+	return mesh->rotation;
 }
 
-void Renderer::SetMeshRotationAroundXAxis(Mesh_ID meshID, float rotation)
+void Renderer::InitializeDebugDraw()
 {
-	OpenGLMesh* mesh = GetOpenGLMeshFromID(meshID);
-	mesh->rotationAroundXAxis = rotation;
+	GLuint debugDrawVertShader = glCreateShader(GL_VERTEX_SHADER);
+	GLuint debugDrawFragShader = glCreateShader(GL_FRAGMENT_SHADER);
+	
+	const char* vertShaderSource = R"(
+	#version 400
+
+	uniform mat4x4 Camera;	
+
+	in vec3 VertPosition;
+
+	smooth out vec4 FragColour;
+
+	void main()
+	{
+		gl_Position = Camera * vec4(VertPosition, 1.0);
+		FragColour = vec4(1.0, 1.0, 1.0, 1.0);
+	}
+	)";
+
+	const char* fragShaderSource = R"(
+	#version 400
+
+	in vec4 FragColour;
+	
+	out vec4 OutColour;
+
+	void main()
+	{
+		OutColour = FragColour;
+	}
+	)";
+
+	glShaderSource(debugDrawVertShader, 1, &vertShaderSource, nullptr);
+	glShaderSource(debugDrawFragShader, 1, &fragShaderSource, nullptr);
+
+	glCompileShader(debugDrawVertShader);
+	glCompileShader(debugDrawFragShader);
+
+	CheckShaderCompilation(debugDrawVertShader);
+	CheckShaderCompilation(debugDrawFragShader);
+
+	debugLineDrawProgram = glCreateProgram();
+	glAttachShader(debugLineDrawProgram, debugDrawVertShader);
+	glAttachShader(debugLineDrawProgram, debugDrawFragShader);
+
+	glLinkProgram(debugLineDrawProgram);
+
+	glValidateProgram(debugLineDrawProgram);
+
+	GLint linked = false;
+	glGetProgramiv(debugLineDrawProgram, GL_LINK_STATUS, &linked);
+
+	//TODO: maybe make my own assert
+	assert(linked && "Shader program failed to link.");
+
+	glDetachShader(debugLineDrawProgram, debugDrawVertShader);
+	glDetachShader(debugLineDrawProgram, debugDrawFragShader);
+
+	glDeleteShader(debugDrawVertShader);
+	glDeleteShader(debugDrawFragShader);
+
+	// Bind program inputs
+	glBindAttribLocation(debugLineDrawProgram, 0, "VertPosition");
+	debugLineDrawCameraTransformLocation = glGetUniformLocation(debugLineDrawProgram, "Camera");
+
+	// Generate Array/Buffer objects
+	glGenVertexArrays(1, &debugLineDrawVAO);
+	glGenBuffers(1, &debugLineDrawVBO);
+
+	glBindVertexArray(debugLineDrawVAO);
+	glBindBuffer(GL_ARRAY_BUFFER, debugLineDrawVBO);
+
+	//TODO(fraser): decide on maximum size of this buffer (also potentially use some kind of bin allocate method  
+	// but that's probably overkill for what I want to do with debug drawing at the moment).
+	// Preallocate vertex buffer
+	glBufferData(GL_ARRAY_BUFFER, 10000 * sizeof(DebugLineSegment), nullptr, GL_STREAM_DRAW);
+
+	glEnableVertexAttribArray(0); // VertPosition
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vec3f), (void*)0);
+
+	// Unbind stuff
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
+
 }
 
-void Renderer::SetMeshRotationAroundYAxis(Mesh_ID meshID, float rotation)
+void Renderer::DrawDebugLines()
 {
-	OpenGLMesh* mesh = GetOpenGLMeshFromID(meshID);
-	mesh->rotationAroundYAxis = rotation;
+
+	//DisableDepthTesting();
+
+	glBindVertexArray(debugLineDrawVAO);
+	glBindBuffer(GL_ARRAY_BUFFER, debugLineDrawVBO);
+	glUseProgram(debugLineDrawProgram);
+
+	glm::mat4 viewMatrix;
+
+	glm::vec3 glmPosition = glm::vec3(defaultCamera.position.x, defaultCamera.position.y, defaultCamera.position.z);
+	glm::vec3 glmDirection = glm::vec3(defaultCamera.direction.x, defaultCamera.direction.y, defaultCamera.direction.z);
+	glm::vec3 glmUp = glm::vec3(defaultCamera.up.x, defaultCamera.up.y, defaultCamera.up.z);
+
+	viewMatrix = glm::lookAt(glmPosition, glmPosition + glmDirection, glmUp);
+
+	glm::mat4 projectionMatrix = glm::perspective(glm::radians(90.0f), (float)screenSize.x / (float)screenSize.y, 0.01f, 400.0f);
+
+	glm::mat4 camMatrix = projectionMatrix * viewMatrix;
+
+	glUniformMatrix4fv(debugLineDrawCameraTransformLocation, 1, GL_FALSE, glm::value_ptr(camMatrix));
+
+	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(DebugLineSegment) * debugLineSegments.size(), debugLineSegments.data());
+
+	glDrawArrays(GL_LINES, 0, (int)debugLineSegments.size() * 2);
+
+	debugLineSegments.clear();
+
+	glUseProgram(0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
+
+	//EnableDepthTesting();
 }
 
-void Renderer::SetMeshRotationAroundZAxis(Mesh_ID meshID, float rotation)
+void Renderer::DebugDrawLineSegment(DebugLineSegment lineSegment)
 {
-	OpenGLMesh* mesh = GetOpenGLMeshFromID(meshID);
-	mesh->rotationAroundZAxis = rotation;
-}
-
-float Renderer::GetMeshRotationAroundXAxis(Mesh_ID meshID)
-{
-	OpenGLMesh* mesh = GetOpenGLMeshFromID(meshID);
-	return mesh->rotationAroundXAxis;
-}
-
-float Renderer::GetMeshRotationAroundYAxis(Mesh_ID meshID)
-{
-	OpenGLMesh* mesh = GetOpenGLMeshFromID(meshID);
-	return mesh->rotationAroundYAxis;
-}
-
-float Renderer::GetMeshRotationAroundZAxis(Mesh_ID meshID)
-{
-	OpenGLMesh* mesh = GetOpenGLMeshFromID(meshID);
-	return mesh->rotationAroundZAxis;
+	debugLineSegments.push_back(lineSegment);
 }
 
 Mat4x4f Renderer::GetMeshTransform(Mesh_ID meshID)
@@ -684,6 +794,7 @@ Mesh_ID Renderer::GenerateLineMeshFromMesh(Mesh_ID mesh, Vec4f colour)
 
 void Renderer::SwapBuffer()
 {
+	DrawDebugLines();
 	SwapBuffers(deviceContext);
 }
 
