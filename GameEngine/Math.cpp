@@ -55,6 +55,65 @@ float Math::clamp(float input, float min, float max)
 	return input < min ? min : (input > max ? max : input);
 }
 
+Mat4x4f Math::inv(Mat4x4f mat)
+{
+	glm::mat4 glmMat;
+
+	glmMat[0] = glm::vec4(mat[0].x, mat[0].y, mat[0].z, mat[0].w);
+	glmMat[1] = glm::vec4(mat[1].x, mat[1].y, mat[1].z, mat[1].w);
+	glmMat[2] = glm::vec4(mat[2].x, mat[2].y, mat[2].z, mat[2].w);
+	glmMat[3] = glm::vec4(mat[3].x, mat[3].y, mat[3].z, mat[3].w);
+
+	glmMat = glm::inverse(glmMat);
+
+	Mat4x4f result;
+
+	result[0] = Vec4f(glmMat[0].x, glmMat[0].y, glmMat[0].z, glmMat[0].w);
+	result[1] = Vec4f(glmMat[1].x, glmMat[1].y, glmMat[1].z, glmMat[1].w);
+	result[2] = Vec4f(glmMat[2].x, glmMat[2].y, glmMat[2].z, glmMat[2].w);
+	result[3] = Vec4f(glmMat[3].x, glmMat[3].y, glmMat[3].z, glmMat[3].w);
+
+	return result;
+}
+
+Mat4x4f Math::GenerateViewMatrix(Vec3f position, Vec3f direction, Vec3f up)
+{
+	Vec3f f(normalize(-direction));
+	Vec3f s(normalize(cross(up, f)));
+	Vec3f u(cross(f, s));
+
+	Mat4x4f result;
+	result[0][0] = s.x;
+	result[1][0] = s.y;
+	result[2][0] = s.z;
+	result[0][1] = u.x;
+	result[1][1] = u.y;
+	result[2][1] = u.z;
+	result[0][2] = f.x;
+	result[1][2] = f.y;
+	result[2][2] = f.z;
+	result[3][0] = -dot(s, position);
+	result[3][1] = -dot(u, position);
+	result[3][2] = -dot(f, position);
+
+	return result;
+}
+
+Mat4x4f Math::GenerateProjectionMatrix(float verticalFOV, float aspectRatio, float nearClippingPlane, float farClippingPlane)
+{
+	glm::mat4 glmMat;
+	glmMat = glm::perspective(verticalFOV, aspectRatio, nearClippingPlane, farClippingPlane);
+
+	Mat4x4f result;
+
+	result[0] = Vec4f(glmMat[0].x, glmMat[0].y, glmMat[0].z, glmMat[0].w);
+	result[1] = Vec4f(glmMat[1].x, glmMat[1].y, glmMat[1].z, glmMat[1].w);
+	result[2] = Vec4f(glmMat[2].x, glmMat[2].y, glmMat[2].z, glmMat[2].w);
+	result[3] = Vec4f(glmMat[3].x, glmMat[3].y, glmMat[3].z, glmMat[3].w);
+
+	return result;
+}
+
 std::pair<Vec3f, Vec3f> Math::ClosestPointsOnLines(Line a, Line b)
 {
 	// Get the direction of the line perpendicular to both lines
@@ -66,8 +125,6 @@ std::pair<Vec3f, Vec3f> Math::ClosestPointsOnLines(Line a, Line b)
 	Vec3f c1 = a.point + (a.direction * ((Math::dot(b.point - a.point, n2)) / Math::dot(a.direction, n2)));
 
 	Vec3f c2 = b.point + (b.direction * ((Math::dot(a.point - b.point, n1)) / Math::dot(b.direction, n1)));
-
-
 
 	return std::pair<Vec3f, Vec3f>(c1, c2);
 }

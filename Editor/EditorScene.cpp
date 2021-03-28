@@ -143,40 +143,7 @@ void EditorScene::UpdateToolMeshPositions(Vec3f position)
     m_Renderer->SetMeshPosition(m_YRotatorRing.m_Mesh, position);
     m_Renderer->SetMeshPosition(m_ZRotatorRing.m_Mesh, position);
 
-
-    //float meshRotationX = m_Renderer->GetMeshRotationAroundXAxis(m_SelectedMesh->m_Mesh);
-    //float meshRotationY = m_Renderer->GetMeshRotationAroundYAxis(m_SelectedMesh->m_Mesh);
-    //float meshRotationZ = m_Renderer->GetMeshRotationAroundZAxis(m_SelectedMesh->m_Mesh);
     Quaternion meshRotation = m_Renderer->GetMeshRotation(m_SelectedMesh->m_Mesh);
-
-    //m_Renderer->SetMeshRotation(m_XRotatorRing.m_Mesh, meshRotation * Quaternion(Vec3f(0.0f, 1.0f, 0.0f), ORIGINAL_RING_ROTATION));
-    //m_Renderer->SetMeshRotationAroundYAxis(m_XRotatorRing.m_Mesh, meshRotationY);
-    //Temp?
-    //m_Renderer->SetMeshRotationAroundYAxis(m_YRotatorRing.m_Mesh, meshRotationY);
-    //m_Renderer->SetMeshRotationAroundYAxis(m_ZRotatorRing.m_Mesh, meshRotationY);
-
-
-    //m_Renderer->SetMeshRotationAroundXAxis(m_YRotatorRing.m_Mesh, meshRotationX);
-    //Temp?
-    //m_Renderer->SetMeshRotationAroundXAxis(m_XRotatorRing.m_Mesh, meshRotationX);
-    //m_Renderer->SetMeshRotationAroundXAxis(m_ZRotatorRing.m_Mesh, meshRotationX);
-
-
-    //m_Renderer->SetMeshRotationAroundYAxis(m_ZRotatorRing.m_Mesh, meshRotationZ);
-    //Temp?
-    //m_Renderer->SetMeshRotationAroundYAxis(m_XRotatorRing.m_Mesh, meshRotationZ);
-    //m_Renderer->SetMeshRotationAroundYAxis(m_YRotatorRing.m_Mesh, meshRotationZ);
-
-
-    //m_Renderer->SetMeshRotationAroundYAxis(m_YRotatorRing.m_Mesh, meshRotationY);
-    //m_Renderer->SetMeshRotationAroundXAxis(m_ZRotatorRing.m_Mesh, meshRotationX);
-    //m_Renderer->SetMeshRotationAroundZAxis(m_XRotatorRing.m_Mesh, meshRotationZ);
-
-    //m_Renderer->SetMeshRotationAroundYAxis(m_ZRotatorRing.m_Mesh, meshRotationY);
-    //m_Renderer->SetMeshRotationAroundXAxis(m_XRotatorRing.m_Mesh, meshRotationX);
-    //m_Renderer->SetMeshRotationAroundZAxis(m_YRotatorRing.m_Mesh, meshRotationZ);
-
-
 }
 
 EditorScene::EditorScene(Renderer* renderer)
@@ -185,7 +152,6 @@ EditorScene::EditorScene(Renderer* renderer)
     m_XAxisArrow.m_Mesh = FileLoader::LoadOBJFile("models/ArrowSmooth.obj", *m_Renderer);
     renderer->SetMeshColour(m_XAxisArrow.m_Mesh, Vec4f(1.0f, 0.0f, 0.0f, 1.0f));
     renderer->SetMeshScale(m_XAxisArrow.m_Mesh, Vec3f(0.2f, 0.2f, 0.2f));
-    //renderer->RotateMeshAroundYAxis(m_XAxisArrow.m_Mesh, 180.0f);
     renderer->RotateMeshAroundAxis(m_XAxisArrow.m_Mesh, Vec3f(0.0f, 0.0f, -1.0f), Math::Pi() / 2.0f);
     m_XAxisArrow.m_CollisionTriangles = Collisions::GenerateCollisionGeometryFromMesh(m_XAxisArrow.m_Mesh, m_Renderer);
     

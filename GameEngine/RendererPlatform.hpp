@@ -52,6 +52,7 @@ public:
 	Renderer();
 	~Renderer();
 
+	//TODO(fraser) Should the renderer be in charge of loading things?
 	Texture LoadTexture(std::string filePath);
 	Mesh_ID LoadMesh(std::vector<Vertex> vertices, std::vector<unsigned int> indices);
 
@@ -60,6 +61,8 @@ public:
 	void ClearScreen();
 	void SwapBuffer();
 
+	//TODO(fraser) These three should definitely be changed - SetTime and SetSunDirection should be done in a more general "set uniform with name X" way
+	// Also SetCamTransform should take a matrix
 	void SetTime(float time);
 	void SetCamTransform(Vec3f position, Vec3f direction, Vec3f up);
 	void SetSunDirection(Vec3f newDirection);
@@ -74,9 +77,12 @@ public:
 
 	void* MapMeshRange(Mesh_ID mesh, unsigned int offset, unsigned int range);
 
+	//TODO(fraser) should a texture be an attribute of a mesh or a "model"?
 	void SetMeshTexture(Mesh_ID meshID, Texture texture);
+	
 	void SetMeshDrawType(Mesh_ID meshID, DrawType type);
 
+	//TODO(fraser) honestly maybe all of this (scale, position, rotation) information should be managed by a "model" object
 	void MoveMesh(Mesh_ID meshID, Vec3f move);
 	void ScaleMesh(Mesh_ID meshID, Vec3f scaleFactor);
 
@@ -91,10 +97,10 @@ public:
 	void SetMeshRotation(Mesh_ID meshID, Quaternion rotation);
 	Quaternion GetMeshRotation(Mesh_ID meshID);
 
+	Mat4x4f GetMeshTransform(Mesh_ID meshID);
+	
 	void InitializeDebugDraw();
 	void DebugDrawLineSegment(DebugLineSegment lineSegment);
-
-	Mat4x4f GetMeshTransform(Mesh_ID meshID);
 
 	void EnableDepthTesting();
 	void DisableDepthTesting();
@@ -103,7 +109,7 @@ public:
 
 	void SetMeshColour(Mesh_ID meshID, Vec4f colour);
 
-
+	//TODO(fraser) this should be moved to other "debug draw" functions? (and probably done in a different way anyway)
 	Mesh_ID GenerateLineMeshFromMesh(Mesh_ID mesh, Vec4f colour);
 
 private:

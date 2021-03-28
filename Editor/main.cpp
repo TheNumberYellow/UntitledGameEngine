@@ -11,12 +11,6 @@ struct Camera
     Vec3f up = Vec3f(0.0f, 0.0f, 1.0f);
 };
 
-inline double getAbsoluteDiff2Angles(const double x, const double y, const double c)
-{
-	// c can be PI (for radians) or 180.0 (for degrees);
-	return c - fabs(fmod(fabs(x - y), 2 * c) - c);
-}
-
 static Camera cam;
 
 Mesh_ID unitCube;
@@ -34,7 +28,6 @@ Mesh_ID treeStumpMesh4;
 Mesh_ID treeStumpMesh5;
 Mesh_ID treeMesh;
 
-
 Mesh_ID xArrow;
 Mesh_ID yArrow;
 Mesh_ID zArrow;
@@ -42,7 +35,10 @@ Mesh_ID zArrow;
 EditorScene editorScene;
 
 static bool holdingMouseLeft = false;
+static bool cameraControlEnabled = true;
 static bool holdingTab = false;
+static bool holdingAlt = false;
+static bool holdingSpace = false;
 
 static bool translatingX = false;
 static bool translatingY = false;
@@ -91,6 +87,11 @@ void MoveCamera(ControlInputs& inputs, Camera& cam, float pixelToRadians)
 	}
 }
 
+Ray GetPointerRay()
+{
+	Mat4x4f camMatrix;
+
+}
 
 void Initialize(Renderer& renderer)
 {
@@ -119,18 +120,6 @@ void Initialize(Renderer& renderer)
 	};
 
 	groundPlane = renderer.LoadMesh(planeVertices, planeIndices);
-
-
-
-	//editorScene.AddEditableMesh(groundPlane, &renderer);
-
-	//arrowMesh = FileLoader::LoadOBJFile("models/boxbbox.obj", renderer);
-	//Texture boxTexture = renderer.LoadTexture("textures/Cube.png");
-	//renderer.SetMeshTexture(arrowMesh, boxTexture);
-	//editorScene.AddEditableMesh(arrowMesh);
-
-	//hoopMesh = FileLoader::LoadOBJFile("models/TranslatePad.obj", renderer);
-	//editorScene.AddEditableMesh(hoopMesh);
 
 	groundMesh = FileLoader::LoadOBJFile("models/TestMountain.obj", renderer);
 	Texture planeTexture = renderer.LoadTexture("textures/dirt.png");
@@ -172,7 +161,6 @@ void Initialize(Renderer& renderer)
 	renderer.SetMeshColour(treeMesh, Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
 	editorScene.AddEditableMesh(treeMesh);
 
-
 	renderer.SetSunDirection(Vec3f(0.0f, 0.0f, -1.0f));
 
 	Engine::HideCursor();
@@ -188,8 +176,10 @@ void Update(Renderer& renderer, ControlInputs& inputs)
         Engine::StopGame();
         return;
     }
-
-	MoveCamera(inputs, cam, 0.001f);
+	if (cameraControlEnabled)
+	{
+		MoveCamera(inputs, cam, 0.001f);
+	}
 
 	if (inputs.mouse.leftMouseButton)
 	{
@@ -457,15 +447,29 @@ void Update(Renderer& renderer, ControlInputs& inputs)
 
     renderer.SetCamTransform(cam.position, cam.direction, cam.up);
 
-	if (inputs.keysDown.alt)
+	if (inputs.keysDown.alt && !holdingAlt)
 	{
 		Engine::UnlockCursor();
 		Engine::ShowCursor();
+		cameraControlEnabled = false;
+
+		holdingAlt = true;
 	}
-	if (inputs.keysDown.space)
+	else if (!inputs.keysDown.alt && holdingAlt)
+	{
+		holdingAlt = false;
+	}
+	if (inputs.keysDown.space && !holdingSpace)
 	{
 		Engine::LockCursor();
 		Engine::HideCursor();
+		cameraControlEnabled = true;
+		
+		holdingSpace = true;
+	}
+	else if (!inputs.keysDown.space && holdingSpace)
+	{
+		holdingSpace = false;
 	}
 
 	if (inputs.keysDown.tab && !holdingTab)

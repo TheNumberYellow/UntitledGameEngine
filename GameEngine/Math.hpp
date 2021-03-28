@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <utility>
 
+#include <assert.h>
+
 #define _USE_MATH_DEFINES
 #include <math.h>
 
@@ -25,8 +27,24 @@ struct Vec2f
 struct Vec3f
 {
 	float x, y, z;
+	
 	Vec3f(float x, float y, float z) : x(x), y(y), z(z) {}
 	Vec3f() : x(0.0f), y(0.0f), z(0.0f) {}
+
+	float& operator[] (int index)
+	{
+		switch (index)
+		{
+		case 0:
+			return x;
+		case 1:
+			return y;
+		case 2:
+			return z;
+		default:
+			assert(false && "Vec3f access out of range.");
+		}
+	}
 
 	Vec3f operator+(Vec3f rhs)
 	{
@@ -81,6 +99,24 @@ struct Vec4f
 	float x, y, z, w;
 	Vec4f(float x, float y, float z, float w) : x(x), y(y), z(z), w(w) {}
 	Vec4f() : x(0.0f), y(0.0f), z(0.0f), w(0.0f) {} // TODO: come back to this if I'm always setting w to 1.0f
+
+	float& operator[] (int index)
+	{
+		switch (index)
+		{
+		case 0:
+			return x;
+		case 1:
+			return y;
+		case 2:
+			return z;
+		case 3:
+			return w;
+		default:
+			assert(false && "Vec4f access out of range.");
+			return x;
+		}
+	}
 };
 
 struct Mat4x4f
@@ -100,8 +136,6 @@ struct Mat4x4f
 	}
 
 	Mat4x4f operator*(Mat4x4f rhs);
-		
-
 };
 
 struct Line
@@ -124,6 +158,11 @@ public:
 	static float clamp(float input, float min, float max);
 
 	static float Pi() { return (float)M_PI; }
+
+	static Mat4x4f inv(Mat4x4f mat);
+
+	static Mat4x4f GenerateViewMatrix(Vec3f position, Vec3f direction, Vec3f up = Vec3f(0.0f, 0.0f, 1.0f));
+	static Mat4x4f GenerateProjectionMatrix(float verticalFOV, float aspectRatio, float nearClippingPlane, float farClippingPlane);
 
 	static std::pair<Vec3f, Vec3f> ClosestPointsOnLines(Line a, Line b);
 };

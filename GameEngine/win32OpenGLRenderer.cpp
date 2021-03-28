@@ -410,7 +410,6 @@ void Renderer::DrawMesh(Mesh_ID meshID)
 
 	glUniformMatrix4fv(defaultShader.TransformationLocation, 1, GL_FALSE, glm::value_ptr(transformMatrix));
 
-	//glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, mesh.texture.m_TextureId);
 	glBindVertexArray(mesh.VAO);
 	
@@ -822,19 +821,14 @@ bool Renderer::CheckShaderCompilation(unsigned int shader)
 
 void Renderer::UpdateCamTransform()
 {
-	glm::mat4 viewMatrix;
+	Mat4x4f viewMatrix = Math::GenerateViewMatrix(defaultCamera.position, defaultCamera.direction, defaultCamera.up);
 
-	glm::vec3 glmPosition = glm::vec3(defaultCamera.position.x, defaultCamera.position.y, defaultCamera.position.z);
-	glm::vec3 glmDirection = glm::vec3(defaultCamera.direction.x, defaultCamera.direction.y, defaultCamera.direction.z);
-	glm::vec3 glmUp = glm::vec3(defaultCamera.up.x, defaultCamera.up.y, defaultCamera.up.z);
+	Mat4x4f projectionMatrix = Math::GenerateProjectionMatrix(glm::radians(70.0f), (float)screenSize.x / (float)screenSize.y, 0.01f, 400.0f);
 
-	viewMatrix = glm::lookAt(glmPosition, glmPosition + glmDirection, glmUp);
+	Mat4x4f camMatrix = projectionMatrix * viewMatrix;
 
-	glm::mat4 projectionMatrix = glm::perspective(glm::radians(90.0f), (float)screenSize.x / (float)screenSize.y, 0.01f, 400.0f);
+	glUniformMatrix4fv(defaultShader.CameraLocation, 1, GL_FALSE, &camMatrix[0][0]);
 
-	glm::mat4 camMatrix = projectionMatrix * viewMatrix;
-
-	glUniformMatrix4fv(defaultShader.CameraLocation, 1, GL_FALSE, glm::value_ptr(camMatrix));
 
 	defaultCamera.camMatrixNeedsUpdate = false;
 }

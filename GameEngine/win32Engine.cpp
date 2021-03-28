@@ -57,14 +57,20 @@ void Engine::UnlockCursor()
 
 void Engine::HideCursor()
 {
-	cursorHidden = true;
-	::ShowCursor(false);
+	if (!cursorHidden)
+	{
+		::ShowCursor(false);
+		cursorHidden = true;
+	}
 }
 
 void Engine::ShowCursor()
 {
-	cursorHidden = false;
-	::ShowCursor(true);
+	if (cursorHidden)
+	{
+		::ShowCursor(true);
+		cursorHidden = false;
+	}
 }
 
 
@@ -117,6 +123,7 @@ int WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ L
 	wndClass.lpfnWndProc = WindowProc;
 	wndClass.hInstance = Instance;
 	wndClass.lpszClassName = L"GameEngineWindowClass";
+	wndClass.hCursor = LoadCursor(NULL, IDC_ARROW);
 
 	if (!RegisterClassEx(&wndClass))
 	{
@@ -159,8 +166,6 @@ int WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ L
 
 	Initialize(Renderer);
 
-	//ShowCursor(!cursorHidden);
-
 	while (running)
 	{
 
@@ -184,7 +189,6 @@ int WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ L
 				{
 					WarpMouseToWindowCenter();
 				}
-				//ShowCursor(!cursorHidden);
 			}
 
 			Vec2i screenSize = Engine::GetScreenSize();

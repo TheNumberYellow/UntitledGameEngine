@@ -183,6 +183,7 @@
     </ProjectReference>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Camera.cpp" />
     <ClCompile Include="Collisions.cpp" />
     <ClCompile Include="GUID.cpp" />
     <ClCompile Include="Math.cpp" />
@@ -194,6 +195,7 @@
     <ClCompile Include="win32OpenGLRenderer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Camera.h" />
     <ClInclude Include="Collisions.hpp" />
     <ClInclude Include="ControlInputs.hpp" />
     <ClInclude Include="EnginePlatform.hpp" />

@@ -22,17 +22,7 @@ struct EditableMesh
 	void SetScale(Vec3f scale, Renderer* renderer);
 
 	void RotateMeshAroundAxis(Vec3f axis, float rotationAmount, Renderer* renderer);
-
-	//void RotateMeshAroundXAxis(float rotationAmount, Renderer* renderer);
-	//void RotateMeshAroundYAxis(float rotationAmount, Renderer* renderer);
-	//void RotateMeshAroundZAxis(float rotationAmount, Renderer* renderer);
-
-	//void SetRotationAroundXAxis(float rotation, Renderer* renderer);
-	//void SetRotationAroundYAxis(float rotation, Renderer* renderer);
-	//void SetRotationAroundZAxis(float rotation, Renderer* renderer);
-
 };
-
 
 enum class HitType
 {
