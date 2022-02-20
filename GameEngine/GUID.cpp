@@ -1,8 +1,8 @@
 #include "GUID.hpp"
 
-unsigned int GUIDGen::currentGUID = 0;
+GUID GUIDGen::currentGUID = 0;
 
-unsigned int GUIDGen::Generate()
+GUID GUIDGen::Generate()
 {
     return currentGUID++;
 }

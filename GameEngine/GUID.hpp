@@ -1,10 +1,12 @@
 #pragma once
 
+#define GUID unsigned int
+
 class GUIDGen
 {
 
 public:
-    static unsigned int Generate();
+    static GUID Generate();
 private:
-    static unsigned int currentGUID;
+    static GUID currentGUID;
 };

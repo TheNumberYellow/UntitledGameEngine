@@ -5,5 +5,5 @@
 
 namespace StringUtils
 {
-	std::vector<std::string> Split(std::string inputString, std::string delimiter);
+    std::vector<std::string> Split(std::string inputString, std::string delimiter);
 }

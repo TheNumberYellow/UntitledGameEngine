@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -29,26 +29,26 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -121,7 +121,7 @@
     <Lib>
       <AdditionalLibraryDirectories>$(ProjectDir)lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <SubSystem>Windows</SubSystem>
-      <AdditionalDependencies>opengl32.lib;glew32sd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opengl32.lib;glew32sd.lib;freetype.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
     </Lib>
     <ProjectReference>
@@ -175,7 +175,7 @@
     <Lib>
       <AdditionalLibraryDirectories>$(ProjectDir)lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <SubSystem>Windows</SubSystem>
-      <AdditionalDependencies>opengl32.lib;glew32s.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opengl32.lib;glew32s.lib;freetype.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
     </Lib>
     <ProjectReference>
@@ -185,31 +185,45 @@
   <ItemGroup>
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="Collisions.cpp" />
+    <ClCompile Include="Modules\CollisionModule.cpp" />
+    <ClCompile Include="Modules\GraphicsModule.cpp" />
     <ClCompile Include="GUID.cpp" />
-    <ClCompile Include="Math.cpp" />
+    <ClCompile Include="Math\Math.cpp" />
+    <ClCompile Include="Math\Quaternion.cpp" />
+    <ClCompile Include="Math\Vector.cpp" />
     <ClCompile Include="MeshGenerator.cpp" />
     <ClCompile Include="FileLoader.cpp" />
-    <ClCompile Include="Scene.cpp" />
+    <ClCompile Include="Modules\ModuleManager.cpp" />
+    <ClCompile Include="Modules\UIModule.cpp" />
+    <ClCompile Include="State.cpp" />
     <ClCompile Include="StringUtils.cpp" />
-    <ClCompile Include="win32Engine.cpp" />
-    <ClCompile Include="win32OpenGLRenderer.cpp" />
+    <ClCompile Include="Platform\win32Engine.cpp" />
+    <ClCompile Include="Platform\win32OpenGLRenderer.cpp" />
+    <ClCompile Include="Modules\TextModule.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Camera.h" />
     <ClInclude Include="Collisions.hpp" />
     <ClInclude Include="ControlInputs.hpp" />
-    <ClInclude Include="EnginePlatform.hpp" />
+    <ClInclude Include="Interfaces\Resizeable_i.h" />
+    <ClInclude Include="Math\Geometry.h" />
+    <ClInclude Include="Math\Quaternion.h" />
+    <ClInclude Include="Math\Vector.h" />
+    <ClInclude Include="Modules\CollisionModule.h" />
+    <ClInclude Include="Modules\ModuleManager.h" />
+    <ClInclude Include="Modules\UIModule.h" />
+    <ClInclude Include="Platform\EnginePlatform.hpp" />
     <ClInclude Include="GameEngine.hpp" />
+    <ClInclude Include="Modules\GraphicsModule.hpp" />
     <ClInclude Include="GUID.hpp" />
-    <ClInclude Include="Math.hpp" />
+    <ClInclude Include="Math\Math.hpp" />
     <ClInclude Include="MeshGenerator.hpp" />
     <ClInclude Include="FileLoader.h" />
-    <ClInclude Include="RendererPlatform.hpp" />
-    <ClInclude Include="Scene.h" />
+    <ClInclude Include="Platform\NetworkPlatform.hpp" />
+    <ClInclude Include="Platform\RendererPlatform.hpp" />
+    <ClInclude Include="State.hpp" />
     <ClInclude Include="StringUtils.hpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="cpp.hint" />
+    <ClInclude Include="Modules\TextModule.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

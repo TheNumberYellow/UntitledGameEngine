@@ -1,18 +1,20 @@
 #pragma once
 
-#include "Math.hpp"
+#include "Math\Math.hpp"
 
 #include "StringUtils.hpp"
 
-#include "EnginePlatform.hpp"
-#include "RendererPlatform.hpp"
+#include "Platform\EnginePlatform.hpp"
+#include "Platform\RendererPlatform.hpp"
+
+#include "Modules\ModuleManager.h"
 
 #include "ControlInputs.hpp"
 
-#include "Scene.h"
 #include "MeshGenerator.hpp"
 #include "FileLoader.h"
 
 // These functions are to be defined in client code
-extern void Initialize(Renderer& renderer);
-extern void Update(Renderer& renderer, ControlInputs& inputs);
+extern void Initialize(ModuleManager& modules);
+extern void Update(ModuleManager& modules, ControlInputs& inputs);
+extern void Resize(ModuleManager& modules, Vec2i newSize);
