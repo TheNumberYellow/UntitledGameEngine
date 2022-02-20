@@ -502,7 +502,7 @@ void GraphicsModule::SetActiveFrameBuffer(Framebuffer_ID fBufferID)
 
 void GraphicsModule::ResizeFrameBuffer(Framebuffer_ID fBufferID, Vec2i size)
 {
-
+    m_Renderer.ResizeFBuffer(fBufferID, size);
 }
 
 void GraphicsModule::ResetFrameBuffer()

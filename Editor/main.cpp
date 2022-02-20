@@ -347,14 +347,14 @@ void UpdateEditor(ModuleManager& modules, ControlInputs& inputs)
 
     ui.BufferPanel(viewportBuffer, newViewport);
 
-    graphics.m_Renderer.SetActiveShader(testDepthShader);
-    graphics.m_Renderer.SetActiveFBufferTexture(shadowBuffer);
-    //graphics.m_Renderer.SetActiveTexture(previewPSpawn.m_TexturedMeshes[0].m_Texture);
-    graphics.m_Renderer.DrawMesh(quadMesh);
+    //graphics.m_Renderer.SetActiveShader(testDepthShader);
+    //graphics.m_Renderer.SetActiveFBufferTexture(shadowBuffer);
+    ////graphics.m_Renderer.SetActiveTexture(previewPSpawn.m_TexturedMeshes[0].m_Texture);
+    //graphics.m_Renderer.DrawMesh(quadMesh);
 
     Vec2i screen = Engine::GetClientAreaSize();
 
-    //ui.StartFrame(Rect(Vec2f(100.0f, 0.0f), Vec2f(screen.x - 100.0f, 200.0f)), 20.0f);
+    ui.StartFrame(Rect(Vec2f(100.0f, 0.0f), Vec2f(screen.x - 100.0f, 200.0f)), 20.0f);
 
     if (ui.ImgButton(cursorToolTexture, Rect(Vec2f(0.0f, screen.y - 200.0f), Vec2f(100.0f, screen.y - 100.0f)), 20.0f))
     {
@@ -839,5 +839,6 @@ void Resize(ModuleManager& modules, Vec2i newSize)
 {
     Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
     cam.SetScreenSize(viewportRect.size);
+    modules.GetGraphics()->ResizeFrameBuffer(viewportBuffer, viewportRect.size);
     Engine::SetCursorCenter(Vec2i(viewportRect.location.x + viewportRect.size.x / 2, Engine::GetClientAreaSize().y - (viewportRect.size.y / 2) - viewportRect.location.y));
 }

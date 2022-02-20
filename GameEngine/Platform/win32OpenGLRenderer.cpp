@@ -609,10 +609,6 @@ namespace
                 for (GLint i = 0; i < numAttributes; ++i)
                 {
                     if (i != 0) currentOffset += attribInfos[i].size;
-                    //glEnableVertexAttribArray(i);
-
-                    //TODO(fraser): may want to change this GL_FLOAT hardcoding later
-                    //glVertexAttribPointer(i, attribInfos[i].count, GL_FLOAT, GL_FALSE, totalStride, &currentOffset);
                 }
             }
 
@@ -1178,20 +1174,27 @@ void Renderer::ResizeFBuffer(Framebuffer_ID fBufferID, Vec2i newSize)
 {
     OpenGLFBuffer* bufferPtr = GetGLFBufferFromFBufferID(fBufferID);
 
-    bufferPtr->size = newSize;
-
-    glActiveTexture(GL_TEXTURE0 + bufferPtr->texture);
-    
-    if (bufferPtr->format == FBufferFormat::DEPTH)
+    // I'm not actually deleting the old framebuffer, texture, or renderbuffer...
+    // I've read this can cause issues but it hasn't for me so '_>'
+    if (bufferPtr)
     {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, newSize.x, newSize.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
-    }
-    if (bufferPtr->format == FBufferFormat::COLOUR)
-    {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, newSize.x, newSize.y, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
-    }
+        bufferPtr->size = newSize;
 
+        glBindFramebuffer(GL_FRAMEBUFFER, bufferPtr->fbo);
+        glBindTexture(GL_TEXTURE_2D, bufferPtr->texture);
 
+        if (bufferPtr->format == FBufferFormat::DEPTH)
+        {
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, newSize.x, newSize.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+        }
+        if (bufferPtr->format == FBufferFormat::COLOUR)
+        {
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, newSize.x, newSize.y, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+
+            glBindRenderbuffer(GL_RENDERBUFFER, bufferPtr->rbo);
+            glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, newSize.x, newSize.y);
+        }
+    }
 
 }
 

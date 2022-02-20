@@ -30,8 +30,10 @@ public:
     void ImgPanel(Texture_ID texture, Rect rect);
     void BufferPanel(Framebuffer_ID fBuffer, Rect rect);
     bool ImgButton(Texture_ID texture, Rect rect, float borderWidth);
-    void StartFrame(Rect rect, float borderWidth);
     
+    void StartFrame(Rect rect, float borderWidth);
+    void EndFrame();
+
     void OnFrameStart();
 
     void OnFrameEnd();
@@ -55,6 +57,9 @@ private:
     Shader_ID m_UIShader;
 
     Renderer& m_Renderer;
+
+    bool m_InsideSubFrame = false;
+    Rect m_SubFrame;
 
     bool m_LeftAligned = true;
     bool m_TopAligned = true;

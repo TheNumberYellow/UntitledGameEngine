@@ -89,6 +89,8 @@ void UIModule::AlignBottom()
 
 void UIModule::ImgPanel(Texture_ID texture, Rect rect)
 {
+    m_Renderer.DisableDepthTesting();
+
     MeshData vertexData = GetVertexDataForRect(rect);
 
     VertexBufferFormat vertFormat = VertexBufferFormat({ VertAttribute::Vec2f, VertAttribute::Vec2f });
@@ -102,10 +104,14 @@ void UIModule::ImgPanel(Texture_ID texture, Rect rect)
     m_Renderer.SetShaderUniformBool(m_UIShader, "Clicking", false);
 
     m_Renderer.DrawMesh(m_RectMesh);
+
+    m_Renderer.EnableDepthTesting();
 }
 
 void UIModule::BufferPanel(Framebuffer_ID fBuffer, Rect rect)
 {
+    m_Renderer.DisableDepthTesting();
+
     MeshData vertexData = GetVertexDataForRect(rect);
 
     VertexBufferFormat vertFormat = VertexBufferFormat({ VertAttribute::Vec2f, VertAttribute::Vec2f });
@@ -120,6 +126,8 @@ void UIModule::BufferPanel(Framebuffer_ID fBuffer, Rect rect)
     m_Renderer.SetShaderUniformBool(m_UIShader, "Clicking", false);
 
     m_Renderer.DrawMesh(m_RectMesh);
+
+    m_Renderer.EnableDepthTesting();
 }
 
 bool UIModule::ImgButton(Texture_ID texture, Rect rect, float borderWidth)
@@ -215,6 +223,10 @@ void UIModule::StartFrame(Rect rect, float borderWidth)
 
     m_Renderer.EnableDepthTesting();
 
+}
+
+void UIModule::EndFrame()
+{
 }
 
 void UIModule::OnFrameStart()
