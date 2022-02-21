@@ -189,20 +189,18 @@ LRESULT CALLBACK WindowProc(_In_ HWND WindowHandle, _In_ UINT Message, _In_ WPAR
         break;
     case WM_SIZE:
     {
-        UINT width = LOWORD(lParam);
-        UINT height = HIWORD(lParam);
-        UIModule* ui = modules->GetUI();
-        if (ui)
-        {
-            ui->Resize(Vec2i(width, height));
-        }
-        GraphicsModule* graphics = modules->GetGraphics();
-        if (graphics)
-        {
-            graphics->Resize(Vec2i(width, height));
-        }
+        Vec2i newSize = { LOWORD(lParam), HIWORD(lParam) };
 
-        Resize(*modules, Vec2i(width, height));
+        if (modules->AreAllModulesInitialized())
+        {
+            UIModule* ui = modules->GetUI();
+            ui->Resize(newSize);
+
+            GraphicsModule* graphics = modules->GetGraphics();
+            graphics->Resize(newSize);
+
+            Resize(*modules, newSize);
+        }
 
         break;
     }

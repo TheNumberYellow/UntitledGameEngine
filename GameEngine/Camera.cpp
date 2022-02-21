@@ -22,6 +22,7 @@ void Camera::Move(Vec3f move)
 void Camera::Rotate(Quaternion rot)
 {
     m_Direction = m_Direction * rot;
+    m_ViewMatrixNeedsUpdate = true;
 }
 
 Vec3f Camera::GetPosition() const

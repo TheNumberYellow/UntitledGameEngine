@@ -39,3 +39,11 @@ void ModuleManager::SetUI(UIModule* ui)
 {
     _ui = ui;
 }
+
+bool ModuleManager::AreAllModulesInitialized()
+{
+    return _graphics 
+        && _collision 
+        && _text 
+        && _ui;
+}

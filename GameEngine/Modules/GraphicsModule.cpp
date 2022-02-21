@@ -74,41 +74,6 @@ void Transform::UpdateTransformMatrix()
     m_WasTransformMatrixUpdated = true;
 }
 
-
-UIElement::UIElement(Texture_ID texture, Rect rect, Renderer& renderer)
-{
-    VertexBufferFormat vertFormat({ VertAttribute::Vec3f, VertAttribute::Vec2f });
-
-    std::vector<float> vertices =
-    {
-
-        rect.location.x, rect.location.y, -1.0f, 0.0f, 0.0f,
-        rect.location.x, rect.location.y + rect.size.y, -1.0f, 0.0f, 1.0f,
-        rect.location.x + rect.size.x, rect.location.y + rect.size.y, -1.0f, 1.0f, 1.0f,
-        rect.location.x + rect.size.x, rect.location.y, -1.0f, 1.0f, 0.0f,
-    };
-
-    std::vector<ElementIndex> indices =
-    {
-        0, 1, 2, 0, 2, 3
-    };
-
-    Mesh_ID mesh = renderer.LoadMesh(vertFormat, vertices, indices);
-
-    m_TexturedMesh = TexturedMesh(mesh, texture);
-    m_Rect = rect;
-}
-
-bool UIElement::Click(Vec2i mousePos)
-{
-    mousePos.y = Engine::GetClientAreaSize().y - mousePos.y;
-    if (m_Rect.contains(Vec2f((float)mousePos.x, (float)mousePos.y)))
-    {
-        return true;
-    }
-    return false;
-}
-
 GraphicsModule::GraphicsModule(Renderer& renderer)
     : m_Renderer(renderer)
     , m_Camera(nullptr)
@@ -519,11 +484,6 @@ Model GraphicsModule::CreateModel(TexturedMesh texturedMesh)
     return Model(texturedMesh);
 }
 
-UIElement GraphicsModule::CreateUIElement(Texture_ID texture, Rect rect)
-{
-    return UIElement(texture, rect, m_Renderer);
-}
-
 Model GraphicsModule::CloneModel(const Model& original)
 {
     return Model(original.m_TexturedMeshes[0]);
@@ -568,15 +528,6 @@ void GraphicsModule::Draw(Model& model)
         m_Renderer.SetActiveTexture(model.m_TexturedMeshes[i].m_Texture, 0);
         m_Renderer.DrawMesh(model.m_TexturedMeshes[i].m_Mesh);
     }
-}
-
-void GraphicsModule::Draw(UIElement& uiElement)
-{
-    m_Renderer.SetActiveShader(m_UIShader);
-    //m_Renderer.SetShaderUniformMat4x4f(m_UIShader, "Projection", m_OrthoProjection);
-
-    m_Renderer.SetActiveTexture(uiElement.m_TexturedMesh.m_Texture);
-    m_Renderer.DrawMesh(uiElement.m_TexturedMesh.m_Mesh);
 }
 
 void GraphicsModule::SetCamera(Camera* camera)

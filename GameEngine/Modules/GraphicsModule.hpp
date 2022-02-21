@@ -99,20 +99,6 @@ private:
     Transform m_Transform;
 };
 
-class UIElement
-{
-public:
-    UIElement() {}
-    UIElement(Texture_ID texture, Rect rect, Renderer& renderer);
-
-    bool Click(Vec2i mousePos);
-
-    TexturedMesh m_TexturedMesh;
-
-private:
-    Rect m_Rect;
-};
-
 class GraphicsModule
     : public IResizeable
 {
@@ -132,7 +118,6 @@ public:
     void ResetFrameBuffer();
 
     Model CreateModel(TexturedMesh texturedMesh);
-    UIElement CreateUIElement(Texture_ID texture, Rect rect);
 
     Model CloneModel(const Model& original);
 
@@ -141,8 +126,7 @@ public:
     Brush CreateBrush(AABB box, Texture_ID texture = 0);
 
     void Draw(Model& model);
-    void Draw(UIElement& uiElement);
-
+    
     void SetCamera(Camera* camera);
 
     // todo(Fraser): these two should not be called from client code (only the engine)
@@ -164,11 +148,11 @@ public:
 
     //TEMP: public
     Renderer& m_Renderer;
+    Camera* m_Camera;
 private:
 
     Mesh_ID CreateBoxMesh(AABB box);
 
-    Camera* m_Camera;
     bool m_CameraMatrixSetThisFrame;
 
 public:

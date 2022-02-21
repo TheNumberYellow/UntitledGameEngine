@@ -308,9 +308,9 @@ void UpdateEditor(ModuleManager& modules, ControlInputs& inputs)
         holdingAlt = false;
     }
 
-    DrawEditorGrid(graphics);
+    // BEGIN DRAW
 
-    //graphics.m_Renderer.SetCulling(Cull::Front);
+    DrawEditorGrid(graphics);
 
     graphics.SetActiveFrameBuffer(shadowBuffer);
     graphics.m_Renderer.SetActiveShader(shadowShader);
@@ -328,13 +328,14 @@ void UpdateEditor(ModuleManager& modules, ControlInputs& inputs)
         //graphics.Draw(previewPSpawn);
     }
     graphics.ResetFrameBuffer();
-
-    //graphics.m_Renderer.SetCulling(Cull::Back);
-
+        
+    // THIS IS ALL TEMPORARY WHILE I WORK ON A SHADOW SYSTEM IN THE GRAPHICS MODULE :^) 
     graphics.SetCamera(&cam);
     graphics.SetActiveFrameBuffer(viewportBuffer);
     {
         graphics.m_Renderer.SetActiveFBufferTexture(shadowBuffer, 1);
+        graphics.m_Renderer.SetShaderUniformMat4x4f(graphics.m_TexturedMeshShader, "Camera", graphics.m_Camera->GetCamMatrix());
+        graphics.m_Renderer.SetShaderUniformVec3f(graphics.m_TexturedMeshShader, "CameraPos", graphics.m_Camera->GetPosition());
         graphics.m_Renderer.SetShaderUniformMat4x4f(graphics.m_TexturedMeshShader, "LightSpaceMatrix", shadowCam.GetCamMatrix());
         for (int i = 0; i < boxes.size(); ++i)
         {
@@ -347,14 +348,18 @@ void UpdateEditor(ModuleManager& modules, ControlInputs& inputs)
 
     ui.BufferPanel(viewportBuffer, newViewport);
 
-    //graphics.m_Renderer.SetActiveShader(testDepthShader);
-    //graphics.m_Renderer.SetActiveFBufferTexture(shadowBuffer);
-    ////graphics.m_Renderer.SetActiveTexture(previewPSpawn.m_TexturedMeshes[0].m_Texture);
-    //graphics.m_Renderer.DrawMesh(quadMesh);
+    //for (int i = 0; i < 10000; ++i)
+    //{
+    //    ui.ImgPanel(vertexToolTexture, Rect(Vec2f(200, 200), Vec2f(300, 300)));
+    //}
+
+    graphics.m_Renderer.SetActiveShader(testDepthShader);
+    graphics.m_Renderer.SetActiveFBufferTexture(shadowBuffer);
+    graphics.m_Renderer.DrawMesh(quadMesh);
 
     Vec2i screen = Engine::GetClientAreaSize();
 
-    ui.StartFrame(Rect(Vec2f(100.0f, 0.0f), Vec2f(screen.x - 100.0f, 200.0f)), 20.0f);
+    //ui.StartFrame(Rect(Vec2f(100.0f, 0.0f), Vec2f(screen.x - 100.0f, 200.0f)), 20.0f);
 
     if (ui.ImgButton(cursorToolTexture, Rect(Vec2f(0.0f, screen.y - 200.0f), Vec2f(100.0f, screen.y - 100.0f)), 20.0f))
     {
@@ -436,7 +441,8 @@ void Initialize(ModuleManager& modules)
     shadowCam.SetFarPlane(100.0f);
     //shadowCam.SetPosition(Vec3f(0.0f, 0.0f, 5.0f));
     //shadowCam.SetDirection(Vec3f(0.0f, 0.0f, -1.0f));
-    shadowCam.SetPosition(Vec3f(0.0f, -8.0f, 6.0f));
+    shadowCam.SetPosition(Vec3f(0.0f, -30.0f, 6.0f));
+    shadowCam.Rotate(Quaternion(Vec3f(0.0f, 0.0f, 1.0f), 0.9f));
     shadowCam.Rotate(Quaternion(Vec3f(1.0f, 0.0f, 0.0f), 1.3f));
 
     viewportBuffer = graphics.CreateFBuffer(Vec2i(viewportRect.size), FBufferFormat::COLOUR);
@@ -503,10 +509,10 @@ void Initialize(ModuleManager& modules)
 
     std::vector<float> quadVertices =
     {
-        -1.0f, -1.0f,        0.0f, 0.0f,
-        -1.0f, -0.6f,      0.0f, 1.0f,
-        -0.6f, -0.6f,    1.0f, 1.0f,
-        -0.6f, -1.0f,      1.0f, 0.0f,
+        -1.0f, -1.0f,       0.0f, 0.0f,
+        -1.0f, -0.6f,       0.0f, 1.0f,
+        -0.6f, -0.6f,       1.0f, 1.0f,
+        -0.6f, -1.0f,       1.0f, 0.0f,
     };
 
     std::vector<ElementIndex> quadIndices =
@@ -839,6 +845,8 @@ void Resize(ModuleManager& modules, Vec2i newSize)
 {
     Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
     cam.SetScreenSize(viewportRect.size);
-    modules.GetGraphics()->ResizeFrameBuffer(viewportBuffer, viewportRect.size);
+    GraphicsModule* graphics = modules.GetGraphics();
+
+    graphics->ResizeFrameBuffer(viewportBuffer, viewportRect.size);
     Engine::SetCursorCenter(Vec2i(viewportRect.location.x + viewportRect.size.x / 2, Engine::GetClientAreaSize().y - (viewportRect.size.y / 2) - viewportRect.location.y));
 }

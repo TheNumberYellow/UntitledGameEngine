@@ -20,6 +20,8 @@ public:
     UIModule* GetUI();
     void SetUI(UIModule* ui);
 
+    bool AreAllModulesInitialized();
+
 private:
 
     GraphicsModule* _graphics = nullptr;
