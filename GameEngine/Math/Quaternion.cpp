@@ -1,7 +1,6 @@
 #include "Quaternion.h"
 
-#include "Math.hpp"
-#include "Math.hpp"
+#include "Math.h"
 
 Quaternion::Quaternion(Vec3f axis, float rotation)
 {

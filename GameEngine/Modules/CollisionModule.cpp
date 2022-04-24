@@ -11,7 +11,16 @@ CollisionModule::~CollisionModule()
 
 }
 
-CollisionMesh CollisionModule::GenerateCollisionMeshFromMesh(Mesh_ID mesh)
+CollisionMesh& CollisionModule::GetCollisionMeshFromMesh(Mesh_ID mesh)
+{
+    if (m_CollisionMeshMap.find(mesh) == m_CollisionMeshMap.end())
+    {
+        GenerateCollisionMeshFromMesh(mesh);
+    }
+    return m_CollisionMeshMap[mesh];
+}
+
+CollisionMesh& CollisionModule::GenerateCollisionMeshFromMesh(Mesh_ID mesh)
 {
     CollisionMesh collMesh;
 
@@ -27,9 +36,9 @@ CollisionMesh CollisionModule::GenerateCollisionMeshFromMesh(Mesh_ID mesh)
         std::numeric_limits<float>::max(), 
         std::numeric_limits<float>::max());
 
-    boundingBox.max = Vec3f(std::numeric_limits<float>::min(), 
-        std::numeric_limits<float>::min(), 
-        std::numeric_limits<float>::min());
+    boundingBox.max = Vec3f(std::numeric_limits<float>::lowest(),
+        std::numeric_limits<float>::lowest(), 
+        std::numeric_limits<float>::lowest());
 
     for (int i = 0; i < verts.size(); ++i)
     {
@@ -53,7 +62,14 @@ CollisionMesh CollisionModule::GenerateCollisionMeshFromMesh(Mesh_ID mesh)
     m_Renderer.UnmapMeshVertices(mesh);
     m_Renderer.UnmapMeshElements(mesh);
 
-    return collMesh;
+    m_CollisionMeshMap[mesh] = collMesh;
+
+    return m_CollisionMeshMap[mesh];
+}
+
+RayCastHit CollisionModule::RayCast(Ray ray, const CollisionMesh& mesh, Transform& transform)
+{
+    return RayCast(ray, mesh, transform.GetTransformMatrix());
 }
 
 RayCastHit CollisionModule::RayCast(Ray ray, const CollisionMesh& mesh, const Mat4x4f& meshTransform)

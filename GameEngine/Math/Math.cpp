@@ -1,4 +1,4 @@
-#include "Math.hpp"
+#include "Math.h"
 
 #include "Vector.h"
 #include "Quaternion.h"
@@ -35,7 +35,12 @@ Vec3f Math::normalize(Vec3f vec)
 
 float Math::magnitude(Vec3f vec)
 {
-    return sqrt(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z);
+    return sqrt(lenSquared(vec));
+}
+
+float Math::lenSquared(Vec3f vec)
+{
+    return vec.x * vec.x + vec.y * vec.y + vec.z * vec.z;
 }
 
 Quaternion Math::normalize(Quaternion quat)
@@ -43,6 +48,41 @@ Quaternion Math::normalize(Quaternion quat)
     float n = norm(quat);
 
     return Quaternion(quat.x / n, quat.y / n, quat.z / n, quat.w / n);
+}
+
+Vec3f orthogonal(Vec3f v)
+{
+    Vec3f X_AXIS = Vec3f(1.0f, 0.0f, 0.0f);
+    Vec3f Y_AXIS = Vec3f(0.0f, 1.0f, 0.0f);
+    Vec3f Z_AXIS = Vec3f(0.0f, 0.0f, 1.0f);
+
+    float x = abs(v.x);
+    float y = abs(v.y);
+    float z = abs(v.z);
+
+    Vec3f other = x < y ? (x < z ? X_AXIS : Z_AXIS) : (y < z ? Y_AXIS : Z_AXIS);
+    return Math::cross(v, other);
+}
+
+Quaternion Math::VecDiffToQuat(Vec3f v1, Vec3f v2)
+{
+    float k_cos_theta = Math::dot(v1, v2);
+    float k = sqrt(lenSquared(v1) * lenSquared(v2));
+
+    Quaternion result;
+
+    if (k_cos_theta / k == -1.0f)
+    {
+        result.w = 0.0f;
+        result.vec = Math::normalize(orthogonal(v1));
+    }
+    else
+    {
+        result.w = k_cos_theta + k;
+        result.vec = Math::cross(v2, v1);
+    }
+
+    return Math::normalize(result);
 }
 
 float Math::norm(Quaternion quat)

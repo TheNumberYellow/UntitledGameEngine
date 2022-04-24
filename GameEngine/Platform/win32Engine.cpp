@@ -1,6 +1,6 @@
 #include <Windows.h>
 
-#include "..\GameEngine.hpp"
+#include "..\GameEngine.h"
 
 static bool running = true;
 static HWND WindowHandle;
@@ -19,8 +19,6 @@ float Engine::GetElapsedTime()
     float seconds = ((float)tickCount / (float)TICKS_PER_SECOND);
 
     std::string message = std::to_string(seconds) + "\n";
-
-    //DEBUGPrint(message.c_str());
 
     return seconds;
 }
@@ -50,6 +48,17 @@ Vec2i Engine::GetMousePosition()
     return Vec2i(p.x, p.y);
 }
 
+void Engine::SetMousePosition(Vec2i pos)
+{
+    POINT cursorPos;
+    cursorPos.x = pos.x;
+    cursorPos.y = pos.y;
+
+    ClientToScreen(WindowHandle, &cursorPos);
+
+    SetCursorPos(cursorPos.x, cursorPos.y);
+}
+
 bool Engine::GetMouseDown(int button)
 {
     switch (button)
@@ -65,7 +74,7 @@ bool Engine::GetMouseDown(int button)
 
 void Engine::DEBUGPrint(std::string string)
 {
-    OutputDebugStringA((LPCSTR)string.c_str());
+    OutputDebugStringA((LPCSTR)((string + "\n").c_str()));
 }
 
 void Engine::FatalError(std::string errorMessage)
@@ -117,50 +126,64 @@ void Engine::StopGame()
 
 void WarpMouseToWindowCenter()
 {
-    POINT cursorPos;
-    cursorPos.x = cursorCenter.x;
-    cursorPos.y = cursorCenter.y;
-
-    ClientToScreen(WindowHandle, &cursorPos);
-
-    SetCursorPos(cursorPos.x, cursorPos.y);
+    Engine::SetMousePosition(cursorCenter);
 }
 
-void GetKeyboardState(ControlInputs& inputs)
+void GetKeyboardState(InputModule& inputs)
 {
-    inputs.keysDown.w = GetAsyncKeyState('W');
-    inputs.keysDown.a = GetAsyncKeyState('A');
-    inputs.keysDown.s = GetAsyncKeyState('S');
-    inputs.keysDown.d = GetAsyncKeyState('D');
-    inputs.keysDown.q = GetAsyncKeyState('Q');
-    inputs.keysDown.e = GetAsyncKeyState('E');
+    inputs.SetKeyDown(Key::A, GetAsyncKeyState('A'));
+    inputs.SetKeyDown(Key::B, GetAsyncKeyState('B'));
+    inputs.SetKeyDown(Key::C, GetAsyncKeyState('C'));
+    inputs.SetKeyDown(Key::D, GetAsyncKeyState('D'));
+    inputs.SetKeyDown(Key::E, GetAsyncKeyState('E'));
+    inputs.SetKeyDown(Key::F, GetAsyncKeyState('F'));
+    inputs.SetKeyDown(Key::G, GetAsyncKeyState('G'));
+    inputs.SetKeyDown(Key::H, GetAsyncKeyState('H'));
+    inputs.SetKeyDown(Key::I, GetAsyncKeyState('I'));
+    inputs.SetKeyDown(Key::J, GetAsyncKeyState('J'));
+    inputs.SetKeyDown(Key::K, GetAsyncKeyState('K'));
+    inputs.SetKeyDown(Key::L, GetAsyncKeyState('L'));
+    inputs.SetKeyDown(Key::M, GetAsyncKeyState('M'));
+    inputs.SetKeyDown(Key::N, GetAsyncKeyState('N'));
+    inputs.SetKeyDown(Key::O, GetAsyncKeyState('O'));
+    inputs.SetKeyDown(Key::P, GetAsyncKeyState('P'));
+    inputs.SetKeyDown(Key::Q, GetAsyncKeyState('Q'));
+    inputs.SetKeyDown(Key::R, GetAsyncKeyState('R'));
+    inputs.SetKeyDown(Key::S, GetAsyncKeyState('S'));
+    inputs.SetKeyDown(Key::T, GetAsyncKeyState('T'));
+    inputs.SetKeyDown(Key::U, GetAsyncKeyState('U'));
+    inputs.SetKeyDown(Key::V, GetAsyncKeyState('V'));
+    inputs.SetKeyDown(Key::W, GetAsyncKeyState('W'));
+    inputs.SetKeyDown(Key::X, GetAsyncKeyState('X'));
+    inputs.SetKeyDown(Key::Y, GetAsyncKeyState('Y'));
+    inputs.SetKeyDown(Key::Z, GetAsyncKeyState('Z'));
 
-    inputs.keysDown.zero = GetAsyncKeyState(0x30);
-    inputs.keysDown.one = GetAsyncKeyState(0x31);
-    inputs.keysDown.two = GetAsyncKeyState(0x32);
-    inputs.keysDown.three = GetAsyncKeyState(0x33);
-    inputs.keysDown.four = GetAsyncKeyState(0x34);
-    inputs.keysDown.five = GetAsyncKeyState(0x35);
-    inputs.keysDown.six = GetAsyncKeyState(0x36);
-    inputs.keysDown.seven = GetAsyncKeyState(0x37);
-    inputs.keysDown.eight = GetAsyncKeyState(0x38);
-    inputs.keysDown.nine = GetAsyncKeyState(0x39);
+    inputs.SetKeyDown(Key::Zero, GetAsyncKeyState(0x30));
+    inputs.SetKeyDown(Key::One, GetAsyncKeyState(0x31));
+    inputs.SetKeyDown(Key::Two, GetAsyncKeyState(0x32));
+    inputs.SetKeyDown(Key::Three, GetAsyncKeyState(0x33));
+    inputs.SetKeyDown(Key::Four, GetAsyncKeyState(0x34));
+    inputs.SetKeyDown(Key::Five, GetAsyncKeyState(0x35));
+    inputs.SetKeyDown(Key::Six, GetAsyncKeyState(0x36));
+    inputs.SetKeyDown(Key::Seven, GetAsyncKeyState(0x37));
+    inputs.SetKeyDown(Key::Eight, GetAsyncKeyState(0x38));
+    inputs.SetKeyDown(Key::Nine, GetAsyncKeyState(0x39));
 
-    inputs.keysDown.space = GetAsyncKeyState(VK_SPACE);
-    inputs.keysDown.alt = GetAsyncKeyState(VK_MENU);
-    inputs.keysDown.tab = GetAsyncKeyState(VK_TAB);
-    inputs.keysDown.shift = GetAsyncKeyState(VK_SHIFT);
-    inputs.keysDown.ctrl = GetAsyncKeyState(VK_CONTROL);
+    inputs.SetKeyDown(Key::Space, GetAsyncKeyState(VK_SPACE));
+    inputs.SetKeyDown(Key::Alt, GetAsyncKeyState(VK_MENU));
+    inputs.SetKeyDown(Key::Tab, GetAsyncKeyState(VK_TAB));
+    inputs.SetKeyDown(Key::Shift, GetAsyncKeyState(VK_SHIFT));
+    inputs.SetKeyDown(Key::Ctrl, GetAsyncKeyState(VK_CONTROL));
 
-    inputs.keysDown.up = GetAsyncKeyState(VK_UP);
-    inputs.keysDown.down = GetAsyncKeyState(VK_DOWN);
-    inputs.keysDown.left = GetAsyncKeyState(VK_LEFT);
-    inputs.keysDown.right = GetAsyncKeyState(VK_RIGHT);
+    inputs.SetKeyDown(Key::Up, GetAsyncKeyState(VK_UP));
+    inputs.SetKeyDown(Key::Down, GetAsyncKeyState(VK_DOWN));
+    inputs.SetKeyDown(Key::Left, GetAsyncKeyState(VK_LEFT));
+    inputs.SetKeyDown(Key::Right, GetAsyncKeyState(VK_RIGHT));
 
-    inputs.keysDown.esc = GetAsyncKeyState(VK_ESCAPE);
+    inputs.SetKeyDown(Key::Escape, GetAsyncKeyState(VK_ESCAPE));
 
-    inputs.mouse.leftMouseButton = GetAsyncKeyState(VK_LBUTTON);
-    inputs.mouse.rightMouseButton = GetAsyncKeyState(VK_RBUTTON);
+    inputs.GetMouseState().SetButtonDown(Mouse::LMB, GetAsyncKeyState(VK_LBUTTON));
+    inputs.GetMouseState().SetButtonDown(Mouse::RMB, GetAsyncKeyState(VK_RBUTTON));
 }
 
 // Window callback function
@@ -199,7 +222,16 @@ LRESULT CALLBACK WindowProc(_In_ HWND WindowHandle, _In_ UINT Message, _In_ WPAR
             GraphicsModule* graphics = modules->GetGraphics();
             graphics->Resize(newSize);
 
+            InputModule* input = modules->GetInput();
+            input->Resize(newSize);
+
             Resize(*modules, newSize);
+        
+            graphics->OnFrameStart();
+            ui->OnFrameStart();
+            Update(*modules);
+            graphics->OnFrameEnd();
+            ui->OnFrameEnd();
         }
 
         break;
@@ -270,20 +302,17 @@ int WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ L
     CollisionModule Collisions(renderer);
     TextModule Text(renderer);
     UIModule UI(renderer);
+    InputModule Input;
 
     Modules.SetGraphics(&Graphics);
     Modules.SetCollision(&Collisions);
     Modules.SetText(&Text);
     Modules.SetUI(&UI);
-
-    ControlInputs Inputs;
+    Modules.SetInput(&Input);
 
     Vec2i screenSize = Engine::GetClientAreaSize();
     cursorCenter.x = screenSize.x / 2;
     cursorCenter.y = screenSize.y / 2;
-
-    Inputs.LatestMouse = Engine::GetMousePosition();
-    Inputs.DeltaMouse = Vec2i(0, 0);
 
     Initialize(Modules);
 
@@ -297,30 +326,30 @@ int WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ L
             DispatchMessage(&Message);
         }
 
+        Input.UpdateMousePos(Engine::GetMousePosition());
+        Input.SetMouseLocked(cursorLocked);
+        //Vec2i prevMousePosition = Inputs.LatestMouse;
+
+        //Inputs.LatestMouse = Engine::GetMousePosition();
+        //Inputs.DeltaMouse.x = Inputs.LatestMouse.x - prevMousePosition.x;
+        //Inputs.DeltaMouse.y = Inputs.LatestMouse.y - prevMousePosition.y;
+
+        if (GetFocus() == WindowHandle)
         {
-            Vec2i prevMousePosition = Inputs.LatestMouse;
-
-            Inputs.LatestMouse = Engine::GetMousePosition();
-            Inputs.DeltaMouse.x = Inputs.LatestMouse.x - prevMousePosition.x;
-            Inputs.DeltaMouse.y = Inputs.LatestMouse.y - prevMousePosition.y;
-
-            if (GetFocus() == WindowHandle)
+            if (cursorLocked)
             {
-                if (cursorLocked)
-                {
-                    WarpMouseToWindowCenter();
-                }
+                WarpMouseToWindowCenter();
             }
-
-            Vec2i screenSize = Engine::GetClientAreaSize();
-            Inputs.LatestMouse = cursorCenter;
-
-            GetKeyboardState(Inputs);
-
         }
+
+        //Vec2i screenSize = Engine::GetClientAreaSize();
+        //Inputs.LatestMouse = cursorCenter;
+
+        GetKeyboardState(Input);
+
         Graphics.OnFrameStart();
         UI.OnFrameStart();
-        Update(Modules, Inputs);
+        Update(Modules);
         Graphics.OnFrameEnd();
         UI.OnFrameEnd();
     }

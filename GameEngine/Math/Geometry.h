@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Math.hpp"
+#include "Math.h"
 
 #include <sstream>  
 
@@ -34,10 +34,16 @@ struct LineSegment
 struct Rect
 {
     Rect() : location(Vec2f(0.0f, 0.0f)), size(Vec2f(0.0f, 0.0f)) {}
-    Rect(Vec2f bottomLeft, Vec2f topRight)
+    //Rect(Vec2f bottomLeft, Vec2f topRight)
+    //{
+    //    location = bottomLeft;
+    //    size = topRight - bottomLeft;
+    //}
+
+    Rect(Vec2f position, Vec2f size)
     {
-        location = bottomLeft;
-        size = topRight - bottomLeft;
+        this->location = position;
+        this->size = size;
     }
 
     bool contains(Vec2f point)

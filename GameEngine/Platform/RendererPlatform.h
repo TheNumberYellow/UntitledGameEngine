@@ -4,8 +4,8 @@
 #include <vector>
 #include <initializer_list>
 
-#include "EnginePlatform.hpp"
-#include "..\Math\Math.hpp"
+#include "EnginePlatform.h"
+#include "..\Math\Math.h"
 #include "..\GUID.hpp"
 
 typedef GUID Framebuffer_ID;

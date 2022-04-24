@@ -3,7 +3,7 @@
 #include "..\Camera.h"
 #include "..\Interfaces\Resizeable_i.h"
 #include "..\Math\Geometry.h"
-#include "..\Platform\RendererPlatform.hpp"
+#include "..\Platform\RendererPlatform.h"
 
 #include <unordered_map>
 #include <vector>
@@ -70,6 +70,7 @@ public:
         : m_Transform()
     {}
     Model(TexturedMesh texturedMesh)
+        : m_Transform()
     {
         m_TexturedMeshes.push_back(texturedMesh);
     }
@@ -77,6 +78,11 @@ public:
     Transform& GetTransform()
     {
         return m_Transform;
+    }
+
+    void SetTexture(Texture_ID texture)
+    {
+        m_TexturedMeshes[0].m_Texture = texture;
     }
 
     std::vector<TexturedMesh> m_TexturedMeshes;
@@ -108,7 +114,7 @@ public:
 
     Framebuffer_ID CreateFBuffer(Vec2i size, FBufferFormat format = FBufferFormat::COLOUR);
     Texture_ID CreateTexture(Vec2i size);
-    Texture_ID LoadTexture(std::string filePath);
+    Texture_ID LoadTexture(std::string filePath, TextureMode minFilter = TextureMode::LINEAR, TextureMode magFilter = TextureMode::LINEAR);
     Mesh_ID LoadMesh(std::string filePath);
 
     void AttachTextureToFBuffer(Texture_ID textureID, Framebuffer_ID fBufferID);
@@ -140,6 +146,7 @@ public:
     void DebugDrawLine(LineSegment line, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
     void DebugDrawModelMesh(Model model, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
     void DebugDrawAABB(AABB box, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f), Mat4x4f transform = Mat4x4f());
+    void DebugDrawPoint(Vec3f p, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
 
     Vec2i GetViewportSize();
 
@@ -165,6 +172,7 @@ private:
     Texture_ID m_DebugTexture;
     VertexBufferFormat m_TexturedMeshFormat;
 
+    //TODO(fraser): this should likely be moved to some sort of "Scene" and cubemaps should have a more generic interface in the graphics module
     Cubemap_ID m_SkyboxCubemap;
     Mesh_ID m_SkyboxMesh;
     

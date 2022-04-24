@@ -1,6 +1,6 @@
 #pragma once
 
-#include "..\Platform\RendererPlatform.hpp"
+#include "..\Platform\RendererPlatform.h"
 #include <map>
 
 struct FT_LibraryRec_;

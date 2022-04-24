@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Platform\RendererPlatform.hpp"
+#include "Platform\RendererPlatform.h"
 
 enum class Token
 {

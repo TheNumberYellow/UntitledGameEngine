@@ -1,6 +1,6 @@
-#include "MeshGenerator.hpp"
+#include "MeshGenerator.h"
 
-#include "Platform\RendererPlatform.hpp"
+#include "Platform\RendererPlatform.h"
 
 Mesh_ID MeshGenerator::GenCube(Renderer& renderer)
 {

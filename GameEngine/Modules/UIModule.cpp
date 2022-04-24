@@ -89,6 +89,8 @@ void UIModule::AlignBottom()
 
 void UIModule::ImgPanel(Texture_ID texture, Rect rect)
 {
+    rect.location += m_SubFrame.location;
+
     m_Renderer.DisableDepthTesting();
 
     MeshData vertexData = GetVertexDataForRect(rect);
@@ -110,6 +112,8 @@ void UIModule::ImgPanel(Texture_ID texture, Rect rect)
 
 void UIModule::BufferPanel(Framebuffer_ID fBuffer, Rect rect)
 {
+    rect.location += m_SubFrame.location;
+    
     m_Renderer.DisableDepthTesting();
 
     MeshData vertexData = GetVertexDataForRect(rect);
@@ -130,8 +134,13 @@ void UIModule::BufferPanel(Framebuffer_ID fBuffer, Rect rect)
     m_Renderer.EnableDepthTesting();
 }
 
-bool UIModule::ImgButton(Texture_ID texture, Rect rect, float borderWidth)
+Click UIModule::ImgButton(Texture_ID texture, Rect rect, float borderWidth)
 {
+    rect.location += m_SubFrame.location;
+    
+
+    Click result;
+
     ClickableState* state = GetClickable(
         std::to_string(texture) +
         std::to_string(rect.location.x) +
@@ -143,7 +152,6 @@ bool UIModule::ImgButton(Texture_ID texture, Rect rect, float borderWidth)
     );
 
     Vec2i mousePos = Engine::GetMousePosition();
-    mousePos.y = Engine::GetClientAreaSize().y - mousePos.y;
 
     if (state->clicking)
     {
@@ -151,13 +159,13 @@ bool UIModule::ImgButton(Texture_ID texture, Rect rect, float borderWidth)
         {
             // Mouse moved out of button while clicking, button not clicked
             state->clicking = false;
-            return false;
+            result.clicked = false;
         }
         if (!Engine::GetMouseDown())
         {
             // Mouse stopped clicking while on button, button was clicked
             state->clicking = false;
-            return true;
+            result.clicked = true;
         }
     }
     else 
@@ -202,7 +210,92 @@ bool UIModule::ImgButton(Texture_ID texture, Rect rect, float borderWidth)
 
     m_Renderer.EnableDepthTesting();
 
-    return false;
+    result.clicking = state->clicking;
+    result.hovering = state->hovering;
+
+    return result;
+}
+
+Click UIModule::BufferButton(Framebuffer_ID fBuffer, Rect rect, float borderWidth)
+{
+    rect.location += m_SubFrame.location;
+
+
+    Click result;
+
+    ClickableState* state = GetClickable(
+        std::to_string(fBuffer) +
+        std::to_string(rect.location.x) +
+        std::to_string(rect.location.y) +
+        std::to_string(rect.size.x) +
+        std::to_string(rect.size.y) +
+        std::to_string(borderWidth) +
+        std::to_string(m_HashCount++)
+    );
+
+    Vec2i mousePos = Engine::GetMousePosition();
+
+    if (state->clicking)
+    {
+        if (!rect.contains(mousePos))
+        {
+            // Mouse moved out of button while clicking, button not clicked
+            state->clicking = false;
+            result.clicked = false;
+        }
+        if (!Engine::GetMouseDown())
+        {
+            // Mouse stopped clicking while on button, button was clicked
+            state->clicking = false;
+            result.clicked = true;
+        }
+    }
+    else
+    {
+        if (Engine::GetMouseDown() && state->hovering)
+        {
+            state->clicking = true;
+        }
+        state->hovering = rect.contains(mousePos);
+    }
+
+    //state->hovering = rect.contains(mousePos);
+
+    m_Renderer.DisableDepthTesting();
+    MeshData vertexData = GetVertexDataForBorderMesh(rect, borderWidth);
+
+    VertexBufferFormat vertFormat = VertexBufferFormat({ VertAttribute::Vec2f, VertAttribute::Vec2f });
+
+    m_Renderer.UpdateMeshData(m_BorderMesh, vertFormat, vertexData.first, vertexData.second);
+
+    m_Renderer.SetActiveTexture(m_DefaultBorderTexture);
+    m_Renderer.SetActiveShader(m_UIShader);
+
+    m_Renderer.SetShaderUniformBool(m_UIShader, "Hovering", state->hovering);
+    m_Renderer.SetShaderUniformBool(m_UIShader, "Clicking", state->clicking);
+
+    m_Renderer.DrawMesh(m_BorderMesh);
+
+    Rect innerRect = rect;
+    innerRect.location.x += borderWidth;
+    innerRect.location.y += borderWidth;
+    innerRect.size.x -= borderWidth * 2;
+    innerRect.size.y -= borderWidth * 2;
+
+    vertexData = GetVertexDataForRect(innerRect);
+
+    m_Renderer.UpdateMeshData(m_RectMesh, vertFormat, vertexData.first, vertexData.second);
+
+    m_Renderer.SetActiveFBufferTexture(fBuffer);
+
+    m_Renderer.DrawMesh(m_RectMesh);
+
+    m_Renderer.EnableDepthTesting();
+
+    result.clicking = state->clicking;
+    result.hovering = state->hovering;
+
+    return result;
 }
 
 void UIModule::StartFrame(Rect rect, float borderWidth)
@@ -223,10 +316,12 @@ void UIModule::StartFrame(Rect rect, float borderWidth)
 
     m_Renderer.EnableDepthTesting();
 
+    m_SubFrame = Rect(rect.location + Vec2f(borderWidth, borderWidth), rect.size - Vec2f(borderWidth, borderWidth));
 }
 
 void UIModule::EndFrame()
 {
+    m_SubFrame = Rect(Vec2f(0.0f, 0.0f), m_WindowSize);
 }
 
 void UIModule::OnFrameStart()
@@ -240,6 +335,10 @@ void UIModule::OnFrameEnd()
 
 MeshData UIModule::GetVertexDataForRect(Rect rect)
 {
+    Vec2i screenSize = Engine::GetClientAreaSize();
+
+    rect.location.y = (screenSize.y - rect.location.y) - rect.size.y;
+
     Vec2f min = rect.location;
     Vec2f max = rect.location + rect.size;
 
@@ -263,6 +362,10 @@ MeshData UIModule::GetVertexDataForRect(Rect rect)
 
 std::pair<std::vector<float>, std::vector<ElementIndex>> UIModule::GetVertexDataForBorderMesh(Rect rect, float borderWidth)
 {
+    Vec2i screenSize = Engine::GetClientAreaSize();
+
+    rect.location.y = (screenSize.y - rect.location.y) - rect.size.y;
+
     Vec2f min = rect.location;
     Vec2f max = rect.location + rect.size;
 
@@ -334,6 +437,8 @@ ClickableState* UIModule::GetClickable(std::string value)
 void UIModule::Resize(Vec2i newSize)
 {
     //Vec2i viewportSize = m_Renderer.GetViewportSize();
+    
+    m_WindowSize = newSize;
 
     Mat4x4f orthoMatrix = Math::GenerateOrthoMatrix(0.0f, (float)newSize.x, 0.0f, (float)newSize.y, 0.0f, 100.0f);
     m_Renderer.SetShaderUniformMat4x4f(m_UIShader, "Projection", orthoMatrix);

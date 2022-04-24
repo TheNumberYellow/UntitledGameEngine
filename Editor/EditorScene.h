@@ -1,14 +1,13 @@
 #pragma once
-#include "Platform\RendererPlatform.hpp"
-#include "Collisions.hpp"
-
+#include "Platform\RendererPlatform.h"
+#include "Collisions.h"
 
 #include <vector>
 
 constexpr float TOOL_ARROW_DIST_FROM_OBJECT_ORIGIN = 1.0f;
 
 class EditorScene;
-//
+
 //struct EditableMesh
 //{
 //	Mesh_ID m_Mesh;

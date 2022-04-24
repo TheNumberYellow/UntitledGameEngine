@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Math\Math.hpp"
+#include "Math\Math.h"
 #include "Math\Quaternion.h"
 
 enum class Projection

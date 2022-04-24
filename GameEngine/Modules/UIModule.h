@@ -1,5 +1,5 @@
 #pragma once
-#include "..\Platform\RendererPlatform.hpp"
+#include "..\Platform\RendererPlatform.h"
 
 #include "..\Interfaces\Resizeable_i.h"
 
@@ -7,6 +7,17 @@
 #include <functional>
 
 typedef std::pair<std::vector<float>, std::vector<ElementIndex>> MeshData;
+
+struct Click
+{
+    explicit operator bool()
+    {
+        return clicked;
+    }
+    bool hovering = false;
+    bool clicking = false;
+    bool clicked = false;
+};
 
 struct ClickableState
 {
@@ -29,8 +40,9 @@ public:
 
     void ImgPanel(Texture_ID texture, Rect rect);
     void BufferPanel(Framebuffer_ID fBuffer, Rect rect);
-    bool ImgButton(Texture_ID texture, Rect rect, float borderWidth);
-    
+    Click ImgButton(Texture_ID texture, Rect rect, float borderWidth);
+    Click BufferButton(Framebuffer_ID fBuffer, Rect rect, float borderWidth);
+
     void StartFrame(Rect rect, float borderWidth);
     void EndFrame();
 
@@ -45,6 +57,8 @@ private:
     MeshData GetVertexDataForRect(Rect rect);
     MeshData GetVertexDataForBorderMesh(Rect rect, float borderWidth);
 
+    void UpdateClickableData(size_t hash, Rect clickArea);
+
     std::unordered_map<size_t, ClickableState> m_Clickables;
 
     size_t m_HashCount = 0;
@@ -58,8 +72,8 @@ private:
 
     Renderer& m_Renderer;
 
-    bool m_InsideSubFrame = false;
     Rect m_SubFrame;
+    Vec2i m_WindowSize;
 
     bool m_LeftAligned = true;
     bool m_TopAligned = true;

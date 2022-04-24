@@ -1,5 +1,6 @@
 #include "ModuleManager.h"
 
+
 GraphicsModule* ModuleManager::GetGraphics()
 {
     return _graphics;
@@ -40,10 +41,21 @@ void ModuleManager::SetUI(UIModule* ui)
     _ui = ui;
 }
 
+InputModule* ModuleManager::GetInput()
+{
+    return _input;
+}
+
+void ModuleManager::SetInput(InputModule* input)
+{
+    _input = input;
+}
+
 bool ModuleManager::AreAllModulesInitialized()
 {
     return _graphics 
         && _collision 
         && _text 
-        && _ui;
+        && _ui
+        && _input;
 }

@@ -1,4 +1,4 @@
-#include "GraphicsModule.hpp"
+#include "GraphicsModule.h"
 
 #include "..\FileLoader.h"
 
@@ -411,9 +411,9 @@ Texture_ID GraphicsModule::CreateTexture(Vec2i size)
     return m_Renderer.CreateEmptyTexture(size);
 }
 
-Texture_ID GraphicsModule::LoadTexture(std::string filePath)
+Texture_ID GraphicsModule::LoadTexture(std::string filePath, TextureMode minFilter, TextureMode magFilter)
 {
-    return m_Renderer.LoadTexture(filePath);
+    return m_Renderer.LoadTexture(filePath, minFilter, magFilter);
 }
 
 Mesh_ID GraphicsModule::LoadMesh(std::string filePath)
@@ -618,6 +618,7 @@ void GraphicsModule::DebugDrawModelMesh(Model model, Vec3f colour)
 
 void GraphicsModule::DebugDrawAABB(AABB box, Vec3f colour, Mat4x4f transform)
 {
+    assert(m_IsDebugDrawInitialized);
     Vec3f points[] =
     {
         box.min,
@@ -650,6 +651,23 @@ void GraphicsModule::DebugDrawAABB(AABB box, Vec3f colour, Mat4x4f transform)
     DebugDrawLine(points[1], points[5], colour);
     DebugDrawLine(points[2], points[6], colour);
     DebugDrawLine(points[3], points[7], colour);
+}
+
+void GraphicsModule::DebugDrawPoint(Vec3f p, Vec3f colour)
+{
+    assert(m_IsDebugDrawInitialized);
+
+    if (m_DebugLineMap.find(colour) == m_DebugLineMap.end())
+    {
+        m_DebugLineMap[colour] = std::vector<float>();
+    }
+
+    m_DebugLineMap[colour].insert(m_DebugLineMap[colour].end(), { 
+        p.x, p.y - 0.5f, p.z, p.x, p.y + 0.5f, p.z,
+        p.x - 0.5f, p.y, p.z, p.x + 0.5f, p.y, p.z,
+        p.x, p.y, p.z - 0.5f, p.x, p.y, p.z + 0.5f,
+        
+        });
 }
 
 Vec2i GraphicsModule::GetViewportSize()
@@ -739,16 +757,6 @@ void GraphicsModule::DrawDebugDrawMesh()
             m_Renderer.DrawMesh(m_DebugDrawMesh);
         }
     }
-
-    //if (m_DebugLineData.size() > 0)
-    //{
-    //    m_Renderer.SetShaderUniformMat4x4f(m_DebugLineShader, "Camera", m_Camera->GetCamMatrix());
-
-    //    m_Renderer.UpdateMeshData(m_DebugDrawMesh, m_DebugVertFormat, m_DebugLineData);
-    //    m_Renderer.SetShaderUniformVec3f(m_DebugLineShader, "Colour", Vec3f(1.0f, 1.0f, 1.0f));
-    //    m_Renderer.DrawMesh(m_DebugDrawMesh);
-
-    //}
 }
 
 void GraphicsModule::Resize(Vec2i newSize)

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "..\Math\Math.hpp"
+#include "..\Math\Math.h"
 
 #include <string>
 
@@ -11,7 +11,10 @@ namespace Engine
 
     extern Vec2i GetWindowSize();
     extern Vec2i GetClientAreaSize();
+
     extern Vec2i GetMousePosition();
+    extern void SetMousePosition(Vec2i pos);
+    
     extern bool GetMouseDown(int button = 0);
 
     extern void DEBUGPrint(std::string string);

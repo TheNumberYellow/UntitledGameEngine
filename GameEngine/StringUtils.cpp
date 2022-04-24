@@ -1,4 +1,4 @@
-#include "StringUtils.hpp"
+#include "StringUtils.h"
 
 std::vector<std::string> StringUtils::Split(std::string inputString, std::string delimiter)
 {

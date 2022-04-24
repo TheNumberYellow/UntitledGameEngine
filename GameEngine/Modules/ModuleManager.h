@@ -1,9 +1,10 @@
 #pragma once
 
-#include "GraphicsModule.hpp"
+#include "GraphicsModule.h"
 #include "CollisionModule.h"
 #include "TextModule.h"
 #include "UIModule.h"
+#include "InputModule.h"
 
 class ModuleManager
 {
@@ -20,6 +21,9 @@ public:
     UIModule* GetUI();
     void SetUI(UIModule* ui);
 
+    InputModule* GetInput();
+    void SetInput(InputModule* input);
+
     bool AreAllModulesInitialized();
 
 private:
@@ -28,4 +32,5 @@ private:
     CollisionModule* _collision = nullptr;
     TextModule* _text = nullptr;
     UIModule* _ui = nullptr;
+    InputModule* _input = nullptr;
 };

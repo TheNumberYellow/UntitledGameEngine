@@ -1,6 +1,6 @@
 #include "Vector.h"
 
-#include "Math.hpp"
+#include "Math.h"
 #include "Quaternion.h"
 
 #include <tuple>

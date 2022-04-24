@@ -193,6 +193,7 @@
     <ClCompile Include="Math\Vector.cpp" />
     <ClCompile Include="MeshGenerator.cpp" />
     <ClCompile Include="FileLoader.cpp" />
+    <ClCompile Include="Modules\InputModule.cpp" />
     <ClCompile Include="Modules\ModuleManager.cpp" />
     <ClCompile Include="Modules\UIModule.cpp" />
     <ClCompile Include="State.cpp" />
@@ -203,26 +204,27 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Camera.h" />
-    <ClInclude Include="Collisions.hpp" />
-    <ClInclude Include="ControlInputs.hpp" />
+    <ClInclude Include="Collisions.h" />
+    <ClInclude Include="ControlInputs.h" />
     <ClInclude Include="Interfaces\Resizeable_i.h" />
     <ClInclude Include="Math\Geometry.h" />
     <ClInclude Include="Math\Quaternion.h" />
     <ClInclude Include="Math\Vector.h" />
     <ClInclude Include="Modules\CollisionModule.h" />
+    <ClInclude Include="Modules\InputModule.h" />
     <ClInclude Include="Modules\ModuleManager.h" />
     <ClInclude Include="Modules\UIModule.h" />
-    <ClInclude Include="Platform\EnginePlatform.hpp" />
-    <ClInclude Include="GameEngine.hpp" />
-    <ClInclude Include="Modules\GraphicsModule.hpp" />
+    <ClInclude Include="Platform\EnginePlatform.h" />
+    <ClInclude Include="GameEngine.h" />
+    <ClInclude Include="Modules\GraphicsModule.h" />
     <ClInclude Include="GUID.hpp" />
-    <ClInclude Include="Math\Math.hpp" />
-    <ClInclude Include="MeshGenerator.hpp" />
+    <ClInclude Include="Math\Math.h" />
+    <ClInclude Include="MeshGenerator.h" />
     <ClInclude Include="FileLoader.h" />
-    <ClInclude Include="Platform\NetworkPlatform.hpp" />
-    <ClInclude Include="Platform\RendererPlatform.hpp" />
+    <ClInclude Include="Platform\NetworkPlatform.h" />
+    <ClInclude Include="Platform\RendererPlatform.h" />
     <ClInclude Include="State.hpp" />
-    <ClInclude Include="StringUtils.hpp" />
+    <ClInclude Include="StringUtils.h" />
     <ClInclude Include="Modules\TextModule.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

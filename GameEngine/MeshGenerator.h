@@ -3,7 +3,7 @@
 // All shapes are generated at unit scale with no rotation at the origin 
 // Mesh functions for scaling/rotating/translating can be done with mesh functions
 
-#include "Platform\RendererPlatform.hpp"
+#include "Platform\RendererPlatform.h"
 
 class MeshGenerator
 {

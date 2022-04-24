@@ -46,8 +46,11 @@ public:
 
     static Vec3f normalize(Vec3f vec);
     static float magnitude(Vec3f vec);
+    static float lenSquared(Vec3f vec);
 
     static Quaternion normalize(Quaternion quat);
+    static Quaternion VecDiffToQuat(Vec3f v1, Vec3f v2);
+
     static float norm(Quaternion quat);
 
     static float clamp(float input, float min, float max);

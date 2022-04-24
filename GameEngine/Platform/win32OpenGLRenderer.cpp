@@ -1,4 +1,4 @@
-#include "EnginePlatform.hpp"
+#include "EnginePlatform.h"
 
 #define GLEW_STATIC
 #include <GL/glew.h>
@@ -7,10 +7,10 @@
 #include <gl/gl.h>
 
 // TODO(fraser): strip out all this glm stuff
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-#include <glm/gtx/quaternion.hpp>
+//#include <glm/glm.hpp>
+//#include <glm/gtc/matrix_transform.hpp>
+//#include <glm/gtc/type_ptr.hpp>
+//#include <glm/gtx/quaternion.hpp>
 
 #include <vector>
 #include <string>
@@ -19,7 +19,7 @@
 
 #include <assert.h>
 #include <time.h> 
-#include "RendererPlatform.hpp"
+#include "RendererPlatform.h"
 
 // TODO(fraser): Use another image loading library or something (million warnings) - or make my own!
 #define STB_IMAGE_IMPLEMENTATION
