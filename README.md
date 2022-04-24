@@ -4,7 +4,7 @@
 
 #### Graphics Module
 - Clean up and provide interface for switching skybox in Graphics Module.
-- Implement cascading shadowmaps, and look deeper into shadow acne problems.
+- Implement cascaded shadowmaps, and look deeper into shadow acne problems.
 - Implement materials system.
 
 #### UI Module
