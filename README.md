@@ -15,6 +15,7 @@
 - Implement more translation/rotation/scaling options for editor.
 - Improve editor experience.
   - Rework tool widgets to show through other objects, scale with distance from camera.
+- Add vertex edit tool to edit brushes/blocks.
 
 #### New features
 - Implement scene saving/loading (as well as a scene object).
