@@ -9,6 +9,7 @@
 
 #### UI Module
 - Optimize + clean up UI Module functions.
+- Add scrolling + tabs + other immediate mode UI concepts.
 
 #### Editor
 - Implement more translation/rotation/scaling options for editor.
