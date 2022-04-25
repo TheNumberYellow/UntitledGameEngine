@@ -5,6 +5,7 @@
 #### Graphics Module
 - Clean up and provide interface for switching skybox in Graphics Module.
 - Implement cascaded shadowmaps, and look deeper into shadow acne problems.
+  - https://docs.microsoft.com/en-us/windows/win32/dxtecharts/common-techniques-to-improve-shadow-depth-maps 
 - Implement materials system.
 
 #### UI Module
