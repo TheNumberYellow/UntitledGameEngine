@@ -328,11 +328,6 @@ int WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ L
 
         Input.UpdateMousePos(Engine::GetMousePosition());
         Input.SetMouseLocked(cursorLocked);
-        //Vec2i prevMousePosition = Inputs.LatestMouse;
-
-        //Inputs.LatestMouse = Engine::GetMousePosition();
-        //Inputs.DeltaMouse.x = Inputs.LatestMouse.x - prevMousePosition.x;
-        //Inputs.DeltaMouse.y = Inputs.LatestMouse.y - prevMousePosition.y;
 
         if (GetFocus() == WindowHandle)
         {
@@ -341,9 +336,6 @@ int WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ L
                 WarpMouseToWindowCenter();
             }
         }
-
-        //Vec2i screenSize = Engine::GetClientAreaSize();
-        //Inputs.LatestMouse = cursorCenter;
 
         GetKeyboardState(Input);
 

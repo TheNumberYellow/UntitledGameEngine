@@ -6,12 +6,6 @@
 
 #include <gl/gl.h>
 
-// TODO(fraser): strip out all this glm stuff
-//#include <glm/glm.hpp>
-//#include <glm/gtc/matrix_transform.hpp>
-//#include <glm/gtc/type_ptr.hpp>
-//#include <glm/gtx/quaternion.hpp>
-
 #include <vector>
 #include <string>
 #include <unordered_map>

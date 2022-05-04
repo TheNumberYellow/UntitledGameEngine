@@ -77,7 +77,7 @@ ToolMode toolMode = ToolMode::NORMAL;
 
 Rect GetViewportSizeFromScreenSize(Vec2i screenSize)
 {
-    Rect newViewport = Rect(Vec2f(100.0f, 0.0f), screenSize - Vec2f(200, 200));
+    Rect newViewport = Rect(Vec2f(100.0f, 40.0f), screenSize - Vec2f(200, 240));
 
     return newViewport;
 } 
@@ -117,7 +117,7 @@ Ray GetMouseRay(Camera& cam, Vec2i mousePosition, Rect viewPort)
 
     Vec2i mousePos;
     mousePos.x = mousePosition.x - viewPort.location.x;
-    mousePos.y = mousePosition.y + viewPort.location.y;
+    mousePos.y = mousePosition.y - viewPort.location.y;
 
     float x = ((2.0f * (float)mousePos.x) / (float)screenSize.x) - 1.0f;
     float y = 1.0f - ((2.0f * (float)mousePos.y) / (float)screenSize.y);
@@ -176,7 +176,8 @@ void MoveCamera(InputModule& inputs, GraphicsModule& graphics, Camera& cam, floa
 
     cam.RotateCamBasedOnDeltaMouse(inputs.GetMouseState().GetDeltaMousePos(), pixelToRadians);
 
-    shadowCam.SetPosition(Vec3f(cam.GetPosition().x, cam.GetPosition().y, 40.0f));
+    Vec3f shadowCamPos = cam.GetPosition() + (-shadowCam.GetDirection() * 40.0f);
+    shadowCam.SetPosition(shadowCamPos);
 
     if (inputs.IsKeyDown(Key::Q))
     {
@@ -741,24 +742,20 @@ void UpdateEditor(ModuleManager& modules)
 
     ui.BufferPanel(viewportBuffer, newViewport);
 
-    if (ui.ImgButton(cursorToolTexture, Rect(Vec2f(0.0f, 100.0f), Vec2f(100.0f, 100.0f)), 20.0f))
+    ui.StartFrame(Rect(Vec2f(0.0f, 0.0f), Vec2f(screen.x, 40.0f)), 5.0f);
+
     {
-        toolMode = ToolMode::NORMAL;
-    }
-    if (ui.ImgButton(boxToolTexture, Rect(Vec2f(0.0f, 200.0f), Vec2f(100.0f, 100.0f)), 20.0f))
-    {
-        toolMode = ToolMode::BOX;
+        ui.ImgButton(loadedTextures[1], Rect(Vec2f(0.0f, 0.0f), Vec2f(100.0f, 30.0f)), 2.0f);
+        ui.ImgButton(loadedTextures[1], Rect(Vec2f(100.0f, 0.0f), Vec2f(100.0f, 30.0f)), 2.0f);
+        ui.ImgButton(loadedTextures[1], Rect(Vec2f(200.0f, 0.0f), Vec2f(100.0f, 30.0f)), 2.0f);
+        ui.ImgButton(loadedTextures[1], Rect(Vec2f(300.0f, 0.0f), Vec2f(100.0f, 30.0f)), 2.0f);
+        ui.ImgButton(loadedTextures[1], Rect(Vec2f(400.0f, 0.0f), Vec2f(100.0f, 30.0f)), 2.0f);
+        ui.ImgButton(loadedTextures[1], Rect(Vec2f(500.0f, 0.0f), Vec2f(100.0f, 30.0f)), 2.0f);
+        ui.ImgButton(loadedTextures[1], Rect(Vec2f(600.0f, 0.0f), Vec2f(100.0f, 30.0f)), 2.0f);
+        ui.ImgButton(loadedTextures[1], Rect(Vec2f(700.0f, 0.0f), Vec2f(100.0f, 30.0f)), 2.0f);
     }
 
-    if (ui.ImgButton(moveToolTexture, Rect(Vec2f(0.0f, 300.0f), Vec2f(100.0f, 100.0f)), 20.0f))
-    {
-        toolMode = ToolMode::MOVE;
-    }
-
-    if (ui.ImgButton(vertexToolTexture, Rect(Vec2f(0.0f, 400.0f), Vec2f(100, 100.0f)), 20.0f))
-    {
-        toolMode = ToolMode::VERTEX;
-    }
+    ui.EndFrame();
     
     ui.StartFrame(Rect(Vec2f(100.0f, screen.y - 200), Vec2f(screen.x - 200.0f, 200.0f)), 20.0f);
 
@@ -785,11 +782,11 @@ void UpdateEditor(ModuleManager& modules)
     ui.EndFrame();
 
 
-    ui.StartFrame(Rect(Vec2f(screen.x - 100, 0.0f), Vec2f(100.0f, screen.y)), 10.0f);
+    ui.StartFrame(Rect(Vec2f(screen.x - 100, 40.0f), Vec2f(100.0f, screen.y - 40.0f)), 5.0f);
     
     for (int i = 0; i < loadedTextures.size(); ++i)
     {
-        if (ui.ImgButton(loadedTextures[i], Rect(Vec2f(0.0f, i * 80), Vec2f(80, 80)), 5).clicking)
+        if (ui.ImgButton(loadedTextures[i], Rect(Vec2f(0.0f, i * 40), Vec2f(80, 40)), 2.5f).clicking)
         {
             if (!draggingNewTexture)
             {
@@ -800,6 +797,25 @@ void UpdateEditor(ModuleManager& modules)
     }
 
     ui.EndFrame();
+
+    if (ui.ImgButton(cursorToolTexture, Rect(Vec2f(0.0f, 40.0f), Vec2f(100.0f, 100.0f)), 20.0f))
+    {
+        toolMode = ToolMode::NORMAL;
+    }
+    if (ui.ImgButton(boxToolTexture, Rect(Vec2f(0.0f, 140.0f), Vec2f(100.0f, 100.0f)), 20.0f))
+    {
+        toolMode = ToolMode::BOX;
+    }
+
+    if (ui.ImgButton(moveToolTexture, Rect(Vec2f(0.0f, 240.0f), Vec2f(100.0f, 100.0f)), 20.0f))
+    {
+        toolMode = ToolMode::MOVE;
+    }
+
+    if (ui.ImgButton(vertexToolTexture, Rect(Vec2f(0.0f, 340.0f), Vec2f(100, 100.0f)), 20.0f))
+    {
+        toolMode = ToolMode::VERTEX;
+    }
 
     if (input.IsKeyDown(Key::One))
     {
@@ -834,7 +850,7 @@ void UpdateEditor(ModuleManager& modules)
         modeString = "Vertex Edit Mode";
         break;
     }
-    text.DrawText(modeString, &testFont, Vec2f(100.0f, Engine::GetClientAreaSize().y - 30), Vec3f(0.0f, 0.0f, 0.0f));
+    text.DrawText(modeString, &testFont, Vec2f(100.0f, Engine::GetClientAreaSize().y - 70), Vec3f(0.0f, 0.0f, 0.0f));
 
     // END DRAW
 }
@@ -891,7 +907,7 @@ void Initialize(ModuleManager& modules)
     modelCam.Rotate(Quaternion(Vec3f(1.0f, 0.0f, 0.0f), 1.3f));
 
     shadowCam = Camera(Projection::Orthographic);
-    shadowCam.SetScreenSize(Vec2f(200.0f, 200.0f));
+    shadowCam.SetScreenSize(Vec2f(100.0f, 100.0f));
     shadowCam.SetNearPlane(0.0f);
     shadowCam.SetFarPlane(100.0f);
     shadowCam.SetPosition(Vec3f(0.0f, -30.0f, 6.0f));
