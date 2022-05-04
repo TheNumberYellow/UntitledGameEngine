@@ -21,3 +21,4 @@
 #### New features
 - Implement scene saving/loading (as well as a scene object).
 - Implement states and state switching.
+- Add a network module.
