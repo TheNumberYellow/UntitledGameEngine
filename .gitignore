@@ -340,4 +340,4 @@ ASALocalRun/
 healthchecksdb
 
 # Ignore model files
-!Editor/models
+!Editor/models/*
