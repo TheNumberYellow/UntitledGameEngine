@@ -152,7 +152,7 @@ void TextModule::DrawText(std::string text, Font* font, Vec2f position, Vec3f co
     // Temp(fraser) : connect to camera in some way?
 
     m_Renderer.SetActiveTexture(font->m_TextureAtlas, 0);
-    m_Renderer.DrawMesh(m_TextQuadsMesh);
+    //m_Renderer.DrawMesh(m_TextQuadsMesh);
 }
 
 void TextModule::Resize(Vec2i newSize)
