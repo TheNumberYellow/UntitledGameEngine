@@ -29,4 +29,6 @@ namespace Engine
     extern void ShowCursor();
 
     extern void StopGame();
+
+    extern bool IsWindowFocused();
 }

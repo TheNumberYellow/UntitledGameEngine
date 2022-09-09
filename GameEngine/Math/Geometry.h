@@ -34,11 +34,6 @@ struct LineSegment
 struct Rect
 {
     Rect() : location(Vec2f(0.0f, 0.0f)), size(Vec2f(0.0f, 0.0f)) {}
-    //Rect(Vec2f bottomLeft, Vec2f topRight)
-    //{
-    //    location = bottomLeft;
-    //    size = topRight - bottomLeft;
-    //}
 
     Rect(Vec2f position, Vec2f size)
     {
@@ -50,6 +45,16 @@ struct Rect
     {
         return point.x > location.x && point.y > location.y &&
             point.x < (location + size).x && point.y < (location + size).y;
+    }
+
+    // Expand the rect to include this point
+    void expand(Vec2f point)
+    {
+        if (point.x < location.x) location.x = point.x;
+        if (point.y < location.y) location.y = point.y;
+
+        if (point.x > (location.x + size.x)) size.x = point.x - location.x;
+        if (point.y > (location.y + size.y)) size.y = point.y - location.y;
     }
 
     Vec2f location, size;

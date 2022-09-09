@@ -72,7 +72,7 @@ void UIModule::AlignLeft()
     m_LeftAligned = true;
 }
 
-void UIModule::AlightRight()
+void UIModule::AlignRight()
 {
     m_LeftAligned = false;
 }
@@ -322,6 +322,14 @@ void UIModule::StartFrame(Rect rect, float borderWidth)
 void UIModule::EndFrame()
 {
     m_SubFrame = Rect(Vec2f(0.0f, 0.0f), m_WindowSize);
+}
+
+void UIModule::StartTab(Rect rect)
+{
+}
+
+void UIModule::EndTab()
+{
 }
 
 void UIModule::OnFrameStart()

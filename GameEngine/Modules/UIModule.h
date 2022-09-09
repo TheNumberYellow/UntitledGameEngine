@@ -34,7 +34,7 @@ public:
     ~UIModule();
 
     void AlignLeft();
-    void AlightRight();
+    void AlignRight();
     void AlignTop();
     void AlignBottom();
 
@@ -46,8 +46,10 @@ public:
     void StartFrame(Rect rect, float borderWidth);
     void EndFrame();
 
-    void OnFrameStart();
+    void StartTab(Rect rect);
+    void EndTab();
 
+    void OnFrameStart();
     void OnFrameEnd();
 
     // Inherited via IResizeable

@@ -1,10 +1,26 @@
 #pragma once
 
 #include "..\Platform\RendererPlatform.h"
-#include <map>
+#include "..\Interfaces\Resizeable_i.h"
+
+#include <unordered_map>
 
 struct FT_LibraryRec_;
 typedef struct FT_LibraryRec_* FT_Library;
+
+enum class Anchor
+{
+    TOP_LEFT,
+    TOP_CENTER,
+    TOP_RIGHT,
+    MIDDLE_LEFT,
+    CENTER,
+    MIDDLE_RIGHT,
+    BOTTOM_LEFT,
+    BOTTOM_CENTER,
+    BOTTOM_RIGHT
+};
+
 
 struct CharacterInfo {
     Vec2i Advance;          // Offset to advance to next glyph
@@ -15,13 +31,21 @@ struct CharacterInfo {
 
 struct Font
 {
-    std::map<char, CharacterInfo> m_CharacterInfo;
+    std::unordered_map<char, CharacterInfo> m_CharacterInfo;
 
     Texture_ID m_TextureAtlas;
     Vec2i m_AtlasSize;
 };
 
-class TextModule
+struct TextStringInfo
+{
+    std::string m_String;
+    Rect m_Bounds;
+    Mesh_ID m_Mesh;
+    Font* m_Font;
+};
+
+class TextModule : public IResizeable
 {
 public:
     TextModule(Renderer& renderer);
@@ -32,12 +56,18 @@ public:
     // Screen-space only for now!!!!
     void DrawText(std::string text, Font* font, Vec2f position, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
 
+    // Inherited via IResizeable
+    virtual void Resize(Vec2i newSize) override;
 private:
+
+    std::unordered_map<size_t, TextStringInfo> m_CachedStrings;
+
+    TextStringInfo GenerateString(std::string text, Font& font);
 
     FT_Library m_Library;
     Renderer& m_Renderer;
 
     Shader_ID m_TextShader;
-    Mesh_ID m_TextQuadsMesh;
+
 };
 

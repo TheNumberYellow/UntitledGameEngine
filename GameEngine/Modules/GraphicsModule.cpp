@@ -2,6 +2,8 @@
 
 #include "..\FileLoader.h"
 
+#include <random>
+
 void Transform::SetPosition(Vec3f newPos)
 {
     m_Position = newPos;
@@ -72,6 +74,75 @@ void Transform::UpdateTransformMatrix()
     m_Transform = Math::GenerateTransformMatrix(m_Position, m_Scale, m_Rotation);
     
     m_WasTransformMatrixUpdated = true;
+}
+
+Scene::Scene()
+    : m_Camera(nullptr)
+{
+}
+
+Scene::~Scene()
+{
+    if (m_Camera)
+        delete m_Camera;
+}
+
+void Scene::AddModel(Model model, std::string name)
+{
+    if (name == "")
+    {
+        m_UntrackedModels.push_back(model);
+        return;
+    }
+
+    size_t hash = std::hash<std::string>{}(name);
+    
+    m_Models.insert(std::pair<size_t, Model>(hash, model));
+}
+
+Model* Scene::GetModel(std::string name)
+{
+    size_t hash = std::hash<std::string>{}(name);
+
+    auto it = m_Models.find(hash);
+    if (it != m_Models.end())
+    {
+        return &(it->second);
+    }
+    else
+    {
+        return nullptr;
+    }
+}
+
+Camera& Scene::GetCamera()
+{
+    if (!m_Camera)
+    {
+        m_Camera = new Camera();
+    }
+
+    return *m_Camera;
+}
+
+void Scene::SetCamera(Camera* camera)
+{
+    m_Camera = camera;
+}
+
+void Scene::Draw(GraphicsModule& graphics)
+{
+    graphics.SetCamera(m_Camera);
+
+    for (auto& it : m_Models)
+    {
+        graphics.Draw(it.second);
+    }
+    for (auto& it : m_UntrackedModels)
+    {
+        graphics.Draw(it);
+    }
+
 }
 
 GraphicsModule::GraphicsModule(Renderer& renderer)
@@ -528,6 +599,10 @@ void GraphicsModule::Draw(Model& model)
         m_Renderer.SetActiveTexture(model.m_TexturedMeshes[i].m_Texture, 0);
         m_Renderer.DrawMesh(model.m_TexturedMeshes[i].m_Mesh);
     }
+}
+
+void GraphicsModule::Draw(Scene& scene)
+{
 }
 
 void GraphicsModule::SetCamera(Camera* camera)

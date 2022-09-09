@@ -8,6 +8,8 @@
 #include <unordered_map>
 #include <vector>
 
+class GraphicsModule;
+
 enum class Vis
 {
     SHADOW_CAST = 1,
@@ -105,6 +107,36 @@ private:
     Transform m_Transform;
 };
 
+struct DirectionalLight
+{
+    Vec3f direction;
+    Vec3f colour;
+};
+
+class Scene
+{
+public:
+
+    Scene();
+    ~Scene();
+
+    void AddModel(Model model, std::string name = "");
+    Model* GetModel(std::string name);
+
+    Camera& GetCamera();
+    void SetCamera(Camera* camera);
+
+    void Draw(GraphicsModule& graphics);
+
+private:
+
+    std::unordered_map<size_t, Model> m_Models;
+    std::vector<Model> m_UntrackedModels;
+    DirectionalLight m_DirLight;
+    Camera* m_Camera;
+};
+
+
 class GraphicsModule
     : public IResizeable
 {
@@ -132,7 +164,8 @@ public:
     Brush CreateBrush(AABB box, Texture_ID texture = 0);
 
     void Draw(Model& model);
-    
+    void Draw(Scene& scene);
+
     void SetCamera(Camera* camera);
 
     // todo(Fraser): these two should not be called from client code (only the engine)

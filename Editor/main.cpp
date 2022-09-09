@@ -335,6 +335,8 @@ void UpdateBoxCreate(InputModule& input, CollisionModule& collisions, GraphicsMo
         {
             RayCastHit hit = collisions.RayCast(mouseRay, Plane{ boxStartPoint, Vec3f(0.0f, 0.0f, 1.0f) });
 
+            Vec3f originalHitPoint = hit.hitPoint;
+
             hit.hitPoint.x = Math::Round(hit.hitPoint.x, 2.5);
             hit.hitPoint.y = Math::Round(hit.hitPoint.y, 2.5f);
             hit.hitPoint.z = Math::Round(hit.hitPoint.z, 2.5f);
@@ -349,6 +351,7 @@ void UpdateBoxCreate(InputModule& input, CollisionModule& collisions, GraphicsMo
             aabbBox.max = Vec3f(maxX, maxY, hit.hitPoint.z + boxHeight);
 
             graphics.DebugDrawAABB(aabbBox, Vec3f(0.1f, 1.0f, 0.3f));
+            graphics.DebugDrawLine(originalHitPoint, hit.hitPoint, Vec3f(1.0f, 0.5f, 0.5f));
         }
     }
     else
@@ -640,11 +643,15 @@ void UpdateEditor(ModuleManager& modules)
 
     Rect newViewport = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
 
-    UpdateNormalDraw(input, collisions, graphics);
-    UpdateBoxCreate(input, collisions, graphics);
-    UpdateModelPlace(input, collisions, graphics);
-    UpdateModelMove(input, collisions, graphics);
-    UpdateTexturePlace(input, collisions, graphics);
+    if (Engine::IsWindowFocused())
+    {
+        UpdateNormalDraw(input, collisions, graphics);
+        UpdateBoxCreate(input, collisions, graphics);
+        UpdateModelPlace(input, collisions, graphics);
+        UpdateModelMove(input, collisions, graphics);
+        UpdateTexturePlace(input, collisions, graphics);
+    }
+
 
     if (input.IsKeyDown(Key::Alt))
     {
@@ -850,6 +857,7 @@ void UpdateEditor(ModuleManager& modules)
         modeString = "Vertex Edit Mode";
         break;
     }
+
     text.DrawText(modeString, &testFont, Vec2f(100.0f, Engine::GetClientAreaSize().y - 70), Vec3f(0.0f, 0.0f, 0.0f));
 
     // END DRAW

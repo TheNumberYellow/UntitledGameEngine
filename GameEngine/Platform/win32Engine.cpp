@@ -124,6 +124,11 @@ void Engine::StopGame()
     running = false;
 }
 
+bool Engine::IsWindowFocused()
+{
+    return GetFocus() == WindowHandle;
+}
+
 void WarpMouseToWindowCenter()
 {
     Engine::SetMousePosition(cursorCenter);
@@ -224,6 +229,8 @@ LRESULT CALLBACK WindowProc(_In_ HWND WindowHandle, _In_ UINT Message, _In_ WPAR
 
             InputModule* input = modules->GetInput();
             input->Resize(newSize);
+
+            modules->GetText()->Resize(newSize);
 
             Resize(*modules, newSize);
         
@@ -329,7 +336,7 @@ int WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ L
         Input.UpdateMousePos(Engine::GetMousePosition());
         Input.SetMouseLocked(cursorLocked);
 
-        if (GetFocus() == WindowHandle)
+        if (Engine::IsWindowFocused())
         {
             if (cursorLocked)
             {

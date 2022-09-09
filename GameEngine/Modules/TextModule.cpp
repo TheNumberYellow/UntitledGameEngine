@@ -20,7 +20,8 @@ TextModule::TextModule(Renderer& renderer)
     #version 400
     
     uniform mat4 Projection;
-    
+    uniform vec2 TextPosition;    
+
     in vec2 VertPosition;
     in vec2 VertUV;
 
@@ -29,7 +30,7 @@ TextModule::TextModule(Renderer& renderer)
     void main()
     {
         //TEMP (fraser) z ordering for ui elements
-        gl_Position = Projection * vec4(VertPosition, -0.9, 1.0);
+        gl_Position = (Projection * vec4(VertPosition, -0.9, 1.0)) + (Projection * vec4(TextPosition, 0, 0));
         FragUV = VertUV;
     }
     )";
@@ -53,9 +54,10 @@ TextModule::TextModule(Renderer& renderer)
 
     m_TextShader = m_Renderer.LoadShader(vertShaderSource, fragShaderSource);
 
-    VertexBufferFormat vertFormat = { VertAttribute::Vec2f, VertAttribute::Vec2f };
+    Vec2i viewportSize = m_Renderer.GetViewportSize();
 
-    m_TextQuadsMesh = m_Renderer.CreateEmptyMesh(vertFormat, true);
+    Mat4x4f orthoMatrix = Math::GenerateOrthoMatrix(0.0f, (float)viewportSize.x, 0.0f, (float)viewportSize.y, 0.0f, 100.0f);
+    m_Renderer.SetShaderUniformMat4x4f(m_TextShader, "Projection", orthoMatrix);
 }
 
 TextModule::~TextModule()
@@ -145,31 +147,50 @@ void TextModule::DrawText(std::string text, Font* font, Vec2f position, Vec3f co
     m_Renderer.SetActiveShader(m_TextShader);
     
     m_Renderer.SetShaderUniformVec3f(m_TextShader, "TextColour", colour);
+    m_Renderer.SetShaderUniformVec2f(m_TextShader, "TextPosition", position);
 
-    Vec2f screenSize = Engine::GetClientAreaSize();
     // Temp(fraser) : connect to camera in some way?
 
-    Vec2i viewportSize = m_Renderer.GetViewportSize();
+    m_Renderer.SetActiveTexture(font->m_TextureAtlas, 0);
+    m_Renderer.DrawMesh(m_TextQuadsMesh);
+}
 
-    Mat4x4f orthoMatrix = Math::GenerateOrthoMatrix(0.0f, (float)viewportSize.x, 0.0f, (float)viewportSize.y, 0.0f, 100.0f);
+void TextModule::Resize(Vec2i newSize)
+{
+    Mat4x4f orthoMatrix = Math::GenerateOrthoMatrix(0.0f, (float)newSize.x, 0.0f, (float)newSize.y, 0.0f, 100.0f);
     m_Renderer.SetShaderUniformMat4x4f(m_TextShader, "Projection", orthoMatrix);
 
+}
+
+TextStringInfo TextModule::GenerateString(std::string text, Font& font)
+{
+    TextStringInfo textInfo;
+    textInfo.m_Font = &font;
+    textInfo.m_String = text;
+    
     VertexBufferFormat vertFormat = { VertAttribute::Vec2f, VertAttribute::Vec2f };
 
     std::vector<float> textQuadsVertices;
     std::vector<ElementIndex> indexBuffer;
 
-    Vec2i fontAtlasSize = font->m_AtlasSize;
+    Vec2i fontAtlasSize = textInfo.m_Font->m_AtlasSize;
+
+    Vec2f cursor = Vec2f(0.0f, 0.0f);
 
     for (int i = 0; i < text.size(); ++i)
     {
-        CharacterInfo c = font->m_CharacterInfo[text[i]];
+        CharacterInfo c = textInfo.m_Font->m_CharacterInfo[text[i]];
 
-        float xpos = position.x + c.Bearing.x;
-        float ypos = position.y - (c.Size.y - c.Bearing.y);
+        float xpos = cursor.x + c.Bearing.x;
+        float ypos = cursor.y - (c.Size.y - c.Bearing.y);
 
         float w = (float)c.Size.x;
         float h = (float)c.Size.y;
+
+        textInfo.m_Bounds.expand(Vec2f(xpos, ypos));
+        textInfo.m_Bounds.expand(Vec2f(xpos, ypos + h));
+        textInfo.m_Bounds.expand(Vec2f(xpos + w, ypos + h));
+        textInfo.m_Bounds.expand(Vec2f(xpos + w, ypos));
 
         textQuadsVertices.insert(
             textQuadsVertices.end(),
@@ -183,15 +204,15 @@ void TextModule::DrawText(std::string text, Font* font, Vec2f position, Vec3f co
 
         unsigned int e = 4 * i;
         indexBuffer.insert(
-            indexBuffer.end(), 
+            indexBuffer.end(),
             { e, e + 1, e + 2, e, e + 2, e + 3 }
         );
 
-        position.x += c.Advance.x >> 6;
-        position.y += c.Advance.y >> 6;
+        cursor.x += c.Advance.x >> 6;
+        cursor.y += c.Advance.y >> 6;
     }
-    m_Renderer.UpdateMeshData(m_TextQuadsMesh, vertFormat, textQuadsVertices, indexBuffer);
 
-    m_Renderer.SetActiveTexture(font->m_TextureAtlas, 0);
-    m_Renderer.DrawMesh(m_TextQuadsMesh);
+    textInfo.m_Mesh = m_Renderer.LoadMesh(vertFormat, textQuadsVertices, indexBuffer);
+
+    return textInfo;
 }
