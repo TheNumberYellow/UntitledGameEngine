@@ -690,6 +690,7 @@ void UpdateEditor(ModuleManager& modules)
 
     // THIS IS ALL TEMPORARY WHILE I WORK ON A SHADOW SYSTEM IN THE GRAPHICS MODULE :^) 
     graphics.SetActiveFrameBuffer(shadowBuffer);
+    //graphics.m_Renderer.SetCulling(Cull::Front);
     graphics.m_Renderer.SetActiveShader(shadowShader);
     {
         graphics.m_Renderer.SetShaderUniformMat4x4f(shadowShader, "lightSpaceMatrix", shadowCam.GetCamMatrix());
@@ -705,6 +706,7 @@ void UpdateEditor(ModuleManager& modules)
         }
     }
     graphics.ResetFrameBuffer();
+    //graphics.m_Renderer.SetCulling(Cull::Back);
 
     // THIS IS ALL TEMPORARY WHILE I WORK ON A SHADOW SYSTEM IN THE GRAPHICS MODULE :^) 
     graphics.SetCamera(&cam);
@@ -858,7 +860,7 @@ void UpdateEditor(ModuleManager& modules)
         break;
     }
 
-    text.DrawText(modeString, &testFont, Vec2f(100.0f, Engine::GetClientAreaSize().y - 70), Vec3f(0.0f, 0.0f, 0.0f));
+    text.DrawText(modeString, &testFont, Vec2f(100.0f, Engine::GetClientAreaSize().y - 70.0f), Vec3f(0.0f, 0.0f, 0.0f));
 
     // END DRAW
 }

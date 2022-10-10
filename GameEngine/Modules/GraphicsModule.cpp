@@ -225,33 +225,55 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
         float closestDepth = texture(ShadowMap, projCoords.xy).r; 
         // get depth of current fragment from light's perspective
         float currentDepth = projCoords.z;
-        // check whether current frag pos is in shadow
+        // check whether current frag pos is in shadow  
+        vec3 sun = vec3(-SunDirection.x, -SunDirection.y, -SunDirection.z);      
+        //float bias = max(0.05 * (1.0 - dot(FragNormal, sun)), 0.005);  
+        float bias = max(0.0009 * (1.0 - dot(FragNormal.xyz, sun)), 0.0002);         
 
-        vec3 sun = vec3(-SunDirection.x, -SunDirection.y, -SunDirection.z);  
-        // TODO(fraser) fuck with these numbers?
-        float bias = max(0.0009 * (1.0 - dot(FragNormal.xyz, SunDirection)), 0.0002);
-
+    
         float shadow = currentDepth - bias > closestDepth  ? 1.0 : 0.0;  
-
-        //float shadow = 0.0;
-        //vec2 texelSize = 1.0 / textureSize(ShadowMap, 0);
-        //for(int x = -3; x <= 3; ++x)
-        //{
-        //    for(int y = -3; y <= 3; ++y)
-        //    {
-        //        float pcfDepth = texture(ShadowMap, projCoords.xy + vec2(x, y) * texelSize).r; 
-        //        shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;        
-        //    }    
-        //}
-        //
-        //shadow /= 7.0 * 7.0;        
-
         if (projCoords.z > 1.0)
         {
             shadow = 0.0;
         }
 
         return shadow;
+        
+        //// perform perspective divide
+        //vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+        //// transform to [0,1] range
+        //projCoords = projCoords * 0.5 + 0.5;
+        //// get closest depth value from light's perspective (using [0,1] range fragPosLight as coords)
+        //float closestDepth = texture(ShadowMap, projCoords.xy).r; 
+        //// get depth of current fragment from light's perspective
+        //float currentDepth = projCoords.z;
+        //// check whether current frag pos is in shadow
+
+        //vec3 sun = vec3(-SunDirection.x, -SunDirection.y, -SunDirection.z);  
+        //// TODO(fraser) fuck with these numbers?
+        //float bias = max(0.0009 * (1.0 - dot(FragNormal.xyz, SunDirection)), 0.0002);
+
+        //float shadow = currentDepth - bias > closestDepth  ? 1.0 : 0.0;  
+
+        ////float shadow = 0.0;
+        ////vec2 texelSize = 1.0 / textureSize(ShadowMap, 0);
+        ////for(int x = -3; x <= 3; ++x)
+        ////{
+        ////    for(int y = -3; y <= 3; ++y)
+        ////    {
+        ////        float pcfDepth = texture(ShadowMap, projCoords.xy + vec2(x, y) * texelSize).r; 
+        ////        shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;        
+        ////    }    
+        ////}
+        ////
+        ////shadow /= 7.0 * 7.0;        
+
+        //if (projCoords.z > 1.0)
+        //{
+        //    shadow = 0.0;
+        //}
+
+        //return shadow;
     }
 
 	void main()
@@ -261,6 +283,10 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
 		vec3 normalizedNormal = normalize(FragNormal);
 		vec4 textureAt = texture(DiffuseTexture, FragUV);
 		float diffuse = ((dot(normalizedNormal.xyz, normalize(sun))) + 1.0) / 2.0;
+        if (diffuse < 0.5)
+        {
+            diffuse = 0.0;
+        }
         float ambient = 0.25;        
 
         float shadow = ShadowCalculation(FragPosLightSpace);
@@ -416,7 +442,7 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
     //TEMP
     //temp temp temp
     m_Renderer.SetShaderUniformVec3f(m_TexturedMeshShader, "SunDirection", Vec3f(0.0f, 0.0f, -1.0f));
-    m_Renderer.SetShaderUniformVec2f(m_UIShader, "WindowSize", Engine::GetClientAreaSize());
+    m_Renderer.SetShaderUniformVec2f(m_UIShader, "WindowSize", (Vec2f)Engine::GetClientAreaSize());
 
     std::vector<float> skyboxVertices = {
         // positions          

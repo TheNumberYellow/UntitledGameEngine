@@ -58,6 +58,19 @@ TextModule::TextModule(Renderer& renderer)
 
     Mat4x4f orthoMatrix = Math::GenerateOrthoMatrix(0.0f, (float)viewportSize.x, 0.0f, (float)viewportSize.y, 0.0f, 100.0f);
     m_Renderer.SetShaderUniformMat4x4f(m_TextShader, "Projection", orthoMatrix);
+
+
+    //TextStringInfo tsf;
+    //tsf.m_String = "Yeetus";
+    //tsf.m_Bounds = Rect(Vec2f(2.0f, 3.0f), Vec2f(40.0f, 50.0f));
+    //tsf.m_Mesh = 123;
+
+
+    //size_t tsfHash = Hash_Value(tsf);
+
+    //Engine::DEBUGPrint(std::to_string(tsfHash));
+
+
 }
 
 TextModule::~TextModule()
@@ -145,14 +158,15 @@ Font TextModule::LoadFont(std::string filePath, int pixelSize)
 void TextModule::DrawText(std::string text, Font* font, Vec2f position, Vec3f colour)
 {
     m_Renderer.SetActiveShader(m_TextShader);
+
+    TextMeshInfo meshInfo = GetTextMeshInfo(text, *font);
     
     m_Renderer.SetShaderUniformVec3f(m_TextShader, "TextColour", colour);
     m_Renderer.SetShaderUniformVec2f(m_TextShader, "TextPosition", position);
 
-    // Temp(fraser) : connect to camera in some way?
-
     m_Renderer.SetActiveTexture(font->m_TextureAtlas, 0);
-    //m_Renderer.DrawMesh(m_TextQuadsMesh);
+    
+    m_Renderer.DrawMesh(meshInfo.m_Mesh);
 }
 
 void TextModule::Resize(Vec2i newSize)
@@ -162,9 +176,24 @@ void TextModule::Resize(Vec2i newSize)
 
 }
 
-TextStringInfo TextModule::GenerateString(std::string text, Font& font)
+TextMeshInfo TextModule::GetTextMeshInfo(std::string text, Font& font)
 {
-    TextStringInfo textInfo;
+    TextInfo ti = TextInfo{ text, &font };
+
+    auto got = m_CachedStrings.find(ti);
+
+    if (got == m_CachedStrings.end())
+    {
+        TextMeshInfo meshInfo = GenerateTextMeshInfo(text, font);
+        m_CachedStrings[ti] = meshInfo;
+    }
+
+    return m_CachedStrings[ti];
+}
+
+TextMeshInfo TextModule::GenerateTextMeshInfo(std::string text, Font& font)
+{
+    TextMeshInfo textInfo;
     textInfo.m_Font = &font;
     textInfo.m_String = text;
     

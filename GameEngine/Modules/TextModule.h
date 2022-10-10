@@ -3,6 +3,8 @@
 #include "..\Platform\RendererPlatform.h"
 #include "..\Interfaces\Resizeable_i.h"
 
+#include "Utils\Hash.h"
+
 #include <unordered_map>
 
 struct FT_LibraryRec_;
@@ -37,7 +39,24 @@ struct Font
     Vec2i m_AtlasSize;
 };
 
-struct TextStringInfo
+struct TextInfo
+{
+    std::string m_String;
+    Font* m_Font;
+
+    friend size_t Hash_Value(const TextInfo& ti)
+    {
+        size_t h = Hash::Hash_Value(ti.m_String);
+        return Hash::Combine(h, Hash::Hash_Value(ti.m_Font));
+    }
+
+    friend bool operator==(const TextInfo& lhs, const TextInfo& rhs)
+    {
+        return (lhs.m_String == rhs.m_String) && (lhs.m_Font == rhs.m_Font);
+    }
+};
+
+struct TextMeshInfo
 {
     std::string m_String;
     Rect m_Bounds;
@@ -60,9 +79,10 @@ public:
     virtual void Resize(Vec2i newSize) override;
 private:
 
-    std::unordered_map<size_t, TextStringInfo> m_CachedStrings;
+    std::unordered_map<TextInfo, TextMeshInfo, Hash::Hasher<TextInfo>> m_CachedStrings;
 
-    TextStringInfo GenerateString(std::string text, Font& font);
+    TextMeshInfo GetTextMeshInfo(std::string text, Font& font);
+    TextMeshInfo GenerateTextMeshInfo(std::string text, Font& font);
 
     FT_Library m_Library;
     Renderer& m_Renderer;
