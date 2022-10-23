@@ -162,6 +162,9 @@ void TextModule::DrawText(std::string text, Font* font, Vec2f position, Vec3f co
     TextMeshInfo meshInfo = GetTextMeshInfo(text, *font);
     
     m_Renderer.SetShaderUniformVec3f(m_TextShader, "TextColour", colour);
+    
+    // Temp(fraser): set up "anchor points" for text
+    position.y -= meshInfo.m_Bounds.size.y;
     m_Renderer.SetShaderUniformVec2f(m_TextShader, "TextPosition", position);
 
     m_Renderer.SetActiveTexture(font->m_TextureAtlas, 0);

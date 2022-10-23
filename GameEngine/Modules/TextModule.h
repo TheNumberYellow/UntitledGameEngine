@@ -1,7 +1,7 @@
 #pragma once
 
-#include "..\Platform\RendererPlatform.h"
-#include "..\Interfaces\Resizeable_i.h"
+#include "Platform\RendererPlatform.h"
+#include "Interfaces\Resizeable_i.h"
 
 #include "Utils\Hash.h"
 

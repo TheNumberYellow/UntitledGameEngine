@@ -1,7 +1,8 @@
 #include "UIModule.h"
 
-UIModule::UIModule(Renderer& renderer)
+UIModule::UIModule(Renderer& renderer, TextModule& text)
     : m_Renderer(renderer)
+    , m_Text(text)
 {
     m_DefaultBorderTexture = m_Renderer.LoadTexture("images/button_border.png");
     m_DefaultFrameTexture = m_Renderer.LoadTexture("images/frame_border.png");
@@ -61,6 +62,8 @@ UIModule::UIModule(Renderer& renderer)
     VertexBufferFormat vertFormat = VertexBufferFormat({ VertAttribute::Vec2f, VertAttribute::Vec2f });
     m_BorderMesh = m_Renderer.CreateEmptyMesh(vertFormat, true);
     m_RectMesh = m_Renderer.CreateEmptyMesh(vertFormat, true);
+
+    m_FrameFont = m_Text.LoadFont("fonts/ARLRDBD.TTF", 12);
 }
 
 UIModule::~UIModule()
@@ -136,169 +139,15 @@ void UIModule::BufferPanel(Framebuffer_ID fBuffer, Rect rect)
 
 Click UIModule::ImgButton(Texture_ID texture, Rect rect, float borderWidth)
 {
-    rect.location += m_SubFrame.location;
-    
-
-    Click result;
-
-    ClickableState* state = GetClickable(
-        std::to_string(texture) +
-        std::to_string(rect.location.x) +
-        std::to_string(rect.location.y) +
-        std::to_string(rect.size.x) +
-        std::to_string(rect.size.y) +
-        std::to_string(borderWidth) +
-        std::to_string(m_HashCount++)
-    );
-
-    Vec2i mousePos = Engine::GetMousePosition();
-
-    if (state->clicking)
-    {
-        if (!rect.contains(mousePos))
-        {
-            // Mouse moved out of button while clicking, button not clicked
-            state->clicking = false;
-            result.clicked = false;
-        }
-        if (!Engine::GetMouseDown())
-        {
-            // Mouse stopped clicking while on button, button was clicked
-            state->clicking = false;
-            result.clicked = true;
-        }
-    }
-    else 
-    {
-        if (Engine::GetMouseDown() && state->hovering)
-        {
-            state->clicking = true;
-        }
-        state->hovering = rect.contains(mousePos);
-    }
-
-    //state->hovering = rect.contains(mousePos);
-
-    m_Renderer.DisableDepthTesting();
-    MeshData vertexData = GetVertexDataForBorderMesh(rect, borderWidth);
-
-    VertexBufferFormat vertFormat = VertexBufferFormat({ VertAttribute::Vec2f, VertAttribute::Vec2f });
-
-    m_Renderer.UpdateMeshData(m_BorderMesh, vertFormat, vertexData.first, vertexData.second);
-
-    m_Renderer.SetActiveTexture(m_DefaultBorderTexture);
-    m_Renderer.SetActiveShader(m_UIShader);
-    
-    m_Renderer.SetShaderUniformBool(m_UIShader, "Hovering", state->hovering);
-    m_Renderer.SetShaderUniformBool(m_UIShader, "Clicking", state->clicking);
-    
-    m_Renderer.DrawMesh(m_BorderMesh);
-
-    Rect innerRect = rect;
-    innerRect.location.x += borderWidth;
-    innerRect.location.y += borderWidth;
-    innerRect.size.x -= borderWidth * 2;
-    innerRect.size.y -= borderWidth * 2;
-
-    vertexData = GetVertexDataForRect(innerRect);
-
-    m_Renderer.UpdateMeshData(m_RectMesh, vertFormat, vertexData.first, vertexData.second);
-
-    m_Renderer.SetActiveTexture(texture);
-
-    m_Renderer.DrawMesh(m_RectMesh);
-
-    m_Renderer.EnableDepthTesting();
-
-    result.clicking = state->clicking;
-    result.hovering = state->hovering;
-
-    return result;
+    return Button(texture, rect, borderWidth, false);
 }
 
 Click UIModule::BufferButton(Framebuffer_ID fBuffer, Rect rect, float borderWidth)
 {
-    rect.location += m_SubFrame.location;
-
-
-    Click result;
-
-    ClickableState* state = GetClickable(
-        std::to_string(fBuffer) +
-        std::to_string(rect.location.x) +
-        std::to_string(rect.location.y) +
-        std::to_string(rect.size.x) +
-        std::to_string(rect.size.y) +
-        std::to_string(borderWidth) +
-        std::to_string(m_HashCount++)
-    );
-
-    Vec2i mousePos = Engine::GetMousePosition();
-
-    if (state->clicking)
-    {
-        if (!rect.contains(mousePos))
-        {
-            // Mouse moved out of button while clicking, button not clicked
-            state->clicking = false;
-            result.clicked = false;
-        }
-        if (!Engine::GetMouseDown())
-        {
-            // Mouse stopped clicking while on button, button was clicked
-            state->clicking = false;
-            result.clicked = true;
-        }
-    }
-    else
-    {
-        if (Engine::GetMouseDown() && state->hovering)
-        {
-            state->clicking = true;
-        }
-        state->hovering = rect.contains(mousePos);
-    }
-
-    //state->hovering = rect.contains(mousePos);
-
-    m_Renderer.DisableDepthTesting();
-    MeshData vertexData = GetVertexDataForBorderMesh(rect, borderWidth);
-
-    VertexBufferFormat vertFormat = VertexBufferFormat({ VertAttribute::Vec2f, VertAttribute::Vec2f });
-
-    m_Renderer.UpdateMeshData(m_BorderMesh, vertFormat, vertexData.first, vertexData.second);
-
-    m_Renderer.SetActiveTexture(m_DefaultBorderTexture);
-    m_Renderer.SetActiveShader(m_UIShader);
-
-    m_Renderer.SetShaderUniformBool(m_UIShader, "Hovering", state->hovering);
-    m_Renderer.SetShaderUniformBool(m_UIShader, "Clicking", state->clicking);
-
-    m_Renderer.DrawMesh(m_BorderMesh);
-
-    Rect innerRect = rect;
-    innerRect.location.x += borderWidth;
-    innerRect.location.y += borderWidth;
-    innerRect.size.x -= borderWidth * 2;
-    innerRect.size.y -= borderWidth * 2;
-
-    vertexData = GetVertexDataForRect(innerRect);
-
-    m_Renderer.UpdateMeshData(m_RectMesh, vertFormat, vertexData.first, vertexData.second);
-
-    m_Renderer.SetActiveFBufferTexture(fBuffer);
-
-    m_Renderer.DrawMesh(m_RectMesh);
-
-    m_Renderer.EnableDepthTesting();
-
-    result.clicking = state->clicking;
-    result.hovering = state->hovering;
-
-    return result;
+    return Button(fBuffer, rect, borderWidth, true);
 }
 
-void UIModule::StartFrame(Rect rect, float borderWidth)
+void UIModule::StartFrame(Rect rect, float borderWidth, std::string text)
 {
     m_Renderer.DisableDepthTesting();
 
@@ -313,6 +162,13 @@ void UIModule::StartFrame(Rect rect, float borderWidth)
     m_Renderer.SetShaderUniformBool(m_UIShader, "Clicking", false);
 
     m_Renderer.DrawMesh(m_BorderMesh);
+
+    if (text != "")
+    {
+        Rect r = rect;
+        r.location.y = Engine::GetClientAreaSize().y - r.location.y;
+        m_Text.DrawText(text, &m_FrameFont, r.location, Vec3f(0.9f, 0.3f, 0.5f));
+    }
 
     m_Renderer.EnableDepthTesting();
 
@@ -339,6 +195,93 @@ void UIModule::OnFrameStart()
 
 void UIModule::OnFrameEnd()
 {
+    //std::string printString = "Number of buttons: " + std::to_string(m_Buttons.size());
+    //Engine::DEBUGPrint(printString);
+}
+
+Click UIModule::Button(unsigned int img, Rect rect, float borderWidth, bool isBuffer)
+{
+    rect.location += m_SubFrame.location;
+
+    Click result;
+
+    Vec2i mousePos = Engine::GetMousePosition();
+
+    ButtonState* buttonState = GetButtonState(rect, borderWidth);
+
+    if (buttonState->clicking)
+    {
+        if (!rect.contains(mousePos))
+        {
+            // Mouse moved out of button while clicking, button not clicked
+            buttonState->clicking = false;
+            result.clicked = false;
+        }
+        if (!Engine::GetMouseDown())
+        {
+            // Mouse stopped clicking while on button, button was clicked
+            buttonState->clicking = false;
+            result.clicked = true;
+        }
+    }
+    else
+    {
+        if (Engine::GetMouseDown() && buttonState->hovering)
+        {
+            buttonState->clicking = true;
+        }
+        if (!Engine::GetMouseDown() && rect.contains(mousePos))
+        {
+            buttonState->hovering = true;
+        }
+        if (!rect.contains(mousePos))
+        {
+            buttonState->hovering = false;
+        }
+    }
+
+    m_Renderer.DisableDepthTesting();
+    MeshData vertexData = GetVertexDataForBorderMesh(rect, borderWidth);
+
+    VertexBufferFormat vertFormat = VertexBufferFormat({ VertAttribute::Vec2f, VertAttribute::Vec2f });
+
+    m_Renderer.UpdateMeshData(m_BorderMesh, vertFormat, vertexData.first, vertexData.second);
+
+    m_Renderer.SetActiveTexture(m_DefaultBorderTexture);
+    m_Renderer.SetActiveShader(m_UIShader);
+
+    m_Renderer.SetShaderUniformBool(m_UIShader, "Hovering", buttonState->hovering);
+    m_Renderer.SetShaderUniformBool(m_UIShader, "Clicking", buttonState->clicking);
+
+    m_Renderer.DrawMesh(m_BorderMesh);
+
+    Rect innerRect = rect;
+    innerRect.location.x += borderWidth;
+    innerRect.location.y += borderWidth;
+    innerRect.size.x -= borderWidth * 2;
+    innerRect.size.y -= borderWidth * 2;
+
+    vertexData = GetVertexDataForRect(innerRect);
+
+    m_Renderer.UpdateMeshData(m_RectMesh, vertFormat, vertexData.first, vertexData.second);
+
+    if (isBuffer)
+    {
+        m_Renderer.SetActiveFBufferTexture(img);
+    }
+    else
+    {
+        m_Renderer.SetActiveTexture(img);
+    }
+
+    m_Renderer.DrawMesh(m_RectMesh);
+
+    m_Renderer.EnableDepthTesting();
+
+    result.clicking = buttonState->clicking;
+    result.hovering = buttonState->hovering;
+
+    return result;
 }
 
 MeshData UIModule::GetVertexDataForRect(Rect rect)
@@ -433,19 +376,23 @@ std::pair<std::vector<float>, std::vector<ElementIndex>> UIModule::GetVertexData
     return MeshData(vertices, indices);
 }
 
-ClickableState* UIModule::GetClickable(std::string value)
+ButtonState* UIModule::GetButtonState(Rect rect, float borderWidth)
 {
-    size_t hValue = std::hash<std::string>{}(value);
+    ButtonInfo bi = ButtonInfo{ rect, borderWidth };
+    
+    auto got = m_Buttons.find(bi);
 
-    ClickableState* state = &m_Clickables[hValue];
+    if (got == m_Buttons.end())
+    {
+        ButtonState newState;
+        m_Buttons[bi] = newState;
+    }
 
-    return state;
+    return &m_Buttons[bi];
 }
 
 void UIModule::Resize(Vec2i newSize)
 {
-    //Vec2i viewportSize = m_Renderer.GetViewportSize();
-    
     m_WindowSize = newSize;
 
     Mat4x4f orthoMatrix = Math::GenerateOrthoMatrix(0.0f, (float)newSize.x, 0.0f, (float)newSize.y, 0.0f, 100.0f);

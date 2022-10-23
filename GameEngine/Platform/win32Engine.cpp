@@ -308,7 +308,7 @@ int WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ L
     GraphicsModule Graphics(renderer);
     CollisionModule Collisions(renderer);
     TextModule Text(renderer);
-    UIModule UI(renderer);
+    UIModule UI(renderer, Text);
     InputModule Input;
 
     Modules.SetGraphics(&Graphics);

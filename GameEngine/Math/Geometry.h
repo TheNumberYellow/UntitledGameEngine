@@ -57,6 +57,11 @@ struct Rect
         if (point.y > (location.y + size.y)) size.y = point.y - location.y;
     }
 
+    friend bool operator==(const Rect& lhs, const Rect& rhs)
+    {
+        return lhs.location == rhs.location && lhs.size == rhs.size;
+    }
+
     Vec2f location, size;
 };
 

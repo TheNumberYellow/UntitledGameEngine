@@ -1,7 +1,8 @@
 #pragma once
-#include "..\Platform\RendererPlatform.h"
-
-#include "..\Interfaces\Resizeable_i.h"
+#include "Platform\RendererPlatform.h"
+#include "Interfaces\Resizeable_i.h"
+#include "Modules\TextModule.h"
+#include "Utils\Hash.h"
 
 #include <unordered_map>
 #include <functional>
@@ -19,7 +20,24 @@ struct Click
     bool clicked = false;
 };
 
-struct ClickableState
+struct ButtonInfo
+{
+    Rect m_Rect;
+    float m_BorderWidth;
+
+    friend size_t Hash_Value(const ButtonInfo& ti)
+    {
+        size_t h = Hash::Hash_Value(ti.m_Rect);
+        return Hash::Combine(h, Hash::Hash_Value(ti.m_BorderWidth));
+    }
+
+    friend bool operator==(const ButtonInfo& lhs, const ButtonInfo& rhs)
+    {
+        return (lhs.m_Rect == rhs.m_Rect) && (lhs.m_BorderWidth == rhs.m_BorderWidth);
+    }
+};
+
+struct ButtonState
 {
     bool hovering = false;
     bool clicking = false;
@@ -30,7 +48,7 @@ class UIModule
 {
 public:
 
-    UIModule(Renderer& renderer);
+    UIModule(Renderer& renderer, TextModule& text);
     ~UIModule();
 
     void AlignLeft();
@@ -43,7 +61,7 @@ public:
     Click ImgButton(Texture_ID texture, Rect rect, float borderWidth);
     Click BufferButton(Framebuffer_ID fBuffer, Rect rect, float borderWidth);
 
-    void StartFrame(Rect rect, float borderWidth);
+    void StartFrame(Rect rect, float borderWidth, std::string text = "");
     void EndFrame();
 
     void StartTab(Rect rect);
@@ -56,15 +74,16 @@ public:
     virtual void Resize(Vec2i newSize) override;
 private:
 
+    Click Button(unsigned int img, Rect rect, float borderWidth, bool isBuffer);
+
     MeshData GetVertexDataForRect(Rect rect);
     MeshData GetVertexDataForBorderMesh(Rect rect, float borderWidth);
 
-    void UpdateClickableData(size_t hash, Rect clickArea);
+    ButtonState* GetButtonState(Rect rect, float borderWidth);
 
-    std::unordered_map<size_t, ClickableState> m_Clickables;
+    std::unordered_map<ButtonInfo, ButtonState, Hash::Hasher<ButtonInfo>> m_Buttons;
 
     size_t m_HashCount = 0;
-    ClickableState* GetClickable(std::string value);
 
     Mesh_ID m_RectMesh;
     Mesh_ID m_BorderMesh;
@@ -73,6 +92,9 @@ private:
     Shader_ID m_UIShader;
 
     Renderer& m_Renderer;
+    TextModule& m_Text;
+
+    Font m_FrameFont;
 
     Rect m_SubFrame;
     Vec2i m_WindowSize;

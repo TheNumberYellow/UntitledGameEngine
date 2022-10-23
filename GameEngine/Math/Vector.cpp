@@ -67,6 +67,11 @@ Vec2f Vec2f::operator-()
     return Vec2f(-this->x, -this->y);
 }
 
+bool operator==(const Vec2f& lhs, const Vec2f& rhs)
+{
+    return lhs.x == rhs.x && lhs.y == rhs.y;
+}
+
 Vec2f::operator Vec2i() const
 {
     return Vec2i((int)x, (int)y);

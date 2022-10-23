@@ -751,7 +751,7 @@ void UpdateEditor(ModuleManager& modules)
 
     ui.BufferPanel(viewportBuffer, newViewport);
 
-    ui.StartFrame(Rect(Vec2f(0.0f, 0.0f), Vec2f(screen.x, 40.0f)), 5.0f);
+    ui.StartFrame(Rect(Vec2f(0.0f, 0.0f), Vec2f(screen.x, 40.0f)), 5.0f, "MEMES");
 
     {
         ui.ImgButton(loadedTextures[1], Rect(Vec2f(0.0f, 0.0f), Vec2f(100.0f, 30.0f)), 2.0f);
@@ -766,7 +766,7 @@ void UpdateEditor(ModuleManager& modules)
 
     ui.EndFrame();
     
-    ui.StartFrame(Rect(Vec2f(100.0f, screen.y - 200), Vec2f(screen.x - 200.0f, 200.0f)), 20.0f);
+    ui.StartFrame(Rect(Vec2f(100.0f, screen.y - 200), Vec2f(screen.x - 200.0f, 200.0f)), 20.0f, "MODELS");
 
     for (int i = 0; i < loadedModels.size(); ++i)
     {
@@ -791,7 +791,7 @@ void UpdateEditor(ModuleManager& modules)
     ui.EndFrame();
 
 
-    ui.StartFrame(Rect(Vec2f(screen.x - 100, 40.0f), Vec2f(100.0f, screen.y - 40.0f)), 5.0f);
+    ui.StartFrame(Rect(Vec2f(screen.x - 100, 40.0f), Vec2f(100.0f, screen.y - 40.0f)), 5.0f, "TEXTURES");
     
     for (int i = 0; i < loadedTextures.size(); ++i)
     {
