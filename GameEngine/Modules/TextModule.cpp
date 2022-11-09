@@ -167,7 +167,7 @@ void TextModule::DrawText(std::string text, Font* font, Vec2f position, Vec3f co
     position.y -= meshInfo.m_Bounds.size.y;
     m_Renderer.SetShaderUniformVec2f(m_TextShader, "TextPosition", position);
 
-    m_Renderer.SetActiveTexture(font->m_TextureAtlas, 0);
+    m_Renderer.SetActiveTexture(font->m_TextureAtlas, "Texture");
     
     m_Renderer.DrawMesh(meshInfo.m_Mesh);
 }

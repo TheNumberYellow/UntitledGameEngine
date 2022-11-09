@@ -196,6 +196,7 @@
     <ClCompile Include="Modules\InputModule.cpp" />
     <ClCompile Include="Modules\ModuleManager.cpp" />
     <ClCompile Include="Modules\UIModule.cpp" />
+    <ClCompile Include="Scene.cpp" />
     <ClCompile Include="StringUtils.cpp" />
     <ClCompile Include="Platform\win32Engine.cpp" />
     <ClCompile Include="Platform\win32OpenGLRenderer.cpp" />
@@ -222,6 +223,7 @@
     <ClInclude Include="FileLoader.h" />
     <ClInclude Include="Platform\NetworkPlatform.h" />
     <ClInclude Include="Platform\RendererPlatform.h" />
+    <ClInclude Include="Scene.h" />
     <ClInclude Include="StringUtils.h" />
     <ClInclude Include="Modules\TextModule.h" />
     <ClInclude Include="Utils\Hash.h" />

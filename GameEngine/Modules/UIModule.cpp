@@ -102,7 +102,7 @@ void UIModule::ImgPanel(Texture_ID texture, Rect rect)
 
     m_Renderer.UpdateMeshData(m_RectMesh, vertFormat, vertexData.first, vertexData.second);
 
-    m_Renderer.SetActiveTexture(texture);
+    m_Renderer.SetActiveTexture(texture, "Texture");
     m_Renderer.SetActiveShader(m_UIShader);
 
     m_Renderer.SetShaderUniformBool(m_UIShader, "Hovering", false);
@@ -125,7 +125,7 @@ void UIModule::BufferPanel(Framebuffer_ID fBuffer, Rect rect)
 
     m_Renderer.UpdateMeshData(m_RectMesh, vertFormat, vertexData.first, vertexData.second);
 
-    m_Renderer.SetActiveFBufferTexture(fBuffer);
+    m_Renderer.SetActiveFBufferTexture(fBuffer, "Texture");
 
     m_Renderer.SetActiveShader(m_UIShader);
 
@@ -155,7 +155,7 @@ void UIModule::StartFrame(Rect rect, float borderWidth, std::string text)
     MeshData verts = GetVertexDataForBorderMesh(rect, borderWidth);
     
     m_Renderer.UpdateMeshData(m_BorderMesh, vertFormat, verts.first, verts.second);
-    m_Renderer.SetActiveTexture(m_DefaultFrameTexture);
+    m_Renderer.SetActiveTexture(m_DefaultFrameTexture, "Texture");
     m_Renderer.SetActiveShader(m_UIShader);
 
     m_Renderer.SetShaderUniformBool(m_UIShader, "Hovering", false);
@@ -247,7 +247,7 @@ Click UIModule::Button(unsigned int img, Rect rect, float borderWidth, bool isBu
 
     m_Renderer.UpdateMeshData(m_BorderMesh, vertFormat, vertexData.first, vertexData.second);
 
-    m_Renderer.SetActiveTexture(m_DefaultBorderTexture);
+    m_Renderer.SetActiveTexture(m_DefaultBorderTexture, "Texture");
     m_Renderer.SetActiveShader(m_UIShader);
 
     m_Renderer.SetShaderUniformBool(m_UIShader, "Hovering", buttonState->hovering);
@@ -267,11 +267,11 @@ Click UIModule::Button(unsigned int img, Rect rect, float borderWidth, bool isBu
 
     if (isBuffer)
     {
-        m_Renderer.SetActiveFBufferTexture(img);
+        m_Renderer.SetActiveFBufferTexture(img, "Texture");
     }
     else
     {
-        m_Renderer.SetActiveTexture(img);
+        m_Renderer.SetActiveTexture(img, "Texture");
     }
 
     m_Renderer.DrawMesh(m_RectMesh);

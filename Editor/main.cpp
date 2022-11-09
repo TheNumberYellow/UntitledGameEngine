@@ -3,17 +3,44 @@
 
 #include "EditorScene.h"
 
+#include "Scene.h"
+
 #include <cmath>
 #include <sstream>
 #include <string>
 #include <iostream>
 #include <filesystem>
 
+struct Player
+{
+    Vec3f position;
+    Vec3f velocity;
+    Camera* cam;
+};
+
 struct EditorModel
 {
     Model* model;
     CollisionMesh* colMesh;
 };
+
+enum class State
+{
+    EDITOR,
+    GAME
+};
+
+enum class ToolMode
+{
+    NORMAL,
+    BOX,
+    MOVE,
+    VERTEX
+};
+
+Player player;
+
+Texture_ID playButtonTexture;
 
 Texture_ID cursorToolTexture;
 Texture_ID boxToolTexture;
@@ -48,32 +75,23 @@ std::vector<Model> loadedModels;
 std::vector<Framebuffer_ID> modelFBuffers;
 Camera modelCam;
 
-std::vector<EditorModel> boxes;
+Scene scene;
 
-std::vector<EditorModel> sceneModels;
 bool draggingNewModel = false;
-EditorModel* draggingModel = nullptr;
+Model* draggingModel = nullptr;
 
 bool draggingNewTexture = false;
 Texture_ID draggingTexture;
 
-static EditorModel* movingModelPtr = nullptr;
-static bool movingModel = false;
+static Model* movingModelPtr = nullptr;
 
 Model xAxisArrow;
 Model yAxisArrow;
 Model zAxisArrow;
 
-enum class ToolMode
-{
-    NORMAL,
-    BOX,
-    MOVE,
-    VERTEX
-};
-
-
 ToolMode toolMode = ToolMode::NORMAL;
+
+State state = State::EDITOR;
 
 Rect GetViewportSizeFromScreenSize(Vec2i screenSize)
 {
@@ -183,7 +201,8 @@ void MoveCamera(InputModule& inputs, GraphicsModule& graphics, Camera& cam, floa
     {
         shadowCam.SetPosition(cam.GetPosition());
         shadowCam.SetDirection(cam.GetDirection());
-        graphics.m_Renderer.SetShaderUniformVec3f(graphics.m_TexturedMeshShader, "SunDirection", cam.GetDirection());
+        
+        //graphics.m_Renderer.SetShaderUniformVec3f(graphics.m_TexturedMeshShader, "SunDirection", cam.GetDirection());
     }
 }
 
@@ -256,31 +275,14 @@ void UpdateNormalDraw(InputModule& input, CollisionModule& collision, GraphicsMo
         Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
         Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
 
-        RayCastHit finalHit;
-        for (int i = 0; i < sceneModels.size(); ++i)
-        {
-            if (sceneModels[i].colMesh)
-            {
-                RayCastHit hit = collision.RayCast(mouseRay, *(sceneModels[i].colMesh), sceneModels[i].model->GetTransform().GetTransformMatrix());
-                if (hit.hitDistance < finalHit.hitDistance)
-                {
-                    finalHit = hit;
-                }
-            }
-        }
+        SceneRayCastHit finalHit;
 
-        for (int i = 0; i < boxes.size(); ++i)
-        {
-            RayCastHit hit = collision.RayCast(mouseRay, *(boxes[i].colMesh), boxes[i].model->GetTransform().GetTransformMatrix());
-            if (hit.hitDistance < finalHit.hitDistance)
-            {
-                finalHit = hit;
-            }
-        }
+        finalHit = scene.RayCast(mouseRay, collision);
 
-        if (finalHit.hit)
+        if (finalHit.rayCastHit.hit)
         {
-            graphics.DebugDrawLine(finalHit.hitPoint, finalHit.hitPoint + finalHit.hitNormal, Vec3f(1.0f, 0.7f, 0.4f));
+            RayCastHit hit = finalHit.rayCastHit;
+            graphics.DebugDrawLine(hit.hitPoint, hit.hitPoint + hit.hitNormal, Vec3f(1.0f, 0.7f, 0.4f));
         }
     }
 }
@@ -312,14 +314,9 @@ void UpdateBoxCreate(InputModule& input, CollisionModule& collisions, GraphicsMo
             RayCastHit finalHit = collisions.RayCast(mouseRay, Plane{ Vec3f(0.0f, 0.0f, 0.0f), Vec3f(0.0f, 0.0f, 1.0f) });
 
             // Test against existing level geometry
-            for (int i = 0; i < boxes.size(); ++i)
-            {
-                RayCastHit hit = collisions.RayCast(mouseRay, *(boxes[i].colMesh));
-                if (hit.hitDistance < finalHit.hitDistance)
-                {
-                    finalHit = hit;
-                }
-            }
+            SceneRayCastHit levelHit = scene.RayCast(mouseRay, collisions);
+
+            if (levelHit.rayCastHit.hitDistance < finalHit.hitDistance) finalHit = levelHit.rayCastHit;
 
             if (finalHit.hit)
             {
@@ -361,7 +358,7 @@ void UpdateBoxCreate(InputModule& input, CollisionModule& collisions, GraphicsMo
             EditorModel newBox;
             newBox.model = new Model(graphics.CreateBoxModel(aabbBox));
             newBox.colMesh = new CollisionMesh(collisions.GetCollisionMeshFromMesh(newBox.model->m_TexturedMeshes[0].m_Mesh));
-            boxes.push_back(newBox);
+            scene.AddModel(*(newBox.model));
             boxHeight = 5.0f;
             draggingNewBox = false;
         }
@@ -378,49 +375,33 @@ void UpdateModelPlace(InputModule& input, CollisionModule& collisions, GraphicsM
             Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
             Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
 
-            RayCastHit finalHit;
-            
-            for (int i = 0; i < boxes.size(); ++i)
-            {
-                auto hit = collisions.RayCast(mouseRay, *boxes[i].colMesh, boxes[i].model->GetTransform().GetTransformMatrix());   
-                if (hit.hitDistance < finalHit.hitDistance)
-                {
-                    finalHit = hit;
-                }
-            }
-            for (int i = 0; i < sceneModels.size(); ++i)
-            {
-                // I just pissed and shitted myself
-                if (&sceneModels[i] == draggingModel)
-                {
-                    continue;
-                }
+            SceneRayCastHit finalHit = scene.RayCast(mouseRay, collisions);
 
-                auto hit = collisions.RayCast(mouseRay, *sceneModels[i].colMesh, sceneModels[i].model->GetTransform().GetTransformMatrix());
-                if (hit.hitDistance < finalHit.hitDistance)
-                {
-                    finalHit = hit;
-                }
-            }
-
-            if (finalHit.hit)
+            if (finalHit.rayCastHit.hit)
             {
-                draggingModel->model->GetTransform().SetPosition(finalHit.hitPoint);
-                Quaternion q = Math::VecDiffToQuat(finalHit.hitNormal, Vec3f(0.0f, 0.0f, 1.0f));
+                RayCastHit hit = finalHit.rayCastHit;
+                draggingModel->GetTransform().SetPosition(hit.hitPoint);
+                Quaternion q = Math::VecDiffToQuat(hit.hitNormal, Vec3f(0.0f, 0.0f, 1.0f));
                 q = Math::normalize(q);
 
-                draggingModel->model->GetTransform().SetRotation(q);
+                draggingModel->GetTransform().SetRotation(q);
 
             }
             else
             {
-                draggingModel->model->GetTransform().SetPosition(mouseRay.point + mouseRay.direction * 5);
+                draggingModel->GetTransform().SetPosition(mouseRay.point + mouseRay.direction * 5);
 
-                draggingModel->model->GetTransform().SetRotation(Quaternion());
+                draggingModel->GetTransform().SetRotation(Quaternion());
             }
         }
         else
         {
+            // Actually add the model to the scene
+
+            scene.AddModel(*draggingModel);
+
+            delete draggingModel;
+
             draggingNewModel = false;
             draggingModel = nullptr;
         }
@@ -437,7 +418,6 @@ void UpdateModelMove(InputModule& input, CollisionModule& collisions, GraphicsMo
 
     if (toolMode != ToolMode::MOVE)
     {
-        movingModel = false;
         movingModelPtr = nullptr;
         slidingX = false;
         slidingY = false;
@@ -448,7 +428,6 @@ void UpdateModelMove(InputModule& input, CollisionModule& collisions, GraphicsMo
 
     if (draggingNewModel || draggingNewTexture)
     {
-        movingModel = false;
         movingModelPtr = nullptr;
         slidingX = false;
         slidingY = false;
@@ -474,35 +453,35 @@ void UpdateModelMove(InputModule& input, CollisionModule& collisions, GraphicsMo
         if (slidingX)
         {
             Line mouseLine(mouseRay.point - slidingStartHitPoint, mouseRay.direction);
-            Line axisLine(movingModelPtr->model->GetTransform().GetPosition(), Vec3f(1.0f, 0.0f, 0.0f));
+            Line axisLine(movingModelPtr->GetTransform().GetPosition(), Vec3f(1.0f, 0.0f, 0.0f));
             Vec3f pointAlongAxis = Math::ClosestPointsOnLines(mouseLine, axisLine).second;
 
-            movingModelPtr->model->GetTransform().SetPosition(pointAlongAxis);
+            movingModelPtr->GetTransform().SetPosition(pointAlongAxis);
         }
 
         if (slidingY)
         {
             Line mouseLine(mouseRay.point - slidingStartHitPoint, mouseRay.direction);
-            Line axisLine(movingModelPtr->model->GetTransform().GetPosition(), Vec3f(0.0f, 1.0f, 0.0f));        
+            Line axisLine(movingModelPtr->GetTransform().GetPosition(), Vec3f(0.0f, 1.0f, 0.0f));        
             Vec3f pointAlongAxis = Math::ClosestPointsOnLines(mouseLine, axisLine).second;
 
-            movingModelPtr->model->GetTransform().SetPosition(pointAlongAxis);
+            movingModelPtr->GetTransform().SetPosition(pointAlongAxis);
         }
 
         if (slidingZ)
         {
             Line mouseLine(mouseRay.point - slidingStartHitPoint, mouseRay.direction);
-            Line axisLine(movingModelPtr->model->GetTransform().GetPosition(), Vec3f(0.0f, 0.0f, 1.0f));
+            Line axisLine(movingModelPtr->GetTransform().GetPosition(), Vec3f(0.0f, 0.0f, 1.0f));
             Vec3f pointAlongAxis = Math::ClosestPointsOnLines(mouseLine, axisLine).second;
 
-            movingModelPtr->model->GetTransform().SetPosition(pointAlongAxis);
+            movingModelPtr->GetTransform().SetPosition(pointAlongAxis);
         }
 
 
         return;
     }
 
-    if (movingModel)
+    if (movingModelPtr)
     {
         if (input.GetMouseState().IsButtonDown(Mouse::LMB))
         {
@@ -516,21 +495,21 @@ void UpdateModelMove(InputModule& input, CollisionModule& collisions, GraphicsMo
             hit = collisions.RayCast(mouseRay, arrowToolCollMesh, xAxisArrow.GetTransform());
             if (hit.hit)
             {
-                slidingStartHitPoint = hit.hitPoint - movingModelPtr->model->GetTransform().GetPosition();
+                slidingStartHitPoint = hit.hitPoint - movingModelPtr->GetTransform().GetPosition();
                 slidingX = true;
             }
 
             hit = collisions.RayCast(mouseRay, arrowToolCollMesh, yAxisArrow.GetTransform());
             if (hit.hit)
             {
-                slidingStartHitPoint = hit.hitPoint - movingModelPtr->model->GetTransform().GetPosition();
+                slidingStartHitPoint = hit.hitPoint - movingModelPtr->GetTransform().GetPosition();
                 slidingY = true;
             }
 
             hit = collisions.RayCast(mouseRay, arrowToolCollMesh, zAxisArrow.GetTransform());
             if (hit.hit)
             {
-                slidingStartHitPoint = hit.hitPoint - movingModelPtr->model->GetTransform().GetPosition();
+                slidingStartHitPoint = hit.hitPoint - movingModelPtr->GetTransform().GetPosition();
                 slidingZ = true;
             }
 
@@ -546,33 +525,11 @@ void UpdateModelMove(InputModule& input, CollisionModule& collisions, GraphicsMo
         Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
         Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
 
-        RayCastHit finalHit;
+        SceneRayCastHit finalHit = scene.RayCast(mouseRay, collisions);
 
-        EditorModel* hitModel = nullptr;
-
-        for (int i = 0; i < boxes.size(); ++i)
+        if (finalHit.rayCastHit.hit)
         {
-            auto hit = collisions.RayCast(mouseRay, *boxes[i].colMesh, boxes[i].model->GetTransform().GetTransformMatrix());
-            if (hit.hitDistance < finalHit.hitDistance)
-            {
-                finalHit = hit;
-                hitModel = &boxes[i];
-            }
-        }
-        for (int i = 0; i < sceneModels.size(); ++i)
-        {
-            auto hit = collisions.RayCast(mouseRay, *sceneModels[i].colMesh, sceneModels[i].model->GetTransform().GetTransformMatrix());
-            if (hit.hitDistance < finalHit.hitDistance)
-            {
-                finalHit = hit;
-                hitModel = &sceneModels[i];
-            }
-        }
-
-        if (finalHit.hit)
-        {
-            movingModel = true;
-            movingModelPtr = hitModel;
+            movingModelPtr = finalHit.hitModel;
         }
     }
 }
@@ -588,32 +545,11 @@ void UpdateTexturePlace(InputModule& input, CollisionModule& collisions, Graphic
             Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
             Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
 
-            RayCastHit finalHit;
+            SceneRayCastHit finalHit = scene.RayCast(mouseRay, collisions);
 
-            Model* hitModel = nullptr;
-
-            for (int i = 0; i < boxes.size(); ++i)
+            if (finalHit.rayCastHit.hit)
             {
-                auto hit = collisions.RayCast(mouseRay, *boxes[i].colMesh, boxes[i].model->GetTransform().GetTransformMatrix());
-                if (hit.hitDistance < finalHit.hitDistance)
-                {
-                    finalHit = hit;
-                    hitModel = boxes[i].model;
-                }
-            }
-            for (int i = 0; i < sceneModels.size(); ++i)
-            {
-                auto hit = collisions.RayCast(mouseRay, *sceneModels[i].colMesh, sceneModels[i].model->GetTransform().GetTransformMatrix());
-                if (hit.hitDistance < finalHit.hitDistance)
-                {
-                    finalHit = hit;
-                    hitModel = sceneModels[i].model;
-                }
-            }
-
-            if (finalHit.hit)
-            {
-                hitModel->SetTexture(draggingTexture);
+                finalHit.hitModel->SetTexture(draggingTexture);
             }
         }
     }
@@ -628,11 +564,11 @@ void UpdateEditor(ModuleManager& modules)
     UIModule& ui = *modules.GetUI();
     InputModule& input = *modules.GetInput();
 
-    if (input.IsKeyDown(Key::Escape))
-    {
-        Engine::StopGame();
-        return;
-    }
+    //if (input.IsKeyDown(Key::Escape))
+    //{
+    //    Engine::StopGame();
+    //    return;
+    //}
 
     if (cursorLocked)
     {
@@ -651,7 +587,6 @@ void UpdateEditor(ModuleManager& modules)
         UpdateModelMove(input, collisions, graphics);
         UpdateTexturePlace(input, collisions, graphics);
     }
-
 
     if (input.IsKeyDown(Key::Alt))
     {
@@ -693,17 +628,17 @@ void UpdateEditor(ModuleManager& modules)
     //graphics.m_Renderer.SetCulling(Cull::Front);
     graphics.m_Renderer.SetActiveShader(shadowShader);
     {
-        graphics.m_Renderer.SetShaderUniformMat4x4f(shadowShader, "lightSpaceMatrix", shadowCam.GetCamMatrix());
-        for (int i = 0; i < boxes.size(); ++i)
-        {
-            graphics.m_Renderer.SetShaderUniformMat4x4f(shadowShader, "Transformation", boxes[i].model->GetTransform().GetTransformMatrix());
-            graphics.m_Renderer.DrawMesh(boxes[i].model->m_TexturedMeshes[0].m_Mesh);
-        }
-        for (int i = 0; i < sceneModels.size(); ++i)
-        {
-            graphics.m_Renderer.SetShaderUniformMat4x4f(shadowShader, "Transformation", sceneModels[i].model->GetTransform().GetTransformMatrix());
-            graphics.m_Renderer.DrawMesh(sceneModels[i].model->m_TexturedMeshes[0].m_Mesh);
-        }
+        //graphics.m_Renderer.SetShaderUniformMat4x4f(shadowShader, "lightSpaceMatrix", shadowCam.GetCamMatrix());
+        //for (int i = 0; i < boxes.size(); ++i)
+        //{
+        //    graphics.m_Renderer.SetShaderUniformMat4x4f(shadowShader, "Transformation", boxes[i].model->GetTransform().GetTransformMatrix());
+        //    graphics.m_Renderer.DrawMesh(boxes[i].model->m_TexturedMeshes[0].m_Mesh);
+        //}
+        //for (int i = 0; i < sceneModels.size(); ++i)
+        //{
+        //    graphics.m_Renderer.SetShaderUniformMat4x4f(shadowShader, "Transformation", sceneModels[i].model->GetTransform().GetTransformMatrix());
+        //    graphics.m_Renderer.DrawMesh(sceneModels[i].model->m_TexturedMeshes[0].m_Mesh);
+        //}
     }
     graphics.ResetFrameBuffer();
     //graphics.m_Renderer.SetCulling(Cull::Back);
@@ -712,28 +647,28 @@ void UpdateEditor(ModuleManager& modules)
     graphics.SetCamera(&cam);
     graphics.SetActiveFrameBuffer(viewportBuffer);
     {
-        graphics.m_Renderer.SetActiveFBufferTexture(shadowBuffer, 1);
-        graphics.m_Renderer.SetShaderUniformMat4x4f(graphics.m_TexturedMeshShader, "Camera", graphics.m_Camera->GetCamMatrix());
-        graphics.m_Renderer.SetShaderUniformVec3f(graphics.m_TexturedMeshShader, "CameraPos", graphics.m_Camera->GetPosition());
-        graphics.m_Renderer.SetShaderUniformMat4x4f(graphics.m_TexturedMeshShader, "LightSpaceMatrix", shadowCam.GetCamMatrix());
-        for (int i = 0; i < boxes.size(); ++i)
+        //graphics.m_Renderer.SetActiveFBufferTexture(shadowBuffer, 1);
+        //graphics.m_Renderer.SetShaderUniformMat4x4f(graphics.m_TexturedMeshShader, "Camera", graphics.m_Camera->GetCamMatrix());
+        //graphics.m_Renderer.SetShaderUniformVec3f(graphics.m_TexturedMeshShader, "CameraPos", graphics.m_Camera->GetPosition());
+        //graphics.m_Renderer.SetShaderUniformMat4x4f(graphics.m_TexturedMeshShader, "LightSpaceMatrix", shadowCam.GetCamMatrix());
+
+        scene.SetCamera(&cam);
+        scene.Draw(graphics);
+
+        if (draggingModel)
         {
-            graphics.Draw(*boxes[i].model);
-        }
-        for (int i = 0; i < sceneModels.size(); ++i)
-        {
-            graphics.Draw(*sceneModels[i].model);
+            graphics.Draw(*draggingModel);
         }
 
-        if (movingModel)
+        if (movingModelPtr)
         {
-            Vec3f movingModelPos = movingModelPtr->model->GetTransform().GetPosition();
+            Vec3f movingModelPos = movingModelPtr->GetTransform().GetPosition();
 
             xAxisArrow.GetTransform().SetPosition(movingModelPos + Vec3f(4.0f, 0.0f, 0.0f));
             yAxisArrow.GetTransform().SetPosition(movingModelPos + Vec3f(0.0f, 4.0f, 0.0f));
             zAxisArrow.GetTransform().SetPosition(movingModelPos + Vec3f(0.0f, 0.0f, 4.0f));
 
-            graphics.DebugDrawAABB(movingModelPtr->colMesh->boundingBox, Vec3f(1.0f, 1.0f, 0.7f), movingModelPtr->model->GetTransform().GetTransformMatrix());
+            graphics.DebugDrawAABB(collisions.GetCollisionMeshFromMesh(movingModelPtr->m_TexturedMeshes[0].m_Mesh).boundingBox, Vec3f(1.0f, 1.0f, 0.7f), movingModelPtr->GetTransform().GetTransformMatrix());
 
             graphics.Draw(xAxisArrow);
             graphics.Draw(yAxisArrow);
@@ -754,7 +689,12 @@ void UpdateEditor(ModuleManager& modules)
     ui.StartFrame(Rect(Vec2f(0.0f, 0.0f), Vec2f(screen.x, 40.0f)), 5.0f, "MEMES");
 
     {
-        ui.ImgButton(loadedTextures[1], Rect(Vec2f(0.0f, 0.0f), Vec2f(100.0f, 30.0f)), 2.0f);
+        if (ui.ImgButton(playButtonTexture, Rect(Vec2f(0.0f, 0.0f), Vec2f(100.0f, 30.0f)), 2.0f))
+        {
+            state = State::GAME;
+            player.velocity = Vec3f(0.0f, 0.0f, 0.0f);
+            player.position = cam.GetPosition();
+        }
         ui.ImgButton(loadedTextures[1], Rect(Vec2f(100.0f, 0.0f), Vec2f(100.0f, 30.0f)), 2.0f);
         ui.ImgButton(loadedTextures[1], Rect(Vec2f(200.0f, 0.0f), Vec2f(100.0f, 30.0f)), 2.0f);
         ui.ImgButton(loadedTextures[1], Rect(Vec2f(300.0f, 0.0f), Vec2f(100.0f, 30.0f)), 2.0f);
@@ -781,9 +721,8 @@ void UpdateEditor(ModuleManager& modules)
                 newModel.model = new Model(graphics.CloneModel(loadedModels[i]));
                 newModel.colMesh = new CollisionMesh(collisions.GetCollisionMeshFromMesh(newModel.model->m_TexturedMeshes[0].m_Mesh));
             
-                sceneModels.push_back(newModel);
-                draggingModel = &sceneModels.back();
-
+                //draggingModel = scene.AddModel(*(newModel.model));
+                draggingModel = new Model(graphics.CloneModel(loadedModels[i]));
             }
         }
     }
@@ -860,9 +799,142 @@ void UpdateEditor(ModuleManager& modules)
         break;
     }
 
-    text.DrawText(modeString, &testFont, Vec2f(100.0f, Engine::GetClientAreaSize().y - 70.0f), Vec3f(0.0f, 0.0f, 0.0f));
+    text.DrawText(modeString, &testFont, Vec2f(100.0f, Engine::GetClientAreaSize().y - 40.0f), Vec3f(0.0f, 0.0f, 0.0f));
 
     // END DRAW
+}
+
+void UpdateGame(ModuleManager& modules)
+{
+    GraphicsModule& graphics = *modules.GetGraphics();
+    CollisionModule& collisions = *modules.GetCollision();
+    TextModule& text = *modules.GetText();
+    InputModule& input = *modules.GetInput();
+    UIModule& ui = *modules.GetUI();
+
+    if (input.IsKeyDown(Key::Escape))
+    {
+        state = State::EDITOR;
+    }
+
+    if (input.IsKeyDown(Key::Alt))
+    {
+        if (!holdingAlt)
+        {
+            if (cursorLocked)
+            {
+                Engine::UnlockCursor();
+                Engine::ShowCursor();
+                cursorLocked = false;
+            }
+            else {
+                Engine::LockCursor();
+                Engine::HideCursor();
+                cursorLocked = true;
+            }
+            holdingAlt = true;
+        }
+    }
+    else {
+        holdingAlt = false;
+    }
+
+    if (cursorLocked)
+    {
+        MoveCamera(input, graphics, cam, 0.001f);
+    }
+
+    // Update player
+
+    Vec3f inputDir = Vec3f();
+
+    if (input.IsKeyDown(Key::A))
+    {
+        inputDir += -cam.GetPerpVector() * 0.1f;
+    }
+    if (input.IsKeyDown(Key::D))
+    {
+        inputDir += cam.GetPerpVector() * 0.1f;
+    }
+    if (input.IsKeyDown(Key::W))
+    {
+        inputDir += cam.GetDirection() * 0.1f;
+    }
+    if (input.IsKeyDown(Key::S))
+    {
+        inputDir += cam.GetDirection() * -0.1f;
+    }
+
+    if (input.IsKeyDown(Key::Space))
+    {
+        inputDir += Vec3f(0.0f, 0.0f, 0.1f);
+    }
+
+    if (input.IsKeyDown(Key::Ctrl))
+    {
+        inputDir += Vec3f(0.0f, 0.0f, -0.1f);
+    }
+
+    //player.velocity.x = inputDir.x;
+    //player.velocity.y = inputDir.y;
+
+    //player.velocity += Vec3f(0.0f, 0.0f, -0.01f);
+
+    player.velocity = inputDir;
+    SceneRayCastHit movement = scene.RayCast(Ray(player.position, Math::normalize(player.velocity)), collisions);
+
+
+    if (movement.rayCastHit.hit)
+    {
+        if (movement.rayCastHit.hitDistance <= Math::magnitude(player.velocity))
+        {
+            graphics.DebugDrawPoint(movement.rayCastHit.hitPoint, Vec3f(1.0f, 0.3f, 0.2f));
+            player.position = movement.rayCastHit.hitPoint + (movement.rayCastHit.hitNormal * 0.01f);
+            player.velocity.z = 0.0f;
+        }
+        else
+        {
+            graphics.DebugDrawPoint(movement.rayCastHit.hitPoint);
+            player.position += player.velocity;
+        }
+    }
+    else
+    {
+        player.position += player.velocity;
+    }
+    //if (movement.rayCastHit.hit && movement.rayCastHit.hitDistance > Math::magnitude(player.velocity))
+    //{
+    //    graphics.DebugDrawPoint(movement.rayCastHit.hitPoint); 
+    //}
+
+    //if (movement.rayCastHit.hit && movement.rayCastHit.hitDistance < Math::magnitude(player.velocity))
+    //{
+    //    graphics.DebugDrawPoint(movement.rayCastHit.hitPoint, Vec3f(1.0f, 0.0f, 0.0f));
+    //    player.position = movement.rayCastHit.hitPoint + (Vec3f(0.0f, 0.0f, 0.1f));
+    //    //player.velocity = Vec3f(0.0f, 0.0f, 0.0f);
+    //    //player.velocity.z = -player.velocity.z;
+    //    player.velocity.z = 0.0f;
+    //}
+    //else
+    //{
+    //    player.position += player.velocity;
+    //}
+
+    player.cam->SetPosition(player.position + Vec3f(0.0f, 0.0f, 0.0f));
+
+    graphics.SetActiveFrameBuffer(viewportBuffer);
+    {
+        scene.SetCamera(&cam);
+        scene.Draw(graphics);
+
+    }
+    graphics.ResetFrameBuffer();
+
+    Rect screenRect;
+    screenRect.size = Engine::GetClientAreaSize();
+
+    ui.BufferPanel(viewportBuffer, screenRect);
+
 }
 
 void Initialize(ModuleManager& modules)
@@ -898,6 +970,8 @@ void Initialize(ModuleManager& modules)
     xAxisArrow.SetTexture(graphics.LoadTexture("textures/red.png"));
     yAxisArrow.SetTexture(graphics.LoadTexture("textures/green.png"));
     zAxisArrow.SetTexture(graphics.LoadTexture("textures/blue.png"));
+
+    playButtonTexture = graphics.LoadTexture("images/playButton.png");
 
     cursorToolTexture = graphics.LoadTexture("images/cursorTool.png");
     boxToolTexture = graphics.LoadTexture("images/boxTool.png");
@@ -1004,6 +1078,8 @@ void Initialize(ModuleManager& modules)
     graphics.InitializeDebugDraw(viewportBuffer);
 
     graphics.SetCamera(&cam);
+    
+    graphics.SetRenderMode(RenderMode::FULLBRIGHT);
 
     tempWhiteTexture = graphics.LoadTexture("images/white.png", TextureMode::NEAREST, TextureMode::NEAREST);
 
@@ -1019,11 +1095,20 @@ void Initialize(ModuleManager& modules)
     //TODO(fraser): clean up mouse constrain/input code
     input.SetMouseCenter(newCenter);
     Engine::SetCursorCenter(newCenter);
+
+    player.cam = &cam;
 }
 
 void Update(ModuleManager& modules)
 {
-    UpdateEditor(modules);
+    if (state == State::EDITOR)
+    {
+        UpdateEditor(modules);
+    }
+    else if (state == State::GAME)
+    {
+        UpdateGame(modules);
+    }
     //if (inputs.mouse.leftMouseButton)
     //{
     //	if (holdingMouseLeft)
@@ -1332,16 +1417,32 @@ void Update(ModuleManager& modules)
 
 void Resize(ModuleManager& modules, Vec2i newSize)
 {
-    Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
-    cam.SetScreenSize(viewportRect.size);
-    GraphicsModule* graphics = modules.GetGraphics();
-    InputModule* input = modules.GetInput();
+    if (state == State::EDITOR)
+    {
+        Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
+        cam.SetScreenSize(viewportRect.size);
+        GraphicsModule* graphics = modules.GetGraphics();
+        InputModule* input = modules.GetInput();
 
-    graphics->ResizeFrameBuffer(viewportBuffer, viewportRect.size);
-    Vec2i clientArea = Engine::GetClientAreaSize();
+        graphics->ResizeFrameBuffer(viewportBuffer, viewportRect.size);
+        Vec2i clientArea = Engine::GetClientAreaSize();
 
-    Vec2i newCenter = Vec2i(viewportRect.location.x + viewportRect.size.x / 2, viewportRect.location.y + viewportRect.size.y / 2);
-    //TODO(fraser): clean up mouse constrain/input code
-    input->SetMouseCenter(newCenter);
-    Engine::SetCursorCenter(newCenter);
+        Vec2i newCenter = Vec2i(viewportRect.location.x + viewportRect.size.x / 2, viewportRect.location.y + viewportRect.size.y / 2);
+        //TODO(fraser): clean up mouse constrain/input code
+        input->SetMouseCenter(newCenter);
+        Engine::SetCursorCenter(newCenter);
+    }
+    else if (state == State::GAME)
+    {
+        GraphicsModule* graphics = modules.GetGraphics();
+        InputModule* input = modules.GetInput();
+
+        cam.SetScreenSize(Engine::GetClientAreaSize());
+        graphics->ResizeFrameBuffer(viewportBuffer, Engine::GetClientAreaSize());
+
+        Vec2i newCenter = Vec2i(Engine::GetClientAreaSize().x / 2, Engine::GetClientAreaSize().y / 2);
+        //TODO(fraser): clean up mouse constrain/input code
+        input->SetMouseCenter(newCenter);
+        Engine::SetCursorCenter(newCenter);
+    }
 }

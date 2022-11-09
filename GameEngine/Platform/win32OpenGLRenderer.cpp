@@ -536,6 +536,7 @@ namespace
 
         std::unordered_map<std::string, GLint> m_UniformLocations;
         std::unordered_map<std::string, GLint> m_AttributeLocations;
+        std::unordered_map<std::string, GLint> m_SamplerLocations;
 
         OpenGLShader(std::string vertShaderSource, std::string fragShaderSource)
         {
@@ -628,6 +629,7 @@ namespace
                     // This might not be true, so I look forward to a fun bug
                     if (typeEnum == GL_SAMPLER_2D || typeEnum == GL_SAMPLER_CUBE)
                     {
+                        m_SamplerLocations[nameStr] = texIndex;
                         glUniform1i(i, texIndex++);
                     }
                 }
@@ -822,6 +824,7 @@ namespace
     }
 }
 
+// Error handling
 void GLAPIENTRY
 MessageCallback(GLenum source,
     GLenum type,
@@ -1206,6 +1209,12 @@ void Renderer::SetActiveTexture(Texture_ID texture, unsigned int textureSlot)
     glBindTexture(GL_TEXTURE_2D, texturePtr->texture);
 }
 
+void Renderer::SetActiveTexture(Texture_ID textureID, std::string shaderName)
+{
+    OpenGLShader* shaderPtr = GetGLShaderFromShaderID(currentlyBoundShader);
+    SetActiveTexture(textureID, shaderPtr->m_SamplerLocations[shaderName]);
+}
+
 void Renderer::SetActiveFBufferTexture(Framebuffer_ID frameBufferID, unsigned int textureSlot)
 {
     OpenGLFBuffer* bufferPtr = GetGLFBufferFromFBufferID(frameBufferID);
@@ -1214,12 +1223,24 @@ void Renderer::SetActiveFBufferTexture(Framebuffer_ID frameBufferID, unsigned in
     glBindTexture(GL_TEXTURE_2D, bufferPtr->texture);
 }
 
+void Renderer::SetActiveFBufferTexture(Framebuffer_ID frameBufferID, std::string shaderName)
+{
+    OpenGLShader* shaderPtr = GetGLShaderFromShaderID(currentlyBoundShader);
+    SetActiveFBufferTexture(frameBufferID, shaderPtr->m_SamplerLocations[shaderName]);
+}
+
 void Renderer::SetActiveCubemap(Cubemap_ID cubemapID, unsigned int textureSlot)
 {
     OpenGLCubemap* cubemapPtr = GetGLCubemapFromCubemapID(cubemapID);
 
     glActiveTexture(GL_TEXTURE0 + textureSlot);
     glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapPtr->texture);
+}
+
+void Renderer::SetActiveCubemap(Cubemap_ID cubemapID, std::string shaderName)
+{
+    OpenGLShader* shaderPtr = GetGLShaderFromShaderID(currentlyBoundShader);
+    SetActiveCubemap(cubemapID, shaderPtr->m_SamplerLocations[shaderName]);
 }
 
 void Renderer::SetActiveShader(Shader_ID shader)

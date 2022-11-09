@@ -1,9 +1,9 @@
 #pragma once
 
-#include "..\Camera.h"
-#include "..\Interfaces\Resizeable_i.h"
-#include "..\Math\Geometry.h"
-#include "..\Platform\RendererPlatform.h"
+#include "Camera.h"
+#include "Interfaces\Resizeable_i.h"
+#include "Math\Geometry.h"
+#include "Platform\RendererPlatform.h"
 
 #include <unordered_map>
 #include <vector>
@@ -15,6 +15,12 @@ enum class Vis
     SHADOW_CAST = 1,
     SHADOW_RECV = 2,
 
+};
+
+enum class RenderMode
+{
+    FULLBRIGHT,
+    DEFAULT
 };
 
 class Transform
@@ -113,30 +119,6 @@ struct DirectionalLight
     Vec3f colour;
 };
 
-class Scene
-{
-public:
-
-    Scene();
-    ~Scene();
-
-    void AddModel(Model model, std::string name = "");
-    Model* GetModel(std::string name);
-
-    Camera& GetCamera();
-    void SetCamera(Camera* camera);
-
-    void Draw(GraphicsModule& graphics);
-
-private:
-
-    std::unordered_map<size_t, Model> m_Models;
-    std::vector<Model> m_UntrackedModels;
-    DirectionalLight m_DirLight;
-    Camera* m_Camera;
-};
-
-
 class GraphicsModule
     : public IResizeable
 {
@@ -164,9 +146,10 @@ public:
     Brush CreateBrush(AABB box, Texture_ID texture = 0);
 
     void Draw(Model& model);
-    void Draw(Scene& scene);
 
     void SetCamera(Camera* camera);
+
+    void SetDirectionalLight(DirectionalLight dirLight);
 
     // todo(Fraser): these two should not be called from client code (only the engine)
     // look up a better way to do this
@@ -183,6 +166,8 @@ public:
 
     Vec2i GetViewportSize();
 
+    void SetRenderMode(RenderMode mode);
+
     // Inherited via IResizeable
     virtual void Resize(Vec2i newSize) override;
 
@@ -196,7 +181,9 @@ private:
     bool m_CameraMatrixSetThisFrame;
 
 public:
+    Shader_ID m_UnlitShader;
     Shader_ID m_TexturedMeshShader;
+    Shader_ID m_ShadowShader;
 private:
     Shader_ID m_SkyboxShader;
     Shader_ID m_DebugLineShader;
@@ -210,6 +197,8 @@ private:
     Mesh_ID m_SkyboxMesh;
     
     bool m_IsSkyboxSet;
+
+    RenderMode m_RenderMode;
 
     Framebuffer_ID m_ActiveFrameBuffer;
 

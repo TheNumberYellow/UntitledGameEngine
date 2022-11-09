@@ -155,9 +155,16 @@ public:
     void ResetToScreenBuffer();
 
     void SetActiveTexture(Texture_ID textureID, unsigned int textureSlot = 0);
+    void SetActiveTexture(Texture_ID textureID, std::string shaderName);
+    
     void SetActiveFBufferTexture(Framebuffer_ID frameBufferID, unsigned int textureSlot = 0);
+    void SetActiveFBufferTexture(Framebuffer_ID frameBufferID, std::string shaderName);
+    
     void SetActiveCubemap(Cubemap_ID cubemapID, unsigned int textureSlot = 0);
+    void SetActiveCubemap(Cubemap_ID cubemapID, std::string shaderName);
+    
     void SetActiveShader(Shader_ID shaderID);
+    
     void DrawMesh(Mesh_ID meshID);
 
     void SetShaderUniformVec2f(Shader_ID shaderID, std::string uniformName, Vec2f vec);

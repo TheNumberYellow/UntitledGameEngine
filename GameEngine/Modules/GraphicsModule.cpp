@@ -3,6 +3,7 @@
 #include "..\FileLoader.h"
 
 #include <random>
+#include "Scene.h"
 
 void Transform::SetPosition(Vec3f newPos)
 {
@@ -76,75 +77,6 @@ void Transform::UpdateTransformMatrix()
     m_WasTransformMatrixUpdated = true;
 }
 
-Scene::Scene()
-    : m_Camera(nullptr)
-{
-}
-
-Scene::~Scene()
-{
-    if (m_Camera)
-        delete m_Camera;
-}
-
-void Scene::AddModel(Model model, std::string name)
-{
-    if (name == "")
-    {
-        m_UntrackedModels.push_back(model);
-        return;
-    }
-
-    size_t hash = std::hash<std::string>{}(name);
-    
-    m_Models.insert(std::pair<size_t, Model>(hash, model));
-}
-
-Model* Scene::GetModel(std::string name)
-{
-    size_t hash = std::hash<std::string>{}(name);
-
-    auto it = m_Models.find(hash);
-    if (it != m_Models.end())
-    {
-        return &(it->second);
-    }
-    else
-    {
-        return nullptr;
-    }
-}
-
-Camera& Scene::GetCamera()
-{
-    if (!m_Camera)
-    {
-        m_Camera = new Camera();
-    }
-
-    return *m_Camera;
-}
-
-void Scene::SetCamera(Camera* camera)
-{
-    m_Camera = camera;
-}
-
-void Scene::Draw(GraphicsModule& graphics)
-{
-    graphics.SetCamera(m_Camera);
-
-    for (auto& it : m_Models)
-    {
-        graphics.Draw(it.second);
-    }
-    for (auto& it : m_UntrackedModels)
-    {
-        graphics.Draw(it);
-    }
-
-}
-
 GraphicsModule::GraphicsModule(Renderer& renderer)
     : m_Renderer(renderer)
     , m_Camera(nullptr)
@@ -154,7 +86,56 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
     , m_IsDebugDrawAttachedToFBuffer(false)
     , m_TexturedMeshFormat({ VertAttribute::Vec3f, VertAttribute::Vec3f, VertAttribute::Vec4f, VertAttribute::Vec2f })
     , m_DebugVertFormat({ VertAttribute::Vec3f })
+    , m_RenderMode(RenderMode::DEFAULT)
 {
+    // ~~~~~~~~~~~~~~~~~~~~~Unlit shader code~~~~~~~~~~~~~~~~~~~~~ //
+
+    std::string unlitVertShader = R"(
+    #version 400
+
+	uniform mat4x4 Transformation;
+	uniform mat4x4 Camera;
+
+    in vec4 VertPosition;
+	in vec4 VertNormal;
+	in vec4 VertColour;
+	in vec2 VertUV;
+
+    smooth out vec4 FragNormal;
+    smooth out vec4 FragColour;
+    smooth out vec2 FragUV;
+
+    void main()
+    {
+        gl_Position = (Camera * Transformation) * VertPosition;
+        
+        FragNormal = VertNormal;
+        FragColour = VertColour;
+		FragUV = VertUV;
+    }   
+    )";
+
+    std::string unlitFragShader = R"(
+    #version 400
+
+	smooth in vec4 FragNormal;
+	smooth in vec4 FragColour;
+	smooth in vec2 FragUV;   
+
+	uniform sampler2D DiffuseTexture;
+
+    out vec4 OutColour;
+
+    void main()
+    {
+        vec4 textureAt = texture(DiffuseTexture, FragUV);
+        //OutColour = textureAt;
+        OutColour.rgb = textureAt.rgb * FragColour.rgb;
+        OutColour.a = textureAt.a * FragColour.a;
+    }
+    )";
+
+    m_UnlitShader = m_Renderer.LoadShader(unlitVertShader, unlitFragShader);
 
     // ~~~~~~~~~~~~~~~~~~~~~Basic textured mesh shader code~~~~~~~~~~~~~~~~~~~~~ //
     std::string vertShaderSource = R"(
@@ -205,6 +186,7 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
 
 	uniform float Time;
 	uniform vec3 SunDirection;
+    uniform vec3 SunColour;
 
     uniform vec3 CameraPos;    
 
@@ -238,42 +220,6 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
         }
 
         return shadow;
-        
-        //// perform perspective divide
-        //vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
-        //// transform to [0,1] range
-        //projCoords = projCoords * 0.5 + 0.5;
-        //// get closest depth value from light's perspective (using [0,1] range fragPosLight as coords)
-        //float closestDepth = texture(ShadowMap, projCoords.xy).r; 
-        //// get depth of current fragment from light's perspective
-        //float currentDepth = projCoords.z;
-        //// check whether current frag pos is in shadow
-
-        //vec3 sun = vec3(-SunDirection.x, -SunDirection.y, -SunDirection.z);  
-        //// TODO(fraser) fuck with these numbers?
-        //float bias = max(0.0009 * (1.0 - dot(FragNormal.xyz, SunDirection)), 0.0002);
-
-        //float shadow = currentDepth - bias > closestDepth  ? 1.0 : 0.0;  
-
-        ////float shadow = 0.0;
-        ////vec2 texelSize = 1.0 / textureSize(ShadowMap, 0);
-        ////for(int x = -3; x <= 3; ++x)
-        ////{
-        ////    for(int y = -3; y <= 3; ++y)
-        ////    {
-        ////        float pcfDepth = texture(ShadowMap, projCoords.xy + vec2(x, y) * texelSize).r; 
-        ////        shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;        
-        ////    }    
-        ////}
-        ////
-        ////shadow /= 7.0 * 7.0;        
-
-        //if (projCoords.z > 1.0)
-        //{
-        //    shadow = 0.0;
-        //}
-
-        //return shadow;
     }
 
 	void main()
@@ -291,7 +237,8 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
 
         float shadow = ShadowCalculation(FragPosLightSpace);
 
-    	OutColour.rgb = (ambient + (1.0 - shadow) * diffuse) * (textureAt.rgb * FragColour.rgb);
+    	OutColour.rgb = SunColour * (ambient + (1.0 - shadow) * diffuse) * (textureAt.rgb * FragColour.rgb);
+        //OutColour = textureAt;
 
         float ratio = 1.00 / 1.52;
         vec3 I = normalize(FragPosition - CameraPos);
@@ -313,6 +260,30 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
 
     m_TexturedMeshShader = m_Renderer.LoadShader(vertShaderSource, fragShaderSource);
 
+    // ~~~~~~~~~~~~~~~~~~~~~Shadow shader code~~~~~~~~~~~~~~~~~~~~~ //
+
+    std::string shadowVertShader = R"(
+    #version 400
+    layout (location = 0) in vec3 aPos;
+
+    uniform mat4 lightSpaceMatrix;
+    uniform mat4 Transformation;
+
+    void main()
+    {
+        gl_Position = lightSpaceMatrix * Transformation * vec4(aPos, 1.0);
+    }   
+    )";
+
+    std::string shadowFragShader = R"(
+    #version 400
+    
+    void main()
+    {
+    }
+    )";
+
+    m_ShadowShader = m_Renderer.LoadShader(shadowVertShader, shadowFragShader);
 
     // ~~~~~~~~~~~~~~~~~~~~~Skybox shader code~~~~~~~~~~~~~~~~~~~~~ //
     vertShaderSource = R"(
@@ -442,6 +413,8 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
     //TEMP
     //temp temp temp
     m_Renderer.SetShaderUniformVec3f(m_TexturedMeshShader, "SunDirection", Vec3f(0.0f, 0.0f, -1.0f));
+    m_Renderer.SetShaderUniformVec3f(m_TexturedMeshShader, "SunColour", Vec3f(0.95f, 0.9f, 0.85f));
+
     m_Renderer.SetShaderUniformVec2f(m_UIShader, "WindowSize", (Vec2f)Engine::GetClientAreaSize());
 
     std::vector<float> skyboxVertices = {
@@ -610,25 +583,42 @@ Brush GraphicsModule::CreateBrush(AABB box, Texture_ID texture)
 
 void GraphicsModule::Draw(Model& model)
 {
-    if (!m_CameraMatrixSetThisFrame && m_Camera != nullptr)
+    if (m_RenderMode == RenderMode::DEFAULT)
     {
-        m_Renderer.SetShaderUniformMat4x4f(m_TexturedMeshShader, "Camera", m_Camera->GetCamMatrix());
-        m_Renderer.SetShaderUniformVec3f(m_TexturedMeshShader, "CameraPos", m_Camera->GetPosition());
-        m_CameraMatrixSetThisFrame = true;
+        if (!m_CameraMatrixSetThisFrame && m_Camera != nullptr)
+        {
+            m_Renderer.SetShaderUniformMat4x4f(m_TexturedMeshShader, "Camera", m_Camera->GetCamMatrix());
+            m_Renderer.SetShaderUniformVec3f(m_TexturedMeshShader, "CameraPos", m_Camera->GetPosition());
+            m_CameraMatrixSetThisFrame = true;
+        }
+
+        m_Renderer.SetActiveShader(m_TexturedMeshShader);
+        m_Renderer.SetShaderUniformMat4x4f(m_TexturedMeshShader, "Transformation", model.GetTransform().GetTransformMatrix());
+
+        for (int i = 0; i < model.m_TexturedMeshes.size(); ++i)
+        {
+            m_Renderer.SetActiveTexture(model.m_TexturedMeshes[i].m_Texture, "DiffuseTexture");
+            m_Renderer.DrawMesh(model.m_TexturedMeshes[i].m_Mesh);
+        }
+
     }
-
-    m_Renderer.SetActiveShader(m_TexturedMeshShader);
-    m_Renderer.SetShaderUniformMat4x4f(m_TexturedMeshShader, "Transformation", model.GetTransform().GetTransformMatrix());
-
-    for (int i = 0; i < model.m_TexturedMeshes.size(); ++i)
+    else if (m_RenderMode == RenderMode::FULLBRIGHT)
     {
-        m_Renderer.SetActiveTexture(model.m_TexturedMeshes[i].m_Texture, 0);
-        m_Renderer.DrawMesh(model.m_TexturedMeshes[i].m_Mesh);
-    }
-}
+        if (!m_CameraMatrixSetThisFrame && m_Camera != nullptr)
+        {
+            m_Renderer.SetShaderUniformMat4x4f(m_UnlitShader, "Camera", m_Camera->GetCamMatrix());
+            m_CameraMatrixSetThisFrame = true;
+        }
 
-void GraphicsModule::Draw(Scene& scene)
-{
+        m_Renderer.SetActiveShader(m_UnlitShader);
+        m_Renderer.SetShaderUniformMat4x4f(m_UnlitShader, "Transformation", model.GetTransform().GetTransformMatrix());
+
+        for (int i = 0; i < model.m_TexturedMeshes.size(); ++i)
+        {
+            m_Renderer.SetActiveTexture(model.m_TexturedMeshes[i].m_Texture, "DiffuseTexture");
+            m_Renderer.DrawMesh(model.m_TexturedMeshes[i].m_Mesh);
+        }
+    }
 }
 
 void GraphicsModule::SetCamera(Camera* camera)
@@ -636,6 +626,12 @@ void GraphicsModule::SetCamera(Camera* camera)
     assert(camera);
     m_Camera = camera;
     m_CameraMatrixSetThisFrame = false;
+}
+
+void GraphicsModule::SetDirectionalLight(DirectionalLight dirLight)
+{
+    m_Renderer.SetShaderUniformVec3f(m_TexturedMeshShader, "SunDirection", dirLight.direction);
+    m_Renderer.SetShaderUniformVec3f(m_TexturedMeshShader, "SunColour", dirLight.colour);
 }
 
 void GraphicsModule::OnFrameStart()
@@ -774,6 +770,11 @@ void GraphicsModule::DebugDrawPoint(Vec3f p, Vec3f colour)
 Vec2i GraphicsModule::GetViewportSize()
 {
     return m_Renderer.GetViewportSize();
+}
+
+void GraphicsModule::SetRenderMode(RenderMode mode)
+{
+    m_RenderMode = mode;
 }
 
 Mesh_ID GraphicsModule::CreateBoxMesh(AABB box)
