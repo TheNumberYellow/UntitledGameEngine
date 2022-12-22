@@ -155,8 +155,11 @@ Font TextModule::LoadFont(std::string filePath, int pixelSize)
     return newFont;
 }
 
-void TextModule::DrawText(std::string text, Font* font, Vec2f position, Vec3f colour)
+void TextModule::DrawText(std::string text, Font* font, Vec2f position, Vec3f colour, Anchor textAnchor)
 {
+    //Temp(fraser)
+    position.y = Engine::GetClientAreaSize().y - position.y;
+
     m_Renderer.SetActiveShader(m_TextShader);
 
     TextMeshInfo meshInfo = GetTextMeshInfo(text, *font);
@@ -164,7 +167,20 @@ void TextModule::DrawText(std::string text, Font* font, Vec2f position, Vec3f co
     m_Renderer.SetShaderUniformVec3f(m_TextShader, "TextColour", colour);
     
     // Temp(fraser): set up "anchor points" for text
-    position.y -= meshInfo.m_Bounds.size.y;
+
+    switch (textAnchor)
+    {
+    case Anchor::TOP_LEFT:
+        position.y -= meshInfo.m_Bounds.size.y;
+        break;
+    case Anchor::CENTER:
+        position.x -= meshInfo.m_Bounds.size.x / 2;
+        position.y -= meshInfo.m_Bounds.size.y / 2;
+        break;
+    default:
+        break;
+    }
+   
     m_Renderer.SetShaderUniformVec2f(m_TextShader, "TextPosition", position);
 
     m_Renderer.SetActiveTexture(font->m_TextureAtlas, "Texture");

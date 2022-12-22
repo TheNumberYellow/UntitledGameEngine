@@ -92,7 +92,10 @@ void UIModule::AlignBottom()
 
 void UIModule::ImgPanel(Texture_ID texture, Rect rect)
 {
-    rect.location += m_SubFrame.location;
+    if (!ShouldDisplay())
+        return;
+
+    rect.location += GetFrame().location;
 
     m_Renderer.DisableDepthTesting();
 
@@ -115,7 +118,10 @@ void UIModule::ImgPanel(Texture_ID texture, Rect rect)
 
 void UIModule::BufferPanel(Framebuffer_ID fBuffer, Rect rect)
 {
-    rect.location += m_SubFrame.location;
+    if (!ShouldDisplay())
+        return;
+
+    rect.location += GetFrame().location;
     
     m_Renderer.DisableDepthTesting();
 
@@ -137,19 +143,29 @@ void UIModule::BufferPanel(Framebuffer_ID fBuffer, Rect rect)
     m_Renderer.EnableDepthTesting();
 }
 
+Click UIModule::TextButton(std::string text, Rect rect, float borderWidth)
+{
+    return Button(0, rect, borderWidth, false, false, true, text);
+}
+
 Click UIModule::ImgButton(Texture_ID texture, Rect rect, float borderWidth)
 {
-    return Button(texture, rect, borderWidth, false);
+    return Button(texture, rect, borderWidth, true, false, false);
 }
 
 Click UIModule::BufferButton(Framebuffer_ID fBuffer, Rect rect, float borderWidth)
 {
-    return Button(fBuffer, rect, borderWidth, true);
+    return Button(fBuffer, rect, borderWidth, true, true, false);
 }
 
 void UIModule::StartFrame(Rect rect, float borderWidth, std::string text)
 {
+    if (!ShouldDisplay())
+        return;
+
     m_Renderer.DisableDepthTesting();
+
+    m_SubFrameStack.push(FrameInfo(Rect(rect.location + Vec2f(borderWidth, borderWidth), rect.size - Vec2f(borderWidth, borderWidth)), borderWidth, text));
 
     VertexBufferFormat vertFormat = VertexBufferFormat({ VertAttribute::Vec2f, VertAttribute::Vec2f });
     MeshData verts = GetVertexDataForBorderMesh(rect, borderWidth);
@@ -166,26 +182,47 @@ void UIModule::StartFrame(Rect rect, float borderWidth, std::string text)
     if (text != "")
     {
         Rect r = rect;
-        r.location.y = Engine::GetClientAreaSize().y - r.location.y;
-        m_Text.DrawText(text, &m_FrameFont, r.location, Vec3f(0.9f, 0.3f, 0.5f));
+        //TODO: hardcoded text colour
+        m_Text.DrawText(text, &m_FrameFont, r.location, Vec3f(1.0f, 1.0f, 1.0f));
     }
 
     m_Renderer.EnableDepthTesting();
-
-    m_SubFrame = Rect(rect.location + Vec2f(borderWidth, borderWidth), rect.size - Vec2f(borderWidth, borderWidth));
-}
+} 
 
 void UIModule::EndFrame()
 {
-    m_SubFrame = Rect(Vec2f(0.0f, 0.0f), m_WindowSize);
+    m_SubFrameStack.pop();
+    m_TabIndexOnCurrentFrame = 0;
+    //m_SubFrame = Rect(Vec2f(0.0f, 0.0f), m_WindowSize);
 }
 
-void UIModule::StartTab(Rect rect)
+void UIModule::StartTab(std::string text)
 {
+    if (m_SubFrameStack.empty())
+    {
+        Engine::FatalError("Tabs must be inside frames.");
+        return;
+    }
+    else
+    {
+        float borderWidth = m_SubFrameStack.top().m_BorderWidth;
+
+        Rect buttonRect = Rect(Vec2f(c_TabButtonWidth * m_TabIndexOnCurrentFrame, -borderWidth), Vec2f(c_TabButtonWidth, borderWidth));
+        
+        if (TextButton(text, buttonRect, 5.0f))
+        {
+            FrameState* frameState = GetFrameState(m_SubFrameStack.top());
+            frameState->activeTab = m_TabIndexOnCurrentFrame;
+        }
+    
+        m_TabIndexOnCurrentFrame++;
+    }
+    m_InTab = true;
 }
 
 void UIModule::EndTab()
 {
+    m_InTab = false;
 }
 
 void UIModule::OnFrameStart()
@@ -195,13 +232,37 @@ void UIModule::OnFrameStart()
 
 void UIModule::OnFrameEnd()
 {
-    //std::string printString = "Number of buttons: " + std::to_string(m_Buttons.size());
-    //Engine::DEBUGPrint(printString);
+    if (!m_SubFrameStack.empty())
+    {
+        std::vector<std::string> frameNames;
+
+        std::string errorString = "Not all UI frames have been closed!\nOpen frames:\n";
+
+        // Note: Destroys frame stack. Since it's a fatal error that shouldn't matter.
+        while (!m_SubFrameStack.empty())
+        {
+            std::string frameName = m_SubFrameStack.top().m_Name;
+            if (frameName == "")
+            {
+                errorString += "<Unnamed Frame>\n";
+            }
+            else
+            {
+                errorString += frameName + "\n";
+            }
+            m_SubFrameStack.pop();
+        }
+
+        Engine::FatalError(errorString);
+    }
 }
 
-Click UIModule::Button(unsigned int img, Rect rect, float borderWidth, bool isBuffer)
+Click UIModule::Button(unsigned int img, Rect rect, float borderWidth, bool hasImage, bool isBuffer, bool hasText, std::string text)
 {
-    rect.location += m_SubFrame.location;
+    if (!ShouldDisplay())
+        return Click();
+
+    rect.location += GetFrame().location;
 
     Click result;
 
@@ -265,16 +326,26 @@ Click UIModule::Button(unsigned int img, Rect rect, float borderWidth, bool isBu
 
     m_Renderer.UpdateMeshData(m_RectMesh, vertFormat, vertexData.first, vertexData.second);
 
-    if (isBuffer)
+    if (hasImage)
     {
-        m_Renderer.SetActiveFBufferTexture(img, "Texture");
-    }
-    else
-    {
-        m_Renderer.SetActiveTexture(img, "Texture");
+        if (isBuffer)
+        {
+            m_Renderer.SetActiveFBufferTexture(img, "Texture");
+        }
+        else
+        {
+            m_Renderer.SetActiveTexture(img, "Texture");
+        }
+        m_Renderer.DrawMesh(m_RectMesh);
     }
 
-    m_Renderer.DrawMesh(m_RectMesh);
+    if (hasText)
+    {
+        //TODO: hardcoded text colour
+        m_Text.DrawText(text, &m_FrameFont, rect.location + (rect.size / 2), Vec3f(1.0f, 1.0f, 1.0f), Anchor::CENTER);
+    }
+
+    
 
     m_Renderer.EnableDepthTesting();
 
@@ -389,6 +460,66 @@ ButtonState* UIModule::GetButtonState(Rect rect, float borderWidth)
     }
 
     return &m_Buttons[bi];
+}
+
+FrameState* UIModule::GetFrameState(FrameInfo& fInfo)
+{
+    return GetFrameState(fInfo.m_Rect, fInfo.m_BorderWidth, fInfo.m_Name);
+}
+
+FrameState* UIModule::GetFrameState(Rect rect, float borderWidth, std::string name)
+{
+    FrameInfo fi = FrameInfo(rect, borderWidth, name);
+
+    auto got = m_Frames.find(fi);
+
+    if (got == m_Frames.end())
+    {
+        FrameState newState;
+        m_Frames[fi] = newState;
+    }
+
+    return &m_Frames[fi];
+}
+
+Rect UIModule::GetFrame()
+{
+    if (m_SubFrameStack.empty())
+    {
+        return Rect(Vec2f(0.0f, 0.0f), m_WindowSize);
+    }
+    else
+    {
+        return m_SubFrameStack.top().m_Rect;
+    }
+}
+
+bool UIModule::ShouldDisplay()
+{
+    if (m_SubFrameStack.empty())
+    {
+        // We're not inside a frame element, so always display
+        return true;
+    }
+    else if (!m_InTab)
+    {
+        // We're not in a tab, so always display (add more elements maybe later)
+        return true;
+    }
+    else
+    {
+        // Get the state of the frame element we're in now
+        FrameState* frameState = GetFrameState(m_SubFrameStack.top());
+
+        if (frameState->activeTab == m_TabIndexOnCurrentFrame - 1)
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
 }
 
 void UIModule::Resize(Vec2i newSize)

@@ -62,6 +62,11 @@ Vec2f& Vec2f::operator-=(const Vec2f& rhs)
     return *this;
 }
 
+Vec2f Vec2f::operator/(float rhs)
+{
+    return Vec2f(this->x / rhs, this->y / rhs);
+}
+
 Vec2f Vec2f::operator-()
 {
     return Vec2f(-this->x, -this->y);
@@ -156,6 +161,13 @@ Vec3f Vec3f::operator*(float rhs)
 Vec3f Vec3f::operator/(float rhs)
 {
     return Vec3f(this->x / rhs, this->y / rhs, this->z / rhs);
+}
+
+std::string Vec3f::toString()
+{
+    std::string out;
+    out = "X: [" + std::to_string(x) + "] Y: [ " + std::to_string(y) + "] Z: [" + std::to_string(z) + "]";
+    return out;
 }
 
 bool operator==(const Vec3f& lhs, const Vec3f& rhs)

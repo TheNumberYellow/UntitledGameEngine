@@ -5,6 +5,7 @@ struct Mat4x4f;
 
 #include <assert.h>
 #include <functional>
+#include <string>
 
 struct Vec2f;
 
@@ -34,6 +35,8 @@ struct Vec2f
 
     Vec2f operator-(Vec2f rhs);
     Vec2f& operator-=(const Vec2f& rhs);
+
+    Vec2f operator/(float rhs);
 
     Vec2f operator-();
 
@@ -67,6 +70,8 @@ struct Vec3f
     Vec3f operator/(float rhs);
 
     friend bool operator==(const Vec3f& lhs, const Vec3f& rhs);
+
+    std::string toString();
 
 };
 

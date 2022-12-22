@@ -10,6 +10,13 @@
 
 class GraphicsModule;
 
+struct RenderCommand
+{
+    Mesh_ID mesh;
+    bool depthTest;
+    uint32_t order;
+};
+
 enum class Vis
 {
     SHADOW_CAST = 1,

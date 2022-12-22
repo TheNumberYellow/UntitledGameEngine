@@ -13,6 +13,7 @@
 
 struct Player
 {
+    bool grounded = false;
     Vec3f position;
     Vec3f velocity;
     Camera* cam;
@@ -50,6 +51,7 @@ Texture_ID vertexToolTexture;
 Texture_ID tempWhiteTexture;
 
 Font testFont;
+Font inspectorFont;
 
 Camera cam;
 
@@ -95,7 +97,7 @@ State state = State::EDITOR;
 
 Rect GetViewportSizeFromScreenSize(Vec2i screenSize)
 {
-    Rect newViewport = Rect(Vec2f(100.0f, 40.0f), screenSize - Vec2f(200, 240));
+    Rect newViewport = Rect(Vec2f(100.0f, 40.0f), screenSize - Vec2f(300, 240));
 
     return newViewport;
 } 
@@ -305,6 +307,11 @@ void UpdateBoxCreate(InputModule& input, CollisionModule& collisions, GraphicsMo
 
     Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
     Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
+    
+    if (!viewportRect.contains(Engine::GetMousePosition()))
+    {
+        return;
+    }
 
     if (input.GetMouseState().IsButtonDown(Mouse::LMB))
     {
@@ -678,15 +685,15 @@ void UpdateEditor(ModuleManager& modules)
     graphics.ResetFrameBuffer();
 
 
-    graphics.m_Renderer.SetActiveShader(testDepthShader);
-    graphics.m_Renderer.SetActiveFBufferTexture(shadowBuffer);
-    graphics.m_Renderer.DrawMesh(quadMesh);
+    //graphics.m_Renderer.SetActiveShader(testDepthShader);
+    //graphics.m_Renderer.SetActiveFBufferTexture(shadowBuffer);
+    //graphics.m_Renderer.DrawMesh(quadMesh);
 
     Vec2i screen = Engine::GetClientAreaSize();
 
     ui.BufferPanel(viewportBuffer, newViewport);
 
-    ui.StartFrame(Rect(Vec2f(0.0f, 0.0f), Vec2f(screen.x, 40.0f)), 5.0f, "MEMES");
+    ui.StartFrame(Rect(Vec2f(0.0f, 0.0f), Vec2f(screen.x - 200.0f, 40.0f)), 5.0f, "MEMES");
 
     {
         if (ui.ImgButton(playButtonTexture, Rect(Vec2f(0.0f, 0.0f), Vec2f(100.0f, 30.0f)), 2.0f))
@@ -706,8 +713,9 @@ void UpdateEditor(ModuleManager& modules)
 
     ui.EndFrame();
     
-    ui.StartFrame(Rect(Vec2f(100.0f, screen.y - 200), Vec2f(screen.x - 200.0f, 200.0f)), 20.0f, "MODELS");
+    ui.StartFrame(Rect(Vec2f(100.0f, screen.y - 200), Vec2f(screen.x - 300.0f, 200.0f)), 20.0f, "Resources");
 
+    ui.StartTab("Models");
     for (int i = 0; i < loadedModels.size(); ++i)
     {
         
@@ -721,20 +729,16 @@ void UpdateEditor(ModuleManager& modules)
                 newModel.model = new Model(graphics.CloneModel(loadedModels[i]));
                 newModel.colMesh = new CollisionMesh(collisions.GetCollisionMeshFromMesh(newModel.model->m_TexturedMeshes[0].m_Mesh));
             
-                //draggingModel = scene.AddModel(*(newModel.model));
                 draggingModel = new Model(graphics.CloneModel(loadedModels[i]));
             }
         }
     }
+    ui.EndTab();
 
-    ui.EndFrame();
-
-
-    ui.StartFrame(Rect(Vec2f(screen.x - 100, 40.0f), Vec2f(100.0f, screen.y - 40.0f)), 5.0f, "TEXTURES");
-    
+    ui.StartTab("Textures");
     for (int i = 0; i < loadedTextures.size(); ++i)
     {
-        if (ui.ImgButton(loadedTextures[i], Rect(Vec2f(0.0f, i * 40), Vec2f(80, 40)), 2.5f).clicking)
+        if (ui.ImgButton(loadedTextures[i], Rect(Vec2f(i * 40, 0.0f), Vec2f(40, 80)), 2.5f).clicking)
         {
             if (!draggingNewTexture)
             {
@@ -743,6 +747,38 @@ void UpdateEditor(ModuleManager& modules)
             }
         }
     }
+    ui.EndTab();
+
+    ui.StartTab("Scripts");
+
+    ui.EndTab();
+
+
+    ui.EndFrame();
+
+
+    ui.StartFrame(Rect(Vec2f(screen.x - 200.0f, 0.0f), Vec2f(200.0f, screen.y)), 20.0f, "Inspector");
+
+    std::string posText;
+
+    if (movingModelPtr)
+    {
+        Vec3f pos = movingModelPtr->GetTransform().GetPosition();
+        std::string xText = "X: " + std::to_string(pos.x);
+        std::string yText = "Y: " + std::to_string(pos.y);
+        std::string zText = "Z: " + std::to_string(pos.z);
+
+        text.DrawText(xText, &inspectorFont, Vec2f(screen.x - 180.0f, 20.0f), Vec3f(0.0f, 0.0f, 0.0f));
+        text.DrawText(yText, &inspectorFont, Vec2f(screen.x - 180.0f, 35.0f), Vec3f(0.0f, 0.0f, 0.0f));
+        text.DrawText(zText, &inspectorFont, Vec2f(screen.x - 180.0f, 50.0f), Vec3f(0.0f, 0.0f, 0.0f));
+
+    }
+    else
+    {
+        posText = "No model selected.";
+        text.DrawText(posText, &inspectorFont, Vec2f(screen.x - 180.0f, 20.0f), Vec3f(0.0f, 0.0f, 0.0f));
+    }
+
 
     ui.EndFrame();
 
@@ -799,7 +835,7 @@ void UpdateEditor(ModuleManager& modules)
         break;
     }
 
-    text.DrawText(modeString, &testFont, Vec2f(100.0f, Engine::GetClientAreaSize().y - 40.0f), Vec3f(0.0f, 0.0f, 0.0f));
+    text.DrawText(modeString, &testFont, Vec2f(100.0f, 40.0f), Vec3f(0.0f, 0.0f, 0.0f));
 
     // END DRAW
 }
@@ -848,49 +884,74 @@ void UpdateGame(ModuleManager& modules)
 
     Vec3f inputDir = Vec3f();
 
+    Vec3f leftVec = Math::normalize(cam.GetPerpVector());
+    Vec3f forwardVec = Math::cross(leftVec, Vec3f(0.0f, 0.0f, 1.0f));
+
+    bool movedLaterally = false;
+
     if (input.IsKeyDown(Key::A))
     {
-        inputDir += -cam.GetPerpVector() * 0.1f;
+        inputDir -= leftVec;
+        movedLaterally = true;
     }
     if (input.IsKeyDown(Key::D))
     {
-        inputDir += cam.GetPerpVector() * 0.1f;
+        inputDir += leftVec;
+        movedLaterally = true;
     }
     if (input.IsKeyDown(Key::W))
     {
-        inputDir += cam.GetDirection() * 0.1f;
+        inputDir -= forwardVec;
+        movedLaterally = true;
     }
     if (input.IsKeyDown(Key::S))
     {
-        inputDir += cam.GetDirection() * -0.1f;
+        inputDir += forwardVec;
+        movedLaterally = true;
     }
 
-    if (input.IsKeyDown(Key::Space))
+    //if (input.IsKeyDown(Key::Space))
+    //{
+    //    inputDir += Vec3f(0.0f, 0.0f, 0.1f);
+    //}
+
+    //if (input.IsKeyDown(Key::Ctrl))
+    //{
+    //    inputDir += Vec3f(0.0f, 0.0f, -0.1f);
+    //}
+
+    if (movedLaterally)
     {
-        inputDir += Vec3f(0.0f, 0.0f, 0.1f);
+        inputDir = Math::normalize(inputDir) * 0.1f;
     }
 
-    if (input.IsKeyDown(Key::Ctrl))
-    {
-        inputDir += Vec3f(0.0f, 0.0f, -0.1f);
-    }
+    player.velocity.x = inputDir.x;
+    player.velocity.y = inputDir.y;
 
-    //player.velocity.x = inputDir.x;
-    //player.velocity.y = inputDir.y;
-
+    player.velocity.z += -0.01f;
     //player.velocity += Vec3f(0.0f, 0.0f, -0.01f);
 
-    player.velocity = inputDir;
+    //player.velocity = inputDir;
+    
+    player.grounded = false;
+
     SceneRayCastHit movement = scene.RayCast(Ray(player.position, Math::normalize(player.velocity)), collisions);
 
+    float hitDist = 0.0f;
+    float testHitDist = 0.0f;
+    float playerVel = 0.0f;
 
     if (movement.rayCastHit.hit)
     {
-        if (movement.rayCastHit.hitDistance <= Math::magnitude(player.velocity))
+        hitDist = movement.rayCastHit.hitDistance;
+        testHitDist = Math::magnitude(movement.rayCastHit.hitPoint - player.position);
+        playerVel = Math::magnitude(player.velocity);
+        if (hitDist <= playerVel + 0.0001f) // TODO: whyyy is this necessary
         {
             graphics.DebugDrawPoint(movement.rayCastHit.hitPoint, Vec3f(1.0f, 0.3f, 0.2f));
             player.position = movement.rayCastHit.hitPoint + (movement.rayCastHit.hitNormal * 0.01f);
             player.velocity.z = 0.0f;
+            player.grounded = true;
         }
         else
         {
@@ -902,10 +963,16 @@ void UpdateGame(ModuleManager& modules)
     {
         player.position += player.velocity;
     }
-    //if (movement.rayCastHit.hit && movement.rayCastHit.hitDistance > Math::magnitude(player.velocity))
-    //{
-    //    graphics.DebugDrawPoint(movement.rayCastHit.hitPoint); 
-    //}
+
+    if (input.IsKeyDown(Key::Space) && player.grounded)
+    {
+        player.velocity.z = 0.375f;
+    }
+
+    if (movement.rayCastHit.hit && movement.rayCastHit.hitDistance > Math::magnitude(player.velocity))
+    {
+        graphics.DebugDrawPoint(movement.rayCastHit.hitPoint); 
+    }
 
     //if (movement.rayCastHit.hit && movement.rayCastHit.hitDistance < Math::magnitude(player.velocity))
     //{
@@ -920,7 +987,54 @@ void UpdateGame(ModuleManager& modules)
     //    player.position += player.velocity;
     //}
 
-    player.cam->SetPosition(player.position + Vec3f(0.0f, 0.0f, 0.0f));
+    player.cam->SetPosition(player.position + Vec3f(0.0f, 0.0f, 2.5f));
+
+    // Drop models
+
+    static Model* droppingModel = nullptr;
+
+    static Vec3f modelSpeed = Vec3f(0.0f, 0.0f, 0.0f);
+
+    if (input.GetMouseState().IsButtonDown(Mouse::LMB))
+    {
+        SceneRayCastHit modelHit = scene.RayCast(Ray(cam.GetPosition() , cam.GetDirection()), collisions);
+        if (modelHit.rayCastHit.hit)
+        {
+            droppingModel = modelHit.hitModel;
+            modelSpeed = Vec3f(0.0f, 0.0f, 0.0f);
+        }
+    }
+
+    
+    
+
+    //if (droppingModel)
+    //{
+    //    modelSpeed.z = 0.01f;
+    //    SceneRayCastHit modelMove = scene.RayCast(Ray(droppingModel->GetTransform().GetPosition(), Math::normalize(modelSpeed)), collisions);
+
+
+    //    if (modelMove.rayCastHit.hit)
+    //    {
+
+    //        hitDist = modelMove.rayCastHit.hitDistance;
+    //    }
+    //    if (modelMove.rayCastHit.hit && modelMove.rayCastHit.hitDistance <= modelSpeed.z)
+    //    {
+    //        Vec3f newPos = modelMove.rayCastHit.hitPoint + (modelMove.rayCastHit.hitNormal * 0.01f);
+    //        droppingModel->GetTransform().SetPosition(newPos);
+    //        modelSpeed = Vec3f(0.0f, 0.0f, 0.0f);
+    //        
+    //        std::string debugString = "Hit something at " + modelMove.rayCastHit.hitPoint.toString() + ", moving to " + newPos.toString();
+    //        Engine::DEBUGPrint(debugString);
+    //    }
+    //    else
+    //    {
+    //        droppingModel->GetTransform().Move(modelSpeed);
+    //    }
+
+    //}
+
 
     graphics.SetActiveFrameBuffer(viewportBuffer);
     {
@@ -930,11 +1044,16 @@ void UpdateGame(ModuleManager& modules)
     }
     graphics.ResetFrameBuffer();
 
+
     Rect screenRect;
     screenRect.size = Engine::GetClientAreaSize();
 
     ui.BufferPanel(viewportBuffer, screenRect);
 
+
+    text.DrawText(std::to_string(hitDist), &testFont, Vec2f(0.0f, 0.0f), Vec3f(1.0f, 0.5f, 0.5f));
+    text.DrawText(std::to_string(testHitDist), &testFont, Vec2f(0.0f, 24.0f), Vec3f(1.0f, 0.5f, 0.5f));
+    text.DrawText(std::to_string(playerVel), &testFont, Vec2f(0.0f, 48.0f), Vec3f(1.0f, 0.5f, 0.5f));
 }
 
 void Initialize(ModuleManager& modules)
@@ -1084,6 +1203,7 @@ void Initialize(ModuleManager& modules)
     tempWhiteTexture = graphics.LoadTexture("images/white.png", TextureMode::NEAREST, TextureMode::NEAREST);
 
     testFont = text.LoadFont("fonts/ARLRDBD.TTF", 30);
+    inspectorFont = text.LoadFont("fonts/ARLRDBD.TTF", 15);
 
     loadedModels = LoadModels(graphics);
     
