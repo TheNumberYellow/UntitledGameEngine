@@ -5,11 +5,15 @@
 
 #include <string>
 
+typedef uint64_t Entity_ID;
+
 struct SceneRayCastHit
 {
     RayCastHit rayCastHit;
     Model* hitModel;
 };
+
+SceneRayCastHit Closer(const SceneRayCastHit& lhs, const SceneRayCastHit& rhs);
 
 class Scene
 {

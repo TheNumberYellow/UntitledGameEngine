@@ -1,5 +1,11 @@
 #include "Scene.h"
 
+SceneRayCastHit Closer(const SceneRayCastHit& lhs, const SceneRayCastHit& rhs)
+{
+    return (lhs.rayCastHit.hitDistance <= rhs.rayCastHit.hitDistance ? lhs : rhs);
+}
+
+
 Scene::Scene()
     : m_Camera(nullptr)
 {
@@ -73,27 +79,18 @@ SceneRayCastHit Scene::RayCast(Ray ray, CollisionModule& collision)
 
     for (auto& it : m_Models)
     {
-        RayCastHit newHit;
         CollisionMesh& colMesh = collision.GetCollisionMeshFromMesh(it.second.m_TexturedMeshes[0].m_Mesh);
-        newHit = collision.RayCast(ray, colMesh, it.second.GetTransform());
-        if (newHit.hit && newHit.hitDistance < finalHit.rayCastHit.hitDistance)
-        {
-            finalHit.rayCastHit = newHit;
-            finalHit.hitModel = &it.second;
-        }
+
+        finalHit = Closer(finalHit, SceneRayCastHit{ collision.RayCast(ray, colMesh, it.second.GetTransform()), &it.second });
     }
 
     for (auto& it : m_UntrackedModels)
     {
-        RayCastHit newHit;
         CollisionMesh& colMesh = collision.GetCollisionMeshFromMesh(it.m_TexturedMeshes[0].m_Mesh);
-        newHit = collision.RayCast(ray, colMesh, it.GetTransform());
-        if (newHit.hit && newHit.hitDistance < finalHit.rayCastHit.hitDistance)
-        {
-            finalHit.rayCastHit = newHit;
-            finalHit.hitModel = &it;
-        }
+        
+        finalHit = Closer(finalHit, SceneRayCastHit{ collision.RayCast(ray, colMesh, it.GetTransform()), &it });
     }
 
     return finalHit;
 }
+

@@ -185,6 +185,9 @@
   <ItemGroup>
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="Collisions.cpp" />
+    <ClCompile Include="Components\Component.cpp" />
+    <ClCompile Include="Entities\Entity.cpp" />
+    <ClCompile Include="Components\ModelComponent.cpp" />
     <ClCompile Include="Modules\CollisionModule.cpp" />
     <ClCompile Include="Modules\GraphicsModule.cpp" />
     <ClCompile Include="GUID.cpp" />
@@ -205,11 +208,14 @@
   <ItemGroup>
     <ClInclude Include="Camera.h" />
     <ClInclude Include="Collisions.h" />
+    <ClInclude Include="Components\Component.h" />
     <ClInclude Include="ControlInputs.h" />
+    <ClInclude Include="Entities\Entity.h" />
     <ClInclude Include="Interfaces\Resizeable_i.h" />
     <ClInclude Include="Math\Geometry.h" />
     <ClInclude Include="Math\Quaternion.h" />
     <ClInclude Include="Math\Vector.h" />
+    <ClInclude Include="Components\ModelComponent.h" />
     <ClInclude Include="Modules\CollisionModule.h" />
     <ClInclude Include="Modules\InputModule.h" />
     <ClInclude Include="Modules\ModuleManager.h" />

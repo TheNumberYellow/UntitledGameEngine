@@ -757,7 +757,7 @@ void UpdateEditor(ModuleManager& modules)
     ui.EndFrame();
 
 
-    ui.StartFrame(Rect(Vec2f(screen.x - 200.0f, 0.0f), Vec2f(200.0f, screen.y)), 20.0f, "Inspector");
+    ui.StartFrame(Rect(Vec2f(screen.x - 200.0f, 0.0f), Vec2f(200.0f, screen.y / 2)), 20.0f, "Inspector");
 
     std::string posText;
 
@@ -781,6 +781,11 @@ void UpdateEditor(ModuleManager& modules)
 
 
     ui.EndFrame();
+
+    ui.StartFrame(Rect(Vec2f(screen.x - 200.0f, screen.y / 2), Vec2f(200.0f, screen.y / 2)), 20.0f, "Entities");
+
+    ui.EndFrame();
+
 
     if (ui.ImgButton(cursorToolTexture, Rect(Vec2f(0.0f, 40.0f), Vec2f(100.0f, 100.0f)), 20.0f))
     {
