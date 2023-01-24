@@ -1,5 +1,7 @@
 #include "Camera.h"
 
+#include "Modules/GraphicsModule.h"
+
 void Camera::SetPosition(Vec3f pos)
 {
     m_Position = pos;

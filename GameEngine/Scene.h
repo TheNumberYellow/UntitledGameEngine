@@ -21,19 +21,28 @@ public:
     Scene();
     ~Scene();
 
+    void Init(GraphicsModule& graphics);
+
     Model* AddModel(Model model, std::string name = "");
     Model* GetModel(std::string name);
 
     Camera& GetCamera();
     void SetCamera(Camera* camera);
 
-    void Draw(GraphicsModule& graphics);
-    
+    void Draw(GraphicsModule& graphics, Framebuffer_ID buffer);
+    void EditorDraw(GraphicsModule& graphics);
+
+    void SetDirectionalLight(DirectionalLight light);
+
     SceneRayCastHit RayCast(Ray ray, CollisionModule& collision);
 
 private:
     std::unordered_map<std::string, Model> m_Models;
     std::vector<Model> m_UntrackedModels;
     DirectionalLight m_DirLight;
-    Camera* m_Camera;
+
+    std::vector<Camera*> m_Cameras;
+
+    Camera m_ShadowCamera;
+    Framebuffer_ID shadowBuffer;
 };

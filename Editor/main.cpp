@@ -39,13 +39,27 @@ enum class ToolMode
     VERTEX
 };
 
+enum class MoveMode
+{
+    TRANSLATE,
+    ROTATE,
+    SCALE
+};
+
+RenderMode renderMode = RenderMode::DEFAULT;
+
 Player player;
 
 Texture_ID playButtonTexture;
+Texture_ID cameraButtonTexture;
 
 Texture_ID cursorToolTexture;
 Texture_ID boxToolTexture;
-Texture_ID moveToolTexture;
+
+Texture_ID translateToolTexture;
+Texture_ID rotateToolTexture;
+Texture_ID scaleToolTexture;
+
 Texture_ID vertexToolTexture;
 
 Texture_ID tempWhiteTexture;
@@ -86,12 +100,19 @@ bool draggingNewTexture = false;
 Texture_ID draggingTexture;
 
 static Model* movingModelPtr = nullptr;
+static Model* rotatingModelPtr = nullptr;
+static Model* scalingModelPtr = nullptr;
 
 Model xAxisArrow;
 Model yAxisArrow;
 Model zAxisArrow;
 
+Model xAxisRing;
+Model yAxisRing;
+Model zAxisRing;
+
 ToolMode toolMode = ToolMode::NORMAL;
+MoveMode moveMode = MoveMode::TRANSLATE;
 
 State state = State::EDITOR;
 
@@ -204,6 +225,8 @@ void MoveCamera(InputModule& inputs, GraphicsModule& graphics, Camera& cam, floa
         shadowCam.SetPosition(cam.GetPosition());
         shadowCam.SetDirection(cam.GetDirection());
         
+        scene.SetDirectionalLight(DirectionalLight{ cam.GetDirection(), Vec3f(0.9, 0.9, 0.9) });
+
         //graphics.m_Renderer.SetShaderUniformVec3f(graphics.m_TexturedMeshShader, "SunDirection", cam.GetDirection());
     }
 }
@@ -415,7 +438,7 @@ void UpdateModelPlace(InputModule& input, CollisionModule& collisions, GraphicsM
     }
 }
 
-void UpdateModelMove(InputModule& input, CollisionModule& collisions, GraphicsModule& graphics)
+void UpdateModelTranslate(InputModule& input, CollisionModule& collisions, GraphicsModule& graphics)
 {
     static bool slidingX = false;
     static bool slidingY = false;
@@ -423,7 +446,13 @@ void UpdateModelMove(InputModule& input, CollisionModule& collisions, GraphicsMo
 
     static Vec3f slidingStartHitPoint;
 
-    if (toolMode != ToolMode::MOVE)
+    if (scalingModelPtr && moveMode == MoveMode::TRANSLATE)
+    {
+        movingModelPtr = scalingModelPtr;
+        scalingModelPtr = nullptr; // Yoink
+    }
+
+    if (moveMode != MoveMode::TRANSLATE)
     {
         movingModelPtr = nullptr;
         slidingX = false;
@@ -541,6 +570,70 @@ void UpdateModelMove(InputModule& input, CollisionModule& collisions, GraphicsMo
     }
 }
 
+void UpdateModelRotate(InputModule& input, CollisionModule& collisions, GraphicsModule& graphics)
+{
+    static bool rotatingX = false;
+    static bool rotatingY = false;
+    static bool rotatingZ = false;
+
+    static Vec3f rotatingStartHitPoint;
+
+    if (movingModelPtr && moveMode == MoveMode::ROTATE)
+    {
+        rotatingModelPtr = movingModelPtr;
+        movingModelPtr = nullptr; // Yoink
+    }
+
+    if (moveMode != MoveMode::ROTATE)
+    {
+        rotatingModelPtr = nullptr;
+        rotatingX = false;
+        rotatingY = false;
+        rotatingZ = false;
+
+        return;
+    }
+
+    if (draggingNewModel || draggingNewTexture)
+    {
+        rotatingModelPtr = nullptr;
+        rotatingX = false;
+        rotatingY = false;
+        rotatingZ = false;
+
+        return;
+    }
+
+    if (input.GetMouseState().IsButtonDown(Mouse::LMB))
+    {
+        Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
+        Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
+
+        SceneRayCastHit finalHit = scene.RayCast(mouseRay, collisions);
+
+        if (finalHit.rayCastHit.hit)
+        {
+            rotatingModelPtr = finalHit.hitModel;
+        }
+    }
+}
+
+void UpdateModelScale(InputModule& input, CollisionModule& collisions, GraphicsModule& graphics)
+{
+    if (rotatingModelPtr && moveMode == MoveMode::SCALE)
+    {
+        scalingModelPtr = rotatingModelPtr;
+        rotatingModelPtr = nullptr; // Yoink
+    }
+
+    if (moveMode != MoveMode::ROTATE)
+    {
+        scalingModelPtr = nullptr;
+
+        return;
+    }
+}
+
 void UpdateTexturePlace(InputModule& input, CollisionModule& collisions, GraphicsModule& graphics)
 {
     if (draggingNewTexture)
@@ -591,7 +684,9 @@ void UpdateEditor(ModuleManager& modules)
         UpdateNormalDraw(input, collisions, graphics);
         UpdateBoxCreate(input, collisions, graphics);
         UpdateModelPlace(input, collisions, graphics);
-        UpdateModelMove(input, collisions, graphics);
+        UpdateModelTranslate(input, collisions, graphics);
+        UpdateModelRotate(input, collisions, graphics);
+        UpdateModelScale(input, collisions, graphics);
         UpdateTexturePlace(input, collisions, graphics);
     }
 
@@ -660,7 +755,7 @@ void UpdateEditor(ModuleManager& modules)
         //graphics.m_Renderer.SetShaderUniformMat4x4f(graphics.m_TexturedMeshShader, "LightSpaceMatrix", shadowCam.GetCamMatrix());
 
         scene.SetCamera(&cam);
-        scene.Draw(graphics);
+        scene.Draw(graphics, viewportBuffer);
 
         if (draggingModel)
         {
@@ -675,11 +770,35 @@ void UpdateEditor(ModuleManager& modules)
             yAxisArrow.GetTransform().SetPosition(movingModelPos + Vec3f(0.0f, 4.0f, 0.0f));
             zAxisArrow.GetTransform().SetPosition(movingModelPos + Vec3f(0.0f, 0.0f, 4.0f));
 
+            float scale = Math::magnitude(movingModelPos - cam.GetPosition()) * 0.05f;
+
+            xAxisArrow.GetTransform().SetScale(Vec3f(scale / 5.f, scale, scale / 5.f));
+            yAxisArrow.GetTransform().SetScale(Vec3f(scale / 5.f, scale, scale / 5.f));
+            zAxisArrow.GetTransform().SetScale(Vec3f(scale / 5.f, scale, scale / 5.f));
+
             graphics.DebugDrawAABB(collisions.GetCollisionMeshFromMesh(movingModelPtr->m_TexturedMeshes[0].m_Mesh).boundingBox, Vec3f(1.0f, 1.0f, 0.7f), movingModelPtr->GetTransform().GetTransformMatrix());
 
             graphics.Draw(xAxisArrow);
             graphics.Draw(yAxisArrow);
             graphics.Draw(zAxisArrow);
+        }
+        if (rotatingModelPtr)
+        {
+            Vec3f rotatingModelPos = rotatingModelPtr->GetTransform().GetPosition();
+
+            xAxisRing.GetTransform().SetPosition(rotatingModelPos);
+            yAxisRing.GetTransform().SetPosition(rotatingModelPos);
+            zAxisRing.GetTransform().SetPosition(rotatingModelPos);
+
+            float scale = Math::magnitude(rotatingModelPos - cam.GetPosition()) * 0.3f;
+
+            xAxisRing.GetTransform().SetScale(Vec3f(scale, scale, scale));
+            yAxisRing.GetTransform().SetScale(Vec3f(scale, scale, scale));
+            zAxisRing.GetTransform().SetScale(Vec3f(scale, scale, scale));
+
+            graphics.Draw(xAxisRing);
+            graphics.Draw(yAxisRing);
+            graphics.Draw(zAxisRing);
         }
     }
     graphics.ResetFrameBuffer();
@@ -693,22 +812,26 @@ void UpdateEditor(ModuleManager& modules)
 
     ui.BufferPanel(viewportBuffer, newViewport);
 
-    ui.StartFrame(Rect(Vec2f(0.0f, 0.0f), Vec2f(screen.x - 200.0f, 40.0f)), 5.0f, "MEMES");
+    ui.StartFrame(Rect(Vec2f(0.0f, 0.0f), Vec2f(screen.x - 200.0f, 40.0f)), 0.0f, "MEMES");
 
     {
-        if (ui.ImgButton(playButtonTexture, Rect(Vec2f(0.0f, 0.0f), Vec2f(100.0f, 30.0f)), 2.0f))
+        if (ui.ImgButton(playButtonTexture, Rect(Vec2f(0.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f))
         {
             state = State::GAME;
             player.velocity = Vec3f(0.0f, 0.0f, 0.0f);
             player.position = cam.GetPosition();
         }
-        ui.ImgButton(loadedTextures[1], Rect(Vec2f(100.0f, 0.0f), Vec2f(100.0f, 30.0f)), 2.0f);
-        ui.ImgButton(loadedTextures[1], Rect(Vec2f(200.0f, 0.0f), Vec2f(100.0f, 30.0f)), 2.0f);
-        ui.ImgButton(loadedTextures[1], Rect(Vec2f(300.0f, 0.0f), Vec2f(100.0f, 30.0f)), 2.0f);
-        ui.ImgButton(loadedTextures[1], Rect(Vec2f(400.0f, 0.0f), Vec2f(100.0f, 30.0f)), 2.0f);
-        ui.ImgButton(loadedTextures[1], Rect(Vec2f(500.0f, 0.0f), Vec2f(100.0f, 30.0f)), 2.0f);
-        ui.ImgButton(loadedTextures[1], Rect(Vec2f(600.0f, 0.0f), Vec2f(100.0f, 30.0f)), 2.0f);
-        ui.ImgButton(loadedTextures[1], Rect(Vec2f(700.0f, 0.0f), Vec2f(100.0f, 30.0f)), 2.0f);
+
+        if (ui.ImgButton(cameraButtonTexture, Rect(Vec2f(40.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f))
+        {
+
+        }
+        ui.ImgButton(loadedTextures[1], Rect(Vec2f(80.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f);
+        ui.ImgButton(loadedTextures[1], Rect(Vec2f(120.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f);
+        ui.ImgButton(loadedTextures[1], Rect(Vec2f(160.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f);
+        ui.ImgButton(loadedTextures[1], Rect(Vec2f(200.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f);
+        ui.ImgButton(loadedTextures[1], Rect(Vec2f(240.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f);
+        ui.ImgButton(loadedTextures[1], Rect(Vec2f(280.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f);
     }
 
     ui.EndFrame();
@@ -749,7 +872,7 @@ void UpdateEditor(ModuleManager& modules)
     }
     ui.EndTab();
 
-    ui.StartTab("Scripts");
+    ui.StartTab("Behaviours");
 
     ui.EndTab();
 
@@ -796,14 +919,65 @@ void UpdateEditor(ModuleManager& modules)
         toolMode = ToolMode::BOX;
     }
 
-    if (ui.ImgButton(moveToolTexture, Rect(Vec2f(0.0f, 240.0f), Vec2f(100.0f, 100.0f)), 20.0f))
+    if (moveMode == MoveMode::TRANSLATE)
     {
-        toolMode = ToolMode::MOVE;
+        if (ui.ImgButton(translateToolTexture, Rect(Vec2f(0.0f, 240.0f), Vec2f(100.0f, 100.0f)), 20.0f))
+        {
+            if (toolMode == ToolMode::MOVE)
+            {
+                moveMode = MoveMode::ROTATE;
+            }
+            else
+            {
+                toolMode = ToolMode::MOVE;
+            }
+        }
+    }
+    else if (moveMode == MoveMode::ROTATE)
+    {
+        if (ui.ImgButton(rotateToolTexture, Rect(Vec2f(0.0f, 240.0f), Vec2f(100.0f, 100.0f)), 20.0f))
+        {
+            if (toolMode == ToolMode::MOVE)
+            {
+                moveMode = MoveMode::SCALE;
+            }
+            else
+            {
+                toolMode = ToolMode::MOVE;
+            }
+        }
+    }
+    else if (moveMode == MoveMode::SCALE)
+    {
+        if (ui.ImgButton(scaleToolTexture, Rect(Vec2f(0.0f, 240.0f), Vec2f(100.0f, 100.0f)), 20.0f))
+        {
+            if (toolMode == ToolMode::MOVE)
+            {
+                moveMode = MoveMode::TRANSLATE;
+            }
+            else
+            {
+                toolMode = ToolMode::MOVE;
+            }
+        }
     }
 
     if (ui.ImgButton(vertexToolTexture, Rect(Vec2f(0.0f, 340.0f), Vec2f(100, 100.0f)), 20.0f))
     {
         toolMode = ToolMode::VERTEX;
+    }
+
+    if (ui.ImgButton(cameraButtonTexture, Rect(Vec2f(0.0f, 440.0f), Vec2f(100.0f, 100.0f)), 20.0f))
+    {
+        if (renderMode == RenderMode::DEFAULT)
+        {
+            renderMode = RenderMode::FULLBRIGHT;
+        }
+        else
+        {
+            renderMode = RenderMode::DEFAULT;
+        }
+        graphics.SetRenderMode(renderMode);
     }
 
     if (input.IsKeyDown(Key::One))
@@ -833,7 +1007,18 @@ void UpdateEditor(ModuleManager& modules)
         modeString = "Box mode";
         break;
     case ToolMode::MOVE:
-        modeString = "Move mode";
+        switch (moveMode)
+        {
+        case MoveMode::TRANSLATE:
+            modeString = "Translate mode";
+            break;
+        case MoveMode::ROTATE:
+            modeString = "Rotate mode";
+            break;
+        case MoveMode::SCALE:
+            modeString = "Scale mode";
+            break;
+        }
         break;
     case ToolMode::VERTEX:
         modeString = "Vertex Edit Mode";
@@ -1044,7 +1229,7 @@ void UpdateGame(ModuleManager& modules)
     graphics.SetActiveFrameBuffer(viewportBuffer);
     {
         scene.SetCamera(&cam);
-        scene.Draw(graphics);
+        scene.Draw(graphics, viewportBuffer);
 
     }
     graphics.ResetFrameBuffer();
@@ -1063,11 +1248,16 @@ void UpdateGame(ModuleManager& modules)
 
 void Initialize(ModuleManager& modules)
 {
-
     GraphicsModule& graphics = *modules.GetGraphics();
     CollisionModule& collisions = *modules.GetCollision();
     TextModule& text = *modules.GetText();
     InputModule& input = *modules.GetInput();
+
+    Texture_ID redTexture = graphics.LoadTexture("textures/red.png");
+    Texture_ID greenTexture = graphics.LoadTexture("textures/green.png");
+    Texture_ID blueTexture = graphics.LoadTexture("textures/blue.png");
+
+    scene.Init(graphics);
 
     Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
 
@@ -1084,22 +1274,37 @@ void Initialize(ModuleManager& modules)
     yAxisArrow = graphics.CloneModel(xAxisArrow);
     zAxisArrow = graphics.CloneModel(xAxisArrow);
 
-    xAxisArrow.GetTransform().SetScale(Vec3f(0.5f, 0.5f, 0.5f));
-    yAxisArrow.GetTransform().SetScale(Vec3f(0.5f, 0.5f, 0.5f));
-    zAxisArrow.GetTransform().SetScale(Vec3f(0.5f, 0.5f, 0.5f));
-
     xAxisArrow.GetTransform().SetRotation(Quaternion(Vec3f(0.0f, 0.0f, 1.0f), -M_PI_2));
     zAxisArrow.GetTransform().SetRotation(Quaternion(Vec3f(1.0f, 0.0f, 0.0f), M_PI_2));
 
-    xAxisArrow.SetTexture(graphics.LoadTexture("textures/red.png"));
-    yAxisArrow.SetTexture(graphics.LoadTexture("textures/green.png"));
-    zAxisArrow.SetTexture(graphics.LoadTexture("textures/blue.png"));
+    xAxisArrow.SetTexture(redTexture);
+    yAxisArrow.SetTexture(greenTexture);
+    zAxisArrow.SetTexture(blueTexture);
+
+    xAxisRing = graphics.CreateModel(TexturedMesh(
+        graphics.LoadMesh("models/RotatorRing.obj"),
+        redTexture
+    ));
+
+    yAxisRing = graphics.CloneModel(xAxisRing);
+    zAxisRing = graphics.CloneModel(xAxisRing);
+
+    xAxisRing.GetTransform().SetRotation(Quaternion(Vec3f(0.0f, 0.0f, 1.0f), M_PI_2));
+    zAxisRing.GetTransform().SetRotation(Quaternion(Vec3f(1.0f, 0.0f, 0.0f), M_PI_2));
+
+    yAxisRing.SetTexture(greenTexture);
+    zAxisRing.SetTexture(blueTexture);
 
     playButtonTexture = graphics.LoadTexture("images/playButton.png");
+    cameraButtonTexture = graphics.LoadTexture("images/cameraButton.png");
 
     cursorToolTexture = graphics.LoadTexture("images/cursorTool.png");
     boxToolTexture = graphics.LoadTexture("images/boxTool.png");
-    moveToolTexture = graphics.LoadTexture("images/moveTool.png");
+    
+    translateToolTexture = graphics.LoadTexture("images/translateTool.png");
+    rotateToolTexture = graphics.LoadTexture("images/rotateTool.png");
+    scaleToolTexture = graphics.LoadTexture("images/scaleTool.png");
+
     vertexToolTexture = graphics.LoadTexture("images/vertexTool.png");
 
     Vec2i screenSizeI = Engine::GetClientAreaSize();
@@ -1203,7 +1408,7 @@ void Initialize(ModuleManager& modules)
 
     graphics.SetCamera(&cam);
     
-    graphics.SetRenderMode(RenderMode::FULLBRIGHT);
+    graphics.SetRenderMode(renderMode);
 
     tempWhiteTexture = graphics.LoadTexture("images/white.png", TextureMode::NEAREST, TextureMode::NEAREST);
 

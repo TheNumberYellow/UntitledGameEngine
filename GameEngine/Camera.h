@@ -1,7 +1,9 @@
 #pragma once
 
-#include "Math\Math.h"
-#include "Math\Quaternion.h"
+#include "Math/Math.h"
+#include "Math/Quaternion.h"
+
+class Model;
 
 enum class Projection
 {
@@ -16,7 +18,7 @@ public:
         : m_ViewProjectionMatrixNeedsUpdate(true)
         , m_ViewMatrixNeedsUpdate(true)
         , m_ProjectionMatrixNeedsUpdate(true)
-        , m_FieldOfView(Deg2Rad(80.0f))
+        , m_FieldOfView(Deg2Rad(90.0f))
         , m_NearClippingPlane(0.01f)
         , m_FarClippingPlane(5000.0f)
         , m_ProjectionType(projType)
@@ -71,4 +73,8 @@ private:
     bool m_ProjectionMatrixNeedsUpdate;
 
     Projection m_ProjectionType;
+
+    // TODO: Make sure this isn't loaded when loading the standalone (when I make that)
+    // Will also be the case for any other editor-only concepts
+    Model* m_EditorModel;
 };

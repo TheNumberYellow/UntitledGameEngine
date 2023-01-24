@@ -266,12 +266,12 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
     #version 400
     layout (location = 0) in vec3 aPos;
 
-    uniform mat4 lightSpaceMatrix;
+    uniform mat4 LightSpaceMatrix;
     uniform mat4 Transformation;
 
     void main()
     {
-        gl_Position = lightSpaceMatrix * Transformation * vec4(aPos, 1.0);
+        gl_Position = LightSpaceMatrix * Transformation * vec4(aPos, 1.0);
     }   
     )";
 

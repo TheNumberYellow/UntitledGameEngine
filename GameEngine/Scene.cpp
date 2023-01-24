@@ -7,12 +7,27 @@ SceneRayCastHit Closer(const SceneRayCastHit& lhs, const SceneRayCastHit& rhs)
 
 
 Scene::Scene()
-    : m_Camera(nullptr)
 {
+    m_Cameras.reserve(1);
+
+    // TEMP
+    m_ShadowCamera = Camera(Projection::Orthographic);
+    m_ShadowCamera.SetScreenSize(Vec2f(100.0f, 100.0f));
+    m_ShadowCamera.SetNearPlane(0.0f);
+    m_ShadowCamera.SetFarPlane(100.0f);
+    m_ShadowCamera.SetPosition(Vec3f(0.0f, -30.0f, 6.0f));
+
+    m_DirLight.colour = Vec3f(1.0, 1.0, 1.0);
+    m_DirLight.direction = m_ShadowCamera.GetDirection();
 }
 
 Scene::~Scene()
 {
+}
+
+void Scene::Init(GraphicsModule& graphics)
+{
+    shadowBuffer = graphics.CreateFBuffer(Vec2i(8000, 8000), FBufferFormat::DEPTH);
 }
 
 Model* Scene::AddModel(Model model, std::string name)
@@ -43,22 +58,48 @@ Model* Scene::GetModel(std::string name)
 
 Camera& Scene::GetCamera()
 {
-    if (!m_Camera)
+    if (!m_Cameras[0])
     {
-        m_Camera = new Camera();
+        m_Cameras[0] = new Camera();
     }
 
-    return *m_Camera;
+    return *m_Cameras[0];
 }
 
 void Scene::SetCamera(Camera* camera)
 {
-    m_Camera = camera;
+    m_Cameras[0] = camera;
 }
 
-void Scene::Draw(GraphicsModule& graphics)
+void Scene::Draw(GraphicsModule& graphics, Framebuffer_ID buffer)
 {
-    graphics.SetCamera(m_Camera);
+    Vec3f shadowCamPos = m_Cameras[0]->GetPosition() + (-m_ShadowCamera.GetDirection() * 40.0f);
+    m_ShadowCamera.SetPosition(shadowCamPos);
+    m_ShadowCamera.SetDirection(m_DirLight.direction);
+
+    // THIS IS ALL TEMPORARY WHILE I WORK ON A SHADOW SYSTEM IN THE GRAPHICS MODULE :^) 
+    graphics.SetActiveFrameBuffer(shadowBuffer);
+    //graphics.m_Renderer.SetCulling(Cull::Front);
+    graphics.m_Renderer.SetActiveShader(graphics.m_ShadowShader);
+    {
+        graphics.m_Renderer.SetShaderUniformMat4x4f(graphics.m_ShadowShader, "LightSpaceMatrix", m_ShadowCamera.GetCamMatrix());
+        for (auto& it : m_Models)
+        {
+            graphics.m_Renderer.SetShaderUniformMat4x4f(graphics.m_ShadowShader, "Transformation", it.second.GetTransform().GetTransformMatrix());
+            graphics.m_Renderer.DrawMesh(it.second.m_TexturedMeshes[0].m_Mesh);
+        }
+        for (auto& it : m_UntrackedModels)
+        {
+            graphics.m_Renderer.SetShaderUniformMat4x4f(graphics.m_ShadowShader, "Transformation", it.GetTransform().GetTransformMatrix());
+            graphics.m_Renderer.DrawMesh(it.m_TexturedMeshes[0].m_Mesh);
+        }
+    }
+    graphics.SetActiveFrameBuffer(buffer);
+
+    graphics.m_Renderer.SetActiveFBufferTexture(shadowBuffer, 1);
+    graphics.m_Renderer.SetShaderUniformMat4x4f(graphics.m_TexturedMeshShader, "LightSpaceMatrix", m_ShadowCamera.GetCamMatrix());
+
+    graphics.SetCamera(m_Cameras[0]);
 
     graphics.SetDirectionalLight(m_DirLight);
 
@@ -71,6 +112,15 @@ void Scene::Draw(GraphicsModule& graphics)
     {
         graphics.Draw(it);
     }
+}
+
+void Scene::EditorDraw(GraphicsModule& graphics)
+{
+}
+
+void Scene::SetDirectionalLight(DirectionalLight light)
+{
+    m_DirLight = light;
 }
 
 SceneRayCastHit Scene::RayCast(Ray ray, CollisionModule& collision)
