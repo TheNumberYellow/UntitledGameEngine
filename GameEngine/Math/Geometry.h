@@ -14,6 +14,7 @@ struct Ray
 
 struct Line
 {
+    Line() {}
     Line(Vec3f point, Vec3f direction) : point(point), direction(direction) {}
     Vec3f point;
     Vec3f direction;
@@ -21,12 +22,15 @@ struct Line
 
 struct Plane
 {
+    Plane() {}
+    Plane(Vec3f center, Vec3f normal) : center(center), normal(normal) {}
     Vec3f center;
     Vec3f normal;
 };
 
 struct LineSegment
 {
+    LineSegment() {}
     LineSegment(Vec3f a, Vec3f b) : a(a), b(b) {}
     Vec3f a, b;
 };

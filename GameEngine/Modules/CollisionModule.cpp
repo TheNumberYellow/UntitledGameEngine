@@ -190,6 +190,20 @@ RayCastHit CollisionModule::RayCast(Ray ray, Plane plane)
     return result;
 }
 
+const RayCastHit* CollisionModule::Closest(std::initializer_list<RayCastHit> hitList)
+{
+    const RayCastHit* closestHit = hitList.begin();
+
+    for (auto& hit : hitList)
+    {
+        if (hit.hit && hit.hitDistance < closestHit->hitDistance)
+        {
+            closestHit = &hit;
+        }
+    }
+    return closestHit;
+}
+
 inline RayCastHit CollisionModule::RayCastTri(Ray ray, Vec3f a, Vec3f b, Vec3f c)
 {
     // TODO: Become better at math and understand this better :)

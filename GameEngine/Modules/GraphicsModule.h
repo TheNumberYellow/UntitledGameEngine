@@ -138,6 +138,8 @@ public:
     Texture_ID LoadTexture(std::string filePath, TextureMode minFilter = TextureMode::LINEAR, TextureMode magFilter = TextureMode::LINEAR);
     Mesh_ID LoadMesh(std::string filePath);
 
+    Mesh_ID CreatePlane(float width);
+
     void AttachTextureToFBuffer(Texture_ID textureID, Framebuffer_ID fBufferID);
 
     void SetActiveFrameBuffer(Framebuffer_ID fBufferID);

@@ -50,7 +50,6 @@ UIModule::UIModule(Renderer& renderer, TextModule& text)
         {
             OutColour.rgb *= 1.4;
         }
-
     }
     
     )";

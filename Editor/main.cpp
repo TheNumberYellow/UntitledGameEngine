@@ -64,6 +64,9 @@ Texture_ID vertexToolTexture;
 
 Texture_ID tempWhiteTexture;
 
+Texture_ID gridTexture;
+Model gridModel;
+
 Font testFont;
 Font inspectorFont;
 
@@ -419,7 +422,7 @@ void UpdateModelPlace(InputModule& input, CollisionModule& collisions, GraphicsM
             }
             else
             {
-                draggingModel->GetTransform().SetPosition(mouseRay.point + mouseRay.direction * 5);
+                draggingModel->GetTransform().SetPosition(mouseRay.point + mouseRay.direction * 12.0f);
 
                 draggingModel->GetTransform().SetRotation(Quaternion());
             }
@@ -446,13 +449,7 @@ void UpdateModelTranslate(InputModule& input, CollisionModule& collisions, Graph
 
     static Vec3f slidingStartHitPoint;
 
-    if (scalingModelPtr && moveMode == MoveMode::TRANSLATE)
-    {
-        movingModelPtr = scalingModelPtr;
-        scalingModelPtr = nullptr; // Yoink
-    }
-
-    if (moveMode != MoveMode::TRANSLATE)
+    if (moveMode != MoveMode::TRANSLATE || toolMode != ToolMode::MOVE)
     {
         movingModelPtr = nullptr;
         slidingX = false;
@@ -576,15 +573,10 @@ void UpdateModelRotate(InputModule& input, CollisionModule& collisions, Graphics
     static bool rotatingY = false;
     static bool rotatingZ = false;
 
-    static Vec3f rotatingStartHitPoint;
+    static float initialAngle;
+    static Quaternion initialRotation;
 
-    if (movingModelPtr && moveMode == MoveMode::ROTATE)
-    {
-        rotatingModelPtr = movingModelPtr;
-        movingModelPtr = nullptr; // Yoink
-    }
-
-    if (moveMode != MoveMode::ROTATE)
+    if (moveMode != MoveMode::ROTATE || toolMode != ToolMode::MOVE)
     {
         rotatingModelPtr = nullptr;
         rotatingX = false;
@@ -604,6 +596,111 @@ void UpdateModelRotate(InputModule& input, CollisionModule& collisions, Graphics
         return;
     }
 
+    if (rotatingX || rotatingY || rotatingZ)
+    {
+        if (!input.GetMouseState().IsButtonDown(Mouse::LMB))
+        {
+            rotatingX = false;
+            rotatingY = false;
+            rotatingZ = false;
+
+            return;
+        }
+        Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
+        Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
+
+        Plane axisPlane;
+        Vec3f perpUnitVec;
+
+        axisPlane.center = rotatingModelPtr->GetTransform().GetPosition();
+
+        if (rotatingX)
+        {
+            axisPlane.normal = Vec3f(1.0f, 0.0f, 0.0f);
+            perpUnitVec = Vec3f(0.0f, 0.0f, 1.0f);
+        }
+        else if (rotatingY)
+        {
+            axisPlane.normal = Vec3f(0.0f, 1.0f, 0.0f);
+            perpUnitVec = Vec3f(1.0f, 0.0f, 0.0f);
+        }
+        else if (rotatingZ)
+        {
+            axisPlane.normal = Vec3f(0.0f, 0.0f, 1.0f);
+            perpUnitVec = Vec3f(0.0f, 1.0f, 0.0f);
+        }
+
+        RayCastHit planeHit = collisions.RayCast(mouseRay, axisPlane);
+
+        Vec3f objectCenter = rotatingModelPtr->GetTransform().GetPosition();
+        Vec3f hitPoint = planeHit.hitPoint;
+        Vec3f angleVec = hitPoint - objectCenter;
+        float dot = Math::dot(angleVec, perpUnitVec);
+        float det = Math::dot(axisPlane.normal, (Math::cross(angleVec, perpUnitVec)));
+        
+        float deltaAngle = initialAngle - atan2(det, dot);
+
+        Quaternion axisQuat = Quaternion(axisPlane.normal, deltaAngle);
+
+        rotatingModelPtr->GetTransform().SetRotation(axisQuat * initialRotation);
+    }
+
+    if (rotatingModelPtr && (!rotatingX && !rotatingY && !rotatingZ))
+    {
+        if (input.GetMouseState().IsButtonDown(Mouse::LMB))
+        {
+            CollisionMesh& arrowToolCollMesh = collisions.GetCollisionMeshFromMesh(xAxisRing.m_TexturedMeshes[0].m_Mesh);
+
+            Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
+            Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
+
+            RayCastHit xHit = collisions.RayCast(mouseRay, arrowToolCollMesh, xAxisRing.GetTransform());
+            RayCastHit yHit = collisions.RayCast(mouseRay, arrowToolCollMesh, yAxisRing.GetTransform());
+            RayCastHit zHit = collisions.RayCast(mouseRay, arrowToolCollMesh, zAxisRing.GetTransform());
+
+            const RayCastHit* closest = CollisionModule::Closest({ xHit, yHit, zHit });
+
+            if      (*closest == xHit) { rotatingX = true; }
+            else if (*closest == yHit) { rotatingY = true; }
+            else if (*closest == zHit) { rotatingZ = true; }
+
+            if (closest->hit)
+            {
+                Plane axisPlane;
+                Vec3f perpUnitVec;
+
+                axisPlane.center = rotatingModelPtr->GetTransform().GetPosition();
+
+                if (rotatingX)
+                {
+                    axisPlane.normal = Vec3f(1.0f, 0.0f, 0.0f);
+                    perpUnitVec = Vec3f(0.0f, 0.0f, 1.0f);  
+                }
+                else if (rotatingY)
+                {
+                    axisPlane.normal = Vec3f(0.0f, 1.0f, 0.0f);
+                    perpUnitVec = Vec3f(1.0f, 0.0f, 0.0f);
+                }
+                else if (rotatingZ)
+                {
+                    axisPlane.normal = Vec3f(0.0f, 0.0f, 1.0f);
+                    perpUnitVec = Vec3f(0.0f, 1.0f, 0.0f);
+                }
+
+                RayCastHit planeHit = collisions.RayCast(mouseRay, axisPlane);
+
+                initialRotation = rotatingModelPtr->GetTransform().GetRotation();
+
+                Vec3f objectCenter = rotatingModelPtr->GetTransform().GetPosition();
+                Vec3f hitPoint = planeHit.hitPoint;
+                Vec3f angleVec = hitPoint - objectCenter;
+                float dot = Math::dot(angleVec, perpUnitVec);
+                float det = Math::dot(axisPlane.normal, (Math::cross(angleVec, perpUnitVec)));
+                initialAngle = atan2(det, dot);
+            }
+        }
+    }
+
     if (input.GetMouseState().IsButtonDown(Mouse::LMB))
     {
         Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
@@ -620,13 +717,8 @@ void UpdateModelRotate(InputModule& input, CollisionModule& collisions, Graphics
 
 void UpdateModelScale(InputModule& input, CollisionModule& collisions, GraphicsModule& graphics)
 {
-    if (rotatingModelPtr && moveMode == MoveMode::SCALE)
-    {
-        scalingModelPtr = rotatingModelPtr;
-        rotatingModelPtr = nullptr; // Yoink
-    }
 
-    if (moveMode != MoveMode::ROTATE)
+    if (moveMode != MoveMode::SCALE || toolMode != ToolMode::MOVE)
     {
         scalingModelPtr = nullptr;
 
@@ -790,11 +882,13 @@ void UpdateEditor(ModuleManager& modules)
             yAxisRing.GetTransform().SetPosition(rotatingModelPos);
             zAxisRing.GetTransform().SetPosition(rotatingModelPos);
 
-            float scale = Math::magnitude(rotatingModelPos - cam.GetPosition()) * 0.3f;
+            float scale = Math::magnitude(rotatingModelPos - cam.GetPosition()) * 0.2f;
 
             xAxisRing.GetTransform().SetScale(Vec3f(scale, scale, scale));
             yAxisRing.GetTransform().SetScale(Vec3f(scale, scale, scale));
             zAxisRing.GetTransform().SetScale(Vec3f(scale, scale, scale));
+
+            graphics.DebugDrawAABB(collisions.GetCollisionMeshFromMesh(rotatingModelPtr->m_TexturedMeshes[0].m_Mesh).boundingBox, Vec3f(1.0f, 1.0f, 0.7f), rotatingModelPtr->GetTransform().GetTransformMatrix());
 
             graphics.Draw(xAxisRing);
             graphics.Draw(yAxisRing);
@@ -926,6 +1020,11 @@ void UpdateEditor(ModuleManager& modules)
             if (toolMode == ToolMode::MOVE)
             {
                 moveMode = MoveMode::ROTATE;
+                if (movingModelPtr)
+                {
+                    rotatingModelPtr = movingModelPtr;
+                    movingModelPtr = nullptr;
+                }
             }
             else
             {
@@ -940,6 +1039,11 @@ void UpdateEditor(ModuleManager& modules)
             if (toolMode == ToolMode::MOVE)
             {
                 moveMode = MoveMode::SCALE;
+                if (rotatingModelPtr)
+                {
+                    scalingModelPtr = rotatingModelPtr;
+                    rotatingModelPtr = nullptr;
+                }
             }
             else
             {
@@ -954,6 +1058,11 @@ void UpdateEditor(ModuleManager& modules)
             if (toolMode == ToolMode::MOVE)
             {
                 moveMode = MoveMode::TRANSLATE;
+                if (scalingModelPtr)
+                {
+                    movingModelPtr = scalingModelPtr;
+                    scalingModelPtr = nullptr;
+                }
             }
             else
             {

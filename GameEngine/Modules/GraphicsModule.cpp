@@ -492,6 +492,14 @@ Mesh_ID GraphicsModule::LoadMesh(std::string filePath)
     return FileLoader::LoadOBJFile(filePath, m_Renderer);
 }
 
+Mesh_ID GraphicsModule::CreatePlane(float width)
+{
+
+
+
+    return Mesh_ID();
+}
+
 void GraphicsModule::AttachTextureToFBuffer(Texture_ID textureID, Framebuffer_ID fBufferID)
 { 
     m_Renderer.AttachTextureToFramebuffer(textureID, fBufferID);
