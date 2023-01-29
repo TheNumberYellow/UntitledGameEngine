@@ -644,8 +644,7 @@ void UpdateModelRotate(InputModule& input, CollisionModule& collisions, Graphics
 
         rotatingModelPtr->GetTransform().SetRotation(axisQuat * initialRotation);
     }
-
-    if (rotatingModelPtr && (!rotatingX && !rotatingY && !rotatingZ))
+    else if (rotatingModelPtr)
     {
         if (input.GetMouseState().IsButtonDown(Mouse::LMB))
         {
@@ -660,12 +659,13 @@ void UpdateModelRotate(InputModule& input, CollisionModule& collisions, Graphics
 
             const RayCastHit* closest = CollisionModule::Closest({ xHit, yHit, zHit });
 
-            if      (*closest == xHit) { rotatingX = true; }
-            else if (*closest == yHit) { rotatingY = true; }
-            else if (*closest == zHit) { rotatingZ = true; }
-
             if (closest->hit)
             {
+                if (*closest == xHit) { rotatingX = true; }
+                else if (*closest == yHit) { rotatingY = true; }
+                else if (*closest == zHit) { rotatingZ = true; }
+
+
                 Plane axisPlane;
                 Vec3f perpUnitVec;
 
@@ -700,8 +700,7 @@ void UpdateModelRotate(InputModule& input, CollisionModule& collisions, Graphics
             }
         }
     }
-
-    if (input.GetMouseState().IsButtonDown(Mouse::LMB))
+    if (input.GetMouseState().IsButtonDown(Mouse::LMB) && (!rotatingX && !rotatingY && !rotatingZ))
     {
         Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
         Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
@@ -1391,7 +1390,7 @@ void Initialize(ModuleManager& modules)
     zAxisArrow.SetTexture(blueTexture);
 
     xAxisRing = graphics.CreateModel(TexturedMesh(
-        graphics.LoadMesh("models/RotatorRing.obj"),
+        graphics.LoadMesh("models/RotationHoop.obj"),
         redTexture
     ));
 
