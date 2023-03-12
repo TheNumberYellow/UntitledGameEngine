@@ -8,7 +8,7 @@ SceneRayCastHit Closer(const SceneRayCastHit& lhs, const SceneRayCastHit& rhs)
 
 Scene::Scene()
 {
-    m_Cameras.reserve(1);
+    m_Cameras.resize(1);
 
     // TEMP
     m_ShadowCamera = Camera(Projection::Orthographic);

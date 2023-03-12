@@ -75,6 +75,7 @@ Camera cam;
 Model previewPSpawn;
 
 Framebuffer_ID viewportBuffer;
+Framebuffer_ID widgetViewportBuffer;
 
 Framebuffer_ID shadowBuffer;
 
@@ -113,6 +114,10 @@ Model zAxisArrow;
 Model xAxisRing;
 Model yAxisRing;
 Model zAxisRing;
+
+Model xScaleWidget;
+Model yScaleWidget;
+Model zScaleWidget;
 
 ToolMode toolMode = ToolMode::NORMAL;
 MoveMode moveMode = MoveMode::TRANSLATE;
@@ -665,7 +670,6 @@ void UpdateModelRotate(InputModule& input, CollisionModule& collisions, Graphics
                 else if (*closest == yHit) { rotatingY = true; }
                 else if (*closest == zHit) { rotatingZ = true; }
 
-
                 Plane axisPlane;
                 Vec3f perpUnitVec;
 
@@ -716,12 +720,125 @@ void UpdateModelRotate(InputModule& input, CollisionModule& collisions, Graphics
 
 void UpdateModelScale(InputModule& input, CollisionModule& collisions, GraphicsModule& graphics)
 {
+    static bool scalingX = false;
+    static bool scalingY = false;
+    static bool scalingZ = false;
+
+    static Vec3f scalingStartHitPoint;
 
     if (moveMode != MoveMode::SCALE || toolMode != ToolMode::MOVE)
     {
         scalingModelPtr = nullptr;
+        scalingX = false;
+        scalingY = false;
+        scalingZ = false;
 
         return;
+    }
+
+    if (draggingNewModel || draggingNewTexture)
+    {
+        scalingModelPtr = nullptr;
+        scalingX = false;
+        scalingY = false;
+        scalingZ = false;
+
+        return;
+    }
+
+    if (scalingX || scalingY || scalingZ)
+    {
+        if (!input.GetMouseState().IsButtonDown(Mouse::LMB))
+        {
+            scalingX = false;
+            scalingY = false;
+            scalingZ = false;
+
+            return;
+        }
+
+        Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
+        Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
+
+        Quaternion scalingModelRot = scalingModelPtr->GetTransform().GetRotation();
+
+        if (scalingX)
+        {
+            Line mouseLine(mouseRay.point - scalingStartHitPoint, mouseRay.direction);
+            Line axisLine(scalingModelPtr->GetTransform().GetPosition(), Vec3f(1.0f, 0.0f, 0.0f) * scalingModelRot);
+            Vec3f pointAlongAxis = Math::ClosestPointsOnLines(mouseLine, axisLine).second;
+
+            Vec3f prevScale = scalingModelPtr->GetTransform().GetScale();
+
+            float newScale = Math::magnitude(scalingModelPtr->GetTransform().GetPosition() - pointAlongAxis);
+
+            scalingModelPtr->GetTransform().SetScale(Vec3f(newScale, prevScale.y, prevScale.z));
+        }
+        if (scalingY)
+        {
+            Line mouseLine(mouseRay.point - scalingStartHitPoint, mouseRay.direction);
+            Line axisLine(scalingModelPtr->GetTransform().GetPosition(), Vec3f(0.0f, 1.0f, 0.0f) * scalingModelRot);
+            Vec3f pointAlongAxis = Math::ClosestPointsOnLines(mouseLine, axisLine).second;
+
+            Vec3f prevScale = scalingModelPtr->GetTransform().GetScale();
+
+            float newScale = Math::magnitude(scalingModelPtr->GetTransform().GetPosition() - pointAlongAxis);
+
+            scalingModelPtr->GetTransform().SetScale(Vec3f(prevScale.x, newScale, prevScale.z));
+        }
+        if (scalingZ)
+        {
+            Line mouseLine(mouseRay.point - scalingStartHitPoint, mouseRay.direction);
+            Line axisLine(scalingModelPtr->GetTransform().GetPosition(), Vec3f(0.0f, 0.0f, 1.0f) * scalingModelRot);
+            Vec3f pointAlongAxis = Math::ClosestPointsOnLines(mouseLine, axisLine).second;
+
+            Vec3f prevScale = scalingModelPtr->GetTransform().GetScale();
+
+            float newScale = Math::magnitude(scalingModelPtr->GetTransform().GetPosition() - pointAlongAxis);
+
+            scalingModelPtr->GetTransform().SetScale(Vec3f(prevScale.x, prevScale.y, newScale));
+        }
+    }
+    else if (scalingModelPtr)
+    {
+        if (input.GetMouseState().IsButtonDown(Mouse::LMB))
+        {
+            CollisionMesh& scaleToolCollMesh = collisions.GetCollisionMeshFromMesh(xScaleWidget.m_TexturedMeshes[0].m_Mesh);
+            
+            Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
+            Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
+
+            RayCastHit xHit = collisions.RayCast(mouseRay, scaleToolCollMesh, xScaleWidget.GetTransform());
+            RayCastHit yHit = collisions.RayCast(mouseRay, scaleToolCollMesh, yScaleWidget.GetTransform());
+            RayCastHit zHit = collisions.RayCast(mouseRay, scaleToolCollMesh, zScaleWidget.GetTransform());
+
+            const RayCastHit* closest = CollisionModule::Closest({ xHit, yHit, zHit });
+
+            if (closest->hit)
+            {
+                Vec3f widgetPoint;
+                if (*closest == xHit) { scalingX = true; widgetPoint = xScaleWidget.GetTransform().GetPosition(); }
+                else if (*closest == yHit) { scalingY = true; widgetPoint = yScaleWidget.GetTransform().GetPosition(); }
+                else if (*closest == zHit) { scalingZ = true; widgetPoint = zScaleWidget.GetTransform().GetPosition(); }
+
+                Vec3f hitPoint = closest->hitPoint;
+
+                scalingStartHitPoint = hitPoint - widgetPoint;
+            }
+        }
+    }
+
+    if (input.GetMouseState().IsButtonDown(Mouse::LMB) && (!scalingX && !scalingY && !scalingZ))
+    {
+        Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
+        Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
+
+        SceneRayCastHit finalHit = scene.RayCast(mouseRay, collisions);
+
+        if (finalHit.rayCastHit.hit)
+        {
+            scalingModelPtr = finalHit.hitModel;
+        }
     }
 }
 
@@ -807,7 +924,7 @@ void UpdateEditor(ModuleManager& modules)
 
     DrawEditorGrid(graphics);
 
-    // Draw all my little meshies
+    // Draw all my little meshies (for the models tab)
     graphics.SetCamera(&modelCam);
     for (int i = 0; i < modelFBuffers.size(); ++i)
     {
@@ -816,35 +933,9 @@ void UpdateEditor(ModuleManager& modules)
         graphics.Draw(loadedModels[i]);
     }
 
-    // THIS IS ALL TEMPORARY WHILE I WORK ON A SHADOW SYSTEM IN THE GRAPHICS MODULE :^) 
-    graphics.SetActiveFrameBuffer(shadowBuffer);
-    //graphics.m_Renderer.SetCulling(Cull::Front);
-    graphics.m_Renderer.SetActiveShader(shadowShader);
-    {
-        //graphics.m_Renderer.SetShaderUniformMat4x4f(shadowShader, "lightSpaceMatrix", shadowCam.GetCamMatrix());
-        //for (int i = 0; i < boxes.size(); ++i)
-        //{
-        //    graphics.m_Renderer.SetShaderUniformMat4x4f(shadowShader, "Transformation", boxes[i].model->GetTransform().GetTransformMatrix());
-        //    graphics.m_Renderer.DrawMesh(boxes[i].model->m_TexturedMeshes[0].m_Mesh);
-        //}
-        //for (int i = 0; i < sceneModels.size(); ++i)
-        //{
-        //    graphics.m_Renderer.SetShaderUniformMat4x4f(shadowShader, "Transformation", sceneModels[i].model->GetTransform().GetTransformMatrix());
-        //    graphics.m_Renderer.DrawMesh(sceneModels[i].model->m_TexturedMeshes[0].m_Mesh);
-        //}
-    }
-    graphics.ResetFrameBuffer();
-    //graphics.m_Renderer.SetCulling(Cull::Back);
-
-    // THIS IS ALL TEMPORARY WHILE I WORK ON A SHADOW SYSTEM IN THE GRAPHICS MODULE :^) 
     graphics.SetCamera(&cam);
     graphics.SetActiveFrameBuffer(viewportBuffer);
     {
-        //graphics.m_Renderer.SetActiveFBufferTexture(shadowBuffer, 1);
-        //graphics.m_Renderer.SetShaderUniformMat4x4f(graphics.m_TexturedMeshShader, "Camera", graphics.m_Camera->GetCamMatrix());
-        //graphics.m_Renderer.SetShaderUniformVec3f(graphics.m_TexturedMeshShader, "CameraPos", graphics.m_Camera->GetPosition());
-        //graphics.m_Renderer.SetShaderUniformMat4x4f(graphics.m_TexturedMeshShader, "LightSpaceMatrix", shadowCam.GetCamMatrix());
-
         scene.SetCamera(&cam);
         scene.Draw(graphics, viewportBuffer);
 
@@ -852,20 +943,26 @@ void UpdateEditor(ModuleManager& modules)
         {
             graphics.Draw(*draggingModel);
         }
+    }
+    graphics.ResetFrameBuffer();
 
+    // Draw tools on separate buffer to they're in front
+    graphics.SetActiveFrameBuffer(widgetViewportBuffer);
+    {
+        graphics.SetRenderMode(RenderMode::FULLBRIGHT);
         if (movingModelPtr)
         {
             Vec3f movingModelPos = movingModelPtr->GetTransform().GetPosition();
 
-            xAxisArrow.GetTransform().SetPosition(movingModelPos + Vec3f(4.0f, 0.0f, 0.0f));
-            yAxisArrow.GetTransform().SetPosition(movingModelPos + Vec3f(0.0f, 4.0f, 0.0f));
-            zAxisArrow.GetTransform().SetPosition(movingModelPos + Vec3f(0.0f, 0.0f, 4.0f));
-
             float scale = Math::magnitude(movingModelPos - cam.GetPosition()) * 0.05f;
+            
+            xAxisArrow.GetTransform().SetPosition(movingModelPos + Vec3f(4.0f, 0.0f, 0.0f) * scale);
+            yAxisArrow.GetTransform().SetPosition(movingModelPos + Vec3f(0.0f, 4.0f, 0.0f) * scale);
+            zAxisArrow.GetTransform().SetPosition(movingModelPos + Vec3f(0.0f, 0.0f, 4.0f) * scale);
 
-            xAxisArrow.GetTransform().SetScale(Vec3f(scale / 5.f, scale, scale / 5.f));
-            yAxisArrow.GetTransform().SetScale(Vec3f(scale / 5.f, scale, scale / 5.f));
-            zAxisArrow.GetTransform().SetScale(Vec3f(scale / 5.f, scale, scale / 5.f));
+            xAxisArrow.GetTransform().SetScale(Vec3f(scale / 3.f, scale, scale / 3.f));
+            yAxisArrow.GetTransform().SetScale(Vec3f(scale / 3.f, scale, scale / 3.f));
+            zAxisArrow.GetTransform().SetScale(Vec3f(scale / 3.f, scale, scale / 3.f));
 
             graphics.DebugDrawAABB(collisions.GetCollisionMeshFromMesh(movingModelPtr->m_TexturedMeshes[0].m_Mesh).boundingBox, Vec3f(1.0f, 1.0f, 0.7f), movingModelPtr->GetTransform().GetTransformMatrix());
 
@@ -873,6 +970,7 @@ void UpdateEditor(ModuleManager& modules)
             graphics.Draw(yAxisArrow);
             graphics.Draw(zAxisArrow);
         }
+
         if (rotatingModelPtr)
         {
             Vec3f rotatingModelPos = rotatingModelPtr->GetTransform().GetPosition();
@@ -892,18 +990,42 @@ void UpdateEditor(ModuleManager& modules)
             graphics.Draw(xAxisRing);
             graphics.Draw(yAxisRing);
             graphics.Draw(zAxisRing);
+
         }
+        if (scalingModelPtr)
+        {
+            Vec3f scalingModelPos = scalingModelPtr->GetTransform().GetPosition();
+            Quaternion scalingModelRot = scalingModelPtr->GetTransform().GetRotation();
+
+            Vec3f modelScale = scalingModelPtr->GetTransform().GetScale();
+            float scale = Math::magnitude(scalingModelPos - cam.GetPosition()) * 0.05f;
+
+            xScaleWidget.GetTransform().SetScale(Vec3f(scale, scale, scale));
+            yScaleWidget.GetTransform().SetScale(Vec3f(scale, scale, scale));
+            zScaleWidget.GetTransform().SetScale(Vec3f(scale, scale, scale));
+
+            xScaleWidget.GetTransform().SetPosition(scalingModelPos + Vec3f(modelScale.x, 0.0f, 0.0f) * scalingModelRot);
+            yScaleWidget.GetTransform().SetPosition(scalingModelPos + Vec3f(0.0f, modelScale.y, 0.0f) * scalingModelRot);
+            zScaleWidget.GetTransform().SetPosition(scalingModelPos + Vec3f(0.0f, 0.0f, modelScale.z) * scalingModelRot);
+
+            xScaleWidget.GetTransform().SetRotation(scalingModelRot * Quaternion(Vec3f(0.0f, 1.0f, 0.0f), M_PI_2));
+            yScaleWidget.GetTransform().SetRotation(scalingModelRot* Quaternion(Vec3f(1.0f, 0.0f, 0.0f), -M_PI_2));
+            zScaleWidget.GetTransform().SetRotation(scalingModelRot * Quaternion(Vec3f(0.0f, 0.0f, 1.0f), M_PI_2));
+
+            graphics.Draw(xScaleWidget);
+            graphics.Draw(yScaleWidget);
+            graphics.Draw(zScaleWidget);
+        }
+
+        graphics.SetRenderMode(RenderMode::DEFAULT);
     }
     graphics.ResetFrameBuffer();
-
-
-    //graphics.m_Renderer.SetActiveShader(testDepthShader);
-    //graphics.m_Renderer.SetActiveFBufferTexture(shadowBuffer);
-    //graphics.m_Renderer.DrawMesh(quadMesh);
 
     Vec2i screen = Engine::GetClientAreaSize();
 
     ui.BufferPanel(viewportBuffer, newViewport);
+    ui.BufferPanel(widgetViewportBuffer, newViewport);
+
 
     ui.StartFrame(Rect(Vec2f(0.0f, 0.0f), Vec2f(screen.x - 200.0f, 40.0f)), 0.0f, "MEMES");
 
@@ -1272,19 +1394,6 @@ void UpdateGame(ModuleManager& modules)
         graphics.DebugDrawPoint(movement.rayCastHit.hitPoint); 
     }
 
-    //if (movement.rayCastHit.hit && movement.rayCastHit.hitDistance < Math::magnitude(player.velocity))
-    //{
-    //    graphics.DebugDrawPoint(movement.rayCastHit.hitPoint, Vec3f(1.0f, 0.0f, 0.0f));
-    //    player.position = movement.rayCastHit.hitPoint + (Vec3f(0.0f, 0.0f, 0.1f));
-    //    //player.velocity = Vec3f(0.0f, 0.0f, 0.0f);
-    //    //player.velocity.z = -player.velocity.z;
-    //    player.velocity.z = 0.0f;
-    //}
-    //else
-    //{
-    //    player.position += player.velocity;
-    //}
-
     player.cam->SetPosition(player.position + Vec3f(0.0f, 0.0f, 2.5f));
 
     // Drop models
@@ -1302,37 +1411,6 @@ void UpdateGame(ModuleManager& modules)
             modelSpeed = Vec3f(0.0f, 0.0f, 0.0f);
         }
     }
-
-    
-    
-
-    //if (droppingModel)
-    //{
-    //    modelSpeed.z = 0.01f;
-    //    SceneRayCastHit modelMove = scene.RayCast(Ray(droppingModel->GetTransform().GetPosition(), Math::normalize(modelSpeed)), collisions);
-
-
-    //    if (modelMove.rayCastHit.hit)
-    //    {
-
-    //        hitDist = modelMove.rayCastHit.hitDistance;
-    //    }
-    //    if (modelMove.rayCastHit.hit && modelMove.rayCastHit.hitDistance <= modelSpeed.z)
-    //    {
-    //        Vec3f newPos = modelMove.rayCastHit.hitPoint + (modelMove.rayCastHit.hitNormal * 0.01f);
-    //        droppingModel->GetTransform().SetPosition(newPos);
-    //        modelSpeed = Vec3f(0.0f, 0.0f, 0.0f);
-    //        
-    //        std::string debugString = "Hit something at " + modelMove.rayCastHit.hitPoint.toString() + ", moving to " + newPos.toString();
-    //        Engine::DEBUGPrint(debugString);
-    //    }
-    //    else
-    //    {
-    //        droppingModel->GetTransform().Move(modelSpeed);
-    //    }
-
-    //}
-
 
     graphics.SetActiveFrameBuffer(viewportBuffer);
     {
@@ -1403,6 +1481,17 @@ void Initialize(ModuleManager& modules)
     yAxisRing.SetTexture(greenTexture);
     zAxisRing.SetTexture(blueTexture);
 
+    xScaleWidget = graphics.CreateModel(TexturedMesh(
+        graphics.LoadMesh("models/ScaleWidget.obj"),
+        redTexture
+    ));
+
+    yScaleWidget = graphics.CloneModel(xScaleWidget);
+    zScaleWidget = graphics.CloneModel(xScaleWidget);
+
+    yScaleWidget.SetTexture(greenTexture);
+    zScaleWidget.SetTexture(blueTexture);
+
     playButtonTexture = graphics.LoadTexture("images/playButton.png");
     cameraButtonTexture = graphics.LoadTexture("images/cameraButton.png");
 
@@ -1420,12 +1509,12 @@ void Initialize(ModuleManager& modules)
     cam.SetScreenSize(screenSizeI);
     
     cam.SetPosition(Vec3f(0.0f, -8.0f, 6.0f));
-    cam.Rotate(Quaternion(Vec3f(1.0f, 0.0f, 0.0f), 1.3f));
+    cam.Rotate(Quaternion(Vec3f(1.0f, 0.0f, 0.0f), -0.7f));
 
     modelCam = Camera(Projection::Perspective);
     modelCam.SetScreenSize(Vec2f(100.0f, 100.0f));
     modelCam.SetPosition(Vec3f(0.0f, -2.5f, 2.5f));
-    modelCam.Rotate(Quaternion(Vec3f(1.0f, 0.0f, 0.0f), 1.3f));
+    modelCam.Rotate(Quaternion(Vec3f(1.0f, 0.0f, 0.0f), -0.7f));
 
     shadowCam = Camera(Projection::Orthographic);
     shadowCam.SetScreenSize(Vec2f(100.0f, 100.0f));
@@ -1436,6 +1525,8 @@ void Initialize(ModuleManager& modules)
     shadowCam.Rotate(Quaternion(Vec3f(1.0f, 0.0f, 0.0f), 1.3f));
 
     viewportBuffer = graphics.CreateFBuffer(Vec2i(viewportRect.size), FBufferFormat::COLOUR);
+
+    widgetViewportBuffer = graphics.CreateFBuffer(Vec2i(viewportRect.size), FBufferFormat::COLOUR);
 
     shadowBuffer = graphics.CreateFBuffer(Vec2i(8000, 8000), FBufferFormat::DEPTH);
 

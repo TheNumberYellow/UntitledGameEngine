@@ -274,7 +274,7 @@ namespace
             }
             else if (format == FBufferFormat::COLOUR)
             {
-                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, size.x, size.y, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, size.x, size.y, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
@@ -911,7 +911,7 @@ Renderer::Renderer()
     // I prefer clockwise winding
     glFrontFace(GL_CW);
 
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
     glViewport(0, 0, Engine::GetClientAreaSize().x, Engine::GetClientAreaSize().y);
 

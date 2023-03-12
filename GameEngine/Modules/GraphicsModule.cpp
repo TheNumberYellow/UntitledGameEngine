@@ -612,11 +612,12 @@ void GraphicsModule::Draw(Model& model)
     }
     else if (m_RenderMode == RenderMode::FULLBRIGHT)
     {
-        if (!m_CameraMatrixSetThisFrame && m_Camera != nullptr)
-        {
+        // Temp(fraser): Matrix set this frame PER render mode
+        //if (!m_CameraMatrixSetThisFrame && m_Camera != nullptr)
+        //{
             m_Renderer.SetShaderUniformMat4x4f(m_UnlitShader, "Camera", m_Camera->GetCamMatrix());
             m_CameraMatrixSetThisFrame = true;
-        }
+        //}
 
         m_Renderer.SetActiveShader(m_UnlitShader);
         m_Renderer.SetShaderUniformMat4x4f(m_UnlitShader, "Transformation", model.GetTransform().GetTransformMatrix());

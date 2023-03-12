@@ -65,6 +65,7 @@ struct Vec3f
     Vec3f operator*(Vec3f rhs);
     Vec3f operator*(Quaternion rhs);
     Vec3f operator*(Mat4x4f rhs);
+    friend Vec3f operator*(float lhs, const Vec3f& rhs);
 
     Vec3f operator*(float rhs);
     Vec3f operator/(float rhs);

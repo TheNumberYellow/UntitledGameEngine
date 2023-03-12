@@ -141,16 +141,31 @@ Vec3f Vec3f::operator*(Mat4x4f rhs)
     return Math::mult(*this, rhs);
 }
 
+
+Vec3f operator*(float lhs, const Vec3f& rhs)
+{
+    return Vec3f(lhs * rhs.x, lhs * rhs.y, lhs * rhs.z);
+}
+
 Vec3f Vec3f::operator*(Quaternion rhs)
 {
-    Quaternion thisAsQuat;
-    thisAsQuat.x = this->x;
-    thisAsQuat.y = this->y;
-    thisAsQuat.z = this->z;
-    thisAsQuat.w = 0;
+    Vec3f u(rhs.x, rhs.y, rhs.z);
 
-    Quaternion resultQuat = thisAsQuat * rhs;
-    return Vec3f(resultQuat.x, resultQuat.y, resultQuat.z);
+    float s = rhs.w;
+
+    Vec3f vprime = 2.0f * Math::dot(u, *this) * u
+        + (s * s - Math::dot(u, u)) * (*this)
+        + 2.0f * s * Math::cross(u, *this);
+
+    return vprime;
+    //Quaternion thisAsQuat;
+    //thisAsQuat.x = this->x;
+    //thisAsQuat.y = this->y;
+    //thisAsQuat.z = this->z;
+    //thisAsQuat.w = 0;
+
+    //Quaternion resultQuat = thisAsQuat * rhs;
+    //return Vec3f(resultQuat.x, resultQuat.y, resultQuat.z);
 }
 
 Vec3f Vec3f::operator*(float rhs)

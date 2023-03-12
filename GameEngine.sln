@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.29806.167
+# Visual Studio Version 17
+VisualStudioVersion = 17.3.32901.215
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GameEngine", "GameEngine\GameEngine.vcxproj", "{CF31B173-4B35-4325-8839-096C910D330F}"
 EndProject
@@ -14,36 +14,64 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Editor", "Editor\Editor.vcx
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
-		Debug|x64 = Debug|x64
-		Debug|x86 = Debug|x86
-		Release|x64 = Release|x64
-		Release|x86 = Release|x86
+		OpenGLDebug|x64 = OpenGLDebug|x64
+		OpenGLDebug|x86 = OpenGLDebug|x86
+		OpenGLRelease|x64 = OpenGLRelease|x64
+		OpenGLRelease|x86 = OpenGLRelease|x86
+		VulkanDebug|x64 = VulkanDebug|x64
+		VulkanDebug|x86 = VulkanDebug|x86
+		VulkanRelease|x64 = VulkanRelease|x64
+		VulkanRelease|x86 = VulkanRelease|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{CF31B173-4B35-4325-8839-096C910D330F}.Debug|x64.ActiveCfg = Debug|x64
-		{CF31B173-4B35-4325-8839-096C910D330F}.Debug|x64.Build.0 = Debug|x64
-		{CF31B173-4B35-4325-8839-096C910D330F}.Debug|x86.ActiveCfg = Debug|Win32
-		{CF31B173-4B35-4325-8839-096C910D330F}.Debug|x86.Build.0 = Debug|Win32
-		{CF31B173-4B35-4325-8839-096C910D330F}.Release|x64.ActiveCfg = Release|x64
-		{CF31B173-4B35-4325-8839-096C910D330F}.Release|x64.Build.0 = Release|x64
-		{CF31B173-4B35-4325-8839-096C910D330F}.Release|x86.ActiveCfg = Release|Win32
-		{CF31B173-4B35-4325-8839-096C910D330F}.Release|x86.Build.0 = Release|Win32
-		{56C32329-6C53-44B2-AB9E-ED38C48DBC11}.Debug|x64.ActiveCfg = Debug|x64
-		{56C32329-6C53-44B2-AB9E-ED38C48DBC11}.Debug|x64.Build.0 = Debug|x64
-		{56C32329-6C53-44B2-AB9E-ED38C48DBC11}.Debug|x86.ActiveCfg = Debug|Win32
-		{56C32329-6C53-44B2-AB9E-ED38C48DBC11}.Debug|x86.Build.0 = Debug|Win32
-		{56C32329-6C53-44B2-AB9E-ED38C48DBC11}.Release|x64.ActiveCfg = Release|x64
-		{56C32329-6C53-44B2-AB9E-ED38C48DBC11}.Release|x64.Build.0 = Release|x64
-		{56C32329-6C53-44B2-AB9E-ED38C48DBC11}.Release|x86.ActiveCfg = Release|Win32
-		{56C32329-6C53-44B2-AB9E-ED38C48DBC11}.Release|x86.Build.0 = Release|Win32
-		{001AABCE-0459-4E80-BF3E-A43BFF63263E}.Debug|x64.ActiveCfg = Debug|x64
-		{001AABCE-0459-4E80-BF3E-A43BFF63263E}.Debug|x64.Build.0 = Debug|x64
-		{001AABCE-0459-4E80-BF3E-A43BFF63263E}.Debug|x86.ActiveCfg = Debug|Win32
-		{001AABCE-0459-4E80-BF3E-A43BFF63263E}.Debug|x86.Build.0 = Debug|Win32
-		{001AABCE-0459-4E80-BF3E-A43BFF63263E}.Release|x64.ActiveCfg = Release|x64
-		{001AABCE-0459-4E80-BF3E-A43BFF63263E}.Release|x64.Build.0 = Release|x64
-		{001AABCE-0459-4E80-BF3E-A43BFF63263E}.Release|x86.ActiveCfg = Release|Win32
-		{001AABCE-0459-4E80-BF3E-A43BFF63263E}.Release|x86.Build.0 = Release|Win32
+		{CF31B173-4B35-4325-8839-096C910D330F}.OpenGLDebug|x64.ActiveCfg = Debug|x64
+		{CF31B173-4B35-4325-8839-096C910D330F}.OpenGLDebug|x64.Build.0 = Debug|x64
+		{CF31B173-4B35-4325-8839-096C910D330F}.OpenGLDebug|x86.ActiveCfg = Debug|Win32
+		{CF31B173-4B35-4325-8839-096C910D330F}.OpenGLDebug|x86.Build.0 = Debug|Win32
+		{CF31B173-4B35-4325-8839-096C910D330F}.OpenGLRelease|x64.ActiveCfg = Release|x64
+		{CF31B173-4B35-4325-8839-096C910D330F}.OpenGLRelease|x64.Build.0 = Release|x64
+		{CF31B173-4B35-4325-8839-096C910D330F}.OpenGLRelease|x86.ActiveCfg = Release|Win32
+		{CF31B173-4B35-4325-8839-096C910D330F}.OpenGLRelease|x86.Build.0 = Release|Win32
+		{CF31B173-4B35-4325-8839-096C910D330F}.VulkanDebug|x64.ActiveCfg = VulkanDebug|x64
+		{CF31B173-4B35-4325-8839-096C910D330F}.VulkanDebug|x64.Build.0 = VulkanDebug|x64
+		{CF31B173-4B35-4325-8839-096C910D330F}.VulkanDebug|x86.ActiveCfg = VulkanDebug|Win32
+		{CF31B173-4B35-4325-8839-096C910D330F}.VulkanDebug|x86.Build.0 = VulkanDebug|Win32
+		{CF31B173-4B35-4325-8839-096C910D330F}.VulkanRelease|x64.ActiveCfg = VulkanRelease|x64
+		{CF31B173-4B35-4325-8839-096C910D330F}.VulkanRelease|x64.Build.0 = VulkanRelease|x64
+		{CF31B173-4B35-4325-8839-096C910D330F}.VulkanRelease|x86.ActiveCfg = VulkanRelease|Win32
+		{CF31B173-4B35-4325-8839-096C910D330F}.VulkanRelease|x86.Build.0 = VulkanRelease|Win32
+		{56C32329-6C53-44B2-AB9E-ED38C48DBC11}.OpenGLDebug|x64.ActiveCfg = Debug|x64
+		{56C32329-6C53-44B2-AB9E-ED38C48DBC11}.OpenGLDebug|x64.Build.0 = Debug|x64
+		{56C32329-6C53-44B2-AB9E-ED38C48DBC11}.OpenGLDebug|x86.ActiveCfg = Debug|Win32
+		{56C32329-6C53-44B2-AB9E-ED38C48DBC11}.OpenGLDebug|x86.Build.0 = Debug|Win32
+		{56C32329-6C53-44B2-AB9E-ED38C48DBC11}.OpenGLRelease|x64.ActiveCfg = Release|x64
+		{56C32329-6C53-44B2-AB9E-ED38C48DBC11}.OpenGLRelease|x64.Build.0 = Release|x64
+		{56C32329-6C53-44B2-AB9E-ED38C48DBC11}.OpenGLRelease|x86.ActiveCfg = Release|Win32
+		{56C32329-6C53-44B2-AB9E-ED38C48DBC11}.OpenGLRelease|x86.Build.0 = Release|Win32
+		{56C32329-6C53-44B2-AB9E-ED38C48DBC11}.VulkanDebug|x64.ActiveCfg = VulkanDebug|x64
+		{56C32329-6C53-44B2-AB9E-ED38C48DBC11}.VulkanDebug|x64.Build.0 = VulkanDebug|x64
+		{56C32329-6C53-44B2-AB9E-ED38C48DBC11}.VulkanDebug|x86.ActiveCfg = VulkanDebug|Win32
+		{56C32329-6C53-44B2-AB9E-ED38C48DBC11}.VulkanDebug|x86.Build.0 = VulkanDebug|Win32
+		{56C32329-6C53-44B2-AB9E-ED38C48DBC11}.VulkanRelease|x64.ActiveCfg = VulkanRelease|x64
+		{56C32329-6C53-44B2-AB9E-ED38C48DBC11}.VulkanRelease|x64.Build.0 = VulkanRelease|x64
+		{56C32329-6C53-44B2-AB9E-ED38C48DBC11}.VulkanRelease|x86.ActiveCfg = VulkanRelease|Win32
+		{56C32329-6C53-44B2-AB9E-ED38C48DBC11}.VulkanRelease|x86.Build.0 = VulkanRelease|Win32
+		{001AABCE-0459-4E80-BF3E-A43BFF63263E}.OpenGLDebug|x64.ActiveCfg = Debug|x64
+		{001AABCE-0459-4E80-BF3E-A43BFF63263E}.OpenGLDebug|x64.Build.0 = Debug|x64
+		{001AABCE-0459-4E80-BF3E-A43BFF63263E}.OpenGLDebug|x86.ActiveCfg = Debug|Win32
+		{001AABCE-0459-4E80-BF3E-A43BFF63263E}.OpenGLDebug|x86.Build.0 = Debug|Win32
+		{001AABCE-0459-4E80-BF3E-A43BFF63263E}.OpenGLRelease|x64.ActiveCfg = Release|x64
+		{001AABCE-0459-4E80-BF3E-A43BFF63263E}.OpenGLRelease|x64.Build.0 = Release|x64
+		{001AABCE-0459-4E80-BF3E-A43BFF63263E}.OpenGLRelease|x86.ActiveCfg = Release|Win32
+		{001AABCE-0459-4E80-BF3E-A43BFF63263E}.OpenGLRelease|x86.Build.0 = Release|Win32
+		{001AABCE-0459-4E80-BF3E-A43BFF63263E}.VulkanDebug|x64.ActiveCfg = VulkanDebug|x64
+		{001AABCE-0459-4E80-BF3E-A43BFF63263E}.VulkanDebug|x64.Build.0 = VulkanDebug|x64
+		{001AABCE-0459-4E80-BF3E-A43BFF63263E}.VulkanDebug|x86.ActiveCfg = VulkanDebug|Win32
+		{001AABCE-0459-4E80-BF3E-A43BFF63263E}.VulkanDebug|x86.Build.0 = VulkanDebug|Win32
+		{001AABCE-0459-4E80-BF3E-A43BFF63263E}.VulkanRelease|x64.ActiveCfg = VulkanRelease|x64
+		{001AABCE-0459-4E80-BF3E-A43BFF63263E}.VulkanRelease|x64.Build.0 = VulkanRelease|x64
+		{001AABCE-0459-4E80-BF3E-A43BFF63263E}.VulkanRelease|x86.ActiveCfg = VulkanRelease|Win32
+		{001AABCE-0459-4E80-BF3E-A43BFF63263E}.VulkanRelease|x86.Build.0 = VulkanRelease|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
