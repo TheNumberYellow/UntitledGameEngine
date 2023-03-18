@@ -11,6 +11,8 @@
 #include <iostream>
 #include <filesystem>
 
+static Vec3f SunLight = Vec3f(0.9f, 0.8f, 0.8f);
+
 struct Player
 {
     bool grounded = false;
@@ -233,7 +235,7 @@ void MoveCamera(InputModule& inputs, GraphicsModule& graphics, Camera& cam, floa
         shadowCam.SetPosition(cam.GetPosition());
         shadowCam.SetDirection(cam.GetDirection());
         
-        scene.SetDirectionalLight(DirectionalLight{ cam.GetDirection(), Vec3f(0.9, 0.9, 0.9) });
+        scene.SetDirectionalLight(DirectionalLight{ cam.GetDirection(), SunLight });
 
         //graphics.m_Renderer.SetShaderUniformVec3f(graphics.m_TexturedMeshShader, "SunDirection", cam.GetDirection());
     }
@@ -1427,9 +1429,10 @@ void UpdateGame(ModuleManager& modules)
     ui.BufferPanel(viewportBuffer, screenRect);
 
 
-    text.DrawText(std::to_string(hitDist), &testFont, Vec2f(0.0f, 0.0f), Vec3f(1.0f, 0.5f, 0.5f));
-    text.DrawText(std::to_string(testHitDist), &testFont, Vec2f(0.0f, 24.0f), Vec3f(1.0f, 0.5f, 0.5f));
-    text.DrawText(std::to_string(playerVel), &testFont, Vec2f(0.0f, 48.0f), Vec3f(1.0f, 0.5f, 0.5f));
+    text.DrawText(std::to_string(player.position.x) + ", " + std::to_string(player.position.y) + ", " + std::to_string(player.position.z), &testFont, Vec2f(0.0f, 0.0f), Vec3f(0.6f, 0.2f, 0.7f));
+    //text.DrawText(std::to_string(hitDist), &testFont, Vec2f(0.0f, 0.0f), Vec3f(1.0f, 0.5f, 0.5f));
+    //text.DrawText(std::to_string(testHitDist), &testFont, Vec2f(0.0f, 24.0f), Vec3f(1.0f, 0.5f, 0.5f));
+    //text.DrawText(std::to_string(playerVel), &testFont, Vec2f(0.0f, 48.0f), Vec3f(1.0f, 0.5f, 0.5f));
 }
 
 void Initialize(ModuleManager& modules)
@@ -1444,6 +1447,7 @@ void Initialize(ModuleManager& modules)
     Texture_ID blueTexture = graphics.LoadTexture("textures/blue.png");
 
     scene.Init(graphics);
+    
 
     Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
 
@@ -1523,6 +1527,8 @@ void Initialize(ModuleManager& modules)
     shadowCam.SetPosition(Vec3f(0.0f, -30.0f, 6.0f));
     shadowCam.Rotate(Quaternion(Vec3f(0.0f, 0.0f, 1.0f), 0.9f));
     shadowCam.Rotate(Quaternion(Vec3f(1.0f, 0.0f, 0.0f), 1.3f));
+
+    scene.SetDirectionalLight(DirectionalLight{ cam.GetDirection(), SunLight });
 
     viewportBuffer = graphics.CreateFBuffer(Vec2i(viewportRect.size), FBufferFormat::COLOUR);
 
@@ -1638,310 +1644,6 @@ void Update(ModuleManager& modules)
     {
         UpdateGame(modules);
     }
-    //if (inputs.mouse.leftMouseButton)
-    //{
-    //	if (holdingMouseLeft)
-    //	{
-    //		if (translatingX)
-    //		{
-    //			Line mouseLine;
-    //			mouseLine.point = cam.position - xAxisOffset;
-    //			mouseLine.direction = cam.direction;
-
-    //			Line axisLine;
-    //			axisLine.point = renderer.GetMeshPosition(editingMesh->m_Mesh);
-    //			axisLine.direction = Vec3f(1.0f, 0.0f, 0.0f);
-
-    //			Vec3f pointAlongAxis = Math::ClosestPointsOnLines(mouseLine, axisLine).second;
-
-    //			editingMesh->SetPosition(pointAlongAxis, &renderer);
-
-    //		}
-    //		if (translatingY)
-    //		{
-    //			Line mouseLine;
-    //			mouseLine.point = cam.position - yAxisOffset;
-    //			mouseLine.direction = cam.direction;
-
-    //			Line axisLine;
-    //			axisLine.point = renderer.GetMeshPosition(editingMesh->m_Mesh);
-    //			axisLine.direction = Vec3f(0.0f, 1.0f, 0.0f);
-
-    //			Vec3f pointAlongAxis = Math::ClosestPointsOnLines(mouseLine, axisLine).second;
-
-    //			editingMesh->SetPosition(pointAlongAxis, &renderer);
-    //		}
-    //		if (translatingZ)
-    //		{
-    //			Line mouseLine;
-    //			mouseLine.point = cam.position - zAxisOffset;
-    //			mouseLine.direction = cam.direction;
-
-    //			Line axisLine;
-    //			axisLine.point = renderer.GetMeshPosition(editingMesh->m_Mesh);
-    //			axisLine.direction = Vec3f(0.0f, 0.0f, 1.0f);
-
-    //			Vec3f pointAlongAxis = Math::ClosestPointsOnLines(mouseLine, axisLine).second;
-
-    //			editingMesh->SetPosition(pointAlongAxis, &renderer);
-    //		}
-    //		if (rotatingX)
-    //		{
-    //			// Get intersection between mouse ray and x plane
-    //			Plane xPlane;
-    //			xPlane.center = renderer.GetMeshPosition(editingMesh->m_Mesh);
-    //			xPlane.normal = Vec3f(1.0f, 0.0f, 0.0f);
-
-    //			RayCastHit intersection = Collisions::RayCast(Ray(cam.position, cam.direction), xPlane);
-
-    //			Vec3f objectCenter = renderer.GetMeshPosition(editingMesh->m_Mesh);
-    //			if (intersection.hit)
-    //			{
-    //				Vec3f point = intersection.hitPoint - objectCenter;
-    //				Vec3f unitVec = Vec3f(0.0f, 0.0f, 1.0f);
-    //				float dot = Math::dot(point, unitVec);
-    //				float det = Math::dot(xPlane.normal, (Math::cross(point, unitVec)));
-    //				float angle = atan2(det, dot);
-    //				
-    //				float deltaAngle = xAngleLast - angle;
-
-    //				xAngleLast = angle;
-
-    //				editingMesh->RotateMeshAroundAxis(Vec3f(1.0f, 0.0f, 0.0f), deltaAngle, &renderer);
-    //				
-    //				DebugLineSegment debugLine;
-    //				debugLine.a = point + objectCenter;
-    //				debugLine.b = objectCenter;
-    //				renderer.DebugDrawLineSegment(debugLine);
-
-    //				debugLine.a = unitVec + objectCenter;
-    //				renderer.DebugDrawLineSegment(debugLine);
-    //			}
-    //		}
-    //		if (rotatingY)
-    //		{
-    //			// Get intersection between mouse ray and y plane
-    //			Plane yPlane;
-    //			yPlane.center = renderer.GetMeshPosition(editingMesh->m_Mesh);
-    //			yPlane.normal = Vec3f(0.0f, 1.0f, 0.0f);
-
-    //			RayCastHit intersection = Collisions::RayCast(Ray(cam.position, cam.direction), yPlane);
-
-    //			Vec3f objectCenter = renderer.GetMeshPosition(editingMesh->m_Mesh);
-    //			if (intersection.hit)
-    //			{
-    //				Vec3f point = intersection.hitPoint - objectCenter;
-    //				Vec3f unitVec = Vec3f(1.0f, 0.0f, 0.0f);
-    //				float dot = Math::dot(point, unitVec);
-    //				float det = Math::dot(yPlane.normal, (Math::cross(point, unitVec)));
-    //				float angle = atan2(det, dot);
-
-    //				float deltaAngle = yAngleLast - angle;
-
-    //				yAngleLast = angle;
-
-    //				editingMesh->RotateMeshAroundAxis(Vec3f(0.0f, 1.0f, 0.0f), deltaAngle, &renderer);
-
-    //				DebugLineSegment debugLine;
-    //				debugLine.a = point + objectCenter;
-    //				debugLine.b = objectCenter;
-    //				renderer.DebugDrawLineSegment(debugLine);
-
-    //				debugLine.a = unitVec + objectCenter;
-    //				renderer.DebugDrawLineSegment(debugLine);
-    //			}
-    //		}
-    //		if (rotatingZ)
-    //		{
-    //			// Get intersection between mouse ray and z plane
-    //			Plane zPlane;
-    //			zPlane.center = renderer.GetMeshPosition(editingMesh->m_Mesh);
-    //			zPlane.normal = Vec3f(0.0f, 0.0f, 1.0f);
-
-    //			RayCastHit intersection = Collisions::RayCast(Ray(cam.position, cam.direction), zPlane);
-
-    //			Vec3f objectCenter = renderer.GetMeshPosition(editingMesh->m_Mesh);
-    //			if (intersection.hit)
-    //			{
-    //				Vec3f point = intersection.hitPoint - objectCenter;
-    //				Vec3f unitVec = Vec3f(0.0f, 1.0f, 0.0f);
-    //				float dot = Math::dot(point, unitVec);
-    //				float det = Math::dot(zPlane.normal, (Math::cross(point, unitVec)));
-    //				float angle = atan2(det, dot);
-
-    //				float deltaAngle = zAngleLast - angle;
-
-    //				zAngleLast = angle;
-
-    //				editingMesh->RotateMeshAroundAxis(Vec3f(0.0f, 0.0f, 1.0f), deltaAngle, &renderer);
-    //			
-    //				DebugLineSegment debugLine;
-    //				debugLine.a = point + objectCenter;
-    //				debugLine.b = objectCenter;
-    //				renderer.DebugDrawLineSegment(debugLine);
-
-    //				debugLine.a = unitVec + objectCenter;
-    //				renderer.DebugDrawLineSegment(debugLine);
-    //			}
-    //		}
-    //	}
-    //	else {
-    //		holdingMouseLeft = true;
-
-    //		Ray testRay;
-    //		testRay.origin = cam.position;
-    //		testRay.direction = cam.direction;
-
-    //		EditorRayCastInfo rayCastInfo = editorScene.RayCast(testRay);
-
-    //		if (rayCastInfo.hitMesh)
-    //		{
-    //			if (rayCastInfo.hitType == HitType::MESH)
-    //			{
-    //				editorScene.UnselectSelectedEditableMesh();
-    //				editorScene.SetEditableMeshSelected(rayCastInfo.hitMesh);
-
-    //				editingMesh = rayCastInfo.hitMesh;
-    //			}
-    //			if (rayCastInfo.hitType == HitType::TOOL)
-    //			{
-    //				if (rayCastInfo.toolType == ToolType::X_ARROW)
-    //				{
-    //					xAxisOffset = rayCastInfo.hitInfo.hitPoint - renderer.GetMeshPosition(rayCastInfo.hitMesh->m_Mesh);
-    //					translatingX = true;
-    //				}
-    //				if (rayCastInfo.toolType == ToolType::Y_ARROW)
-    //				{
-    //					yAxisOffset = rayCastInfo.hitInfo.hitPoint - renderer.GetMeshPosition(rayCastInfo.hitMesh->m_Mesh);
-    //					translatingY = true;
-    //				}
-    //				if (rayCastInfo.toolType == ToolType::Z_ARROW)
-    //				{
-    //					zAxisOffset = rayCastInfo.hitInfo.hitPoint - renderer.GetMeshPosition(rayCastInfo.hitMesh->m_Mesh);
-    //					translatingZ = true;
-    //				}
-    //				if (rayCastInfo.toolType == ToolType::X_RING)
-    //				{
-    //					// Get intersection between mouse ray and x plane
-    //					Plane xPlane;
-    //					xPlane.center = renderer.GetMeshPosition(editingMesh->m_Mesh);
-    //					xPlane.normal = Vec3f(1.0f, 0.0f, 0.0f);
-    //					
-    //					RayCastHit intersection = Collisions::RayCast(Ray(cam.position, cam.direction), xPlane);
-    //					
-    //					Vec3f objectCenter = renderer.GetMeshPosition(editingMesh->m_Mesh);
-    //					if (intersection.hit)
-    //					{
-    //						Vec3f point = intersection.hitPoint - objectCenter;
-    //						Vec3f unitVec = Vec3f(0.0f, 0.0f, 1.0f);
-    //						float dot = Math::dot(point, unitVec);
-    //						float det = Math::dot(xPlane.normal, (Math::cross(point, unitVec)));
-    //						float angle = atan2(det, dot);
-    //						xAngleLast = angle;
-    //						rotatingX = true;
-    //					}
-    //				}
-
-    //				if (rayCastInfo.toolType == ToolType::Y_RING)
-    //				{
-    //					// Get intersection between mouse ray and y plane
-    //					Plane yPlane;
-    //					yPlane.center = renderer.GetMeshPosition(editingMesh->m_Mesh);
-    //					yPlane.normal = Vec3f(0.0f, 1.0f, 0.0f);
-
-    //					RayCastHit intersection = Collisions::RayCast(Ray(cam.position, cam.direction), yPlane);
-
-    //					Vec3f objectCenter = renderer.GetMeshPosition(editingMesh->m_Mesh);
-    //					if (intersection.hit)
-    //					{
-    //						Vec3f point = intersection.hitPoint - objectCenter;
-    //						Vec3f unitVec = Vec3f(1.0f, 0.0f, 0.0f);
-    //						float dot = Math::dot(point, unitVec);
-    //						float det = Math::dot(yPlane.normal, (Math::cross(point, unitVec)));
-    //						float angle = atan2(det, dot);
-    //						yAngleLast = angle;
-    //						rotatingY = true;
-    //					}
-    //				}
-    //				if (rayCastInfo.toolType == ToolType::Z_RING)
-    //				{
-    //					// Get intersection between mouse ray and z plane
-    //					Plane zPlane;
-    //					zPlane.center = renderer.GetMeshPosition(editingMesh->m_Mesh);
-    //					zPlane.normal = Vec3f(0.0f, 0.0f, 1.0f);
-
-    //					RayCastHit intersection = Collisions::RayCast(Ray(cam.position, cam.direction), zPlane);
-
-    //					Vec3f objectCenter = renderer.GetMeshPosition(editingMesh->m_Mesh);
-    //					if (intersection.hit)
-    //					{
-    //						Vec3f point = intersection.hitPoint - objectCenter;
-    //						Vec3f unitVec = Vec3f(0.0f, 1.0f, 0.0f);
-    //						float dot = Math::dot(point, unitVec);
-    //						float det = Math::dot(zPlane.normal, (Math::cross(point, unitVec)));
-    //						float angle = atan2(det, dot);
-    //						zAngleLast = angle;
-    //						rotatingZ = true;
-    //					}
-    //				}
-    //				
-    //			}
-
-    //		}
-    //	}
-    //}
-    //else {
-    //	translatingX = false;
-    //	translatingY = false;
-    //	translatingZ = false;
-
-    //	rotatingX = false;
-    //	rotatingY = false;
-    //	rotatingZ = false;
-
-    //	holdingMouseLeft = false;
-    //}
-
-    //if (inputs.keysDown.alt && !holdingAlt)
-    //{
-    //	Engine::UnlockCursor();
-    //	Engine::ShowCursor();
-    //	cameraControlEnabled = false;
-
-    //	holdingAlt = true;
-    //}
-    //else if (!inputs.keysDown.alt && holdingAlt)
-    //{
-    //	holdingAlt = false;
-    //}
-    //if (inputs.keysDown.space && !holdingSpace)
-    //{
-    //	Engine::LockCursor();
-    //	Engine::HideCursor();
-    //	cameraControlEnabled = true;
-    //	
-    //	holdingSpace = true;
-    //}
-    //else if (!inputs.keysDown.space && holdingSpace)
-    //{
-    //	holdingSpace = false;
-    //}
-
-    //if (inputs.keysDown.tab && !holdingTab)
-    //{
-    //	holdingTab = true;
-    //}
-    //else if (!inputs.keysDown.tab && holdingTab)
-    //{
-    //	holdingTab = false;
-    //	//editorScene.CycleToolType();
-    //}
-
-    //renderer.ClearScreen();
-
-    //editorScene.DrawScene();
-
-    //renderer.SwapBuffer();
 }
 
 void Resize(ModuleManager& modules, Vec2i newSize)

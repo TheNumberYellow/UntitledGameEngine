@@ -30,7 +30,7 @@ public:
     void SetCamera(Camera* camera);
 
     void Draw(GraphicsModule& graphics, Framebuffer_ID buffer);
-    void EditorDraw(GraphicsModule& graphics);
+    void EditorDraw(GraphicsModule& graphics, Framebuffer_ID buffer);
 
     void SetDirectionalLight(DirectionalLight light);
 

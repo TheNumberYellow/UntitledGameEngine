@@ -322,6 +322,7 @@ int WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ L
     cursorCenter.y = screenSize.y / 2;
 
     Initialize(Modules);
+    Resize(Modules, screenSize);
 
     while (running)
     {

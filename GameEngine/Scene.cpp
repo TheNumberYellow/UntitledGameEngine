@@ -114,8 +114,11 @@ void Scene::Draw(GraphicsModule& graphics, Framebuffer_ID buffer)
     }
 }
 
-void Scene::EditorDraw(GraphicsModule& graphics)
+void Scene::EditorDraw(GraphicsModule& graphics, Framebuffer_ID buffer)
 {
+    Draw(graphics, buffer);
+
+
 }
 
 void Scene::SetDirectionalLight(DirectionalLight light)
