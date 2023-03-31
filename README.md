@@ -15,6 +15,9 @@
   - Scrolling
 - Add frame dynamic resizing, minimizing, etc.
 
+#### Physics Module
+- idk do physics things lol
+
 #### Editor
 - ~~Implement more translation/rotation/scaling options for editor.~~
 - Improve editor experience.
