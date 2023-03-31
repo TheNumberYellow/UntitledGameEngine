@@ -56,6 +56,15 @@ Model* Scene::GetModel(std::string name)
     }
 }
 
+void Scene::AddCamera(Camera* camera)
+{
+    m_Cameras.push_back(camera);
+
+    // If in editor
+
+
+}
+
 Camera& Scene::GetCamera()
 {
     if (!m_Cameras[0])
@@ -69,6 +78,10 @@ Camera& Scene::GetCamera()
 void Scene::SetCamera(Camera* camera)
 {
     m_Cameras[0] = camera;
+}
+
+void Scene::Update()
+{
 }
 
 void Scene::Draw(GraphicsModule& graphics, Framebuffer_ID buffer)

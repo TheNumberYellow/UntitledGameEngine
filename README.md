@@ -11,11 +11,15 @@
 #### UI Module
 - Optimize + clean up UI Module functions.
 - Add scrolling + tabs + other immediate mode UI concepts.
+  - ~~Tabs~~
+  - Scrolling
+- Add frame dynamic resizing, minimizing, etc.
 
 #### Editor
-- Implement more translation/rotation/scaling options for editor.
+- ~~Implement more translation/rotation/scaling options for editor.~~
 - Improve editor experience.
-  - Rework tool widgets to show through other objects, scale with distance from camera.
+  - ~~Rework tool widgets to show through other objects, scale with distance from camera.~~
+  - Add inspector window changes.
 - Add vertex edit tool to edit brushes/blocks.
 
 #### New features

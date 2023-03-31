@@ -26,8 +26,12 @@ public:
     Model* AddModel(Model model, std::string name = "");
     Model* GetModel(std::string name);
 
+    void AddCamera(Camera* camera);
+
     Camera& GetCamera();
     void SetCamera(Camera* camera);
+
+    void Update();
 
     void Draw(GraphicsModule& graphics, Framebuffer_ID buffer);
     void EditorDraw(GraphicsModule& graphics, Framebuffer_ID buffer);
