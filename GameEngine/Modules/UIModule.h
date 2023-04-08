@@ -2,6 +2,7 @@
 #include "Platform\RendererPlatform.h"
 #include "Interfaces\Resizeable_i.h"
 #include "Modules\TextModule.h"
+#include "Modules\InputModule.h"
 #include "Utils\Hash.h"
 
 #include <unordered_map>
@@ -10,6 +11,16 @@
 
 typedef std::pair<std::vector<float>, std::vector<ElementIndex>> MeshData;
 
+struct Click
+{
+    explicit operator bool()
+    {
+        return clicked;
+    }
+    bool hovering = false;
+    bool clicking = false;
+    bool clicked = false;
+};
 
 struct FrameInfo
 {
@@ -21,11 +32,11 @@ struct FrameInfo
     {
     }
 
-    friend size_t Hash_Value(const FrameInfo& pi)
+    friend size_t Hash_Value(const FrameInfo& fi)
     {
-        size_t h = Hash::Hash_Value(pi.m_Rect);
-        h = Hash::Combine(h, Hash::Hash_Value(pi.m_BorderWidth));
-        return Hash::Combine(h, Hash::Hash_Value(pi.m_Name));
+        size_t h = Hash::Hash_Value(fi.m_Rect);
+        h = Hash::Combine(h, Hash::Hash_Value(fi.m_BorderWidth));
+        return Hash::Combine(h, Hash::Hash_Value(fi.m_Name));
     }
 
     friend bool operator==(const FrameInfo& lhs, const FrameInfo& rhs)
@@ -39,26 +50,19 @@ struct FrameState
     uint32_t activeTab = 0;
 };
 
-struct Click
-{
-    explicit operator bool()
-    {
-        return clicked;
-    }
-    bool hovering = false;
-    bool clicking = false;
-    bool clicked = false;
-};
-
 struct ButtonInfo
 {
     Rect m_Rect;
     float m_BorderWidth;
 
-    friend size_t Hash_Value(const ButtonInfo& ti)
+    ButtonInfo(Rect rect, float borderWidth) : m_Rect(rect), m_BorderWidth(borderWidth)
     {
-        size_t h = Hash::Hash_Value(ti.m_Rect);
-        return Hash::Combine(h, Hash::Hash_Value(ti.m_BorderWidth));
+    }
+
+    friend size_t Hash_Value(const ButtonInfo& bi)
+    {
+        size_t h = Hash::Hash_Value(bi.m_Rect);
+        return Hash::Combine(h, Hash::Hash_Value(bi.m_BorderWidth));
     }
 
     friend bool operator==(const ButtonInfo& lhs, const ButtonInfo& rhs)
@@ -73,12 +77,37 @@ struct ButtonState
     bool clicking = false;
 };
 
+struct TextEntryInfo
+{
+    Rect m_Rect;
+
+    TextEntryInfo(Rect rect) : m_Rect(rect)
+    {
+    }
+
+    friend size_t Hash_Value(const TextEntryInfo& ti)
+    {
+        size_t h = Hash::Hash_Value(ti.m_Rect);
+        return h;
+    }
+
+    friend bool operator==(const TextEntryInfo& lhs, const TextEntryInfo& rhs)
+    {
+        return (lhs.m_Rect == rhs.m_Rect);
+    }
+};
+
+struct TextEntryState
+{
+    bool focused = false;
+};
+
 class UIModule
     : public IResizeable
 {
 public:
 
-    UIModule(Renderer& renderer, TextModule& text);
+    UIModule(Renderer& renderer, TextModule& text, InputModule& input);
     ~UIModule();
 
     void AlignLeft();
@@ -92,6 +121,10 @@ public:
     Click TextButton(std::string text, Rect rect, float borderWidth);
     Click ImgButton(Texture_ID texture, Rect rect, float borderWidth);
     Click BufferButton(Framebuffer_ID fBuffer, Rect rect, float borderWidth);
+
+    void Text(std::string text, Vec2f position);
+
+    void TextEntry(std::string& stringRef, Rect rect);
 
     void StartFrame(Rect rect, float borderWidth, std::string text = "");
     void EndFrame();
@@ -113,6 +146,8 @@ private:
 
     ButtonState* GetButtonState(Rect rect, float borderWidth);
     
+    TextEntryState* GetTextEntryState(Rect rect);
+
     FrameState* GetFrameState(FrameInfo& fInfo);
     FrameState* GetFrameState(Rect rect, float borderWidth, std::string name = "");
 
@@ -124,6 +159,7 @@ private:
 
     std::unordered_map<ButtonInfo, ButtonState, Hash::Hasher<ButtonInfo>> m_Buttons;
     std::unordered_map<FrameInfo, FrameState, Hash::Hasher<FrameInfo>> m_Frames;
+    std::unordered_map<TextEntryInfo, TextEntryState, Hash::Hasher<TextEntryInfo>> m_TextEntries;
 
     bool m_InTab = false;
 
@@ -137,6 +173,7 @@ private:
 
     Renderer& m_Renderer;
     TextModule& m_Text;
+    InputModule& m_Input;
 
     Font m_FrameFont;
 
@@ -149,7 +186,5 @@ private:
     bool m_LeftAligned = true;
     bool m_TopAligned = true;
 
-
     const float c_TabButtonWidth = 75.0f;
-
 };

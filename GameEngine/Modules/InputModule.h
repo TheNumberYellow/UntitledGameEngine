@@ -3,6 +3,8 @@
 #include "..\Math\Vector.h"
 #include "..\Interfaces\Resizeable_i.h"
 
+#include <queue>
+
 enum class Mouse
 {
 	LMB,
@@ -65,6 +67,40 @@ enum class Key
 	Count
 };
 
+struct KeyState
+{
+	explicit operator bool() const
+	{
+		return pressed;
+	}
+
+	void UpdateState(bool pressed)
+	{
+		if (this->pressed && pressed)
+		{
+			justPressed = false;
+		}
+		if (!this->pressed && pressed)
+		{
+			justPressed = true;
+		}
+		if (this->pressed && !pressed)
+		{
+			justReleased = true;
+		}
+		if (!this->pressed && !pressed)
+		{
+			justReleased = false;
+		}
+
+		this->pressed = pressed;
+	}
+
+	bool pressed = false;
+	bool justPressed = false;
+	bool justReleased = false;
+};
+
 class MouseState
 {
 public:
@@ -94,6 +130,7 @@ public:
 	InputModule();
 	~InputModule();
 
+	KeyState& GetKeyState(Key key);
 	bool IsKeyDown(Key key) const;
 	void SetKeyDown(Key key, bool pressed);
 
@@ -103,12 +140,20 @@ public:
 	void SetMouseLocked(bool locked);
 	void SetMouseCenter(Vec2i newCenter);
 
+	void InputCharacter(char c);
+	bool ConsumeCharacter(char& c);
+	void ClearCharacters();
+
+	void OnFrameEnd();
+
 	// Inherited via IResizeable
 	virtual void Resize(Vec2i newSize) override;
 private:
 
-	bool m_Keys[static_cast<size_t>(Key::Count)];
+	KeyState m_Keys[static_cast<size_t>(Key::Count)];
 	MouseState m_MouseState;
+
+	std::queue<char> m_CharQueue;
 
 	bool m_MouseLocked;
 	Vec2i m_MouseCenter;

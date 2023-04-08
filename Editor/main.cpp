@@ -105,6 +105,8 @@ Model* draggingModel = nullptr;
 bool draggingNewTexture = false;
 Texture_ID draggingTexture;
 
+static Model* selectedModelPtr = nullptr;
+
 static Model* movingModelPtr = nullptr;
 static Model* rotatingModelPtr = nullptr;
 static Model* scalingModelPtr = nullptr;
@@ -125,6 +127,38 @@ ToolMode toolMode = ToolMode::NORMAL;
 MoveMode moveMode = MoveMode::TRANSLATE;
 
 State state = State::EDITOR;
+
+void CycleMoveMode()
+{
+    if (moveMode == MoveMode::TRANSLATE)
+    {
+        moveMode = MoveMode::ROTATE;
+        if (movingModelPtr)
+        {
+            rotatingModelPtr = movingModelPtr;
+            movingModelPtr = nullptr;
+        }
+
+    }
+    else if (moveMode == MoveMode::ROTATE)
+    {
+        moveMode = MoveMode::SCALE;
+        if (rotatingModelPtr)
+        {
+            scalingModelPtr = rotatingModelPtr;
+            rotatingModelPtr = nullptr;
+        }
+    }
+    else if (moveMode == MoveMode::SCALE)
+    {
+        moveMode = MoveMode::TRANSLATE;
+        if (scalingModelPtr)
+        {
+            movingModelPtr = scalingModelPtr;
+            scalingModelPtr = nullptr;
+        }
+    }
+}
 
 Rect GetViewportSizeFromScreenSize(Vec2i screenSize)
 {
@@ -1019,7 +1053,7 @@ void UpdateEditor(ModuleManager& modules)
             graphics.Draw(zScaleWidget);
         }
 
-        graphics.SetRenderMode(RenderMode::DEFAULT);
+        graphics.SetRenderMode(renderMode);
     }
     graphics.ResetFrameBuffer();
 
@@ -1112,6 +1146,11 @@ void UpdateEditor(ModuleManager& modules)
         text.DrawText(yText, &inspectorFont, Vec2f(screen.x - 180.0f, 35.0f), Vec3f(0.0f, 0.0f, 0.0f));
         text.DrawText(zText, &inspectorFont, Vec2f(screen.x - 180.0f, 50.0f), Vec3f(0.0f, 0.0f, 0.0f));
 
+        //static std::string testString = "Hello";
+        //text.DrawText(testString, &inspectorFont, Vec2f(screen.x - 180.0f, 65.0f));
+
+        ui.TextEntry(movingModelPtr->m_Name, Rect(Vec2f(0.0f, 65.0f), Vec2f(80.0f, 20.0f)));
+
     }
     else
     {
@@ -1124,8 +1163,9 @@ void UpdateEditor(ModuleManager& modules)
 
     ui.StartFrame(Rect(Vec2f(screen.x - 200.0f, screen.y / 2), Vec2f(200.0f, screen.y / 2)), 20.0f, "Entities");
 
-    ui.EndFrame();
+    scene.MenuListEntities(ui, inspectorFont);
 
+    ui.EndFrame();
 
     if (ui.ImgButton(cursorToolTexture, Rect(Vec2f(0.0f, 40.0f), Vec2f(100.0f, 100.0f)), 20.0f))
     {
@@ -1142,12 +1182,7 @@ void UpdateEditor(ModuleManager& modules)
         {
             if (toolMode == ToolMode::MOVE)
             {
-                moveMode = MoveMode::ROTATE;
-                if (movingModelPtr)
-                {
-                    rotatingModelPtr = movingModelPtr;
-                    movingModelPtr = nullptr;
-                }
+                CycleMoveMode();
             }
             else
             {
@@ -1161,12 +1196,7 @@ void UpdateEditor(ModuleManager& modules)
         {
             if (toolMode == ToolMode::MOVE)
             {
-                moveMode = MoveMode::SCALE;
-                if (rotatingModelPtr)
-                {
-                    scalingModelPtr = rotatingModelPtr;
-                    rotatingModelPtr = nullptr;
-                }
+                CycleMoveMode();
             }
             else
             {
@@ -1180,12 +1210,7 @@ void UpdateEditor(ModuleManager& modules)
         {
             if (toolMode == ToolMode::MOVE)
             {
-                moveMode = MoveMode::TRANSLATE;
-                if (scalingModelPtr)
-                {
-                    movingModelPtr = scalingModelPtr;
-                    scalingModelPtr = nullptr;
-                }
+                CycleMoveMode();
             }
             else
             {
@@ -1222,7 +1247,17 @@ void UpdateEditor(ModuleManager& modules)
     }
     if (input.IsKeyDown(Key::Three))
     {
-        toolMode = ToolMode::MOVE;
+        if (toolMode == ToolMode::MOVE)
+        {
+            if (input.GetKeyState(Key::Three).justPressed)
+            {
+                CycleMoveMode();
+            }
+        }
+        else
+        {
+            toolMode = ToolMode::MOVE;
+        }
     }
     if (input.IsKeyDown(Key::Four))
     {

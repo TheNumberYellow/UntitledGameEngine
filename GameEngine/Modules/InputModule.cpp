@@ -14,14 +14,19 @@ InputModule::~InputModule()
 {
 }
 
-bool InputModule::IsKeyDown(Key key) const
+KeyState& InputModule::GetKeyState(Key key)
 {
 	return m_Keys[static_cast<size_t>(key)];
 }
 
+bool InputModule::IsKeyDown(Key key) const
+{
+	return m_Keys[static_cast<size_t>(key)].pressed;
+}
+
 void InputModule::SetKeyDown(Key key, bool pressed)
 {
-	m_Keys[static_cast<size_t>(key)] = pressed;
+	m_Keys[static_cast<size_t>(key)].UpdateState(pressed);
 }
 
 MouseState& InputModule::GetMouseState()
@@ -42,6 +47,37 @@ void InputModule::SetMouseLocked(bool locked)
 void InputModule::SetMouseCenter(Vec2i newCenter)
 {
 	m_MouseCenter = newCenter;
+}
+
+void InputModule::InputCharacter(char c)
+{
+	m_CharQueue.push(c);
+}
+
+bool InputModule::ConsumeCharacter(char& c)
+{
+	if (m_CharQueue.empty())
+	{
+		return false;
+	}
+
+	c = m_CharQueue.front();
+	m_CharQueue.pop();
+
+	return true;
+}
+
+void InputModule::ClearCharacters()
+{
+	while (!m_CharQueue.empty())
+	{
+		m_CharQueue.pop();
+	}
+}
+
+void InputModule::OnFrameEnd()
+{
+	ClearCharacters();
 }
 
 void InputModule::Resize(Vec2i newSize)
@@ -90,3 +126,4 @@ void MouseState::SetButtonDown(Mouse button, bool pressed)
 {
 	m_Buttons[static_cast<size_t>(button)] = pressed;
 }
+

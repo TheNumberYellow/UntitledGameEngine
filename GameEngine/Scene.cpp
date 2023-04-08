@@ -1,5 +1,10 @@
 #include "Scene.h"
 
+#include <iostream>
+#include <iomanip>
+#include <limits>
+#include <numbers>
+
 SceneRayCastHit Closer(const SceneRayCastHit& lhs, const SceneRayCastHit& rhs)
 {
     return (lhs.rayCastHit.hitDistance <= rhs.rayCastHit.hitDistance ? lhs : rhs);
@@ -158,5 +163,26 @@ SceneRayCastHit Scene::RayCast(Ray ray, CollisionModule& collision)
     }
 
     return finalHit;
+}
+
+void Scene::MenuListEntities(UIModule& ui, Font& font)
+{
+    Vec2f cursor = Vec2f(0.0f, 0.0f);
+
+    for (int i = 0; i < m_UntrackedModels.size(); ++i)
+    {
+        Model model = m_UntrackedModels[i];
+        Vec3f pos = model.GetTransform().GetPosition();
+
+        std::string modelDesc = model.m_Name.empty() ? "_" : model.m_Name;
+
+        std::stringstream ss;
+        ss << std::fixed << std::setprecision(2) << " | X:" << pos.x << " Y:" << pos.y << " Z:" << pos.z;
+        modelDesc += ss.str();
+
+        ui.Text(modelDesc, cursor);
+
+        cursor.y += 15.0f;
+    }
 }
 

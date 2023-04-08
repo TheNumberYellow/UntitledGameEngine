@@ -1,7 +1,8 @@
 #pragma once
 
-#include "Modules/GraphicsModule.h"
 #include "Modules/CollisionModule.h"
+#include "Modules/GraphicsModule.h"
+#include "Modules/UIModule.h"
 
 #include <string>
 
@@ -39,6 +40,8 @@ public:
     void SetDirectionalLight(DirectionalLight light);
 
     SceneRayCastHit RayCast(Ray ray, CollisionModule& collision);
+
+    void MenuListEntities(UIModule& ui, Font& font);
 
 private:
     std::unordered_map<std::string, Model> m_Models;

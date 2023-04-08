@@ -243,6 +243,15 @@ LRESULT CALLBACK WindowProc(_In_ HWND WindowHandle, _In_ UINT Message, _In_ WPAR
 
         break;
     }
+    case WM_CHAR:
+        if (modules->AreAllModulesInitialized())
+        {
+            InputModule* input = modules->GetInput();
+
+            input->InputCharacter((char)wParam);
+        }
+        break;
+
     case WM_SYSCOMMAND:
         // Catch the behaviour of pressing the ALT button and discard it
         if (wParam == SC_KEYMENU && (lParam >> 16) <= 0) return 0;
@@ -308,14 +317,14 @@ int WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ L
     GraphicsModule Graphics(renderer);
     CollisionModule Collisions(renderer);
     TextModule Text(renderer);
-    UIModule UI(renderer, Text);
     InputModule Input;
+    UIModule UI(renderer, Text, Input);
 
     Modules.SetGraphics(&Graphics);
     Modules.SetCollision(&Collisions);
     Modules.SetText(&Text);
-    Modules.SetUI(&UI);
     Modules.SetInput(&Input);
+    Modules.SetUI(&UI);
 
     Vec2i screenSize = Engine::GetClientAreaSize();
     cursorCenter.x = screenSize.x / 2;
@@ -352,6 +361,7 @@ int WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ L
         Update(Modules);
         Graphics.OnFrameEnd();
         UI.OnFrameEnd();
+        Input.OnFrameEnd();
     }
     return 0;
 }

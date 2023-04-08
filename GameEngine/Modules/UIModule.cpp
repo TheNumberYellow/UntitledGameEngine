@@ -1,8 +1,9 @@
 #include "UIModule.h"
 
-UIModule::UIModule(Renderer& renderer, TextModule& text)
+UIModule::UIModule(Renderer& renderer, TextModule& text, InputModule& input)
     : m_Renderer(renderer)
     , m_Text(text)
+    , m_Input(input)
 {
     m_DefaultBorderTexture = m_Renderer.LoadTexture("images/button_border.png");
     m_DefaultFrameTexture = m_Renderer.LoadTexture("images/frame_border.png");
@@ -157,6 +158,46 @@ Click UIModule::BufferButton(Framebuffer_ID fBuffer, Rect rect, float borderWidt
     return Button(fBuffer, rect, borderWidth, true, true, false);
 }
 
+void UIModule::Text(std::string text, Vec2f position)
+{
+    position += GetFrame().location;
+    m_Text.DrawText(text, &m_FrameFont, position, Vec3f(0.1f, 0.1f, 0.4f));
+}
+
+void UIModule::TextEntry(std::string& stringRef, Rect rect)
+{
+    if (!ShouldDisplay())
+        return;
+    
+    TextEntryState* State = GetTextEntryState(rect);
+    
+    Click click = TextButton(stringRef, rect, 0.0f);
+
+    if (click.clicked)
+    {
+        State->focused = !State->focused;
+    }
+
+    if (State->focused)
+    {
+        char Character;
+        while (m_Input.ConsumeCharacter(Character))
+        {
+            if (Character == '\b')
+            {
+                if (!stringRef.empty())
+                {
+                    stringRef.pop_back();
+                }
+            }
+            else
+            {
+                stringRef += Character;
+            }
+        }
+    }
+}
+
 void UIModule::StartFrame(Rect rect, float borderWidth, std::string text)
 {
     if (!ShouldDisplay())
@@ -227,6 +268,8 @@ void UIModule::EndTab()
 void UIModule::OnFrameStart()
 {
     m_HashCount = 0;
+
+
 }
 
 void UIModule::OnFrameEnd()
@@ -459,6 +502,21 @@ ButtonState* UIModule::GetButtonState(Rect rect, float borderWidth)
     }
 
     return &m_Buttons[bi];
+}
+
+TextEntryState* UIModule::GetTextEntryState(Rect rect)
+{
+    TextEntryInfo ti = TextEntryInfo(rect);
+
+    auto got = m_TextEntries.find(ti);
+
+    if (got == m_TextEntries.end())
+    {
+        TextEntryState newState;
+        m_TextEntries[ti] = newState;
+    }
+
+    return &m_TextEntries[ti];
 }
 
 FrameState* UIModule::GetFrameState(FrameInfo& fInfo)

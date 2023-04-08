@@ -10,6 +10,11 @@
 
 class GraphicsModule;
 
+class Material
+{
+
+};
+
 struct RenderCommand
 {
     Mesh_ID mesh;
@@ -101,6 +106,8 @@ public:
     }
 
     std::vector<TexturedMesh> m_TexturedMeshes;
+
+    std::string m_Name = "";
 private:
     Transform m_Transform;
 };

@@ -229,7 +229,8 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
 		vec3 normalizedNormal = normalize(FragNormal);
 		vec4 textureAt = texture(DiffuseTexture, FragUV);
 		float diffuse = ((dot(normalizedNormal.xyz, normalize(sun))) + 1.0) / 2.0;
-        if (diffuse < 0.5)
+        // Temp: reduces shadow acne
+        if (diffuse < 0.53)
         {
             diffuse = 0.0;
         }
