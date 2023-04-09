@@ -165,24 +165,29 @@ SceneRayCastHit Scene::RayCast(Ray ray, CollisionModule& collision)
     return finalHit;
 }
 
-void Scene::MenuListEntities(UIModule& ui, Font& font)
+Model* Scene::MenuListEntities(UIModule& ui, Font& font)
 {
     Vec2f cursor = Vec2f(0.0f, 0.0f);
 
+    Model* result = nullptr;
     for (int i = 0; i < m_UntrackedModels.size(); ++i)
     {
         Model model = m_UntrackedModels[i];
         Vec3f pos = model.GetTransform().GetPosition();
 
-        std::string modelDesc = model.m_Name.empty() ? "_" : model.m_Name;
+        std::string modelDesc = model.m_Name.empty() ? "<unnamed>" : model.m_Name;
 
-        std::stringstream ss;
-        ss << std::fixed << std::setprecision(2) << " | X:" << pos.x << " Y:" << pos.y << " Z:" << pos.z;
-        modelDesc += ss.str();
+        Rect rect;
+        rect.location = cursor;
+        rect.size = Vec2f(160.0f, 20.0f);
 
-        ui.Text(modelDesc, cursor);
-
-        cursor.y += 15.0f;
+        if (ui.TextButton(modelDesc, rect, 5.0f))
+        {
+            result = &m_UntrackedModels[i];
+        }
+        cursor.y += 20.0f;
     }
+
+    return result;
 }
 

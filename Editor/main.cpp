@@ -21,12 +21,6 @@ struct Player
     Camera* cam;
 };
 
-struct EditorModel
-{
-    Model* model;
-    CollisionMesh* colMesh;
-};
-
 enum class State
 {
     EDITOR,
@@ -35,10 +29,16 @@ enum class State
 
 enum class ToolMode
 {
-    NORMAL,
-    BOX,
+    SELECT,
+    GEOMETRY,
     MOVE,
     VERTEX
+};
+
+enum class GeometryMode
+{
+    BOX,
+    PLANE
 };
 
 enum class MoveMode
@@ -74,19 +74,10 @@ Font inspectorFont;
 
 Camera cam;
 
-Model previewPSpawn;
-
 Framebuffer_ID viewportBuffer;
 Framebuffer_ID widgetViewportBuffer;
 
-Framebuffer_ID shadowBuffer;
-
 Mesh_ID quadMesh;
-
-Camera shadowCam;
-
-Shader_ID shadowShader;
-Shader_ID testDepthShader;
 
 bool holdingAlt = false;
 bool cursorLocked = false;
@@ -107,10 +98,6 @@ Texture_ID draggingTexture;
 
 static Model* selectedModelPtr = nullptr;
 
-static Model* movingModelPtr = nullptr;
-static Model* rotatingModelPtr = nullptr;
-static Model* scalingModelPtr = nullptr;
-
 Model xAxisArrow;
 Model yAxisArrow;
 Model zAxisArrow;
@@ -123,7 +110,8 @@ Model xScaleWidget;
 Model yScaleWidget;
 Model zScaleWidget;
 
-ToolMode toolMode = ToolMode::NORMAL;
+ToolMode toolMode = ToolMode::SELECT;
+GeometryMode geometryMode = GeometryMode::BOX;
 MoveMode moveMode = MoveMode::TRANSLATE;
 
 State state = State::EDITOR;
@@ -133,31 +121,98 @@ void CycleMoveMode()
     if (moveMode == MoveMode::TRANSLATE)
     {
         moveMode = MoveMode::ROTATE;
-        if (movingModelPtr)
-        {
-            rotatingModelPtr = movingModelPtr;
-            movingModelPtr = nullptr;
-        }
-
     }
     else if (moveMode == MoveMode::ROTATE)
     {
         moveMode = MoveMode::SCALE;
-        if (rotatingModelPtr)
-        {
-            scalingModelPtr = rotatingModelPtr;
-            rotatingModelPtr = nullptr;
-        }
     }
     else if (moveMode == MoveMode::SCALE)
     {
         moveMode = MoveMode::TRANSLATE;
-        if (scalingModelPtr)
-        {
-            movingModelPtr = scalingModelPtr;
-            scalingModelPtr = nullptr;
-        }
     }
+}
+
+void DrawToolWidgets(ModuleManager& modules)
+{
+    GraphicsModule& graphics = *modules.GetGraphics();
+    CollisionModule& collisions = *modules.GetCollision();
+
+    // Draw tools on separate buffer to they're in front
+    graphics.SetActiveFrameBuffer(widgetViewportBuffer);
+    {
+        if (selectedModelPtr && toolMode == ToolMode::MOVE)
+        {
+            graphics.SetRenderMode(RenderMode::FULLBRIGHT);
+            if (moveMode == MoveMode::TRANSLATE)
+            {
+                Vec3f movingModelPos = selectedModelPtr->GetTransform().GetPosition();
+
+                float scale = Math::magnitude(movingModelPos - cam.GetPosition()) * 0.05f;
+
+                xAxisArrow.GetTransform().SetPosition(movingModelPos + Vec3f(4.0f, 0.0f, 0.0f) * scale);
+                yAxisArrow.GetTransform().SetPosition(movingModelPos + Vec3f(0.0f, 4.0f, 0.0f) * scale);
+                zAxisArrow.GetTransform().SetPosition(movingModelPos + Vec3f(0.0f, 0.0f, 4.0f) * scale);
+
+                xAxisArrow.GetTransform().SetScale(Vec3f(scale / 3.f, scale, scale / 3.f));
+                yAxisArrow.GetTransform().SetScale(Vec3f(scale / 3.f, scale, scale / 3.f));
+                zAxisArrow.GetTransform().SetScale(Vec3f(scale / 3.f, scale, scale / 3.f));
+
+                graphics.DebugDrawAABB(collisions.GetCollisionMeshFromMesh(selectedModelPtr->m_TexturedMeshes[0].m_Mesh).boundingBox, Vec3f(1.0f, 1.0f, 0.7f), selectedModelPtr->GetTransform().GetTransformMatrix());
+
+                graphics.Draw(xAxisArrow);
+                graphics.Draw(yAxisArrow);
+                graphics.Draw(zAxisArrow);
+            }
+
+            if (moveMode == MoveMode::ROTATE)
+            {
+                Vec3f rotatingModelPos = selectedModelPtr->GetTransform().GetPosition();
+
+                xAxisRing.GetTransform().SetPosition(rotatingModelPos);
+                yAxisRing.GetTransform().SetPosition(rotatingModelPos);
+                zAxisRing.GetTransform().SetPosition(rotatingModelPos);
+
+                float scale = Math::magnitude(rotatingModelPos - cam.GetPosition()) * 0.2f;
+
+                xAxisRing.GetTransform().SetScale(Vec3f(scale, scale, scale));
+                yAxisRing.GetTransform().SetScale(Vec3f(scale, scale, scale));
+                zAxisRing.GetTransform().SetScale(Vec3f(scale, scale, scale));
+
+                graphics.DebugDrawAABB(collisions.GetCollisionMeshFromMesh(selectedModelPtr->m_TexturedMeshes[0].m_Mesh).boundingBox, Vec3f(1.0f, 1.0f, 0.7f), selectedModelPtr->GetTransform().GetTransformMatrix());
+
+                graphics.Draw(xAxisRing);
+                graphics.Draw(yAxisRing);
+                graphics.Draw(zAxisRing);
+
+            }
+            if (moveMode == MoveMode::SCALE)
+            {
+                Vec3f scalingModelPos = selectedModelPtr->GetTransform().GetPosition();
+                Quaternion scalingModelRot = selectedModelPtr->GetTransform().GetRotation();
+
+                Vec3f modelScale = selectedModelPtr->GetTransform().GetScale();
+                float scale = Math::magnitude(scalingModelPos - cam.GetPosition()) * 0.05f;
+
+                xScaleWidget.GetTransform().SetScale(Vec3f(scale, scale, scale));
+                yScaleWidget.GetTransform().SetScale(Vec3f(scale, scale, scale));
+                zScaleWidget.GetTransform().SetScale(Vec3f(scale, scale, scale));
+
+                xScaleWidget.GetTransform().SetPosition(scalingModelPos + Vec3f(modelScale.x, 0.0f, 0.0f) * scalingModelRot);
+                yScaleWidget.GetTransform().SetPosition(scalingModelPos + Vec3f(0.0f, modelScale.y, 0.0f) * scalingModelRot);
+                zScaleWidget.GetTransform().SetPosition(scalingModelPos + Vec3f(0.0f, 0.0f, modelScale.z) * scalingModelRot);
+
+                xScaleWidget.GetTransform().SetRotation(scalingModelRot * Quaternion(Vec3f(0.0f, 1.0f, 0.0f), M_PI_2));
+                yScaleWidget.GetTransform().SetRotation(scalingModelRot * Quaternion(Vec3f(1.0f, 0.0f, 0.0f), -M_PI_2));
+                zScaleWidget.GetTransform().SetRotation(scalingModelRot * Quaternion(Vec3f(0.0f, 0.0f, 1.0f), M_PI_2));
+
+                graphics.Draw(xScaleWidget);
+                graphics.Draw(yScaleWidget);
+                graphics.Draw(zScaleWidget);
+            }
+        }
+        graphics.SetRenderMode(renderMode);
+    }
+    graphics.ResetFrameBuffer();
 }
 
 Rect GetViewportSizeFromScreenSize(Vec2i screenSize)
@@ -261,14 +316,9 @@ void MoveCamera(InputModule& inputs, GraphicsModule& graphics, Camera& cam, floa
 
     cam.RotateCamBasedOnDeltaMouse(inputs.GetMouseState().GetDeltaMousePos(), pixelToRadians);
 
-    Vec3f shadowCamPos = cam.GetPosition() + (-shadowCam.GetDirection() * 40.0f);
-    shadowCam.SetPosition(shadowCamPos);
-
     if (inputs.IsKeyDown(Key::Q))
     {
-        shadowCam.SetPosition(cam.GetPosition());
-        shadowCam.SetDirection(cam.GetDirection());
-        
+       
         scene.SetDirectionalLight(DirectionalLight{ cam.GetDirection(), SunLight });
 
         //graphics.m_Renderer.SetShaderUniformVec3f(graphics.m_TexturedMeshShader, "SunDirection", cam.GetDirection());
@@ -328,11 +378,11 @@ std::vector<Texture_ID> LoadTextures(GraphicsModule& graphics)
     return loadedTextures;
 }
 
-void UpdateNormalDraw(InputModule& input, CollisionModule& collision, GraphicsModule& graphics)
+void UpdateSelectTool(InputModule& input, CollisionModule& collisions)
 {
-    if (toolMode != ToolMode::NORMAL)
+    if (toolMode != ToolMode::SELECT)
         return;
-
+    
     if (draggingNewModel)
         return;
 
@@ -344,14 +394,11 @@ void UpdateNormalDraw(InputModule& input, CollisionModule& collision, GraphicsMo
         Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
         Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
 
-        SceneRayCastHit finalHit;
-
-        finalHit = scene.RayCast(mouseRay, collision);
+        SceneRayCastHit finalHit = scene.RayCast(mouseRay, collisions);
 
         if (finalHit.rayCastHit.hit)
         {
-            RayCastHit hit = finalHit.rayCastHit;
-            graphics.DebugDrawLine(hit.hitPoint, hit.hitPoint + hit.hitNormal, Vec3f(1.0f, 0.7f, 0.4f));
+            selectedModelPtr = finalHit.hitModel;
         }
     }
 }
@@ -363,7 +410,7 @@ void UpdateBoxCreate(InputModule& input, CollisionModule& collisions, GraphicsMo
     static float boxHeight = 5.0f;
     static AABB aabbBox;
 
-    if (toolMode != ToolMode::BOX)
+    if (toolMode != ToolMode::GEOMETRY)
         return;
 
     if (draggingNewModel)
@@ -429,12 +476,12 @@ void UpdateBoxCreate(InputModule& input, CollisionModule& collisions, GraphicsMo
     {
         if (draggingNewBox)
         {
-            EditorModel newBox;
-            newBox.model = new Model(graphics.CreateBoxModel(aabbBox));
-            newBox.colMesh = new CollisionMesh(collisions.GetCollisionMeshFromMesh(newBox.model->m_TexturedMeshes[0].m_Mesh));
-            scene.AddModel(*(newBox.model));
+            Model* newBox = new Model(graphics.CreateBoxModel(aabbBox));
+            scene.AddModel(*newBox);
             boxHeight = 5.0f;
             draggingNewBox = false;
+
+            selectedModelPtr = nullptr;
         }
     }
 
@@ -492,7 +539,6 @@ void UpdateModelTranslate(InputModule& input, CollisionModule& collisions, Graph
 
     if (moveMode != MoveMode::TRANSLATE || toolMode != ToolMode::MOVE)
     {
-        movingModelPtr = nullptr;
         slidingX = false;
         slidingY = false;
         slidingZ = false;
@@ -502,7 +548,6 @@ void UpdateModelTranslate(InputModule& input, CollisionModule& collisions, Graph
 
     if (draggingNewModel || draggingNewTexture)
     {
-        movingModelPtr = nullptr;
         slidingX = false;
         slidingY = false;
         slidingZ = false;
@@ -527,35 +572,35 @@ void UpdateModelTranslate(InputModule& input, CollisionModule& collisions, Graph
         if (slidingX)
         {
             Line mouseLine(mouseRay.point - slidingStartHitPoint, mouseRay.direction);
-            Line axisLine(movingModelPtr->GetTransform().GetPosition(), Vec3f(1.0f, 0.0f, 0.0f));
+            Line axisLine(selectedModelPtr->GetTransform().GetPosition(), Vec3f(1.0f, 0.0f, 0.0f));
             Vec3f pointAlongAxis = Math::ClosestPointsOnLines(mouseLine, axisLine).second;
 
-            movingModelPtr->GetTransform().SetPosition(pointAlongAxis);
+            selectedModelPtr->GetTransform().SetPosition(pointAlongAxis);
         }
 
         if (slidingY)
         {
             Line mouseLine(mouseRay.point - slidingStartHitPoint, mouseRay.direction);
-            Line axisLine(movingModelPtr->GetTransform().GetPosition(), Vec3f(0.0f, 1.0f, 0.0f));        
+            Line axisLine(selectedModelPtr->GetTransform().GetPosition(), Vec3f(0.0f, 1.0f, 0.0f));
             Vec3f pointAlongAxis = Math::ClosestPointsOnLines(mouseLine, axisLine).second;
 
-            movingModelPtr->GetTransform().SetPosition(pointAlongAxis);
+            selectedModelPtr->GetTransform().SetPosition(pointAlongAxis);
         }
 
         if (slidingZ)
         {
             Line mouseLine(mouseRay.point - slidingStartHitPoint, mouseRay.direction);
-            Line axisLine(movingModelPtr->GetTransform().GetPosition(), Vec3f(0.0f, 0.0f, 1.0f));
+            Line axisLine(selectedModelPtr->GetTransform().GetPosition(), Vec3f(0.0f, 0.0f, 1.0f));
             Vec3f pointAlongAxis = Math::ClosestPointsOnLines(mouseLine, axisLine).second;
 
-            movingModelPtr->GetTransform().SetPosition(pointAlongAxis);
+            selectedModelPtr->GetTransform().SetPosition(pointAlongAxis);
         }
 
 
         return;
     }
 
-    if (movingModelPtr)
+    if (selectedModelPtr)
     {
         if (input.GetMouseState().IsButtonDown(Mouse::LMB))
         {
@@ -569,21 +614,21 @@ void UpdateModelTranslate(InputModule& input, CollisionModule& collisions, Graph
             hit = collisions.RayCast(mouseRay, arrowToolCollMesh, xAxisArrow.GetTransform());
             if (hit.hit)
             {
-                slidingStartHitPoint = hit.hitPoint - movingModelPtr->GetTransform().GetPosition();
+                slidingStartHitPoint = hit.hitPoint - selectedModelPtr->GetTransform().GetPosition();
                 slidingX = true;
             }
 
             hit = collisions.RayCast(mouseRay, arrowToolCollMesh, yAxisArrow.GetTransform());
             if (hit.hit)
             {
-                slidingStartHitPoint = hit.hitPoint - movingModelPtr->GetTransform().GetPosition();
+                slidingStartHitPoint = hit.hitPoint - selectedModelPtr->GetTransform().GetPosition();
                 slidingY = true;
             }
 
             hit = collisions.RayCast(mouseRay, arrowToolCollMesh, zAxisArrow.GetTransform());
             if (hit.hit)
             {
-                slidingStartHitPoint = hit.hitPoint - movingModelPtr->GetTransform().GetPosition();
+                slidingStartHitPoint = hit.hitPoint - selectedModelPtr->GetTransform().GetPosition();
                 slidingZ = true;
             }
 
@@ -603,7 +648,7 @@ void UpdateModelTranslate(InputModule& input, CollisionModule& collisions, Graph
 
         if (finalHit.rayCastHit.hit)
         {
-            movingModelPtr = finalHit.hitModel;
+            selectedModelPtr = finalHit.hitModel;
         }
     }
 }
@@ -619,7 +664,6 @@ void UpdateModelRotate(InputModule& input, CollisionModule& collisions, Graphics
 
     if (moveMode != MoveMode::ROTATE || toolMode != ToolMode::MOVE)
     {
-        rotatingModelPtr = nullptr;
         rotatingX = false;
         rotatingY = false;
         rotatingZ = false;
@@ -629,7 +673,6 @@ void UpdateModelRotate(InputModule& input, CollisionModule& collisions, Graphics
 
     if (draggingNewModel || draggingNewTexture)
     {
-        rotatingModelPtr = nullptr;
         rotatingX = false;
         rotatingY = false;
         rotatingZ = false;
@@ -653,7 +696,7 @@ void UpdateModelRotate(InputModule& input, CollisionModule& collisions, Graphics
         Plane axisPlane;
         Vec3f perpUnitVec;
 
-        axisPlane.center = rotatingModelPtr->GetTransform().GetPosition();
+        axisPlane.center = selectedModelPtr->GetTransform().GetPosition();
 
         if (rotatingX)
         {
@@ -673,7 +716,7 @@ void UpdateModelRotate(InputModule& input, CollisionModule& collisions, Graphics
 
         RayCastHit planeHit = collisions.RayCast(mouseRay, axisPlane);
 
-        Vec3f objectCenter = rotatingModelPtr->GetTransform().GetPosition();
+        Vec3f objectCenter = selectedModelPtr->GetTransform().GetPosition();
         Vec3f hitPoint = planeHit.hitPoint;
         Vec3f angleVec = hitPoint - objectCenter;
         float dot = Math::dot(angleVec, perpUnitVec);
@@ -683,9 +726,9 @@ void UpdateModelRotate(InputModule& input, CollisionModule& collisions, Graphics
 
         Quaternion axisQuat = Quaternion(axisPlane.normal, deltaAngle);
 
-        rotatingModelPtr->GetTransform().SetRotation(axisQuat * initialRotation);
+        selectedModelPtr->GetTransform().SetRotation(axisQuat * initialRotation);
     }
-    else if (rotatingModelPtr)
+    else if (selectedModelPtr)
     {
         if (input.GetMouseState().IsButtonDown(Mouse::LMB))
         {
@@ -709,7 +752,7 @@ void UpdateModelRotate(InputModule& input, CollisionModule& collisions, Graphics
                 Plane axisPlane;
                 Vec3f perpUnitVec;
 
-                axisPlane.center = rotatingModelPtr->GetTransform().GetPosition();
+                axisPlane.center = selectedModelPtr->GetTransform().GetPosition();
 
                 if (rotatingX)
                 {
@@ -729,9 +772,9 @@ void UpdateModelRotate(InputModule& input, CollisionModule& collisions, Graphics
 
                 RayCastHit planeHit = collisions.RayCast(mouseRay, axisPlane);
 
-                initialRotation = rotatingModelPtr->GetTransform().GetRotation();
+                initialRotation = selectedModelPtr->GetTransform().GetRotation();
 
-                Vec3f objectCenter = rotatingModelPtr->GetTransform().GetPosition();
+                Vec3f objectCenter = selectedModelPtr->GetTransform().GetPosition();
                 Vec3f hitPoint = planeHit.hitPoint;
                 Vec3f angleVec = hitPoint - objectCenter;
                 float dot = Math::dot(angleVec, perpUnitVec);
@@ -749,7 +792,7 @@ void UpdateModelRotate(InputModule& input, CollisionModule& collisions, Graphics
 
         if (finalHit.rayCastHit.hit)
         {
-            rotatingModelPtr = finalHit.hitModel;
+            selectedModelPtr = finalHit.hitModel;
         }
     }
 }
@@ -764,7 +807,6 @@ void UpdateModelScale(InputModule& input, CollisionModule& collisions, GraphicsM
 
     if (moveMode != MoveMode::SCALE || toolMode != ToolMode::MOVE)
     {
-        scalingModelPtr = nullptr;
         scalingX = false;
         scalingY = false;
         scalingZ = false;
@@ -774,7 +816,6 @@ void UpdateModelScale(InputModule& input, CollisionModule& collisions, GraphicsM
 
     if (draggingNewModel || draggingNewTexture)
     {
-        scalingModelPtr = nullptr;
         scalingX = false;
         scalingY = false;
         scalingZ = false;
@@ -796,46 +837,46 @@ void UpdateModelScale(InputModule& input, CollisionModule& collisions, GraphicsM
         Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
         Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
 
-        Quaternion scalingModelRot = scalingModelPtr->GetTransform().GetRotation();
+        Quaternion scalingModelRot = selectedModelPtr->GetTransform().GetRotation();
 
         if (scalingX)
         {
             Line mouseLine(mouseRay.point - scalingStartHitPoint, mouseRay.direction);
-            Line axisLine(scalingModelPtr->GetTransform().GetPosition(), Vec3f(1.0f, 0.0f, 0.0f) * scalingModelRot);
+            Line axisLine(selectedModelPtr->GetTransform().GetPosition(), Vec3f(1.0f, 0.0f, 0.0f) * scalingModelRot);
             Vec3f pointAlongAxis = Math::ClosestPointsOnLines(mouseLine, axisLine).second;
 
-            Vec3f prevScale = scalingModelPtr->GetTransform().GetScale();
+            Vec3f prevScale = selectedModelPtr->GetTransform().GetScale();
 
-            float newScale = Math::magnitude(scalingModelPtr->GetTransform().GetPosition() - pointAlongAxis);
+            float newScale = Math::magnitude(selectedModelPtr->GetTransform().GetPosition() - pointAlongAxis);
 
-            scalingModelPtr->GetTransform().SetScale(Vec3f(newScale, prevScale.y, prevScale.z));
+            selectedModelPtr->GetTransform().SetScale(Vec3f(newScale, prevScale.y, prevScale.z));
         }
         if (scalingY)
         {
             Line mouseLine(mouseRay.point - scalingStartHitPoint, mouseRay.direction);
-            Line axisLine(scalingModelPtr->GetTransform().GetPosition(), Vec3f(0.0f, 1.0f, 0.0f) * scalingModelRot);
+            Line axisLine(selectedModelPtr->GetTransform().GetPosition(), Vec3f(0.0f, 1.0f, 0.0f) * scalingModelRot);
             Vec3f pointAlongAxis = Math::ClosestPointsOnLines(mouseLine, axisLine).second;
 
-            Vec3f prevScale = scalingModelPtr->GetTransform().GetScale();
+            Vec3f prevScale = selectedModelPtr->GetTransform().GetScale();
 
-            float newScale = Math::magnitude(scalingModelPtr->GetTransform().GetPosition() - pointAlongAxis);
+            float newScale = Math::magnitude(selectedModelPtr->GetTransform().GetPosition() - pointAlongAxis);
 
-            scalingModelPtr->GetTransform().SetScale(Vec3f(prevScale.x, newScale, prevScale.z));
+            selectedModelPtr->GetTransform().SetScale(Vec3f(prevScale.x, newScale, prevScale.z));
         }
         if (scalingZ)
         {
             Line mouseLine(mouseRay.point - scalingStartHitPoint, mouseRay.direction);
-            Line axisLine(scalingModelPtr->GetTransform().GetPosition(), Vec3f(0.0f, 0.0f, 1.0f) * scalingModelRot);
+            Line axisLine(selectedModelPtr->GetTransform().GetPosition(), Vec3f(0.0f, 0.0f, 1.0f) * scalingModelRot);
             Vec3f pointAlongAxis = Math::ClosestPointsOnLines(mouseLine, axisLine).second;
 
-            Vec3f prevScale = scalingModelPtr->GetTransform().GetScale();
+            Vec3f prevScale = selectedModelPtr->GetTransform().GetScale();
 
-            float newScale = Math::magnitude(scalingModelPtr->GetTransform().GetPosition() - pointAlongAxis);
+            float newScale = Math::magnitude(selectedModelPtr->GetTransform().GetPosition() - pointAlongAxis);
 
-            scalingModelPtr->GetTransform().SetScale(Vec3f(prevScale.x, prevScale.y, newScale));
+            selectedModelPtr->GetTransform().SetScale(Vec3f(prevScale.x, prevScale.y, newScale));
         }
     }
-    else if (scalingModelPtr)
+    else if (selectedModelPtr)
     {
         if (input.GetMouseState().IsButtonDown(Mouse::LMB))
         {
@@ -873,7 +914,7 @@ void UpdateModelScale(InputModule& input, CollisionModule& collisions, GraphicsM
 
         if (finalHit.rayCastHit.hit)
         {
-            scalingModelPtr = finalHit.hitModel;
+            selectedModelPtr = finalHit.hitModel;
         }
     }
 }
@@ -908,12 +949,6 @@ void UpdateEditor(ModuleManager& modules)
     UIModule& ui = *modules.GetUI();
     InputModule& input = *modules.GetInput();
 
-    //if (input.IsKeyDown(Key::Escape))
-    //{
-    //    Engine::StopGame();
-    //    return;
-    //}
-
     if (cursorLocked)
     {
         MoveCamera(input, graphics, cam, 0.001f);
@@ -925,7 +960,7 @@ void UpdateEditor(ModuleManager& modules)
 
     if (Engine::IsWindowFocused())
     {
-        UpdateNormalDraw(input, collisions, graphics);
+        UpdateSelectTool(input, collisions);
         UpdateBoxCreate(input, collisions, graphics);
         UpdateModelPlace(input, collisions, graphics);
         UpdateModelTranslate(input, collisions, graphics);
@@ -979,83 +1014,15 @@ void UpdateEditor(ModuleManager& modules)
         {
             graphics.Draw(*draggingModel);
         }
+        if (selectedModelPtr)
+        {
+            AABB aabb = collisions.GetCollisionMeshFromMesh(selectedModelPtr->m_TexturedMeshes[0].m_Mesh).boundingBox;
+            graphics.DebugDrawAABB(aabb, Vec3f(0.6f, 0.95f, 0.65f), selectedModelPtr->GetTransform().GetTransformMatrix());
+        }
     }
     graphics.ResetFrameBuffer();
-
-    // Draw tools on separate buffer to they're in front
-    graphics.SetActiveFrameBuffer(widgetViewportBuffer);
-    {
-        graphics.SetRenderMode(RenderMode::FULLBRIGHT);
-        if (movingModelPtr)
-        {
-            Vec3f movingModelPos = movingModelPtr->GetTransform().GetPosition();
-
-            float scale = Math::magnitude(movingModelPos - cam.GetPosition()) * 0.05f;
-            
-            xAxisArrow.GetTransform().SetPosition(movingModelPos + Vec3f(4.0f, 0.0f, 0.0f) * scale);
-            yAxisArrow.GetTransform().SetPosition(movingModelPos + Vec3f(0.0f, 4.0f, 0.0f) * scale);
-            zAxisArrow.GetTransform().SetPosition(movingModelPos + Vec3f(0.0f, 0.0f, 4.0f) * scale);
-
-            xAxisArrow.GetTransform().SetScale(Vec3f(scale / 3.f, scale, scale / 3.f));
-            yAxisArrow.GetTransform().SetScale(Vec3f(scale / 3.f, scale, scale / 3.f));
-            zAxisArrow.GetTransform().SetScale(Vec3f(scale / 3.f, scale, scale / 3.f));
-
-            graphics.DebugDrawAABB(collisions.GetCollisionMeshFromMesh(movingModelPtr->m_TexturedMeshes[0].m_Mesh).boundingBox, Vec3f(1.0f, 1.0f, 0.7f), movingModelPtr->GetTransform().GetTransformMatrix());
-
-            graphics.Draw(xAxisArrow);
-            graphics.Draw(yAxisArrow);
-            graphics.Draw(zAxisArrow);
-        }
-
-        if (rotatingModelPtr)
-        {
-            Vec3f rotatingModelPos = rotatingModelPtr->GetTransform().GetPosition();
-
-            xAxisRing.GetTransform().SetPosition(rotatingModelPos);
-            yAxisRing.GetTransform().SetPosition(rotatingModelPos);
-            zAxisRing.GetTransform().SetPosition(rotatingModelPos);
-
-            float scale = Math::magnitude(rotatingModelPos - cam.GetPosition()) * 0.2f;
-
-            xAxisRing.GetTransform().SetScale(Vec3f(scale, scale, scale));
-            yAxisRing.GetTransform().SetScale(Vec3f(scale, scale, scale));
-            zAxisRing.GetTransform().SetScale(Vec3f(scale, scale, scale));
-
-            graphics.DebugDrawAABB(collisions.GetCollisionMeshFromMesh(rotatingModelPtr->m_TexturedMeshes[0].m_Mesh).boundingBox, Vec3f(1.0f, 1.0f, 0.7f), rotatingModelPtr->GetTransform().GetTransformMatrix());
-
-            graphics.Draw(xAxisRing);
-            graphics.Draw(yAxisRing);
-            graphics.Draw(zAxisRing);
-
-        }
-        if (scalingModelPtr)
-        {
-            Vec3f scalingModelPos = scalingModelPtr->GetTransform().GetPosition();
-            Quaternion scalingModelRot = scalingModelPtr->GetTransform().GetRotation();
-
-            Vec3f modelScale = scalingModelPtr->GetTransform().GetScale();
-            float scale = Math::magnitude(scalingModelPos - cam.GetPosition()) * 0.05f;
-
-            xScaleWidget.GetTransform().SetScale(Vec3f(scale, scale, scale));
-            yScaleWidget.GetTransform().SetScale(Vec3f(scale, scale, scale));
-            zScaleWidget.GetTransform().SetScale(Vec3f(scale, scale, scale));
-
-            xScaleWidget.GetTransform().SetPosition(scalingModelPos + Vec3f(modelScale.x, 0.0f, 0.0f) * scalingModelRot);
-            yScaleWidget.GetTransform().SetPosition(scalingModelPos + Vec3f(0.0f, modelScale.y, 0.0f) * scalingModelRot);
-            zScaleWidget.GetTransform().SetPosition(scalingModelPos + Vec3f(0.0f, 0.0f, modelScale.z) * scalingModelRot);
-
-            xScaleWidget.GetTransform().SetRotation(scalingModelRot * Quaternion(Vec3f(0.0f, 1.0f, 0.0f), M_PI_2));
-            yScaleWidget.GetTransform().SetRotation(scalingModelRot* Quaternion(Vec3f(1.0f, 0.0f, 0.0f), -M_PI_2));
-            zScaleWidget.GetTransform().SetRotation(scalingModelRot * Quaternion(Vec3f(0.0f, 0.0f, 1.0f), M_PI_2));
-
-            graphics.Draw(xScaleWidget);
-            graphics.Draw(yScaleWidget);
-            graphics.Draw(zScaleWidget);
-        }
-
-        graphics.SetRenderMode(renderMode);
-    }
-    graphics.ResetFrameBuffer();
+    
+    DrawToolWidgets(modules);
 
     Vec2i screen = Engine::GetClientAreaSize();
 
@@ -1098,11 +1065,9 @@ void UpdateEditor(ModuleManager& modules)
             if (!draggingNewModel)
             {
                 draggingNewModel = true;
+           
+                selectedModelPtr = nullptr;
 
-                EditorModel newModel;
-                newModel.model = new Model(graphics.CloneModel(loadedModels[i]));
-                newModel.colMesh = new CollisionMesh(collisions.GetCollisionMeshFromMesh(newModel.model->m_TexturedMeshes[0].m_Mesh));
-            
                 draggingModel = new Model(graphics.CloneModel(loadedModels[i]));
             }
         }
@@ -1117,6 +1082,9 @@ void UpdateEditor(ModuleManager& modules)
             if (!draggingNewTexture)
             {
                 draggingNewTexture = true;
+
+                selectedModelPtr = nullptr;
+
                 draggingTexture = loadedTextures[i];
             }
         }
@@ -1135,9 +1103,9 @@ void UpdateEditor(ModuleManager& modules)
 
     std::string posText;
 
-    if (movingModelPtr)
+    if (selectedModelPtr)
     {
-        Vec3f pos = movingModelPtr->GetTransform().GetPosition();
+        Vec3f pos = selectedModelPtr->GetTransform().GetPosition();
         std::string xText = "X: " + std::to_string(pos.x);
         std::string yText = "Y: " + std::to_string(pos.y);
         std::string zText = "Z: " + std::to_string(pos.z);
@@ -1149,8 +1117,7 @@ void UpdateEditor(ModuleManager& modules)
         //static std::string testString = "Hello";
         //text.DrawText(testString, &inspectorFont, Vec2f(screen.x - 180.0f, 65.0f));
 
-        ui.TextEntry(movingModelPtr->m_Name, Rect(Vec2f(0.0f, 65.0f), Vec2f(80.0f, 20.0f)));
-
+        ui.TextEntry(selectedModelPtr->m_Name, Rect(Vec2f(0.0f, 65.0f), Vec2f(160.0f, 20.0f)));
     }
     else
     {
@@ -1163,17 +1130,20 @@ void UpdateEditor(ModuleManager& modules)
 
     ui.StartFrame(Rect(Vec2f(screen.x - 200.0f, screen.y / 2), Vec2f(200.0f, screen.y / 2)), 20.0f, "Entities");
 
-    scene.MenuListEntities(ui, inspectorFont);
+    if (Model* modelPtr = scene.MenuListEntities(ui, inspectorFont))
+    {
+        selectedModelPtr = modelPtr;
+    }
 
     ui.EndFrame();
 
     if (ui.ImgButton(cursorToolTexture, Rect(Vec2f(0.0f, 40.0f), Vec2f(100.0f, 100.0f)), 20.0f))
     {
-        toolMode = ToolMode::NORMAL;
+        toolMode = ToolMode::SELECT;
     }
     if (ui.ImgButton(boxToolTexture, Rect(Vec2f(0.0f, 140.0f), Vec2f(100.0f, 100.0f)), 20.0f))
     {
-        toolMode = ToolMode::BOX;
+        toolMode = ToolMode::GEOMETRY;
     }
 
     if (moveMode == MoveMode::TRANSLATE)
@@ -1237,13 +1207,18 @@ void UpdateEditor(ModuleManager& modules)
         graphics.SetRenderMode(renderMode);
     }
 
+    if (input.IsKeyDown(Key::Escape))
+    {
+        selectedModelPtr = nullptr;
+    }
+
     if (input.IsKeyDown(Key::One))
     {
-        toolMode = ToolMode::NORMAL;
+        toolMode = ToolMode::SELECT;
     }
     if (input.IsKeyDown(Key::Two))
     {
-        toolMode = ToolMode::BOX;
+        toolMode = ToolMode::GEOMETRY;
     }
     if (input.IsKeyDown(Key::Three))
     {
@@ -1267,10 +1242,10 @@ void UpdateEditor(ModuleManager& modules)
     std::string modeString;
     switch (toolMode)
     {
-    case ToolMode::NORMAL:
-        modeString = "Normal mode";
+    case ToolMode::SELECT:
+        modeString = "Select mode";
         break;
-    case ToolMode::BOX:
+    case ToolMode::GEOMETRY:
         modeString = "Box mode";
         break;
     case ToolMode::MOVE:
@@ -1486,11 +1461,6 @@ void Initialize(ModuleManager& modules)
 
     Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
 
-    previewPSpawn = graphics.CreateModel(TexturedMesh(
-        graphics.LoadMesh("models/PlayerSpawn.obj"),
-        graphics.LoadTexture("textures/PlayerSpawn.png")
-    ));
-
     xAxisArrow = graphics.CreateModel(TexturedMesh(
         graphics.LoadMesh("models/ArrowSmooth.obj"),
         graphics.LoadTexture("textures/whiteTexture.png")
@@ -1555,79 +1525,11 @@ void Initialize(ModuleManager& modules)
     modelCam.SetPosition(Vec3f(0.0f, -2.5f, 2.5f));
     modelCam.Rotate(Quaternion(Vec3f(1.0f, 0.0f, 0.0f), -0.7f));
 
-    shadowCam = Camera(Projection::Orthographic);
-    shadowCam.SetScreenSize(Vec2f(100.0f, 100.0f));
-    shadowCam.SetNearPlane(0.0f);
-    shadowCam.SetFarPlane(100.0f);
-    shadowCam.SetPosition(Vec3f(0.0f, -30.0f, 6.0f));
-    shadowCam.Rotate(Quaternion(Vec3f(0.0f, 0.0f, 1.0f), 0.9f));
-    shadowCam.Rotate(Quaternion(Vec3f(1.0f, 0.0f, 0.0f), 1.3f));
-
     scene.SetDirectionalLight(DirectionalLight{ cam.GetDirection(), SunLight });
 
     viewportBuffer = graphics.CreateFBuffer(Vec2i(viewportRect.size), FBufferFormat::COLOUR);
 
     widgetViewportBuffer = graphics.CreateFBuffer(Vec2i(viewportRect.size), FBufferFormat::COLOUR);
-
-    shadowBuffer = graphics.CreateFBuffer(Vec2i(8000, 8000), FBufferFormat::DEPTH);
-
-    std::string shadowVertShader = R"(
-    #version 400
-    layout (location = 0) in vec3 aPos;
-
-    uniform mat4 lightSpaceMatrix;
-    uniform mat4 Transformation;
-
-    void main()
-    {
-        gl_Position = lightSpaceMatrix * Transformation * vec4(aPos, 1.0);
-    }   
-    )";
-
-    std::string shadowFragShader = R"(
-    #version 400
-    
-    void main()
-    {
-    }
-    )";
-
-    shadowShader = graphics.m_Renderer.LoadShader(shadowVertShader, shadowFragShader);
-
-    std::string depthVertShader = R"(
-    #version 400
-
-    in vec2 VertPosition;
-    in vec2 VertUV;
-
-    smooth out vec2 FragUV;
-
-    void main()
-    {
-        gl_Position = vec4(VertPosition, 0.0, 1.0);
-        FragUV = VertUV;    
-    }
-
-    )";
-
-    std::string depthFragShader = R"(
-    #version 400
-
-    uniform sampler2D DepthMap;
-    
-    smooth in vec2 FragUV;
-    
-    out vec4 FragColour;
-
-    void main()
-    {             
-        float depthValue = texture(DepthMap, FragUV).r;
-        FragColour = vec4(vec3(depthValue), 1.0);
-        //FragColour = vec4(1.0, 0.0, 0.0, 1.0);
-    }  
-    )";
-
-    testDepthShader = graphics.m_Renderer.LoadShader(depthVertShader, depthFragShader);
 
     std::vector<float> quadVertices =
     {

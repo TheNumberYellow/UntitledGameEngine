@@ -41,7 +41,7 @@ public:
 
     SceneRayCastHit RayCast(Ray ray, CollisionModule& collision);
 
-    void MenuListEntities(UIModule& ui, Font& font);
+    Model* MenuListEntities(UIModule& ui, Font& font);
 
 private:
     std::unordered_map<std::string, Model> m_Models;
