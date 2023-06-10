@@ -39,12 +39,12 @@ Model* Scene::AddModel(Model model, std::string name)
 {
     if (name == "")
     {
-        m_UntrackedModels.push_back(model);
-        return &m_UntrackedModels.back();
+        m_UntrackedModels.push_back(new Model(model));
+        return m_UntrackedModels.back();
     }
 
-    m_Models.insert(std::pair<std::string, Model>(name, model));
-    return &m_Models[name];
+    m_Models.insert(std::pair<std::string, Model*>(name, new Model(model)));
+    return m_Models[name];
 }
 
 
@@ -53,11 +53,20 @@ Model* Scene::GetModel(std::string name)
     auto it = m_Models.find(name);
     if (it != m_Models.end())
     {
-        return &(it->second);
+        return (it->second);
     }
     else
     {
         return nullptr;
+    }
+}
+
+void Scene::DeleteModel(Model* model)
+{
+    auto it = std::find(m_UntrackedModels.begin(), m_UntrackedModels.end(), model);
+    if (it != m_UntrackedModels.end())
+    {
+        m_UntrackedModels.erase(it);
     }
 }
 
@@ -103,18 +112,20 @@ void Scene::Draw(GraphicsModule& graphics, Framebuffer_ID buffer)
         graphics.m_Renderer.SetShaderUniformMat4x4f(graphics.m_ShadowShader, "LightSpaceMatrix", m_ShadowCamera.GetCamMatrix());
         for (auto& it : m_Models)
         {
-            graphics.m_Renderer.SetShaderUniformMat4x4f(graphics.m_ShadowShader, "Transformation", it.second.GetTransform().GetTransformMatrix());
-            graphics.m_Renderer.DrawMesh(it.second.m_TexturedMeshes[0].m_Mesh);
+            graphics.m_Renderer.SetShaderUniformMat4x4f(graphics.m_ShadowShader, "Transformation", it.second->GetTransform().GetTransformMatrix());
+            graphics.m_Renderer.DrawMesh(it.second->m_TexturedMeshes[0].m_Mesh);
         }
         for (auto& it : m_UntrackedModels)
         {
-            graphics.m_Renderer.SetShaderUniformMat4x4f(graphics.m_ShadowShader, "Transformation", it.GetTransform().GetTransformMatrix());
-            graphics.m_Renderer.DrawMesh(it.m_TexturedMeshes[0].m_Mesh);
+            graphics.m_Renderer.SetShaderUniformMat4x4f(graphics.m_ShadowShader, "Transformation", it->GetTransform().GetTransformMatrix());
+            graphics.m_Renderer.DrawMesh(it->m_TexturedMeshes[0].m_Mesh);
         }
     }
     graphics.SetActiveFrameBuffer(buffer);
 
-    graphics.m_Renderer.SetActiveFBufferTexture(shadowBuffer, 1);
+    graphics.m_Renderer.SetActiveShader(graphics.m_TexturedMeshShader);
+
+    graphics.m_Renderer.SetActiveFBufferTexture(shadowBuffer, "ShadowMap");
     graphics.m_Renderer.SetShaderUniformMat4x4f(graphics.m_TexturedMeshShader, "LightSpaceMatrix", m_ShadowCamera.GetCamMatrix());
 
     graphics.SetCamera(m_Cameras[0]);
@@ -123,12 +134,12 @@ void Scene::Draw(GraphicsModule& graphics, Framebuffer_ID buffer)
 
     for (auto& it : m_Models)
     {
-        graphics.Draw(it.second);
+        graphics.Draw(*it.second);
     }
 
     for (auto& it : m_UntrackedModels)
     {
-        graphics.Draw(it);
+        graphics.Draw(*it);
     }
 }
 
@@ -150,16 +161,16 @@ SceneRayCastHit Scene::RayCast(Ray ray, CollisionModule& collision)
 
     for (auto& it : m_Models)
     {
-        CollisionMesh& colMesh = collision.GetCollisionMeshFromMesh(it.second.m_TexturedMeshes[0].m_Mesh);
+        CollisionMesh& colMesh = collision.GetCollisionMeshFromMesh(it.second->m_TexturedMeshes[0].m_Mesh);
 
-        finalHit = Closer(finalHit, SceneRayCastHit{ collision.RayCast(ray, colMesh, it.second.GetTransform()), &it.second });
+        finalHit = Closer(finalHit, SceneRayCastHit{ collision.RayCast(ray, colMesh, it.second->GetTransform()), it.second });
     }
 
     for (auto& it : m_UntrackedModels)
     {
-        CollisionMesh& colMesh = collision.GetCollisionMeshFromMesh(it.m_TexturedMeshes[0].m_Mesh);
+        CollisionMesh& colMesh = collision.GetCollisionMeshFromMesh(it->m_TexturedMeshes[0].m_Mesh);
         
-        finalHit = Closer(finalHit, SceneRayCastHit{ collision.RayCast(ray, colMesh, it.GetTransform()), &it });
+        finalHit = Closer(finalHit, SceneRayCastHit{ collision.RayCast(ray, colMesh, it->GetTransform()), it });
     }
 
     return finalHit;
@@ -172,10 +183,10 @@ Model* Scene::MenuListEntities(UIModule& ui, Font& font)
     Model* result = nullptr;
     for (int i = 0; i < m_UntrackedModels.size(); ++i)
     {
-        Model model = m_UntrackedModels[i];
-        Vec3f pos = model.GetTransform().GetPosition();
+        Model* model = m_UntrackedModels[i];
+        Vec3f pos = model->GetTransform().GetPosition();
 
-        std::string modelDesc = model.m_Name.empty() ? "<unnamed>" : model.m_Name;
+        std::string modelDesc = model->m_Name.empty() ? "<unnamed>" : model->m_Name;
 
         Rect rect;
         rect.location = cursor;
@@ -183,7 +194,7 @@ Model* Scene::MenuListEntities(UIModule& ui, Font& font)
 
         if (ui.TextButton(modelDesc, rect, 5.0f))
         {
-            result = &m_UntrackedModels[i];
+            result = m_UntrackedModels[i];
         }
         cursor.y += 20.0f;
     }

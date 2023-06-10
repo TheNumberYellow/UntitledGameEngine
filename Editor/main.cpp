@@ -5,13 +5,15 @@
 
 #include "Scene.h"
 
+#include "Behaviour/SpinBehaviour.h"
+
 #include <cmath>
 #include <sstream>
 #include <string>
 #include <iostream>
 #include <filesystem>
 
-static Vec3f SunLight = Vec3f(0.9f, 0.8f, 0.8f);
+static Vec3f SunLight = Vec3f(1.0f, 1.0f, 1.0f);
 
 struct Player
 {
@@ -64,7 +66,7 @@ Texture_ID scaleToolTexture;
 
 Texture_ID vertexToolTexture;
 
-Texture_ID tempWhiteTexture;
+Material tempWhiteMaterial;
 
 Texture_ID gridTexture;
 Model gridModel;
@@ -82,7 +84,7 @@ Mesh_ID quadMesh;
 bool holdingAlt = false;
 bool cursorLocked = false;
 
-std::vector<Texture_ID> loadedTextures;
+std::vector<Material> loadedMaterials;
 std::vector<Model> loadedModels;
 
 std::vector<Framebuffer_ID> modelFBuffers;
@@ -94,7 +96,7 @@ bool draggingNewModel = false;
 Model* draggingModel = nullptr;
 
 bool draggingNewTexture = false;
-Texture_ID draggingTexture;
+Material draggingMaterial;
 
 static Model* selectedModelPtr = nullptr;
 
@@ -343,7 +345,7 @@ std::vector<Model> LoadModels(GraphicsModule& graphics)
             Mesh_ID newMesh = graphics.LoadMesh(fileName);
 
             // For now we load all models with a temporary white texture
-            Model newModel = graphics.CreateModel(TexturedMesh(newMesh, tempWhiteTexture));
+            Model newModel = graphics.CreateModel(TexturedMesh(newMesh, tempWhiteMaterial));
 
             loadedModels.push_back(newModel);
             modelFBuffers.push_back(graphics.CreateFBuffer(Vec2i(100, 100), FBufferFormat::COLOUR));
@@ -354,9 +356,9 @@ std::vector<Model> LoadModels(GraphicsModule& graphics)
     return loadedModels;
 }
 
-std::vector<Texture_ID> LoadTextures(GraphicsModule& graphics)
+std::vector<Material> LoadMaterials(GraphicsModule& graphics)
 {
-    std::vector<Texture_ID> loadedTextures;
+    std::vector<Material> loadedMaterials;
 
     std::string path = "textures";
 
@@ -371,11 +373,11 @@ std::vector<Texture_ID> LoadTextures(GraphicsModule& graphics)
 
             Texture_ID newTexture = graphics.LoadTexture(fileName);
 
-            loadedTextures.push_back(newTexture);
+            loadedMaterials.push_back(graphics.CreateMaterial(newTexture));
         }
     }
 
-    return loadedTextures;
+    return loadedMaterials;
 }
 
 void UpdateSelectTool(InputModule& input, CollisionModule& collisions)
@@ -407,8 +409,10 @@ void UpdateBoxCreate(InputModule& input, CollisionModule& collisions, GraphicsMo
 {
     static bool draggingNewBox = false;
     static Vec3f boxStartPoint;
-    static float boxHeight = 5.0f;
+    static float boxHeight = 2.0f;
     static AABB aabbBox;
+
+    static const float snap = 2.0f;
 
     if (toolMode != ToolMode::GEOMETRY)
         return;
@@ -441,9 +445,9 @@ void UpdateBoxCreate(InputModule& input, CollisionModule& collisions, GraphicsMo
 
             if (finalHit.hit)
             {
-                finalHit.hitPoint.x = Math::Round(finalHit.hitPoint.x, 2.5f);
-                finalHit.hitPoint.y = Math::Round(finalHit.hitPoint.y, 2.5f);
-                finalHit.hitPoint.z = Math::Round(finalHit.hitPoint.z, 2.5f);
+                finalHit.hitPoint.x = Math::Round(finalHit.hitPoint.x, snap);
+                finalHit.hitPoint.y = Math::Round(finalHit.hitPoint.y, snap);
+                finalHit.hitPoint.z = Math::Round(finalHit.hitPoint.z, snap);
 
                 boxStartPoint = finalHit.hitPoint;
                 draggingNewBox = true;
@@ -455,9 +459,9 @@ void UpdateBoxCreate(InputModule& input, CollisionModule& collisions, GraphicsMo
 
             Vec3f originalHitPoint = hit.hitPoint;
 
-            hit.hitPoint.x = Math::Round(hit.hitPoint.x, 2.5);
-            hit.hitPoint.y = Math::Round(hit.hitPoint.y, 2.5f);
-            hit.hitPoint.z = Math::Round(hit.hitPoint.z, 2.5f);
+            hit.hitPoint.x = Math::Round(hit.hitPoint.x, snap);
+            hit.hitPoint.y = Math::Round(hit.hitPoint.y, snap);
+            hit.hitPoint.z = Math::Round(hit.hitPoint.z, snap);
 
             float minX = std::min(hit.hitPoint.x, boxStartPoint.x);
             float minY = std::min(hit.hitPoint.y, boxStartPoint.y);
@@ -478,7 +482,6 @@ void UpdateBoxCreate(InputModule& input, CollisionModule& collisions, GraphicsMo
         {
             Model* newBox = new Model(graphics.CreateBoxModel(aabbBox));
             scene.AddModel(*newBox);
-            boxHeight = 5.0f;
             draggingNewBox = false;
 
             selectedModelPtr = nullptr;
@@ -934,7 +937,7 @@ void UpdateTexturePlace(InputModule& input, CollisionModule& collisions, Graphic
 
             if (finalHit.rayCastHit.hit)
             {
-                finalHit.hitModel->SetTexture(draggingTexture);
+                finalHit.hitModel->SetMaterial(draggingMaterial);
             }
         }
     }
@@ -993,7 +996,7 @@ void UpdateEditor(ModuleManager& modules)
 
     // BEGIN DRAW
 
-    DrawEditorGrid(graphics);
+    //DrawEditorGrid(graphics);
 
     // Draw all my little meshies (for the models tab)
     graphics.SetCamera(&modelCam);
@@ -1018,8 +1021,13 @@ void UpdateEditor(ModuleManager& modules)
         {
             AABB aabb = collisions.GetCollisionMeshFromMesh(selectedModelPtr->m_TexturedMeshes[0].m_Mesh).boundingBox;
             graphics.DebugDrawAABB(aabb, Vec3f(0.6f, 0.95f, 0.65f), selectedModelPtr->GetTransform().GetTransformMatrix());
+            //graphics.DebugDrawModelMesh(*selectedModelPtr, Vec3f(0.9f, 0.8f, 0.4f));
         }
     }
+    graphics.SetRenderMode(RenderMode::FULLBRIGHT);
+    graphics.Draw(gridModel);
+    graphics.SetRenderMode(renderMode);
+
     graphics.ResetFrameBuffer();
     
     DrawToolWidgets(modules);
@@ -1042,14 +1050,29 @@ void UpdateEditor(ModuleManager& modules)
 
         if (ui.ImgButton(cameraButtonTexture, Rect(Vec2f(40.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f))
         {
-
+            
         }
-        ui.ImgButton(loadedTextures[1], Rect(Vec2f(80.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f);
-        ui.ImgButton(loadedTextures[1], Rect(Vec2f(120.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f);
-        ui.ImgButton(loadedTextures[1], Rect(Vec2f(160.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f);
-        ui.ImgButton(loadedTextures[1], Rect(Vec2f(200.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f);
-        ui.ImgButton(loadedTextures[1], Rect(Vec2f(240.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f);
-        ui.ImgButton(loadedTextures[1], Rect(Vec2f(280.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f);
+        if (ui.TextButton("Open", Rect(Vec2f(80.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f))
+        {
+            std::string FileName;
+            if (Engine::FileOpenDialog(FileName))
+            {
+                Engine::DEBUGPrint(FileName);
+            }
+        }
+        if (ui.TextButton("Save", Rect(Vec2f(120.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f))
+        {
+            std::string FileName;
+            if (Engine::FileSaveDialog(FileName))
+            {
+                Engine::DEBUGPrint(FileName);
+            }
+        }
+
+        //ui.ImgButton(loadedTextures[1], Rect(Vec2f(160.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f);
+        //ui.ImgButton(loadedTextures[1], Rect(Vec2f(200.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f);
+        //ui.ImgButton(loadedTextures[1], Rect(Vec2f(240.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f);
+        //ui.ImgButton(loadedTextures[1], Rect(Vec2f(280.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f);
     }
 
     ui.EndFrame();
@@ -1075,9 +1098,9 @@ void UpdateEditor(ModuleManager& modules)
     ui.EndTab();
 
     ui.StartTab("Textures");
-    for (int i = 0; i < loadedTextures.size(); ++i)
+    for (int i = 0; i < loadedMaterials.size(); ++i)
     {
-        if (ui.ImgButton(loadedTextures[i], Rect(Vec2f(i * 40, 0.0f), Vec2f(40, 80)), 2.5f).clicking)
+        if (ui.ImgButton(loadedMaterials[i].m_DiffuseTexture, Rect(Vec2f(i * 40, 0.0f), Vec2f(40, 80)), 2.5f).clicking)
         {
             if (!draggingNewTexture)
             {
@@ -1085,13 +1108,27 @@ void UpdateEditor(ModuleManager& modules)
 
                 selectedModelPtr = nullptr;
 
-                draggingTexture = loadedTextures[i];
+                draggingMaterial = loadedMaterials[i];
             }
         }
     }
     ui.EndTab();
 
     ui.StartTab("Behaviours");
+
+    auto BehaviourMap = BehaviourRegistry::Get()->GetBehaviours();
+
+    int i = 0;
+    for (auto Behaviour : BehaviourMap)
+    {
+        if (ui.TextButton(Behaviour.first, Rect(Vec2f(i * 80, 0.0f), Vec2f(80, 80)), 2.0f).clicking)
+        {
+
+        }
+
+        i++;
+                
+    }
 
     ui.EndTab();
 
@@ -1210,6 +1247,14 @@ void UpdateEditor(ModuleManager& modules)
     if (input.IsKeyDown(Key::Escape))
     {
         selectedModelPtr = nullptr;
+    }
+
+    if (input.GetKeyState(Key::Delete))
+    {
+        if (selectedModelPtr) {
+            scene.DeleteModel(selectedModelPtr);
+            selectedModelPtr = nullptr;
+        }
     }
 
     if (input.IsKeyDown(Key::One))
@@ -1354,13 +1399,13 @@ void UpdateGame(ModuleManager& modules)
 
     if (movedLaterally)
     {
-        inputDir = Math::normalize(inputDir) * 0.1f;
+        inputDir = Math::normalize(inputDir) * 0.05f;
     }
 
     player.velocity.x = inputDir.x;
     player.velocity.y = inputDir.y;
 
-    player.velocity.z += -0.01f;
+    player.velocity.z += -0.005f;
     //player.velocity += Vec3f(0.0f, 0.0f, -0.01f);
 
     //player.velocity = inputDir;
@@ -1396,9 +1441,9 @@ void UpdateGame(ModuleManager& modules)
         player.position += player.velocity;
     }
 
-    if (input.IsKeyDown(Key::Space) && player.grounded)
+    if (input.GetKeyState(Key::Space) && player.grounded)
     {
-        player.velocity.z = 0.375f;
+        player.velocity.z = 0.175f;
     }
 
     if (movement.rayCastHit.hit && movement.rayCastHit.hitDistance > Math::magnitude(player.velocity))
@@ -1423,6 +1468,11 @@ void UpdateGame(ModuleManager& modules)
             modelSpeed = Vec3f(0.0f, 0.0f, 0.0f);
         }
     }
+    if (droppingModel)
+    {
+        modelSpeed.z += -0.005f;
+        droppingModel->GetTransform().Move(modelSpeed);
+    }
 
     graphics.SetActiveFrameBuffer(viewportBuffer);
     {
@@ -1440,6 +1490,9 @@ void UpdateGame(ModuleManager& modules)
 
 
     text.DrawText(std::to_string(player.position.x) + ", " + std::to_string(player.position.y) + ", " + std::to_string(player.position.z), &testFont, Vec2f(0.0f, 0.0f), Vec3f(0.6f, 0.2f, 0.7f));
+    std::string groundedText = player.grounded ? "Grounded" : "Not Grounded";
+    text.DrawText(groundedText, &testFont, Vec2f(0.0f, 30.0f));
+
     //text.DrawText(std::to_string(hitDist), &testFont, Vec2f(0.0f, 0.0f), Vec3f(1.0f, 0.5f, 0.5f));
     //text.DrawText(std::to_string(testHitDist), &testFont, Vec2f(0.0f, 24.0f), Vec3f(1.0f, 0.5f, 0.5f));
     //text.DrawText(std::to_string(playerVel), &testFont, Vec2f(0.0f, 48.0f), Vec3f(1.0f, 0.5f, 0.5f));
@@ -1463,7 +1516,7 @@ void Initialize(ModuleManager& modules)
 
     xAxisArrow = graphics.CreateModel(TexturedMesh(
         graphics.LoadMesh("models/ArrowSmooth.obj"),
-        graphics.LoadTexture("textures/whiteTexture.png")
+        graphics.CreateMaterial(graphics.LoadTexture("textures/whiteTexture.png"))
     ));
     
     yAxisArrow = graphics.CloneModel(xAxisArrow);
@@ -1472,13 +1525,13 @@ void Initialize(ModuleManager& modules)
     xAxisArrow.GetTransform().SetRotation(Quaternion(Vec3f(0.0f, 0.0f, 1.0f), -M_PI_2));
     zAxisArrow.GetTransform().SetRotation(Quaternion(Vec3f(1.0f, 0.0f, 0.0f), M_PI_2));
 
-    xAxisArrow.SetTexture(redTexture);
-    yAxisArrow.SetTexture(greenTexture);
-    zAxisArrow.SetTexture(blueTexture);
+    xAxisArrow.SetMaterial(graphics.CreateMaterial(redTexture));
+    yAxisArrow.SetMaterial(graphics.CreateMaterial(greenTexture));
+    zAxisArrow.SetMaterial(graphics.CreateMaterial(blueTexture));
 
     xAxisRing = graphics.CreateModel(TexturedMesh(
         graphics.LoadMesh("models/RotationHoop.obj"),
-        redTexture
+        graphics.CreateMaterial(redTexture)
     ));
 
     yAxisRing = graphics.CloneModel(xAxisRing);
@@ -1487,19 +1540,19 @@ void Initialize(ModuleManager& modules)
     xAxisRing.GetTransform().SetRotation(Quaternion(Vec3f(0.0f, 0.0f, 1.0f), M_PI_2));
     zAxisRing.GetTransform().SetRotation(Quaternion(Vec3f(1.0f, 0.0f, 0.0f), M_PI_2));
 
-    yAxisRing.SetTexture(greenTexture);
-    zAxisRing.SetTexture(blueTexture);
+    yAxisRing.SetMaterial(graphics.CreateMaterial(greenTexture));
+    zAxisRing.SetMaterial(graphics.CreateMaterial(blueTexture));
 
     xScaleWidget = graphics.CreateModel(TexturedMesh(
         graphics.LoadMesh("models/ScaleWidget.obj"),
-        redTexture
+        graphics.CreateMaterial(redTexture)
     ));
 
     yScaleWidget = graphics.CloneModel(xScaleWidget);
     zScaleWidget = graphics.CloneModel(xScaleWidget);
 
-    yScaleWidget.SetTexture(greenTexture);
-    zScaleWidget.SetTexture(blueTexture);
+    yScaleWidget.SetMaterial(graphics.CreateMaterial(greenTexture));
+    zScaleWidget.SetMaterial(graphics.CreateMaterial(blueTexture));
 
     playButtonTexture = graphics.LoadTexture("images/playButton.png");
     cameraButtonTexture = graphics.LoadTexture("images/cameraButton.png");
@@ -1552,14 +1605,17 @@ void Initialize(ModuleManager& modules)
     
     graphics.SetRenderMode(renderMode);
 
-    tempWhiteTexture = graphics.LoadTexture("images/white.png", TextureMode::NEAREST, TextureMode::NEAREST);
+    tempWhiteMaterial = graphics.CreateMaterial(graphics.LoadTexture("images/white.png", TextureMode::NEAREST, TextureMode::NEAREST));
+
+    gridTexture = graphics.LoadTexture("images/grid.png", TextureMode::LINEAR, TextureMode::NEAREST);
+    gridModel = graphics.CreatePlaneModel(Vec2f(-4000.0f, -4000.0f), Vec2f(4000.0f, 4000.0f), graphics.CreateMaterial(gridTexture));
 
     testFont = text.LoadFont("fonts/ARLRDBD.TTF", 30);
     inspectorFont = text.LoadFont("fonts/ARLRDBD.TTF", 15);
 
     loadedModels = LoadModels(graphics);
     
-    loadedTextures = LoadTextures(graphics);
+    loadedMaterials = LoadMaterials(graphics);
 
     Vec2i clientArea = Engine::GetClientAreaSize();
 
@@ -1569,6 +1625,18 @@ void Initialize(ModuleManager& modules)
     Engine::SetCursorCenter(newCenter);
 
     player.cam = &cam;
+    
+    auto Behaviours = BehaviourRegistry::Get()->GetBehaviours();
+
+    Engine::DEBUGPrint(std::to_string(SpinBehaviour::SpinBehaviour_Prototype->randomFloat));
+
+    for (auto Behaviour : Behaviours)
+    {
+        std::string debugString = std::to_string(Behaviour.second->randomFloat);
+        Engine::DEBUGPrint(debugString);
+    }
+
+    //auto BehaviourMap = BehaviourRegistry::Get()->GetBehaviours();
 }
 
 void Update(ModuleManager& modules)

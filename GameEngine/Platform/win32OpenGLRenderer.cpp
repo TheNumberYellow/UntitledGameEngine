@@ -278,6 +278,12 @@ namespace
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
+                GLfloat max_anisotropy, value = 16.0f; /* don't exceed this value...*/
+                glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &max_anisotropy);
+
+                value = (value > max_anisotropy) ? max_anisotropy : value;
+                glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, value);
+
                 glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
             
                 // For colour buffers, we also need to create a render buffer to hold depth and stencil information
@@ -370,7 +376,7 @@ namespace
             switch (minTexMode)
             {
             case TextureMode::LINEAR:
-                glMinTextureMode = GL_LINEAR_MIPMAP_NEAREST;
+                glMinTextureMode = GL_LINEAR_MIPMAP_LINEAR;
                 break;
             case TextureMode::NEAREST:
                 glMinTextureMode = GL_NEAREST;
@@ -904,6 +910,7 @@ Renderer::Renderer()
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+
     glEnable(GL_DEBUG_OUTPUT);
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
     glDebugMessageCallback(MessageCallback, 0);
@@ -1209,10 +1216,10 @@ void Renderer::SetActiveTexture(Texture_ID texture, unsigned int textureSlot)
     glBindTexture(GL_TEXTURE_2D, texturePtr->texture);
 }
 
-void Renderer::SetActiveTexture(Texture_ID textureID, std::string shaderName)
+void Renderer::SetActiveTexture(Texture_ID textureID, std::string textureName)
 {
     OpenGLShader* shaderPtr = GetGLShaderFromShaderID(currentlyBoundShader);
-    SetActiveTexture(textureID, shaderPtr->m_SamplerLocations[shaderName]);
+    SetActiveTexture(textureID, shaderPtr->m_SamplerLocations[textureName]);
 }
 
 void Renderer::SetActiveFBufferTexture(Framebuffer_ID frameBufferID, unsigned int textureSlot)
@@ -1223,10 +1230,10 @@ void Renderer::SetActiveFBufferTexture(Framebuffer_ID frameBufferID, unsigned in
     glBindTexture(GL_TEXTURE_2D, bufferPtr->texture);
 }
 
-void Renderer::SetActiveFBufferTexture(Framebuffer_ID frameBufferID, std::string shaderName)
+void Renderer::SetActiveFBufferTexture(Framebuffer_ID frameBufferID, std::string textureName)
 {
     OpenGLShader* shaderPtr = GetGLShaderFromShaderID(currentlyBoundShader);
-    SetActiveFBufferTexture(frameBufferID, shaderPtr->m_SamplerLocations[shaderName]);
+    SetActiveFBufferTexture(frameBufferID, shaderPtr->m_SamplerLocations[textureName]);
 }
 
 void Renderer::SetActiveCubemap(Cubemap_ID cubemapID, unsigned int textureSlot)
@@ -1237,10 +1244,10 @@ void Renderer::SetActiveCubemap(Cubemap_ID cubemapID, unsigned int textureSlot)
     glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapPtr->texture);
 }
 
-void Renderer::SetActiveCubemap(Cubemap_ID cubemapID, std::string shaderName)
+void Renderer::SetActiveCubemap(Cubemap_ID cubemapID, std::string textureName)
 {
     OpenGLShader* shaderPtr = GetGLShaderFromShaderID(currentlyBoundShader);
-    SetActiveCubemap(cubemapID, shaderPtr->m_SamplerLocations[shaderName]);
+    SetActiveCubemap(cubemapID, shaderPtr->m_SamplerLocations[textureName]);
 }
 
 void Renderer::SetActiveShader(Shader_ID shader)

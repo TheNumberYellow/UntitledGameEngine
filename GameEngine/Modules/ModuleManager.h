@@ -5,6 +5,7 @@
 #include "TextModule.h"
 #include "UIModule.h"
 #include "InputModule.h"
+#include "NetworkModule.h"
 
 class ModuleManager
 {
@@ -24,6 +25,9 @@ public:
     InputModule* GetInput();
     void SetInput(InputModule* input);
 
+    NetworkModule* GetNetwork();
+    void SetNetwork(NetworkModule* network);
+
     bool AreAllModulesInitialized();
 
 private:
@@ -33,4 +37,5 @@ private:
     TextModule* _text = nullptr;
     UIModule* _ui = nullptr;
     InputModule* _input = nullptr;
+    NetworkModule* _network = nullptr;
 };

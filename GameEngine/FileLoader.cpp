@@ -80,7 +80,7 @@ Mesh_ID FileLoader::LoadOBJFile(std::string filePath, Renderer& renderer)
                         newVert.uv.x, newVert.uv.y
                     });
 
-                    // TODO(fraser): here there is no indexed renderering (ie. no exploitation of duplicated vertex data in a mesh)
+                    // TODO(fraser): here there is no indexed rendering (ie. no exploitation of duplicated vertex data in a mesh)
                     // Come back to this if there are memory concerns
                     indices.push_back(index++);
 

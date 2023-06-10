@@ -63,6 +63,7 @@ enum class Key
 	Down,
 	Left,
 	Right,
+	Delete,
 
 	Count
 };

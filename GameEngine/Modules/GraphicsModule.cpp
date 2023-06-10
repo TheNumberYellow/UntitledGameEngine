@@ -5,6 +5,11 @@
 #include <random>
 #include "Scene.h"
 
+Material::Material(Texture_ID DiffuseTexture, Texture_ID NormalMap)
+    : m_DiffuseTexture(DiffuseTexture), m_NormalMap(NormalMap)
+{
+}
+
 void Transform::SetPosition(Vec3f newPos)
 {
     m_Position = newPos;
@@ -181,6 +186,7 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
     in vec4 FragPosLightSpace;
 
 	uniform sampler2D DiffuseTexture;
+    uniform sampler2D NormalMap;
     uniform samplerCube Skybox;	
     uniform sampler2D ShadowMap;
 
@@ -226,9 +232,15 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
 	{
 		vec3 sun = vec3(-SunDirection.x, -SunDirection.y, -SunDirection.z);
 
-		vec3 normalizedNormal = normalize(FragNormal);
+        vec4 normalAt = texture(NormalMap, FragUV);
+        vec3 normal = normalAt.rgb;
+        normal = normalize(normal * 2.0 - 1.0);		
+
+        vec3 normalizedNormal = normalize(FragNormal);
 		vec4 textureAt = texture(DiffuseTexture, FragUV);
-		float diffuse = ((dot(normalizedNormal.xyz, normalize(sun))) + 1.0) / 2.0;
+
+        float diffuse = ((dot(normalizedNormal.xyz, normalize(sun))) + 1.0) / 2.0;
+		//float diffuse = ((dot(normal.xyz, normalize(sun))) + 1.0) / 2.0;
         // Temp: reduces shadow acne
         if (diffuse < 0.53)
         {
@@ -409,15 +421,13 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
     m_OrthoProjection = Math::GenerateOrthoMatrix(0.0f, sizeX, 0.0f, sizeY, 0.1f, 100.0f);
     m_Renderer.SetShaderUniformMat4x4f(m_UIShader, "Projection", m_OrthoProjection);
 
-    m_DebugTexture = m_Renderer.LoadTexture("textures/debugTexture.png", TextureMode::LINEAR, TextureMode::NEAREST);
-
-    //TEMP
-    //temp temp temp
-    m_Renderer.SetShaderUniformVec3f(m_TexturedMeshShader, "SunDirection", Vec3f(0.0f, 0.0f, -1.0f));
-    m_Renderer.SetShaderUniformVec3f(m_TexturedMeshShader, "SunColour", Vec3f(0.95f, 0.9f, 0.85f));
+    m_DefaultNormalMap = m_Renderer.LoadTexture("textures/blue.png", TextureMode::NEAREST, TextureMode::NEAREST);
+    m_DebugMaterial = CreateMaterial(   m_Renderer.LoadTexture("textures/debugTexture.png", TextureMode::LINEAR, TextureMode::LINEAR),
+                                        m_Renderer.LoadTexture("textures/marble_norm.png"));
 
     m_Renderer.SetShaderUniformVec2f(m_UIShader, "WindowSize", (Vec2f)Engine::GetClientAreaSize());
 
+    // TEMP
     std::vector<float> skyboxVertices = {
         // positions          
         -1.0f,  -1.0f,     1.0f,
@@ -493,14 +503,6 @@ Mesh_ID GraphicsModule::LoadMesh(std::string filePath)
     return FileLoader::LoadOBJFile(filePath, m_Renderer);
 }
 
-Mesh_ID GraphicsModule::CreatePlane(float width)
-{
-
-
-
-    return Mesh_ID();
-}
-
 void GraphicsModule::AttachTextureToFBuffer(Texture_ID textureID, Framebuffer_ID fBufferID)
 { 
     m_Renderer.AttachTextureToFramebuffer(textureID, fBufferID);
@@ -558,6 +560,18 @@ void GraphicsModule::ResetFrameBuffer()
     m_Renderer.ResetToScreenBuffer();
 }
 
+Material GraphicsModule::CreateMaterial(Texture_ID DiffuseTexture, Texture_ID NormalMap)
+{
+    Material Result = Material(DiffuseTexture, NormalMap);
+    return Result;
+}
+
+Material GraphicsModule::CreateMaterial(Texture_ID DiffuseTexture)
+{
+    Material Result = Material(DiffuseTexture, m_DefaultNormalMap);
+    return Result;
+}
+
 Model GraphicsModule::CreateModel(TexturedMesh texturedMesh)
 {
     return Model(texturedMesh);
@@ -568,26 +582,105 @@ Model GraphicsModule::CloneModel(const Model& original)
     return Model(original.m_TexturedMeshes[0]);
 }
 
-Model GraphicsModule::CreateBoxModel(AABB box, Texture_ID texture)
+Model GraphicsModule::CreateBoxModel(AABB box)
 {
-    if (texture == 0)
-    {
-        texture = this->m_DebugTexture;
-    }
-
-    Mesh_ID boxMesh = CreateBoxMesh(box);
-
-    return Model(TexturedMesh(boxMesh, m_DebugTexture));
+    return CreateBoxModel(box, m_DebugMaterial);
 }
 
-Brush GraphicsModule::CreateBrush(AABB box, Texture_ID texture)
+Model GraphicsModule::CreateBoxModel(AABB box, Material material)
 {
-    Mesh_ID boxMesh = CreateBoxMesh(box);
+    Vec3f min = box.min;
+    Vec3f max = box.max;
 
-    Brush boxBrush(boxMesh);
-    boxBrush.SetTexture(texture);
+    Vec3f size = (box.max - box.min) / 2.0f;
 
-    return boxBrush;
+    Vec3f points[] =
+    {
+        box.min,
+        box.min + Vec3f(0.0f, box.max.y - box.min.y, 0.0f),
+        box.min + Vec3f(box.max.x - box.min.x, box.max.y - box.min.y, 0.0f),
+        box.min + Vec3f(box.max.x - box.min.x, 0.0f, 0.0f),
+
+        box.max - Vec3f(box.max.x - box.min.x, box.max.y - box.min.y, 0.0f),
+        box.max - Vec3f(box.max.x - box.min.x, 0.0f, 0.0f),
+        box.max,
+        box.max - Vec3f(0.0f, box.max.y - box.min.y, 0.0f)
+    };
+
+    Vec3f averagePoint = Vec3f();
+    for (int i = 0; i < 8; ++i)
+    {
+        averagePoint += points[i];
+    }
+    averagePoint = averagePoint / 8.0f;
+
+    for (int i = 0; i < 8; ++i)
+    {
+        points[i] -= averagePoint;
+    }
+
+    std::vector<float> vertices =
+    {
+        // Positions                                // Normals              // Colours                  // Texcoords
+        points[0].x, points[0].y, points[0].z,      0.0f, 0.0f, -1.0f,      1.0f, 1.0f, 1.0f, 1.0f,     0.0f, 0.0f,
+        points[1].x, points[1].y, points[1].z,      0.0f, 0.0f, -1.0f,      1.0f, 1.0f, 1.0f, 1.0f,     0.0f, size.y,
+        points[2].x, points[2].y, points[2].z,      0.0f, 0.0f, -1.0f,      1.0f, 1.0f, 1.0f, 1.0f,     size.x, size.y,
+        points[3].x, points[3].y, points[3].z,      0.0f, 0.0f, -1.0f,      1.0f, 1.0f, 1.0f, 1.0f,     size.x, 0.0f,
+
+        points[4].x, points[4].y, points[4].z,      0.0f, 0.0f, 1.0f,       1.0f, 1.0f, 1.0f, 1.0f,     0.0f, 0.0f,
+        points[5].x, points[5].y, points[5].z,      0.0f, 0.0f, 1.0f,       1.0f, 1.0f, 1.0f, 1.0f,     0.0f, size.y,
+        points[6].x, points[6].y, points[6].z,      0.0f, 0.0f, 1.0f,       1.0f, 1.0f, 1.0f, 1.0f,     size.x, size.y,
+        points[7].x, points[7].y, points[7].z,      0.0f, 0.0f, 1.0f,       1.0f, 1.0f, 1.0f, 1.0f,     size.x, 0.0f,
+
+        points[0].x, points[0].y, points[0].z,      -1.0f, 0.0f, 0.0f,      1.0f, 1.0f, 1.0f, 1.0f,     0.0f, 0.0f,
+        points[1].x, points[1].y, points[1].z,      -1.0f, 0.0f, 0.0f,      1.0f, 1.0f, 1.0f, 1.0f,     0.0f, size.y,
+        points[5].x, points[5].y, points[5].z,      -1.0f, 0.0f, 0.0f,      1.0f, 1.0f, 1.0f, 1.0f,     size.z, size.y,
+        points[4].x, points[4].y, points[4].z,      -1.0f, 0.0f, 0.0f,      1.0f, 1.0f, 1.0f, 1.0f,     size.z, 0.0f,
+
+        points[2].x, points[2].y, points[2].z,      1.0f, 0.0f, 0.0f,       1.0f, 1.0f, 1.0f, 1.0f,     0.0f, 0.0f,
+        points[3].x, points[3].y, points[3].z,      1.0f, 0.0f, 0.0f,       1.0f, 1.0f, 1.0f, 1.0f,     0.0f, size.y,
+        points[7].x, points[7].y, points[7].z,      1.0f, 0.0f, 0.0f,       1.0f, 1.0f, 1.0f, 1.0f,     size.z, size.y,
+        points[6].x, points[6].y, points[6].z,      1.0f, 0.0f, 0.0f,       1.0f, 1.0f, 1.0f, 1.0f,     size.z, 0.0f,
+
+        points[0].x, points[0].y, points[0].z,      0.0f, -1.0f, 0.0f,      1.0f, 1.0f, 1.0f, 1.0f,     0.0f, 0.0f,
+        points[4].x, points[4].y, points[4].z,      0.0f, -1.0f, 0.0f,      1.0f, 1.0f, 1.0f, 1.0f,     0.0f, size.z,
+        points[7].x, points[7].y, points[7].z,      0.0f, -1.0f, 0.0f,      1.0f, 1.0f, 1.0f, 1.0f,     size.x, size.z,
+        points[3].x, points[3].y, points[3].z,      0.0f, -1.0f, 0.0f,      1.0f, 1.0f, 1.0f, 1.0f,     size.x, 0.0f,
+
+        points[1].x, points[1].y, points[1].z,      0.0f, 1.0f, 0.0f,       1.0f, 1.0f, 1.0f, 1.0f,     0.0f, 0.0f,
+        points[5].x, points[5].y, points[5].z,      0.0f, 1.0f, 0.0f,       1.0f, 1.0f, 1.0f, 1.0f,     0.0f, size.z,
+        points[6].x, points[6].y, points[6].z,      0.0f, 1.0f, 0.0f,       1.0f, 1.0f, 1.0f, 1.0f,     size.x, size.z,
+        points[2].x, points[2].y, points[2].z,      0.0f, 1.0f, 0.0f,       1.0f, 1.0f, 1.0f, 1.0f,     size.x, 0.0f,
+    };
+
+    std::vector<ElementIndex> indices =
+    {
+        0, 2, 1, 0, 3, 2,
+        4, 5, 6, 4, 6, 7,
+        8, 9, 10, 8, 10, 11,
+        12, 13, 14, 12, 14, 15,
+        16, 17, 18, 16, 18, 19,
+        20, 22, 21, 20, 23, 22
+    };
+
+    Mesh_ID boxMesh = m_Renderer.LoadMesh(m_TexturedMeshFormat, vertices, indices);
+
+    Model result = Model(TexturedMesh(boxMesh, material));
+    result.GetTransform().SetPosition(averagePoint);
+
+    return result;
+}
+
+Model GraphicsModule::CreatePlaneModel(Vec2f min, Vec2f max)
+{
+    return CreatePlaneModel(min, max, m_DebugMaterial);
+}
+
+Model GraphicsModule::CreatePlaneModel(Vec2f min, Vec2f max, Material material)
+{
+    Mesh_ID planeMesh = CreatePlaneMesh(min, max);
+
+    return Model(TexturedMesh(planeMesh, material));
 }
 
 void GraphicsModule::Draw(Model& model)
@@ -606,7 +699,8 @@ void GraphicsModule::Draw(Model& model)
 
         for (int i = 0; i < model.m_TexturedMeshes.size(); ++i)
         {
-            m_Renderer.SetActiveTexture(model.m_TexturedMeshes[i].m_Texture, "DiffuseTexture");
+            m_Renderer.SetActiveTexture(model.m_TexturedMeshes[i].m_Material.m_DiffuseTexture, "DiffuseTexture");
+            //m_Renderer.SetActiveTexture(model.m_TexturedMeshes[i].m_Material.m_NormalMap, "NormalMap");
             m_Renderer.DrawMesh(model.m_TexturedMeshes[i].m_Mesh);
         }
 
@@ -625,7 +719,7 @@ void GraphicsModule::Draw(Model& model)
 
         for (int i = 0; i < model.m_TexturedMeshes.size(); ++i)
         {
-            m_Renderer.SetActiveTexture(model.m_TexturedMeshes[i].m_Texture, "DiffuseTexture");
+            m_Renderer.SetActiveTexture(model.m_TexturedMeshes[i].m_Material.m_DiffuseTexture, "DiffuseTexture");
             m_Renderer.DrawMesh(model.m_TexturedMeshes[i].m_Mesh);
         }
     }
@@ -708,15 +802,11 @@ void GraphicsModule::DebugDrawModelMesh(Model model, Vec3f colour)
         std::vector<unsigned int*> indices = m_Renderer.MapMeshElements(model.m_TexturedMeshes[i].m_Mesh);
         for (int j = 0; j < indices.size(); j += 3)
         {
-            //TODO(fraser): So much duplicated data, if this is actually going to be done in this way I'll want to use an index buffer
-            //m_DebugLineVec.push_back(PosVertex(vertices[*indices[j]]->position * modelTransform));
-            //m_DebugLineVec.push_back(PosVertex(vertices[*indices[(size_t)j + 1]]->position * modelTransform));
+            DebugDrawLine(vertices[*indices[j]]->position * modelTransform, vertices[*indices[(size_t)j + 1]]->position * modelTransform, colour);
 
-            //m_DebugLineVec.push_back(PosVertex(vertices[*indices[(size_t)j + 1]]->position * modelTransform));
-            //m_DebugLineVec.push_back(PosVertex(vertices[*indices[(size_t)j + 2]]->position * modelTransform));
+            DebugDrawLine(vertices[*indices[(size_t)j + 1]]->position * modelTransform, vertices[*indices[(size_t)j + 2]]->position * modelTransform, colour);
 
-            //m_DebugLineVec.push_back(PosVertex(vertices[*indices[(size_t)j + 2]]->position * modelTransform));
-            //m_DebugLineVec.push_back(PosVertex(vertices[*indices[j]]->position * modelTransform));
+            DebugDrawLine(vertices[*indices[(size_t)j + 2]]->position * modelTransform, vertices[*indices[j]]->position * modelTransform, colour);
         }
         m_Renderer.UnmapMeshVertices(model.m_TexturedMeshes[i].m_Mesh);
         m_Renderer.UnmapMeshElements(model.m_TexturedMeshes[i].m_Mesh);
@@ -792,7 +882,7 @@ Mesh_ID GraphicsModule::CreateBoxMesh(AABB box)
     Vec3f min = box.min;
     Vec3f max = box.max;
 
-    Vec3f size = (box.max - box.min) / 5.0f;
+    Vec3f size = (box.max - box.min) / 2.0f;
 
     Vec3f points[] =
     {
@@ -806,6 +896,18 @@ Mesh_ID GraphicsModule::CreateBoxMesh(AABB box)
         box.max,
         box.max - Vec3f(0.0f, box.max.y - box.min.y, 0.0f)
     };
+
+    Vec3f averagePoint = Vec3f();
+    for (int i = 0; i < 8; ++i)
+    {
+        averagePoint += points[i];
+    }
+    averagePoint = averagePoint / 8.0f;
+
+    for (int i = 0; i < 8; ++i)
+    {
+        points[i] -= averagePoint;
+    }
 
     std::vector<float> vertices =
     {
@@ -854,6 +956,36 @@ Mesh_ID GraphicsModule::CreateBoxMesh(AABB box)
     Mesh_ID boxMesh = m_Renderer.LoadMesh(m_TexturedMeshFormat, vertices, indices);
 
     return boxMesh;
+}
+
+Mesh_ID GraphicsModule::CreatePlaneMesh(Vec2f min, Vec2f max)
+{
+    Vec3f points[] =
+    {
+        Vec3f(min.x, min.y, 0.0f),
+        Vec3f(min.x, max.y, 0.0f),
+        Vec3f(max.x, max.y, 0.0f),
+        Vec3f(max.x, min.y, 0.0f)
+    };
+
+    std::vector<float> vertices =
+    {
+        // Positions                                // Normals              // Colours                  // Texcoords
+        points[0].x, points[0].y, points[0].z,      0.0f, 0.0f, 1.0f,       1.0f, 1.0f, 1.0f, 1.0f,     0.0f, 0.0f,
+        points[1].x, points[1].y, points[1].z,      0.0f, 0.0f, 1.0f,       1.0f, 1.0f, 1.0f, 1.0f,     0.0f, max.y,
+        points[2].x, points[2].y, points[2].z,      0.0f, 0.0f, 1.0f,       1.0f, 1.0f, 1.0f, 1.0f,     max.x, max.y,
+        points[3].x, points[3].y, points[3].z,      0.0f, 0.0f, 1.0f,       1.0f, 1.0f, 1.0f, 1.0f,     max.x, 0.0f
+    };
+
+    std::vector<ElementIndex> indices =
+    {
+        0, 1, 2, 0, 2, 3,
+        0, 2, 1, 0, 3, 2,
+    };
+
+    Mesh_ID planeMesh = m_Renderer.LoadMesh(m_TexturedMeshFormat, vertices, indices);
+
+    return planeMesh;
 }
 
 void GraphicsModule::DrawDebugDrawMesh()

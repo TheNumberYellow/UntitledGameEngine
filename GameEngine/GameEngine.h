@@ -1,13 +1,16 @@
 #pragma once
 
-#include "Math\Math.h"
+#include "Math/Math.h"
 
 #include "StringUtils.h"
 
-#include "Platform\EnginePlatform.h"
-#include "Platform\RendererPlatform.h"
+#include "Platform/EnginePlatform.h"
+#include "Platform/RendererPlatform.h"
+#include "Platform/NetworkPlatform.h"
 
-#include "Modules\ModuleManager.h"
+#include "Modules/ModuleManager.h"
+
+#include "Behaviour/Behaviour.h"
 
 #include "ControlInputs.h"
 

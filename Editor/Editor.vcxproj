@@ -288,10 +288,12 @@
     <ClCompile Include="EditorScene.cpp" />
     <ClCompile Include="EditorState.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Behaviours\Wobble.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="EditorScene.h" />
     <ClInclude Include="EditorState.h" />
+    <ClInclude Include="Behaviours\Wobble.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

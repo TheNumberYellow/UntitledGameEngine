@@ -13,6 +13,8 @@ typedef std::pair<std::vector<float>, std::vector<ElementIndex>> MeshData;
 
 struct Click
 {
+    void Update(Rect bounds);
+
     explicit operator bool()
     {
         return clicked;
@@ -20,6 +22,13 @@ struct Click
     bool hovering = false;
     bool clicking = false;
     bool clicked = false;
+};
+
+struct ElementState
+{
+    bool m_Alive = true;
+
+    Click m_Click;
 };
 
 struct FrameInfo
@@ -45,7 +54,7 @@ struct FrameInfo
     }
 }; 
 
-struct FrameState
+struct FrameState : public ElementState
 {
     uint32_t activeTab = 0;
 };
@@ -71,7 +80,7 @@ struct ButtonInfo
     }
 };
 
-struct ButtonState
+struct ButtonState : public ElementState
 {
     bool hovering = false;
     bool clicking = false;
@@ -97,7 +106,7 @@ struct TextEntryInfo
     }
 };
 
-struct TextEntryState
+struct TextEntryState : public ElementState
 {
     bool focused = false;
 };
@@ -157,6 +166,9 @@ private:
     // As an example, if we're currently in a tab which hasn't been selected, that tab's contents should not be drawn.
     bool ShouldDisplay();
 
+    void ResetAllElementAliveFlags();
+    void RemoveInactiveElements();
+
     std::unordered_map<ButtonInfo, ButtonState, Hash::Hasher<ButtonInfo>> m_Buttons;
     std::unordered_map<FrameInfo, FrameState, Hash::Hasher<FrameInfo>> m_Frames;
     std::unordered_map<TextEntryInfo, TextEntryState, Hash::Hasher<TextEntryInfo>> m_TextEntries;
@@ -180,6 +192,8 @@ private:
     std::stack<FrameInfo> m_SubFrameStack;
 
     uint32_t m_TabIndexOnCurrentFrame = 0;
+    
+    ElementState* m_ActiveElement = nullptr;
 
     Vec2i m_WindowSize;
 
@@ -187,4 +201,5 @@ private:
     bool m_TopAligned = true;
 
     const float c_TabButtonWidth = 75.0f;
+
 };

@@ -1,5 +1,7 @@
 #include <Windows.h>
 
+#include "atlstr.h"
+
 #include "..\GameEngine.h"
 
 static bool running = true;
@@ -129,6 +131,58 @@ bool Engine::IsWindowFocused()
     return GetFocus() == WindowHandle;
 }
 
+bool Engine::FileOpenDialog(std::string& OutFileString)
+{
+    OPENFILENAME ofn;
+    LPWSTR szFileName[MAX_PATH] = {};
+
+    ZeroMemory(&ofn, sizeof(ofn));
+
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = WindowHandle;
+    ofn.lpstrFilter = L"Level Files (*.lvl)\0*.lvl\0All Files (*.*)\0*.*\0";
+    ofn.lpstrFile = *szFileName;
+    ofn.nMaxFile = MAX_PATH;
+    ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
+    ofn.lpstrDefExt = L"lvl";
+
+    ofn.lpstrTitle = L"Open Level";
+
+    if (GetOpenFileName(&ofn))
+    {
+        // Do something useful with the filename stored in szFileName
+        OutFileString = CW2A(*szFileName);
+        return true;
+    }
+    return false;
+}
+
+bool Engine::FileSaveDialog(std::string& OutFileString)
+{
+    OPENFILENAME ofn;
+    LPWSTR szFileName[MAX_PATH] = {};
+
+    ZeroMemory(&ofn, sizeof(ofn));
+
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = WindowHandle;
+    ofn.lpstrFilter = L"Level Files (*.lvl)\0*.lvl\0All Files (*.*)\0*.*\0";
+    ofn.lpstrFile = *szFileName;
+    ofn.nMaxFile = MAX_PATH;
+    ofn.Flags = OFN_EXPLORER | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT;
+    ofn.lpstrDefExt = L"lvl";
+
+    ofn.lpstrTitle = L"Save Level";
+
+    if (GetSaveFileName(&ofn))
+    {
+        // Do something useful with the filename stored in szFileName 
+        OutFileString = CW2A(*szFileName);
+        return true;
+    }
+    return false;
+}
+
 void WarpMouseToWindowCenter()
 {
     Engine::SetMousePosition(cursorCenter);
@@ -184,6 +238,8 @@ void GetKeyboardState(InputModule& inputs)
     inputs.SetKeyDown(Key::Down, GetAsyncKeyState(VK_DOWN));
     inputs.SetKeyDown(Key::Left, GetAsyncKeyState(VK_LEFT));
     inputs.SetKeyDown(Key::Right, GetAsyncKeyState(VK_RIGHT));
+
+    inputs.SetKeyDown(Key::Delete, GetAsyncKeyState(VK_DELETE));
 
     inputs.SetKeyDown(Key::Escape, GetAsyncKeyState(VK_ESCAPE));
 
@@ -313,18 +369,21 @@ int WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ L
 
     // Set up modules
     Renderer renderer;
+    NetworkInterface networkInterface;
 
     GraphicsModule Graphics(renderer);
     CollisionModule Collisions(renderer);
     TextModule Text(renderer);
     InputModule Input;
     UIModule UI(renderer, Text, Input);
+    NetworkModule Network(networkInterface);
 
     Modules.SetGraphics(&Graphics);
     Modules.SetCollision(&Collisions);
     Modules.SetText(&Text);
     Modules.SetInput(&Input);
     Modules.SetUI(&UI);
+    Modules.SetNetwork(&Network);
 
     Vec2i screenSize = Engine::GetClientAreaSize();
     cursorCenter.x = screenSize.x / 2;
@@ -335,7 +394,6 @@ int WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ L
 
     while (running)
     {
-
         MSG Message = {};
         while (PeekMessage(&Message, WindowHandle, 0, 0, PM_REMOVE))
         {

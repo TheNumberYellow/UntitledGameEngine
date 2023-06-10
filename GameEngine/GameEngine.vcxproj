@@ -210,7 +210,7 @@
     <Lib>
       <AdditionalLibraryDirectories>$(ProjectDir)lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <SubSystem>Windows</SubSystem>
-      <AdditionalDependencies>opengl32.lib;glew32sd.lib;freetype.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opengl32.lib;Ws2_32.lib;glew32sd.lib;freetype.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
     </Lib>
     <ProjectReference>
@@ -233,7 +233,7 @@
     <Lib>
       <AdditionalLibraryDirectories>$(ProjectDir)lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <SubSystem>Windows</SubSystem>
-      <AdditionalDependencies>opengl32.lib;glew32sd.lib;freetype.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opengl32.lib;Ws2_32.lib;glew32sd.lib;freetype.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
     </Lib>
     <ProjectReference>
@@ -314,7 +314,7 @@
     <Lib>
       <AdditionalLibraryDirectories>$(ProjectDir)lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <SubSystem>Windows</SubSystem>
-      <AdditionalDependencies>opengl32.lib;glew32s.lib;freetype.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opengl32.lib;Ws2_32.lib;glew32s.lib;freetype.lib;Ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
     </Lib>
     <ProjectReference>
@@ -341,7 +341,7 @@
     <Lib>
       <AdditionalLibraryDirectories>$(ProjectDir)lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <SubSystem>Windows</SubSystem>
-      <AdditionalDependencies>opengl32.lib;glew32s.lib;freetype.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opengl32.lib;Ws2_32.lib;glew32s.lib;freetype.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
     </Lib>
     <ProjectReference>
@@ -349,6 +349,8 @@
     </ProjectReference>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Asset\AssetRegistry.cpp" />
+    <ClCompile Include="Behaviour\Behaviour.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="Collisions.cpp" />
     <ClCompile Include="Components\Component.cpp" />
@@ -365,17 +367,22 @@
     <ClCompile Include="Modules\InputModule.cpp" />
     <ClCompile Include="Modules\ModuleManager.cpp" />
     <ClCompile Include="Modules\UIModule.cpp" />
+    <ClCompile Include="Modules\NetworkModule.cpp" />
+    <ClCompile Include="Platform\win32Network.cpp" />
     <ClCompile Include="Platform\win32OpenGLRenderer.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='VulkanDebug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='VulkanRelease|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="Platform\win32VulkanRenderer.cpp" />
     <ClCompile Include="Scene.cpp" />
+    <ClCompile Include="Behaviour\SpinBehaviour.cpp" />
     <ClCompile Include="StringUtils.cpp" />
     <ClCompile Include="Platform\win32Engine.cpp" />
     <ClCompile Include="Modules\TextModule.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Asset\AssetRegistry.h" />
+    <ClInclude Include="Behaviour\Behaviour.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="Collisions.h" />
     <ClInclude Include="Components\Component.h" />
@@ -390,6 +397,7 @@
     <ClInclude Include="Modules\InputModule.h" />
     <ClInclude Include="Modules\ModuleManager.h" />
     <ClInclude Include="Modules\UIModule.h" />
+    <ClInclude Include="Modules\NetworkModule.h" />
     <ClInclude Include="Platform\EnginePlatform.h" />
     <ClInclude Include="GameEngine.h" />
     <ClInclude Include="Modules\GraphicsModule.h" />
@@ -400,8 +408,10 @@
     <ClInclude Include="Platform\NetworkPlatform.h" />
     <ClInclude Include="Platform\RendererPlatform.h" />
     <ClInclude Include="Scene.h" />
+    <ClInclude Include="Behaviour\SpinBehaviour.h" />
     <ClInclude Include="StringUtils.h" />
     <ClInclude Include="Modules\TextModule.h" />
+    <ClInclude Include="Utils\FilePath.h" />
     <ClInclude Include="Utils\Hash.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

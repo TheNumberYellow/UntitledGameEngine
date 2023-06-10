@@ -51,11 +51,22 @@ void ModuleManager::SetInput(InputModule* input)
     _input = input;
 }
 
+NetworkModule* ModuleManager::GetNetwork()
+{
+    return _network;
+}
+
+void ModuleManager::SetNetwork(NetworkModule* network)
+{
+    _network = network;
+}
+
 bool ModuleManager::AreAllModulesInitialized()
 {
     return _graphics 
         && _collision 
         && _text 
         && _ui
-        && _input;
+        && _input
+        && _network;
 }

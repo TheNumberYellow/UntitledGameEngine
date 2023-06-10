@@ -155,13 +155,13 @@ public:
     void ResetToScreenBuffer();
 
     void SetActiveTexture(Texture_ID textureID, unsigned int textureSlot = 0);
-    void SetActiveTexture(Texture_ID textureID, std::string shaderName);
+    void SetActiveTexture(Texture_ID textureID, std::string textureName);
     
     void SetActiveFBufferTexture(Framebuffer_ID frameBufferID, unsigned int textureSlot = 0);
-    void SetActiveFBufferTexture(Framebuffer_ID frameBufferID, std::string shaderName);
+    void SetActiveFBufferTexture(Framebuffer_ID frameBufferID, std::string textureName);
     
     void SetActiveCubemap(Cubemap_ID cubemapID, unsigned int textureSlot = 0);
-    void SetActiveCubemap(Cubemap_ID cubemapID, std::string shaderName);
+    void SetActiveCubemap(Cubemap_ID cubemapID, std::string textureName);
     
     void SetActiveShader(Shader_ID shaderID);
     

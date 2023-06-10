@@ -26,6 +26,7 @@ public:
 
     Model* AddModel(Model model, std::string name = "");
     Model* GetModel(std::string name);
+    void DeleteModel(Model* model);
 
     void AddCamera(Camera* camera);
 
@@ -44,8 +45,8 @@ public:
     Model* MenuListEntities(UIModule& ui, Font& font);
 
 private:
-    std::unordered_map<std::string, Model> m_Models;
-    std::vector<Model> m_UntrackedModels;
+    std::unordered_map<std::string, Model*> m_Models;
+    std::vector<Model*> m_UntrackedModels;
     DirectionalLight m_DirLight;
 
     std::vector<Camera*> m_Cameras;

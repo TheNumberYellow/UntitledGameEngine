@@ -24,12 +24,18 @@
     <ClCompile Include="EditorState.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Behaviours\Wobble.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="EditorScene.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="EditorState.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Behaviours\Wobble.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

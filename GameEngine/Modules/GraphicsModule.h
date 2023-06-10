@@ -10,9 +10,13 @@
 
 class GraphicsModule;
 
-class Material
+struct Material
 {
+    Material() {}
+    Material(Texture_ID DiffuseTexture, Texture_ID NormalMap);
 
+    Texture_ID m_DiffuseTexture;
+    Texture_ID m_NormalMap;
 };
 
 struct RenderCommand
@@ -72,15 +76,14 @@ struct TexturedMesh
 {
     TexturedMesh() {}
 
-    TexturedMesh(Mesh_ID mesh, Texture_ID texture)
+    TexturedMesh(Mesh_ID mesh, Material material)
         : m_Mesh(mesh)
-        , m_Texture(texture)
+        , m_Material(material)
     {}
 
     Mesh_ID m_Mesh;
 
-    //TODO(fraser): soon we'll want multiple textures per mesh (for normal/bump/specular maps etc. etc.)
-    Texture_ID m_Texture;
+    Material m_Material;
 };
 
 class Model
@@ -100,30 +103,15 @@ public:
         return m_Transform;
     }
 
-    void SetTexture(Texture_ID texture)
+    void SetMaterial(Material material)
     {
-        m_TexturedMeshes[0].m_Texture = texture;
+        m_TexturedMeshes[0].m_Material = material;
     }
 
     std::vector<TexturedMesh> m_TexturedMeshes;
 
     std::string m_Name = "";
 private:
-    Transform m_Transform;
-};
-
-class Brush
-{
-public:
-    Brush(Mesh_ID mesh)
-        : m_Mesh(mesh)
-    {}
-
-    void SetTexture(Texture_ID texture) { m_Texture = texture; }
-
-private:
-    Mesh_ID m_Mesh;
-    Texture_ID m_Texture;
     Transform m_Transform;
 };
 
@@ -145,21 +133,25 @@ public:
     Texture_ID LoadTexture(std::string filePath, TextureMode minFilter = TextureMode::LINEAR, TextureMode magFilter = TextureMode::LINEAR);
     Mesh_ID LoadMesh(std::string filePath);
 
-    Mesh_ID CreatePlane(float width);
-
     void AttachTextureToFBuffer(Texture_ID textureID, Framebuffer_ID fBufferID);
 
     void SetActiveFrameBuffer(Framebuffer_ID fBufferID);
     void ResizeFrameBuffer(Framebuffer_ID fBufferID, Vec2i size);
     void ResetFrameBuffer();
 
+    Material CreateMaterial(Texture_ID DiffuseTexture, Texture_ID NormalMap);
+    Material CreateMaterial(Texture_ID DiffuseTexture);
+
     Model CreateModel(TexturedMesh texturedMesh);
 
     Model CloneModel(const Model& original);
 
     //TODO(fraser) Going to want something that's not a model for level geometry like this, something that can be edited easily (and which doesn't need use a transform matrix)
-    Model CreateBoxModel(AABB box, Texture_ID texture = 0);
-    Brush CreateBrush(AABB box, Texture_ID texture = 0);
+    Model CreateBoxModel(AABB box);
+    Model CreateBoxModel(AABB box, Material texture);
+
+    Model CreatePlaneModel(Vec2f min, Vec2f max);
+    Model CreatePlaneModel(Vec2f min, Vec2f max, Material material);
 
     void Draw(Model& model);
 
@@ -176,6 +168,8 @@ public:
     void InitializeDebugDraw(Framebuffer_ID fBuffer);
     void DebugDrawLine(Vec3f a, Vec3f b, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
     void DebugDrawLine(LineSegment line, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
+    
+    // Extremely slow, basically never use this
     void DebugDrawModelMesh(Model model, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
     void DebugDrawAABB(AABB box, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f), Mat4x4f transform = Mat4x4f());
     void DebugDrawPoint(Vec3f p, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
@@ -193,6 +187,7 @@ public:
 private:
 
     Mesh_ID CreateBoxMesh(AABB box);
+    Mesh_ID CreatePlaneMesh(Vec2f min, Vec2f max);
 
     bool m_CameraMatrixSetThisFrame;
 
@@ -205,7 +200,10 @@ private:
     Shader_ID m_DebugLineShader;
     Shader_ID m_UIShader;
 
-    Texture_ID m_DebugTexture;
+    Texture_ID m_DefaultNormalMap;
+
+    Material m_DebugMaterial;
+    
     VertexBufferFormat m_TexturedMeshFormat;
 
     //TODO(fraser): this should likely be moved to some sort of "Scene" and cubemaps should have a more generic interface in the graphics module
