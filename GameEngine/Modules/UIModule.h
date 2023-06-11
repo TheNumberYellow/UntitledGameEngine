@@ -131,7 +131,7 @@ public:
     Click ImgButton(Texture_ID texture, Rect rect, float borderWidth);
     Click BufferButton(Framebuffer_ID fBuffer, Rect rect, float borderWidth);
 
-    void Text(std::string text, Vec2f position);
+    void Text(std::string text, Vec2f position, Vec3f colour = Vec3f(0.1f, 0.1f, 0.4f));
 
     void TextEntry(std::string& stringRef, Rect rect);
 

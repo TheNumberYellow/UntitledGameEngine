@@ -5,8 +5,6 @@
 
 #include "Scene.h"
 
-#include "Behaviour/SpinBehaviour.h"
-
 #include <cmath>
 #include <sstream>
 #include <string>
@@ -97,6 +95,9 @@ Model* draggingModel = nullptr;
 
 bool draggingNewTexture = false;
 Material draggingMaterial;
+
+bool draggingNewBehaviour = false;
+std::string draggingBehaviourName;
 
 static Model* selectedModelPtr = nullptr;
 
@@ -391,6 +392,9 @@ void UpdateSelectTool(InputModule& input, CollisionModule& collisions)
     if (draggingNewTexture)
         return;
 
+    if (draggingNewBehaviour)
+        return;
+
     if (input.GetMouseState().IsButtonDown(Mouse::LMB))
     {
         Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
@@ -421,6 +425,9 @@ void UpdateBoxCreate(InputModule& input, CollisionModule& collisions, GraphicsMo
         return;
 
     if (draggingNewTexture)
+        return;
+
+    if (draggingNewBehaviour)
         return;
 
     Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
@@ -549,7 +556,7 @@ void UpdateModelTranslate(InputModule& input, CollisionModule& collisions, Graph
         return;
     }
 
-    if (draggingNewModel || draggingNewTexture)
+    if (draggingNewModel || draggingNewTexture || draggingNewBehaviour)
     {
         slidingX = false;
         slidingY = false;
@@ -674,7 +681,7 @@ void UpdateModelRotate(InputModule& input, CollisionModule& collisions, Graphics
         return;
     }
 
-    if (draggingNewModel || draggingNewTexture)
+    if (draggingNewModel || draggingNewTexture || draggingNewBehaviour)
     {
         rotatingX = false;
         rotatingY = false;
@@ -817,7 +824,7 @@ void UpdateModelScale(InputModule& input, CollisionModule& collisions, GraphicsM
         return;
     }
 
-    if (draggingNewModel || draggingNewTexture)
+    if (draggingNewModel || draggingNewTexture || draggingNewBehaviour)
     {
         scalingX = false;
         scalingY = false;
@@ -944,6 +951,29 @@ void UpdateTexturePlace(InputModule& input, CollisionModule& collisions, Graphic
 
 }
 
+void UpdateBehaviourPlace(InputModule& input, CollisionModule& collisions)
+{
+    if (draggingNewBehaviour)
+    {
+        if (!input.GetMouseState().IsButtonDown(Mouse::LMB))
+        {
+            draggingNewBehaviour = false;
+            
+            Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
+            Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
+
+            SceneRayCastHit finalHit = scene.RayCast(mouseRay, collisions);
+
+            if (finalHit.rayCastHit.hit)
+            {
+                Transform* HitTransform = &finalHit.hitModel->GetTransform();
+
+                BehaviourRegistry::Get()->AttachNewBehaviour(draggingBehaviourName, HitTransform);
+            }
+        }
+    }
+}
+
 void UpdateEditor(ModuleManager& modules)
 {
     GraphicsModule& graphics = *modules.GetGraphics();
@@ -970,6 +1000,7 @@ void UpdateEditor(ModuleManager& modules)
         UpdateModelRotate(input, collisions, graphics);
         UpdateModelScale(input, collisions, graphics);
         UpdateTexturePlace(input, collisions, graphics);
+        UpdateBehaviourPlace(input, collisions);
     }
 
     if (input.IsKeyDown(Key::Alt))
@@ -1123,15 +1154,19 @@ void UpdateEditor(ModuleManager& modules)
     {
         if (ui.TextButton(Behaviour.first, Rect(Vec2f(i * 80, 0.0f), Vec2f(80, 80)), 2.0f).clicking)
         {
+            if (!draggingNewBehaviour)
+            {
+                draggingNewBehaviour = true;
 
+                selectedModelPtr = nullptr;
+
+                draggingBehaviourName = Behaviour.first;
+            }
         }
-
-        i++;
-                
+        i++;                
     }
 
     ui.EndTab();
-
 
     ui.EndFrame();
 
@@ -1173,6 +1208,16 @@ void UpdateEditor(ModuleManager& modules)
     }
 
     ui.EndFrame();
+
+    if (draggingNewTexture)
+    {
+        ui.ImgPanel(draggingMaterial.m_DiffuseTexture, Rect(Engine::GetMousePosition(), Vec2f(80.0f, 80.0f)));
+    }
+
+    if (draggingNewBehaviour)
+    {
+        ui.Text(draggingBehaviourName, Engine::GetMousePosition(), Vec3f(1.0f, 1.0f, 1.0f));
+    }
 
     if (ui.ImgButton(cursorToolTexture, Rect(Vec2f(0.0f, 40.0f), Vec2f(100.0f, 100.0f)), 20.0f))
     {
@@ -1354,8 +1399,12 @@ void UpdateGame(ModuleManager& modules)
 
     if (cursorLocked)
     {
-        MoveCamera(input, graphics, cam, 0.001f);
+        //MoveCamera(input, graphics, cam, 0.001f);
     }
+
+    // Update behaviours
+
+    BehaviourRegistry::Get()->UpdateAllBehaviours(modules, &scene, 0.0f);
 
     // Update player
 
@@ -1405,7 +1454,7 @@ void UpdateGame(ModuleManager& modules)
     player.velocity.x = inputDir.x;
     player.velocity.y = inputDir.y;
 
-    player.velocity.z += -0.005f;
+    //player.velocity.z += -0.005f;
     //player.velocity += Vec3f(0.0f, 0.0f, -0.01f);
 
     //player.velocity = inputDir;
@@ -1451,7 +1500,7 @@ void UpdateGame(ModuleManager& modules)
         graphics.DebugDrawPoint(movement.rayCastHit.hitPoint); 
     }
 
-    player.cam->SetPosition(player.position + Vec3f(0.0f, 0.0f, 2.5f));
+    //player.cam->SetPosition(player.position + Vec3f(0.0f, 0.0f, 2.5f));
 
     // Drop models
 
@@ -1459,15 +1508,15 @@ void UpdateGame(ModuleManager& modules)
 
     static Vec3f modelSpeed = Vec3f(0.0f, 0.0f, 0.0f);
 
-    if (input.GetMouseState().IsButtonDown(Mouse::LMB))
-    {
-        SceneRayCastHit modelHit = scene.RayCast(Ray(cam.GetPosition() , cam.GetDirection()), collisions);
-        if (modelHit.rayCastHit.hit)
-        {
-            droppingModel = modelHit.hitModel;
-            modelSpeed = Vec3f(0.0f, 0.0f, 0.0f);
-        }
-    }
+    //if (input.GetMouseState().IsButtonDown(Mouse::LMB))
+    //{
+    //    SceneRayCastHit modelHit = scene.RayCast(Ray(cam.GetPosition(), cam.GetDirection()), collisions);
+    //    if (modelHit.rayCastHit.hit)
+    //    {
+    //        droppingModel = modelHit.hitModel;
+    //        modelSpeed = Vec3f(0.0f, 0.0f, 0.0f);
+    //    }
+    //}
     if (droppingModel)
     {
         modelSpeed.z += -0.005f;
@@ -1481,6 +1530,7 @@ void UpdateGame(ModuleManager& modules)
 
     }
     graphics.ResetFrameBuffer();
+
 
 
     Rect screenRect;
@@ -1628,15 +1678,6 @@ void Initialize(ModuleManager& modules)
     
     auto Behaviours = BehaviourRegistry::Get()->GetBehaviours();
 
-    Engine::DEBUGPrint(std::to_string(SpinBehaviour::SpinBehaviour_Prototype->randomFloat));
-
-    for (auto Behaviour : Behaviours)
-    {
-        std::string debugString = std::to_string(Behaviour.second->randomFloat);
-        Engine::DEBUGPrint(debugString);
-    }
-
-    //auto BehaviourMap = BehaviourRegistry::Get()->GetBehaviours();
 }
 
 void Update(ModuleManager& modules)

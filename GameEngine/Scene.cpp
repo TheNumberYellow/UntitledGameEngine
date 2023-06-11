@@ -79,14 +79,14 @@ void Scene::AddCamera(Camera* camera)
 
 }
 
-Camera& Scene::GetCamera()
+Camera* Scene::GetCamera()
 {
     if (!m_Cameras[0])
     {
         m_Cameras[0] = new Camera();
     }
 
-    return *m_Cameras[0];
+    return m_Cameras[0];
 }
 
 void Scene::SetCamera(Camera* camera)

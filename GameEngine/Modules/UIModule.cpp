@@ -199,10 +199,10 @@ Click UIModule::BufferButton(Framebuffer_ID fBuffer, Rect rect, float borderWidt
     return Button(fBuffer, rect, borderWidth, true, true, false);
 }
 
-void UIModule::Text(std::string text, Vec2f position)
+void UIModule::Text(std::string text, Vec2f position, Vec3f colour)
 {
     position += GetFrame().location;
-    m_Text.DrawText(text, &m_FrameFont, position, Vec3f(0.1f, 0.1f, 0.4f));
+    m_Text.DrawText(text, &m_FrameFont, position, colour);
 }
 
 void UIModule::TextEntry(std::string& stringRef, Rect rect)

@@ -1,6 +1,8 @@
 #pragma once
 #include "Behaviour/Behaviour.h"
 
+#include "Math/Math.h"
+
 class Wobble :
     public Behaviour
 {
@@ -9,6 +11,10 @@ public:
 
     Wobble();
 
-    virtual void Update(float DeltaTime);
+    virtual void Update(ModuleManager& Modules, Scene* Scene, float DeltaTime);
+
+private:
+
+    bool WobblingLeft = true;
 };
 

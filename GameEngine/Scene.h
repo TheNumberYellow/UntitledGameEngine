@@ -30,7 +30,7 @@ public:
 
     void AddCamera(Camera* camera);
 
-    Camera& GetCamera();
+    Camera* GetCamera();
     void SetCamera(Camera* camera);
 
     void Update();

@@ -93,9 +93,6 @@
     <ClCompile Include="Behaviour\Behaviour.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Behaviour\SpinBehaviour.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Platform\EnginePlatform.h">
@@ -189,9 +186,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Behaviour\Behaviour.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Behaviour\SpinBehaviour.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

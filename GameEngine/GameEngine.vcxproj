@@ -375,7 +375,6 @@
     </ClCompile>
     <ClCompile Include="Platform\win32VulkanRenderer.cpp" />
     <ClCompile Include="Scene.cpp" />
-    <ClCompile Include="Behaviour\SpinBehaviour.cpp" />
     <ClCompile Include="StringUtils.cpp" />
     <ClCompile Include="Platform\win32Engine.cpp" />
     <ClCompile Include="Modules\TextModule.cpp" />
@@ -408,7 +407,6 @@
     <ClInclude Include="Platform\NetworkPlatform.h" />
     <ClInclude Include="Platform\RendererPlatform.h" />
     <ClInclude Include="Scene.h" />
-    <ClInclude Include="Behaviour\SpinBehaviour.h" />
     <ClInclude Include="StringUtils.h" />
     <ClInclude Include="Modules\TextModule.h" />
     <ClInclude Include="Utils\FilePath.h" />

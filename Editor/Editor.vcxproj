@@ -285,15 +285,19 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Behaviours\Spin.cpp" />
     <ClCompile Include="EditorScene.cpp" />
     <ClCompile Include="EditorState.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Behaviours\Wobble.cpp" />
+    <ClCompile Include="Behaviours\RCCar.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Behaviours\Spin.h" />
     <ClInclude Include="EditorScene.h" />
     <ClInclude Include="EditorState.h" />
     <ClInclude Include="Behaviours\Wobble.h" />
+    <ClInclude Include="Behaviours\RCCar.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
