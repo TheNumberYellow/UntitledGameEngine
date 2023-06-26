@@ -134,16 +134,16 @@ bool Engine::IsWindowFocused()
 bool Engine::FileOpenDialog(std::string& OutFileString)
 {
     OPENFILENAME ofn;
-    LPWSTR szFileName[MAX_PATH] = {};
+    wchar_t szFileName[MAX_PATH];
 
     ZeroMemory(&ofn, sizeof(ofn));
 
     ofn.lStructSize = sizeof(ofn);
     ofn.hwndOwner = WindowHandle;
     ofn.lpstrFilter = L"Level Files (*.lvl)\0*.lvl\0All Files (*.*)\0*.*\0";
-    ofn.lpstrFile = *szFileName;
+    ofn.lpstrFile = szFileName;
     ofn.nMaxFile = MAX_PATH;
-    ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
+    ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY | OFN_NOCHANGEDIR;
     ofn.lpstrDefExt = L"lvl";
 
     ofn.lpstrTitle = L"Open Level";
@@ -151,7 +151,7 @@ bool Engine::FileOpenDialog(std::string& OutFileString)
     if (GetOpenFileName(&ofn))
     {
         // Do something useful with the filename stored in szFileName
-        OutFileString = CW2A(*szFileName);
+        OutFileString = CW2A(szFileName);
         return true;
     }
     return false;
@@ -160,16 +160,17 @@ bool Engine::FileOpenDialog(std::string& OutFileString)
 bool Engine::FileSaveDialog(std::string& OutFileString)
 {
     OPENFILENAME ofn;
-    LPWSTR szFileName[MAX_PATH] = {};
+    wchar_t szFileName[MAX_PATH];
 
     ZeroMemory(&ofn, sizeof(ofn));
 
     ofn.lStructSize = sizeof(ofn);
     ofn.hwndOwner = WindowHandle;
     ofn.lpstrFilter = L"Level Files (*.lvl)\0*.lvl\0All Files (*.*)\0*.*\0";
-    ofn.lpstrFile = *szFileName;
+    ofn.lpstrFile = szFileName;
+    ofn.lpstrFile[0] = '\0';
     ofn.nMaxFile = MAX_PATH;
-    ofn.Flags = OFN_EXPLORER | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT;
+    ofn.Flags = OFN_EXPLORER | OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
     ofn.lpstrDefExt = L"lvl";
 
     ofn.lpstrTitle = L"Save Level";
@@ -177,7 +178,7 @@ bool Engine::FileSaveDialog(std::string& OutFileString)
     if (GetSaveFileName(&ofn))
     {
         // Do something useful with the filename stored in szFileName 
-        OutFileString = CW2A(*szFileName);
+        OutFileString = CW2A(szFileName);
         return true;
     }
     return false;
@@ -303,11 +304,21 @@ LRESULT CALLBACK WindowProc(_In_ HWND WindowHandle, _In_ UINT Message, _In_ WPAR
         if (modules->AreAllModulesInitialized())
         {
             InputModule* input = modules->GetInput();
-
             input->InputCharacter((char)wParam);
         }
         break;
 
+    case WM_MOUSEWHEEL:
+    {
+        InputModule* input = modules->GetInput();
+
+        int zDelta = GET_WHEEL_DELTA_WPARAM(wParam);
+
+        zDelta /= WHEEL_DELTA;
+
+        input->UpdateMouseWheel(zDelta);
+        break;
+    }
     case WM_SYSCOMMAND:
         // Catch the behaviour of pressing the ALT button and discard it
         if (wParam == SC_KEYMENU && (lParam >> 16) <= 0) return 0;
@@ -375,7 +386,7 @@ int WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ L
     CollisionModule Collisions(renderer);
     TextModule Text(renderer);
     InputModule Input;
-    UIModule UI(renderer, Text, Input);
+    UIModule UI(Graphics, Text, Input, renderer);
     NetworkModule Network(networkInterface);
 
     Modules.SetGraphics(&Graphics);

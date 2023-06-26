@@ -20,7 +20,7 @@ enum class ParseState
 class FileLoader
 {
 public:
-    static Mesh_ID LoadOBJFile(std::string filePath, Renderer& renderer);
+    static StaticMesh_ID LoadOBJFile(std::string filePath, Renderer& renderer);
     //static Scene LoadScene(std::string sceneFilePath, Renderer* renderer);
 
 private:

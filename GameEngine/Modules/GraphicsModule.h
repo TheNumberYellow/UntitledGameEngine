@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Asset/AssetRegistry.h"
 #include "Camera.h"
 #include "Interfaces\Resizeable_i.h"
 #include "Math\Geometry.h"
@@ -10,18 +11,50 @@
 
 class GraphicsModule;
 
+class Texture : public Asset
+{
+public:
+    Texture_ID Id;
+
+    friend bool operator<(const Texture& lhs, const Texture& rhs)
+    {
+        return lhs.Id < rhs.Id;
+    }
+
+    friend bool operator==(const Texture& lhs, const Texture& rhs)
+    {
+        return lhs.Id == rhs.Id;
+    }
+};
+
+class StaticMesh : public Asset
+{
+public:
+    StaticMesh_ID Id;
+
+    friend bool operator<(const StaticMesh& lhs, const StaticMesh& rhs)
+    {
+        return lhs.Id < rhs.Id;
+    }
+    
+    friend bool operator==(const StaticMesh& lhs, const StaticMesh& rhs)
+    {
+        return lhs.Id == rhs.Id;
+    }
+};
+
 struct Material
 {
     Material() {}
-    Material(Texture_ID DiffuseTexture, Texture_ID NormalMap);
+    Material(Texture DiffuseTexture, Texture NormalMap);
 
-    Texture_ID m_DiffuseTexture;
-    Texture_ID m_NormalMap;
+    Texture m_DiffuseTexture;
+    Texture m_NormalMap;
 };
 
 struct RenderCommand
 {
-    Mesh_ID mesh;
+    StaticMesh_ID mesh;
     bool depthTest;
     uint32_t order;
 };
@@ -76,12 +109,12 @@ struct TexturedMesh
 {
     TexturedMesh() {}
 
-    TexturedMesh(Mesh_ID mesh, Material material)
+    TexturedMesh(StaticMesh mesh, Material material)
         : m_Mesh(mesh)
         , m_Material(material)
     {}
 
-    Mesh_ID m_Mesh;
+    StaticMesh m_Mesh;
 
     Material m_Material;
 };
@@ -128,19 +161,20 @@ public:
     GraphicsModule(Renderer& renderer);
     ~GraphicsModule();
 
+    Shader_ID CreateShader(std::string vertShaderSource, std::string fragShaderSource);
     Framebuffer_ID CreateFBuffer(Vec2i size, FBufferFormat format = FBufferFormat::COLOUR);
-    Texture_ID CreateTexture(Vec2i size);
-    Texture_ID LoadTexture(std::string filePath, TextureMode minFilter = TextureMode::LINEAR, TextureMode magFilter = TextureMode::LINEAR);
-    Mesh_ID LoadMesh(std::string filePath);
+    Texture CreateTexture(Vec2i size);
+    Texture LoadTexture(std::string filePath, TextureMode minFilter = TextureMode::LINEAR, TextureMode magFilter = TextureMode::LINEAR);
+    StaticMesh LoadMesh(std::string filePath);
 
-    void AttachTextureToFBuffer(Texture_ID textureID, Framebuffer_ID fBufferID);
+    void AttachTextureToFBuffer(Texture texture, Framebuffer_ID fBufferID);
 
     void SetActiveFrameBuffer(Framebuffer_ID fBufferID);
     void ResizeFrameBuffer(Framebuffer_ID fBufferID, Vec2i size);
     void ResetFrameBuffer();
 
-    Material CreateMaterial(Texture_ID DiffuseTexture, Texture_ID NormalMap);
-    Material CreateMaterial(Texture_ID DiffuseTexture);
+    Material CreateMaterial(Texture DiffuseTexture, Texture NormalMap);
+    Material CreateMaterial(Texture DiffuseTexture);
 
     Model CreateModel(TexturedMesh texturedMesh);
 
@@ -186,8 +220,8 @@ public:
     Camera* m_Camera;
 private:
 
-    Mesh_ID CreateBoxMesh(AABB box);
-    Mesh_ID CreatePlaneMesh(Vec2f min, Vec2f max);
+    StaticMesh_ID CreateBoxMesh(AABB box);
+    StaticMesh_ID CreatePlaneMesh(Vec2f min, Vec2f max);
 
     bool m_CameraMatrixSetThisFrame;
 
@@ -200,15 +234,15 @@ private:
     Shader_ID m_DebugLineShader;
     Shader_ID m_UIShader;
 
-    Texture_ID m_DefaultNormalMap;
+    Texture m_DefaultNormalMap;
 
     Material m_DebugMaterial;
     
     VertexBufferFormat m_TexturedMeshFormat;
 
-    //TODO(fraser): this should likely be moved to some sort of "Scene" and cubemaps should have a more generic interface in the graphics module
+    //TODO(Fraser): this should likely be moved to some sort of "Scene" and cubemaps should have a more generic interface in the graphics module
     Cubemap_ID m_SkyboxCubemap;
-    Mesh_ID m_SkyboxMesh;
+    StaticMesh_ID m_SkyboxMesh;
     
     bool m_IsSkyboxSet;
 
@@ -224,7 +258,7 @@ private:
 
     std::unordered_map<Vec3f, std::vector<float>, Vec3fHash> m_DebugLineMap;
     VertexBufferFormat m_DebugVertFormat;
-    Mesh_ID m_DebugDrawMesh;
+    StaticMesh_ID m_DebugDrawMesh;
 
     // todo(Fraser): move this to some GUI module?
     Mat4x4f m_OrthoProjection;

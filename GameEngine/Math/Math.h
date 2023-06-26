@@ -71,6 +71,8 @@ public:
     static Mat4x4f GenerateProjectionMatrix(float verticalFOV, float aspectRatio, float nearClippingPlane, float farClippingPlane);
     static Mat4x4f GenerateOrthoMatrix(float left, float right, float bottom, float top, float nearClippingPlane, float farClippingPlane);
 
+    static void DecomposeMatrix(Mat4x4f matrix, Vec3f& OutTranslation, Quaternion& OutRotation, Vec3f& OutScale);
+
     static std::pair<Vec3f, Vec3f> ClosestPointsOnLines(Line a, Line b);
 
 };

@@ -5,7 +5,7 @@
 #include <random>
 #include "Scene.h"
 
-Material::Material(Texture_ID DiffuseTexture, Texture_ID NormalMap)
+Material::Material(Texture DiffuseTexture, Texture NormalMap)
     : m_DiffuseTexture(DiffuseTexture), m_NormalMap(NormalMap)
 {
 }
@@ -63,6 +63,11 @@ Mat4x4f Transform::GetTransformMatrix()
 void Transform::SetTransformMatrix(Mat4x4f mat)
 {
     m_Transform = mat;
+
+    Math::DecomposeMatrix(m_Transform, m_Position, m_Rotation, m_Scale);
+
+    m_WasTransformMatrixUpdated = true;
+    m_TransformMatrixNeedsUpdate = false;
 }
 
 bool Transform::WasTransformMatrixUpdated()
@@ -400,7 +405,7 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
         vec4 textureAt = texture(Texture, FragUV);
         OutColour = textureAt;
     	
-        // TEMP (fraser): Super basic crosshair 
+        // TEMP (Fraser): Super basic crosshair 
   //      if (gl_FragCoord.x > (WindowSize.x / 2.0) - 4.0 && gl_FragCoord.x < (WindowSize.x / 2.0) + 4.0 && 
 		//	gl_FragCoord.y > (WindowSize.y / 2.0) - 4.0 && gl_FragCoord.y < (WindowSize.y / 2.0) + 4.0)
 		//{
@@ -421,9 +426,9 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
     m_OrthoProjection = Math::GenerateOrthoMatrix(0.0f, sizeX, 0.0f, sizeY, 0.1f, 100.0f);
     m_Renderer.SetShaderUniformMat4x4f(m_UIShader, "Projection", m_OrthoProjection);
 
-    m_DefaultNormalMap = m_Renderer.LoadTexture("textures/blue.png", TextureMode::NEAREST, TextureMode::NEAREST);
-    m_DebugMaterial = CreateMaterial(   m_Renderer.LoadTexture("textures/debugTexture.png", TextureMode::LINEAR, TextureMode::LINEAR),
-                                        m_Renderer.LoadTexture("textures/marble_norm.png"));
+    m_DefaultNormalMap = LoadTexture("textures/blue.png", TextureMode::NEAREST, TextureMode::NEAREST);
+    m_DebugMaterial = CreateMaterial(   LoadTexture("textures/debugTexture.png", TextureMode::LINEAR, TextureMode::LINEAR),
+                                        LoadTexture("textures/marble_norm.png"));
 
     m_Renderer.SetShaderUniformVec2f(m_UIShader, "WindowSize", (Vec2f)Engine::GetClientAreaSize());
 
@@ -482,30 +487,55 @@ GraphicsModule::~GraphicsModule()
 {
 }
 
+Shader_ID GraphicsModule::CreateShader(std::string vertShaderSource, std::string fragShaderSource)
+{
+    return m_Renderer.LoadShader(vertShaderSource, fragShaderSource);
+}
+
 Framebuffer_ID GraphicsModule::CreateFBuffer(Vec2i size, FBufferFormat format)
 {
     return m_Renderer.CreateFrameBuffer(size, format);
 }
 
-Texture_ID GraphicsModule::CreateTexture(Vec2i size)
+Texture GraphicsModule::CreateTexture(Vec2i size)
 {
-    return m_Renderer.CreateEmptyTexture(size);
+    Texture_ID Id = m_Renderer.CreateEmptyTexture(size);
+    
+    Texture Result;
+    Result.Id = Id;
+    Result.LoadedFromFile = false;
+
+    return Result;
 }
 
-Texture_ID GraphicsModule::LoadTexture(std::string filePath, TextureMode minFilter, TextureMode magFilter)
+Texture GraphicsModule::LoadTexture(std::string filePath, TextureMode minFilter, TextureMode magFilter)
 {
-    return m_Renderer.LoadTexture(filePath, minFilter, magFilter);
+    Texture_ID Id = m_Renderer.LoadTexture(filePath, minFilter, magFilter);
+    
+    Texture Result;
+    Result.Id = Id;
+    Result.LoadedFromFile = true;
+    Result.Path = filePath;
+
+    return Result;
 }
 
-Mesh_ID GraphicsModule::LoadMesh(std::string filePath)
+StaticMesh GraphicsModule::LoadMesh(std::string filePath)
 {
     // todo(Fraser): Switch here on different file types? (If I ever want something that's not .obj)
-    return FileLoader::LoadOBJFile(filePath, m_Renderer);
+    StaticMesh_ID Id = FileLoader::LoadOBJFile(filePath, m_Renderer);
+
+    StaticMesh Result;
+    Result.Id = Id;
+    Result.LoadedFromFile = true;
+    Result.Path = filePath;
+
+    return Result;
 }
 
-void GraphicsModule::AttachTextureToFBuffer(Texture_ID textureID, Framebuffer_ID fBufferID)
+void GraphicsModule::AttachTextureToFBuffer(Texture texture, Framebuffer_ID fBufferID)
 { 
-    m_Renderer.AttachTextureToFramebuffer(textureID, fBufferID);
+    m_Renderer.AttachTextureToFramebuffer(texture.Id, fBufferID);
 }
 
 void GraphicsModule::SetActiveFrameBuffer(Framebuffer_ID fBufferID)
@@ -560,13 +590,13 @@ void GraphicsModule::ResetFrameBuffer()
     m_Renderer.ResetToScreenBuffer();
 }
 
-Material GraphicsModule::CreateMaterial(Texture_ID DiffuseTexture, Texture_ID NormalMap)
+Material GraphicsModule::CreateMaterial(Texture DiffuseTexture, Texture NormalMap)
 {
     Material Result = Material(DiffuseTexture, NormalMap);
     return Result;
 }
 
-Material GraphicsModule::CreateMaterial(Texture_ID DiffuseTexture)
+Material GraphicsModule::CreateMaterial(Texture DiffuseTexture)
 {
     Material Result = Material(DiffuseTexture, m_DefaultNormalMap);
     return Result;
@@ -663,7 +693,11 @@ Model GraphicsModule::CreateBoxModel(AABB box, Material material)
         20, 22, 21, 20, 23, 22
     };
 
-    Mesh_ID boxMesh = m_Renderer.LoadMesh(m_TexturedMeshFormat, vertices, indices);
+    StaticMesh_ID boxMeshId = m_Renderer.LoadMesh(m_TexturedMeshFormat, vertices, indices);
+
+    StaticMesh boxMesh;
+    boxMesh.Id = boxMeshId;
+    boxMesh.LoadedFromFile = false;
 
     Model result = Model(TexturedMesh(boxMesh, material));
     result.GetTransform().SetPosition(averagePoint);
@@ -678,7 +712,11 @@ Model GraphicsModule::CreatePlaneModel(Vec2f min, Vec2f max)
 
 Model GraphicsModule::CreatePlaneModel(Vec2f min, Vec2f max, Material material)
 {
-    Mesh_ID planeMesh = CreatePlaneMesh(min, max);
+    StaticMesh_ID planeMeshId = CreatePlaneMesh(min, max);
+
+    StaticMesh planeMesh;
+    planeMesh.Id = planeMeshId;
+    planeMesh.LoadedFromFile = false;
 
     return Model(TexturedMesh(planeMesh, material));
 }
@@ -699,9 +737,9 @@ void GraphicsModule::Draw(Model& model)
 
         for (int i = 0; i < model.m_TexturedMeshes.size(); ++i)
         {
-            m_Renderer.SetActiveTexture(model.m_TexturedMeshes[i].m_Material.m_DiffuseTexture, "DiffuseTexture");
+            m_Renderer.SetActiveTexture(model.m_TexturedMeshes[i].m_Material.m_DiffuseTexture.Id, "DiffuseTexture");
             //m_Renderer.SetActiveTexture(model.m_TexturedMeshes[i].m_Material.m_NormalMap, "NormalMap");
-            m_Renderer.DrawMesh(model.m_TexturedMeshes[i].m_Mesh);
+            m_Renderer.DrawMesh(model.m_TexturedMeshes[i].m_Mesh.Id);
         }
 
     }
@@ -719,8 +757,8 @@ void GraphicsModule::Draw(Model& model)
 
         for (int i = 0; i < model.m_TexturedMeshes.size(); ++i)
         {
-            m_Renderer.SetActiveTexture(model.m_TexturedMeshes[i].m_Material.m_DiffuseTexture, "DiffuseTexture");
-            m_Renderer.DrawMesh(model.m_TexturedMeshes[i].m_Mesh);
+            m_Renderer.SetActiveTexture(model.m_TexturedMeshes[i].m_Material.m_DiffuseTexture.Id, "DiffuseTexture");
+            m_Renderer.DrawMesh(model.m_TexturedMeshes[i].m_Mesh.Id);
         }
     }
 }
@@ -798,8 +836,8 @@ void GraphicsModule::DebugDrawModelMesh(Model model, Vec3f colour)
 
     for (int i = 0; i < model.m_TexturedMeshes.size(); ++i)
     {
-        std::vector<Vertex*> vertices = m_Renderer.MapMeshVertices(model.m_TexturedMeshes[i].m_Mesh);
-        std::vector<unsigned int*> indices = m_Renderer.MapMeshElements(model.m_TexturedMeshes[i].m_Mesh);
+        std::vector<Vertex*> vertices = m_Renderer.MapMeshVertices(model.m_TexturedMeshes[i].m_Mesh.Id);
+        std::vector<unsigned int*> indices = m_Renderer.MapMeshElements(model.m_TexturedMeshes[i].m_Mesh.Id);
         for (int j = 0; j < indices.size(); j += 3)
         {
             DebugDrawLine(vertices[*indices[j]]->position * modelTransform, vertices[*indices[(size_t)j + 1]]->position * modelTransform, colour);
@@ -808,8 +846,8 @@ void GraphicsModule::DebugDrawModelMesh(Model model, Vec3f colour)
 
             DebugDrawLine(vertices[*indices[(size_t)j + 2]]->position * modelTransform, vertices[*indices[j]]->position * modelTransform, colour);
         }
-        m_Renderer.UnmapMeshVertices(model.m_TexturedMeshes[i].m_Mesh);
-        m_Renderer.UnmapMeshElements(model.m_TexturedMeshes[i].m_Mesh);
+        m_Renderer.UnmapMeshVertices(model.m_TexturedMeshes[i].m_Mesh.Id);
+        m_Renderer.UnmapMeshElements(model.m_TexturedMeshes[i].m_Mesh.Id);
     }
 }
 
@@ -877,7 +915,7 @@ void GraphicsModule::SetRenderMode(RenderMode mode)
     m_RenderMode = mode;
 }
 
-Mesh_ID GraphicsModule::CreateBoxMesh(AABB box)
+StaticMesh_ID GraphicsModule::CreateBoxMesh(AABB box)
 {
     Vec3f min = box.min;
     Vec3f max = box.max;
@@ -953,12 +991,12 @@ Mesh_ID GraphicsModule::CreateBoxMesh(AABB box)
         20, 22, 21, 20, 23, 22
     };
 
-    Mesh_ID boxMesh = m_Renderer.LoadMesh(m_TexturedMeshFormat, vertices, indices);
+    StaticMesh_ID boxMesh = m_Renderer.LoadMesh(m_TexturedMeshFormat, vertices, indices);
 
     return boxMesh;
 }
 
-Mesh_ID GraphicsModule::CreatePlaneMesh(Vec2f min, Vec2f max)
+StaticMesh_ID GraphicsModule::CreatePlaneMesh(Vec2f min, Vec2f max)
 {
     Vec3f points[] =
     {
@@ -983,7 +1021,7 @@ Mesh_ID GraphicsModule::CreatePlaneMesh(Vec2f min, Vec2f max)
         0, 2, 1, 0, 3, 2,
     };
 
-    Mesh_ID planeMesh = m_Renderer.LoadMesh(m_TexturedMeshFormat, vertices, indices);
+    StaticMesh_ID planeMesh = m_Renderer.LoadMesh(m_TexturedMeshFormat, vertices, indices);
 
     return planeMesh;
 }

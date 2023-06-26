@@ -5,8 +5,7 @@
 #include <fstream>
 #include <stack>
 
-
-Mesh_ID FileLoader::LoadOBJFile(std::string filePath, Renderer& renderer)
+StaticMesh_ID FileLoader::LoadOBJFile(std::string filePath, Renderer& renderer)
 {
     std::ifstream objFile(filePath);
     std::string line;
@@ -89,6 +88,8 @@ Mesh_ID FileLoader::LoadOBJFile(std::string filePath, Renderer& renderer)
         }
 
     }
+    objFile.close();
+
     return renderer.LoadMesh(vertFormat, vertices, indices);
 }
 

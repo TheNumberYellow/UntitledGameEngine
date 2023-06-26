@@ -43,8 +43,8 @@ public:
     CollisionModule(Renderer& renderer);
     ~CollisionModule();
 
-    CollisionMesh& GetCollisionMeshFromMesh(Mesh_ID mesh);
-    CollisionMesh& GenerateCollisionMeshFromMesh(Mesh_ID mesh);
+    CollisionMesh& GetCollisionMeshFromMesh(StaticMesh mesh);
+    CollisionMesh& GenerateCollisionMeshFromMesh(StaticMesh mesh);
 
     RayCastHit RayCast(Ray ray, const CollisionMesh& mesh, Transform& transform);
     RayCastHit RayCast(Ray ray, const CollisionMesh& mesh, const Mat4x4f& meshTransform = Mat4x4f());
@@ -58,5 +58,5 @@ private:
 
     Renderer& m_Renderer;
 
-    std::unordered_map<Mesh_ID, CollisionMesh> m_CollisionMeshMap;
+    std::unordered_map<StaticMesh_ID, CollisionMesh> m_CollisionMeshMap;
 };

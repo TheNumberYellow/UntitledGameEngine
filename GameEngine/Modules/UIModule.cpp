@@ -41,10 +41,11 @@ void Click::Update(Rect bounds)
     }
 }
 
-UIModule::UIModule(Renderer& renderer, TextModule& text, InputModule& input)
-    : m_Renderer(renderer)
+UIModule::UIModule(GraphicsModule& graphics, TextModule& text, InputModule& input, Renderer& renderer)
+    : m_Graphics(graphics)
     , m_Text(text)
     , m_Input(input)
+    , m_Renderer(renderer)
 {
     m_DefaultBorderTexture = m_Renderer.LoadTexture("images/button_border.png");
     m_DefaultFrameTexture = m_Renderer.LoadTexture("images/frame_border.png");
@@ -96,7 +97,7 @@ UIModule::UIModule(Renderer& renderer, TextModule& text, InputModule& input)
     
     )";
 
-    m_UIShader = m_Renderer.LoadShader(vertShaderSource, fragShaderSource);
+    m_UIShader = m_Graphics.CreateShader(vertShaderSource, fragShaderSource);
 
     Resize(m_Renderer.GetViewportSize());
 
@@ -131,7 +132,7 @@ void UIModule::AlignBottom()
     m_TopAligned = false;
 }
 
-void UIModule::ImgPanel(Texture_ID texture, Rect rect)
+void UIModule::ImgPanel(Texture texture, Rect rect)
 {
     if (!ShouldDisplay())
         return;
@@ -146,7 +147,7 @@ void UIModule::ImgPanel(Texture_ID texture, Rect rect)
 
     m_Renderer.UpdateMeshData(m_RectMesh, vertFormat, vertexData.first, vertexData.second);
 
-    m_Renderer.SetActiveTexture(texture, "Texture");
+    m_Renderer.SetActiveTexture(texture.Id, "Texture");
     m_Renderer.SetActiveShader(m_UIShader);
 
     m_Renderer.SetShaderUniformBool(m_UIShader, "Hovering", false);
@@ -189,9 +190,9 @@ Click UIModule::TextButton(std::string text, Rect rect, float borderWidth)
     return Button(0, rect, borderWidth, false, false, true, text);
 }
 
-Click UIModule::ImgButton(Texture_ID texture, Rect rect, float borderWidth)
+Click UIModule::ImgButton(Texture texture, Rect rect, float borderWidth)
 {
-    return Button(texture, rect, borderWidth, true, false, false);
+    return Button(texture.Id, rect, borderWidth, true, false, false);
 }
 
 Click UIModule::BufferButton(Framebuffer_ID fBuffer, Rect rect, float borderWidth)

@@ -52,21 +52,21 @@ RenderMode renderMode = RenderMode::DEFAULT;
 
 Player player;
 
-Texture_ID playButtonTexture;
-Texture_ID cameraButtonTexture;
+Texture playButtonTexture;
+Texture cameraButtonTexture;
 
-Texture_ID cursorToolTexture;
-Texture_ID boxToolTexture;
+Texture cursorToolTexture;
+Texture boxToolTexture;
 
-Texture_ID translateToolTexture;
-Texture_ID rotateToolTexture;
-Texture_ID scaleToolTexture;
+Texture translateToolTexture;
+Texture rotateToolTexture;
+Texture scaleToolTexture;
 
-Texture_ID vertexToolTexture;
+Texture vertexToolTexture;
 
 Material tempWhiteMaterial;
 
-Texture_ID gridTexture;
+Texture gridTexture;
 Model gridModel;
 
 Font testFont;
@@ -77,7 +77,7 @@ Camera cam;
 Framebuffer_ID viewportBuffer;
 Framebuffer_ID widgetViewportBuffer;
 
-Mesh_ID quadMesh;
+StaticMesh quadMesh;
 
 bool holdingAlt = false;
 bool cursorLocked = false;
@@ -330,6 +330,10 @@ void MoveCamera(InputModule& inputs, GraphicsModule& graphics, Camera& cam, floa
 
 std::vector<Model> LoadModels(GraphicsModule& graphics)
 {
+    auto CurrentPath = std::filesystem::current_path();
+
+    Engine::DEBUGPrint(CurrentPath.generic_string());
+
     std::vector<Model> loadedModels;
 
     std::string path = "models";
@@ -339,11 +343,11 @@ std::vector<Model> LoadModels(GraphicsModule& graphics)
         std::filesystem::path ext = entry.path().extension();
         if (ext.string() == ".obj")
         {
-            std::string fileName = entry.path().string();
+            std::string fileName = entry.path().generic_string();
 
             Engine::DEBUGPrint(fileName);
 
-            Mesh_ID newMesh = graphics.LoadMesh(fileName);
+            StaticMesh newMesh = graphics.LoadMesh(fileName);
 
             // For now we load all models with a temporary white texture
             Model newModel = graphics.CreateModel(TexturedMesh(newMesh, tempWhiteMaterial));
@@ -368,11 +372,11 @@ std::vector<Material> LoadMaterials(GraphicsModule& graphics)
         std::filesystem::path ext = entry.path().extension();
         if (ext.string() == ".png" || ext.string() == ".jpg")
         {
-            std::string fileName = entry.path().string();
+            std::string fileName = entry.path().generic_string();
 
             Engine::DEBUGPrint(fileName);
 
-            Texture_ID newTexture = graphics.LoadTexture(fileName);
+            Texture newTexture = graphics.LoadTexture(fileName);
 
             loadedMaterials.push_back(graphics.CreateMaterial(newTexture));
         }
@@ -416,7 +420,7 @@ void UpdateBoxCreate(InputModule& input, CollisionModule& collisions, GraphicsMo
     static float boxHeight = 2.0f;
     static AABB aabbBox;
 
-    static const float snap = 2.0f;
+    static const float snap = 1.0f;
 
     if (toolMode != ToolMode::GEOMETRY)
         return;
@@ -463,6 +467,16 @@ void UpdateBoxCreate(InputModule& input, CollisionModule& collisions, GraphicsMo
         else
         {
             RayCastHit hit = collisions.RayCast(mouseRay, Plane{ boxStartPoint, Vec3f(0.0f, 0.0f, 1.0f) });
+            
+            int DeltaMouseWheel = input.GetMouseState().GetDeltaMouseWheel();
+            if (DeltaMouseWheel > 0)
+            {
+                boxHeight += snap;
+            }
+            else if (DeltaMouseWheel < 0)
+            {
+                boxHeight -= snap;
+            }
 
             Vec3f originalHitPoint = hit.hitPoint;
 
@@ -478,6 +492,7 @@ void UpdateBoxCreate(InputModule& input, CollisionModule& collisions, GraphicsMo
 
             aabbBox.min = Vec3f(minX, minY, hit.hitPoint.z);
             aabbBox.max = Vec3f(maxX, maxY, hit.hitPoint.z + boxHeight);
+
 
             graphics.DebugDrawAABB(aabbBox, Vec3f(0.1f, 1.0f, 0.3f));
             graphics.DebugDrawLine(originalHitPoint, hit.hitPoint, Vec3f(1.0f, 0.5f, 0.5f));
@@ -966,9 +981,8 @@ void UpdateBehaviourPlace(InputModule& input, CollisionModule& collisions)
 
             if (finalHit.rayCastHit.hit)
             {
-                Transform* HitTransform = &finalHit.hitModel->GetTransform();
 
-                BehaviourRegistry::Get()->AttachNewBehaviour(draggingBehaviourName, HitTransform);
+                BehaviourRegistry::Get()->AttachNewBehaviour(draggingBehaviourName, finalHit.hitModel);
             }
         }
     }
@@ -1089,6 +1103,7 @@ void UpdateEditor(ModuleManager& modules)
             if (Engine::FileOpenDialog(FileName))
             {
                 Engine::DEBUGPrint(FileName);
+                scene.Load(FileName);
             }
         }
         if (ui.TextButton("Save", Rect(Vec2f(120.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f))
@@ -1097,6 +1112,7 @@ void UpdateEditor(ModuleManager& modules)
             if (Engine::FileSaveDialog(FileName))
             {
                 Engine::DEBUGPrint(FileName);
+                scene.Save(FileName);
             }
         }
 
@@ -1555,11 +1571,11 @@ void Initialize(ModuleManager& modules)
     TextModule& text = *modules.GetText();
     InputModule& input = *modules.GetInput();
 
-    Texture_ID redTexture = graphics.LoadTexture("textures/red.png");
-    Texture_ID greenTexture = graphics.LoadTexture("textures/green.png");
-    Texture_ID blueTexture = graphics.LoadTexture("textures/blue.png");
+    Texture redTexture = graphics.LoadTexture("textures/red.png");
+    Texture greenTexture = graphics.LoadTexture("textures/green.png");
+    Texture blueTexture = graphics.LoadTexture("textures/blue.png");
 
-    scene.Init(graphics);
+    scene.Init(graphics, collisions);
     
 
     Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
@@ -1647,7 +1663,9 @@ void Initialize(ModuleManager& modules)
         0, 1, 2, 0, 2, 3
     };
 
-    quadMesh = graphics.m_Renderer.LoadMesh(VertexBufferFormat({ VertAttribute::Vec2f, VertAttribute::Vec2f }), quadVertices, quadIndices);
+    StaticMesh_ID quadMeshId = graphics.m_Renderer.LoadMesh(VertexBufferFormat({ VertAttribute::Vec2f, VertAttribute::Vec2f }), quadVertices, quadIndices);
+    quadMesh.Id = quadMeshId;
+    quadMesh.LoadedFromFile = false;
 
     graphics.InitializeDebugDraw(viewportBuffer);
 

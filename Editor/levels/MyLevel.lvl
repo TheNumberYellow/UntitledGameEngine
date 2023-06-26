@@ -1,0 +1,12 @@
+Textures:
+textures/220-comp-1024x685.jpg
+textures/a75fddfe-0138-1024x1024.jpg
+textures/Camera.png
+StaticMeshes:
+C:\Users\Fraser\Source\Repos\GameEngine\Editor\models\Fire.obj
+models/ScaleWidget.obj
+models/ToyCar.obj
+Entities:
+0 0 1 0 0 0 0 1 0 0 0 0 1 0 -9.70605 -1.75648 2.71199 1 
+2 1 1 0 0 0 0 1 0 0 0 0 1 0 5.44675 0.830996 -0.0288 1 
+1 2 1 0 0 0 0 1 0 0 0 0 1 0 -4.63913 1.43978 0.223399 1 

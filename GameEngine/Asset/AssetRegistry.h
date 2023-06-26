@@ -7,6 +7,7 @@ class Asset
 {
 public:
     FilePath Path;
+    bool LoadedFromFile;
 };
 
 

@@ -11,21 +11,23 @@ CollisionModule::~CollisionModule()
 
 }
 
-CollisionMesh& CollisionModule::GetCollisionMeshFromMesh(Mesh_ID mesh)
+CollisionMesh& CollisionModule::GetCollisionMeshFromMesh(StaticMesh mesh)
 {
-    if (m_CollisionMeshMap.find(mesh) == m_CollisionMeshMap.end())
+    StaticMesh_ID Id = mesh.Id;
+
+    if (m_CollisionMeshMap.find(Id) == m_CollisionMeshMap.end())
     {
         GenerateCollisionMeshFromMesh(mesh);
     }
-    return m_CollisionMeshMap[mesh];
+    return m_CollisionMeshMap[Id];
 }
 
-CollisionMesh& CollisionModule::GenerateCollisionMeshFromMesh(Mesh_ID mesh)
+CollisionMesh& CollisionModule::GenerateCollisionMeshFromMesh(StaticMesh mesh)
 {
     CollisionMesh collMesh;
 
-    std::vector<Vertex*> verts = m_Renderer.MapMeshVertices(mesh);
-    std::vector<ElementIndex*> indices = m_Renderer.MapMeshElements(mesh);
+    std::vector<Vertex*> verts = m_Renderer.MapMeshVertices(mesh.Id);
+    std::vector<ElementIndex*> indices = m_Renderer.MapMeshElements(mesh.Id);
 
     assert(indices.size() > 0
         && verts.size() > 0
@@ -59,12 +61,14 @@ CollisionMesh& CollisionModule::GenerateCollisionMeshFromMesh(Mesh_ID mesh)
 
     collMesh.boundingBox = boundingBox;
 
-    m_Renderer.UnmapMeshVertices(mesh);
-    m_Renderer.UnmapMeshElements(mesh);
+    m_Renderer.UnmapMeshVertices(mesh.Id);
+    m_Renderer.UnmapMeshElements(mesh.Id);
 
-    m_CollisionMeshMap[mesh] = collMesh;
+    StaticMesh_ID Id = mesh.Id;
 
-    return m_CollisionMeshMap[mesh];
+    m_CollisionMeshMap[Id] = collMesh;
+
+    return m_CollisionMeshMap[Id];
 }
 
 RayCastHit CollisionModule::RayCast(Ray ray, const CollisionMesh& mesh, Transform& transform)

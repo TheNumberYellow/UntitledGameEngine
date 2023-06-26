@@ -39,6 +39,11 @@ void InputModule::UpdateMousePos(Vec2i newPos)
 	m_MouseState.UpdateMousePos(newPos, m_MouseLocked, m_MouseCenter);
 }
 
+void InputModule::UpdateMouseWheel(int delta)
+{
+	m_MouseState.UpdateMouseWheel(delta);
+}
+
 void InputModule::SetMouseLocked(bool locked)
 {
 	m_MouseLocked = locked;
@@ -77,6 +82,7 @@ void InputModule::ClearCharacters()
 
 void InputModule::OnFrameEnd()
 {
+	m_MouseState.UpdateMouseWheel(0);
 	ClearCharacters();
 }
 
@@ -107,6 +113,11 @@ void MouseState::UpdateMousePos(Vec2i newPos, bool mouseLocked, Vec2i center)
 	}
 }
 
+void MouseState::UpdateMouseWheel(int delta)
+{
+	m_DeltaMouseWheel = delta;
+}
+
 Vec2i MouseState::GetMousePos() const
 {
 	return m_CurrentPos;
@@ -115,6 +126,11 @@ Vec2i MouseState::GetMousePos() const
 Vec2i MouseState::GetDeltaMousePos() const
 {
 	return m_DeltaMouse;
+}
+
+int MouseState::GetDeltaMouseWheel() const
+{
+	return m_DeltaMouseWheel;
 }
 
 bool MouseState::IsButtonDown(Mouse button) const

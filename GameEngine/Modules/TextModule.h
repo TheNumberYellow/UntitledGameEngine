@@ -60,7 +60,7 @@ struct TextMeshInfo
 {
     std::string m_String;
     Rect m_Bounds;
-    Mesh_ID m_Mesh;
+    StaticMesh_ID m_Mesh;
     Font* m_Font;
 };
 

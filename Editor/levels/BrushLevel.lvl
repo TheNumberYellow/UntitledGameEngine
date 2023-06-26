@@ -1,0 +1,9 @@
+Textures:
+textures/debugTexture.png
+images/white.png
+StaticMeshes:
+models\PlayerSpawn.obj
+
+Entity: T:0 M:1 Trans:1,0,0,0|0,1,0,0|0,0,1,0|-2,-3,1,1| Behaviours: 
+Entity: T:1 M:0 Trans:1,0,0,0|0,1,0,0|0,0,1,0|-4.98509,-3.80205,2,1| Behaviours: 
+Entity: T:1 M:0 Trans:1,0,0,0|0,1,0,0|0,0,1,0|0.72231,-2.73144,2,1| Behaviours: 

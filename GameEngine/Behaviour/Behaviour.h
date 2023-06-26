@@ -2,25 +2,27 @@
 
 #include "GameEngine.h"
 #include "Scene.h"
-
 #include <unordered_map>
 #include <string>
 
 #define DEFINE_BEHAVIOUR(Type) static Behaviour* Type ## _Prototype; \
                                virtual Behaviour* Clone() const { return new Type(*this); }
 #define REGISTER_BEHAVIOUR(Type) Behaviour* Type::Type ## _Prototype = BehaviourRegistry::Get()->AddBehaviourPrototype(#Type, new Type()); \
-                                
+
+class Model;
 
 class Behaviour
 {
 public:
     Behaviour();
-    Behaviour(Transform* transform);
+    Behaviour(Model* transform);
 
     virtual Behaviour* Clone() const = 0;
     virtual void Update(ModuleManager& Modules, Scene* Scene, float DeltaTime) {}
     
-    Transform* m_Transform = nullptr;
+    std::string BehaviourName;
+    Model* m_Model = nullptr;
+
 private:
 
 };
@@ -33,9 +35,13 @@ public:
 
     Behaviour* AddBehaviourPrototype(std::string BehaviourName, Behaviour* NewBehaviour);
 
-    void AttachNewBehaviour(std::string BehaviourName, Transform* Transform);
+    void AttachNewBehaviour(std::string BehaviourName, Model* Model);
 
     void UpdateAllBehaviours(ModuleManager& Modules, Scene* Scene, float DeltaTime);
+
+    std::vector<std::string> GetBehavioursAttachedToEntity(Model* Model);
+
+    void ClearAllAttachedBehaviours();
 
     std::unordered_map<std::string, Behaviour*> GetBehaviours();
 

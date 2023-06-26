@@ -107,9 +107,11 @@ class MouseState
 public:
 	MouseState(Vec2i initPos);
 	void UpdateMousePos(Vec2i newPos, bool mouseLocked, Vec2i center);
+	void UpdateMouseWheel(int delta);
 
 	Vec2i GetMousePos() const;
 	Vec2i GetDeltaMousePos() const;
+	int GetDeltaMouseWheel() const;
 
 	bool IsButtonDown(Mouse button) const;
 	void SetButtonDown(Mouse button, bool pressed);
@@ -117,6 +119,8 @@ public:
 private:
 	bool m_LeftMouseButtonDown = false;
 	bool m_RightMouseButtonDown = false;
+
+	int m_DeltaMouseWheel = 0;
 
 	Vec2i m_PrevPos = Vec2i(0, 0);
 	Vec2i m_CurrentPos = Vec2i(0, 0);
@@ -137,6 +141,7 @@ public:
 
 	MouseState& GetMouseState();
 	void UpdateMousePos(Vec2i newPos);
+	void UpdateMouseWheel(int delta);
 
 	void SetMouseLocked(bool locked);
 	void SetMouseCenter(Vec2i newCenter);

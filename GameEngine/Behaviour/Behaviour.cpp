@@ -6,9 +6,9 @@ Behaviour::Behaviour()
 {
 }
 
-Behaviour::Behaviour(Transform* transform)
+Behaviour::Behaviour(Model* transform)
 {
-    m_Transform = transform;
+    m_Model = transform;
 }
 
 BehaviourRegistry* BehaviourRegistry::Get()
@@ -27,13 +27,14 @@ Behaviour* BehaviourRegistry::AddBehaviourPrototype(std::string BehaviourName, B
     return m_BehaviourPrototypes[BehaviourName];
 }
 
-void BehaviourRegistry::AttachNewBehaviour(std::string BehaviourName, Transform* Transform)
+void BehaviourRegistry::AttachNewBehaviour(std::string BehaviourName, Model* Model)
 {
     auto it = m_BehaviourPrototypes.find(BehaviourName);
     if (it != m_BehaviourPrototypes.end())
     {
         Behaviour* NewBehaviour = it->second->Clone();
-        NewBehaviour->m_Transform = Transform;
+        NewBehaviour->m_Model = Model;
+        NewBehaviour->BehaviourName = BehaviourName;
 
         m_AttachedBehaviours.push_back(NewBehaviour);
     }
@@ -49,6 +50,25 @@ void BehaviourRegistry::UpdateAllBehaviours(ModuleManager& Modules, Scene* Scene
     {
         Behaviour->Update(Modules, Scene, DeltaTime);
     }
+}
+
+std::vector<std::string> BehaviourRegistry::GetBehavioursAttachedToEntity(Model* Model)
+{
+    std::vector<std::string> Result;
+    for (auto Behaviour : m_AttachedBehaviours)
+    {
+        if (Behaviour->m_Model == Model)
+        {
+            Result.push_back(Behaviour->BehaviourName);
+        }
+    }
+
+    return Result;
+}
+
+void BehaviourRegistry::ClearAllAttachedBehaviours()
+{
+    m_AttachedBehaviours.clear();
 }
 
 std::unordered_map<std::string, Behaviour*> BehaviourRegistry::GetBehaviours()

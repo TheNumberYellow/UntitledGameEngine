@@ -4,6 +4,7 @@
 #include "Quaternion.h"
 
 #include <glm/gtx/rotate_vector.hpp>
+#include <glm/gtx/matrix_decompose.hpp>
 
 float Math::dot(Vec3f leftVec, Vec3f rightVec)
 {
@@ -236,6 +237,36 @@ Mat4x4f Math::GenerateOrthoMatrix(float left, float right, float bottom, float t
     return result;
 }
 
+
+void Math::DecomposeMatrix(Mat4x4f matrix, Vec3f& OutTranslation, Quaternion& OutRotation, Vec3f& OutScale)
+{
+    glm::mat4 glmMat;
+    glmMat[0] = glm::vec4(matrix[0].x, matrix[0].y, matrix[0].z, matrix[0].w);
+    glmMat[1] = glm::vec4(matrix[1].x, matrix[1].y, matrix[1].z, matrix[1].w);
+    glmMat[2] = glm::vec4(matrix[2].x, matrix[2].y, matrix[2].z, matrix[2].w);
+    glmMat[3] = glm::vec4(matrix[3].x, matrix[3].y, matrix[3].z, matrix[3].w);
+
+    glm::vec3 glmTranslation;
+    glm::quat glmRotation;
+    glm::vec3 glmScale;
+    glm::vec3 glmSkew;
+    glm::vec4 glmPerspective;
+
+    glm::decompose(glmMat, glmScale, glmRotation, glmTranslation, glmSkew, glmPerspective);
+
+    OutTranslation.x = glmTranslation.x;
+    OutTranslation.y = glmTranslation.y;
+    OutTranslation.z = glmTranslation.z;
+
+    OutRotation.x = glmRotation.x;
+    OutRotation.y = glmRotation.y;
+    OutRotation.z = glmRotation.z;
+    OutRotation.w = glmRotation.w;
+
+    OutScale.x = glmScale.x;
+    OutScale.y = glmScale.y;
+    OutScale.z = glmScale.z;
+}
 
 std::pair<Vec3f, Vec3f> Math::ClosestPointsOnLines(Line a, Line b)
 {

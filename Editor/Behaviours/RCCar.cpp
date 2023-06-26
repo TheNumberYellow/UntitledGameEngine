@@ -10,12 +10,12 @@ void RCCar::Update(ModuleManager& Modules, Scene* Scene, float DeltaTime)
     if (Input->GetKeyState(Key::Left))
     {
         AimingDirection = Math::rotate(AimingDirection, 0.02f, Vec3f(0.0f, 0.0f, 1.0f));
-        m_Transform->Rotate(Quaternion(Vec3f(0.0f, 0.0f, 1.0f), 0.02f));
+        //m_Model->GetTransform().Rotate(Quaternion(Vec3f(0.0f, 0.0f, 1.0f), 0.02f));
     }
     if (Input->GetKeyState(Key::Right))
     {
         AimingDirection = Math::rotate(AimingDirection, -0.02f, Vec3f(0.0f, 0.0f, 1.0f));
-        m_Transform->Rotate(Quaternion(Vec3f(0.0f, 0.0f, 1.0f), -0.02f));
+        //m_Model->GetTransform().Rotate(Quaternion(Vec3f(0.0f, 0.0f, 1.0f), -0.02f));
     }
 
     AimingDirection = Math::normalize(AimingDirection);
@@ -43,14 +43,41 @@ void RCCar::Update(ModuleManager& Modules, Scene* Scene, float DeltaTime)
     //}
     //else
     //{
-    m_Transform->Move(Displacement);
+    m_Model->GetTransform().Move(Displacement);
     //}
+
+    std::vector<Model*> IgnoredModels;
+    IgnoredModels.push_back(m_Model);
+
+    SceneRayCastHit Hit = Scene->RayCast(Ray(m_Model->GetTransform().GetPosition() + Vec3f(0.0f, 0.0f, 1.0f), Vec3f(0.0f, 0.0f, -1.0f)), *Collisions, IgnoredModels);
+
+    if (Hit.rayCastHit.hit)
+    {
+        Vec3f newPos = Hit.rayCastHit.hitPoint;
+        m_Model->GetTransform().SetPosition(newPos);
+        
+        Quaternion q = Math::VecDiffToQuat(Hit.rayCastHit.hitNormal, Vec3f(0.0f, 0.0f, 1.0f));
+
+        Quaternion r = Math::VecDiffToQuat(AimingDirection, Vec3f(1.0f, 0.0f, 0.0f));
+
+        m_Model->GetTransform().SetRotation(q * r);
+
+        std::string ModelName = Hit.hitModel->m_Name;
+
+        Engine::DEBUGPrint(ModelName);
+    }
+    else
+    {
+        Quaternion r = Math::VecDiffToQuat(AimingDirection, Vec3f(1.0f, 0.0f, 0.0f));
+
+        m_Model->GetTransform().SetRotation(r);
+    }
 
     Camera* Cam = Scene->GetCamera();
     
     //Cam->SetPosition(m_Transform->GetPosition() + Vec3f(0.0f, 3.0f, 10.0f));
 
-    Vec3f CamToCar = m_Transform->GetPosition() - Cam->GetPosition();
+    Vec3f CamToCar = m_Model->GetTransform().GetPosition() - Cam->GetPosition();
 
     Cam->SetDirection(Math::normalize(CamToCar));
 

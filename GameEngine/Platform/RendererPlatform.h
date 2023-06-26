@@ -5,14 +5,15 @@
 #include <initializer_list>
 
 #include "EnginePlatform.h"
-#include "..\Math\Math.h"
-#include "..\GUID.hpp"
+#include "Math/Math.h"
+#include "GUID.hpp"
 
+// Opaque handles for platform-specifically defined types
 typedef GUID Framebuffer_ID;
 typedef GUID Texture_ID;
 typedef GUID Cubemap_ID;
 typedef GUID Shader_ID;
-typedef GUID Mesh_ID;
+typedef GUID StaticMesh_ID;
 
 enum class ColourFormat
 {
@@ -38,7 +39,7 @@ typedef unsigned int ElementIndex;
 
 enum class VertAttribute
 {
-    //TODO(fraser) Add normalized fixed-point types
+    //TODO(Fraser) Add normalized fixed-point types
     Int,
     UInt,
     Float,
@@ -131,24 +132,24 @@ public:
 
     Shader_ID LoadShader(std::string vertShaderSource, std::string fragShaderSource);
 
-    Mesh_ID LoadMesh(const VertexBufferFormat& vertBufFormat, std::vector<float> vertexData);
-    Mesh_ID LoadMesh(const VertexBufferFormat& vertBufFormat, std::vector<float> vertexData, std::vector<ElementIndex> indices);
+    StaticMesh_ID LoadMesh(const VertexBufferFormat& vertBufFormat, std::vector<float> vertexData);
+    StaticMesh_ID LoadMesh(const VertexBufferFormat& vertBufFormat, std::vector<float> vertexData, std::vector<ElementIndex> indices);
 
     void DeleteFrameBuffer(Framebuffer_ID fBufferID);
     void DeleteTexture(Texture_ID textureID);
-    void DeleteMesh(Mesh_ID mesh);
+    void DeleteMesh(StaticMesh_ID mesh);
 
     Texture_ID CreateEmptyTexture(Vec2i size, ColourFormat format = ColourFormat::RGB);
-    Mesh_ID CreateEmptyMesh(const VertexBufferFormat& vertBufFormat, bool useElementArray = true);
+    StaticMesh_ID CreateEmptyMesh(const VertexBufferFormat& vertBufFormat, bool useElementArray = true);
 
-    void ClearMesh(Mesh_ID meshID);
+    void ClearMesh(StaticMesh_ID meshID);
     
     void UpdateTextureData(Texture_ID textureID, Recti region, std::vector<unsigned char> textureData, ColourFormat format);
     
-    void UpdateMeshData(Mesh_ID meshID, const VertexBufferFormat& vertBufFormat, std::vector<float> vertexData);
-    void UpdateMeshData(Mesh_ID meshID, const VertexBufferFormat& vertBufFormat, std::vector<float> vertexData, std::vector<ElementIndex> indices);
+    void UpdateMeshData(StaticMesh_ID meshID, const VertexBufferFormat& vertBufFormat, std::vector<float> vertexData);
+    void UpdateMeshData(StaticMesh_ID meshID, const VertexBufferFormat& vertBufFormat, std::vector<float> vertexData, std::vector<ElementIndex> indices);
 
-    float* GetMeshVertexData(Mesh_ID meshID);
+    float* GetMeshVertexData(StaticMesh_ID meshID);
 
     void SetActiveFBuffer(Framebuffer_ID fBufferID);
     void ResizeFBuffer(Framebuffer_ID fBufferID, Vec2i newSize);
@@ -165,7 +166,7 @@ public:
     
     void SetActiveShader(Shader_ID shaderID);
     
-    void DrawMesh(Mesh_ID meshID);
+    void DrawMesh(StaticMesh_ID meshID);
 
     void SetShaderUniformVec2f(Shader_ID shaderID, std::string uniformName, Vec2f vec);
     void SetShaderUniformVec3f(Shader_ID shaderID, std::string uniformName, Vec3f vec);
@@ -174,14 +175,14 @@ public:
     void SetShaderUniformInt(Shader_ID shaderID, std::string uniformName, int i);
     void SetShaderUniformBool(Shader_ID shaderID, std::string uniformName, bool b);
 
-    void SetMeshDrawType(Mesh_ID meshID, DrawType type);
-    void SetMeshColour(Mesh_ID meshID, Vec4f colour);
+    void SetMeshDrawType(StaticMesh_ID meshID, DrawType type);
+    void SetMeshColour(StaticMesh_ID meshID, Vec4f colour);
 
-    std::vector<Vertex*> MapMeshVertices(Mesh_ID meshID);
-    void UnmapMeshVertices(Mesh_ID meshID);
+    std::vector<Vertex*> MapMeshVertices(StaticMesh_ID meshID);
+    void UnmapMeshVertices(StaticMesh_ID meshID);
 
-    std::vector<unsigned int*> MapMeshElements(Mesh_ID meshID);
-    void UnmapMeshElements(Mesh_ID meshID);
+    std::vector<unsigned int*> MapMeshElements(StaticMesh_ID meshID);
+    void UnmapMeshElements(StaticMesh_ID meshID);
 
     void ClearScreenAndDepthBuffer();
     void SwapBuffer();

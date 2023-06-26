@@ -2,7 +2,7 @@
 
 #include "Platform\RendererPlatform.h"
 
-Mesh_ID MeshGenerator::GenCube(Renderer& renderer)
+StaticMesh_ID MeshGenerator::GenCube(Renderer& renderer)
 {
     //std::vector<float> vertices;
     //std::vector<ElementIndex> indices;
@@ -36,12 +36,12 @@ Mesh_ID MeshGenerator::GenCube(Renderer& renderer)
     return 0;
 }
 
-Mesh_ID MeshGenerator::GenTriangularPrism(Renderer& renderer)
+StaticMesh_ID MeshGenerator::GenTriangularPrism(Renderer& renderer)
 {
     return 0;
 }
 
-Mesh_ID MeshGenerator::GenCylinder(Renderer& renderer)
+StaticMesh_ID MeshGenerator::GenCylinder(Renderer& renderer)
 {
     return 0;
 }

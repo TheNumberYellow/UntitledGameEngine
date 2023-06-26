@@ -756,7 +756,7 @@ namespace
     std::unordered_map<Texture_ID, OpenGLTexture> textureMap;
     std::unordered_map<Cubemap_ID, OpenGLCubemap> cubemapMap;
     std::unordered_map<Shader_ID, OpenGLShader> shaderMap;
-    std::unordered_map<Mesh_ID, OpenGLMesh> meshMap;
+    std::unordered_map<StaticMesh_ID, OpenGLMesh> meshMap;
     Shader_ID currentlyBoundShader;
 
     HDC deviceContext;
@@ -817,7 +817,7 @@ namespace
         }
     }
 
-    OpenGLMesh* GetGLMeshFromMeshID(Mesh_ID meshID)
+    OpenGLMesh* GetGLMeshFromMeshID(StaticMesh_ID meshID)
     {
         auto it = meshMap.find(meshID);
         if (it != meshMap.end())
@@ -1002,23 +1002,23 @@ Shader_ID Renderer::LoadShader(std::string vertShaderSource, std::string fragSha
     return newID;
 }
 
-Mesh_ID Renderer::LoadMesh(const VertexBufferFormat& vertBufFormat, std::vector<float> vertexData)
+StaticMesh_ID Renderer::LoadMesh(const VertexBufferFormat& vertBufFormat, std::vector<float> vertexData)
 {
     OpenGLMesh newMesh = OpenGLMesh(vertBufFormat, vertexData);
 
-    Mesh_ID newID = GUIDGen::Generate();
+    StaticMesh_ID newID = GUIDGen::Generate();
 
-    meshMap.insert(std::pair<Mesh_ID, OpenGLMesh>(newID, std::move(newMesh)));
+    meshMap.insert(std::pair<StaticMesh_ID, OpenGLMesh>(newID, std::move(newMesh)));
     return newID;
 }
 
-Mesh_ID Renderer::LoadMesh(const VertexBufferFormat& vertBufFormat, std::vector<float> vertexData, std::vector<ElementIndex> indices)
+StaticMesh_ID Renderer::LoadMesh(const VertexBufferFormat& vertBufFormat, std::vector<float> vertexData, std::vector<ElementIndex> indices)
 {
     OpenGLMesh newMesh = OpenGLMesh(vertBufFormat, vertexData, indices);
 
-    Mesh_ID newID = GUIDGen::Generate();
+    StaticMesh_ID newID = GUIDGen::Generate();
 
-    meshMap.insert(std::pair<Mesh_ID, OpenGLMesh>(newID, std::move(newMesh)));
+    meshMap.insert(std::pair<StaticMesh_ID, OpenGLMesh>(newID, std::move(newMesh)));
     return newID;
 }
 
@@ -1047,7 +1047,7 @@ void Renderer::DeleteTexture(Texture_ID textureID)
     }
 }
 
-void Renderer::DeleteMesh(Mesh_ID meshID)
+void Renderer::DeleteMesh(StaticMesh_ID meshID)
 {
     OpenGLMesh* mesh = GetGLMeshFromMeshID(meshID);
 
@@ -1071,17 +1071,17 @@ Texture_ID Renderer::CreateEmptyTexture(Vec2i size, ColourFormat format)
     return newID;
 }
 
-Mesh_ID Renderer::CreateEmptyMesh(const VertexBufferFormat& vertBufFormat, bool useElementArray)
+StaticMesh_ID Renderer::CreateEmptyMesh(const VertexBufferFormat& vertBufFormat, bool useElementArray)
 {
     OpenGLMesh newMesh = OpenGLMesh(vertBufFormat, useElementArray);
 
-    Mesh_ID newID = GUIDGen::Generate();
+    StaticMesh_ID newID = GUIDGen::Generate();
 
-    meshMap.insert(std::pair<Mesh_ID, OpenGLMesh>(newID, newMesh));
+    meshMap.insert(std::pair<StaticMesh_ID, OpenGLMesh>(newID, newMesh));
     return newID;
 }
 
-void Renderer::ClearMesh(Mesh_ID meshID)
+void Renderer::ClearMesh(StaticMesh_ID meshID)
 {
     OpenGLMesh mesh = *GetGLMeshFromMeshID(meshID);
 
@@ -1117,7 +1117,7 @@ void Renderer::UpdateTextureData(Texture_ID textureID, Recti region, std::vector
     glTextureSubImage2D(texture.texture, 0, region.location.x, region.location.y, region.size.x, region.size.y, glFormat, GL_UNSIGNED_BYTE, textureData.data());
 }
 
-void Renderer::UpdateMeshData(Mesh_ID meshID, const VertexBufferFormat& vertBufFormat, std::vector<float> vertexData)
+void Renderer::UpdateMeshData(StaticMesh_ID meshID, const VertexBufferFormat& vertBufFormat, std::vector<float> vertexData)
 {
     OpenGLMesh* mesh = GetGLMeshFromMeshID(meshID);
 
@@ -1132,7 +1132,7 @@ void Renderer::UpdateMeshData(Mesh_ID meshID, const VertexBufferFormat& vertBufF
     mesh->numVertices = (int)vertexData.size() / (vertBufFormat.GetVertexStride() / sizeof(float));
 }
 
-void Renderer::UpdateMeshData(Mesh_ID meshID, const VertexBufferFormat& vertBufFormat, std::vector<float> vertexData, std::vector<ElementIndex> indices)
+void Renderer::UpdateMeshData(StaticMesh_ID meshID, const VertexBufferFormat& vertBufFormat, std::vector<float> vertexData, std::vector<ElementIndex> indices)
 {
     OpenGLMesh* mesh = GetGLMeshFromMeshID(meshID);
 
@@ -1156,7 +1156,7 @@ void Renderer::UpdateMeshData(Mesh_ID meshID, const VertexBufferFormat& vertBufF
     delete[] bufferData;
 }
 
-float* Renderer::GetMeshVertexData(Mesh_ID meshID)
+float* Renderer::GetMeshVertexData(StaticMesh_ID meshID)
 {
     return nullptr;
 }
@@ -1261,7 +1261,7 @@ void Renderer::SetActiveShader(Shader_ID shader)
     currentlyBoundShader = shader;
 }
 
-void Renderer::DrawMesh(Mesh_ID meshID)
+void Renderer::DrawMesh(StaticMesh_ID meshID)
 {
     OpenGLMesh mesh = *GetGLMeshFromMeshID(meshID);
 
@@ -1342,13 +1342,13 @@ void Renderer::SetShaderUniformBool(Shader_ID shaderID, std::string uniformName,
     glUniform1i(shader.m_UniformLocations[uniformName], b);
 }
 
-void Renderer::SetMeshDrawType(Mesh_ID meshID, DrawType type)
+void Renderer::SetMeshDrawType(StaticMesh_ID meshID, DrawType type)
 {
     OpenGLMesh* mesh = GetGLMeshFromMeshID(meshID);
     mesh->drawType = type;
 }
 
-void Renderer::SetMeshColour(Mesh_ID meshID, Vec4f colour)
+void Renderer::SetMeshColour(StaticMesh_ID meshID, Vec4f colour)
 {
     std::vector<Vertex*> meshVertices = MapMeshVertices(meshID);
 
@@ -1360,7 +1360,7 @@ void Renderer::SetMeshColour(Mesh_ID meshID, Vec4f colour)
     UnmapMeshVertices(meshID);
 }
 
-std::vector<Vertex*> Renderer::MapMeshVertices(Mesh_ID meshID)
+std::vector<Vertex*> Renderer::MapMeshVertices(StaticMesh_ID meshID)
 {
     OpenGLMesh mesh = *GetGLMeshFromMeshID(meshID);
 
@@ -1373,13 +1373,13 @@ std::vector<Vertex*> Renderer::MapMeshVertices(Mesh_ID meshID)
     return vertices;
 }
 
-void Renderer::UnmapMeshVertices(Mesh_ID meshID)
+void Renderer::UnmapMeshVertices(StaticMesh_ID meshID)
 {
     OpenGLMesh mesh = *GetGLMeshFromMeshID(meshID);
     glUnmapNamedBuffer(mesh.VBO);
 }
 
-std::vector<unsigned int*> Renderer::MapMeshElements(Mesh_ID meshID)
+std::vector<unsigned int*> Renderer::MapMeshElements(StaticMesh_ID meshID)
 {
     OpenGLMesh mesh = *GetGLMeshFromMeshID(meshID);
 
@@ -1392,7 +1392,7 @@ std::vector<unsigned int*> Renderer::MapMeshElements(Mesh_ID meshID)
     return elements;
 }
 
-void Renderer::UnmapMeshElements(Mesh_ID meshID)
+void Renderer::UnmapMeshElements(StaticMesh_ID meshID)
 {
     OpenGLMesh mesh = *GetGLMeshFromMeshID(meshID);
     glUnmapNamedBuffer(mesh.EBO);

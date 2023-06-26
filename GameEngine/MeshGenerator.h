@@ -9,8 +9,8 @@ class MeshGenerator
 {
 public:
 
-    static Mesh_ID GenCube(Renderer& renderer);
-    static Mesh_ID GenTriangularPrism(Renderer& renderer);
-    static Mesh_ID GenCylinder(Renderer& renderer);
+    static StaticMesh_ID GenCube(Renderer& renderer);
+    static StaticMesh_ID GenTriangularPrism(Renderer& renderer);
+    static StaticMesh_ID GenCylinder(Renderer& renderer);
 };
 

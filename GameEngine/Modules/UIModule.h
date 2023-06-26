@@ -1,6 +1,7 @@
 #pragma once
 #include "Platform\RendererPlatform.h"
 #include "Interfaces\Resizeable_i.h"
+#include "Modules\GraphicsModule.h"
 #include "Modules\TextModule.h"
 #include "Modules\InputModule.h"
 #include "Utils\Hash.h"
@@ -116,7 +117,7 @@ class UIModule
 {
 public:
 
-    UIModule(Renderer& renderer, TextModule& text, InputModule& input);
+    UIModule(GraphicsModule& graphics, TextModule& text, InputModule& input, Renderer& renderer);
     ~UIModule();
 
     void AlignLeft();
@@ -124,11 +125,11 @@ public:
     void AlignTop();
     void AlignBottom();
 
-    void ImgPanel(Texture_ID texture, Rect rect);
+    void ImgPanel(Texture texture, Rect rect);
     void BufferPanel(Framebuffer_ID fBuffer, Rect rect);
 
     Click TextButton(std::string text, Rect rect, float borderWidth);
-    Click ImgButton(Texture_ID texture, Rect rect, float borderWidth);
+    Click ImgButton(Texture texture, Rect rect, float borderWidth);
     Click BufferButton(Framebuffer_ID fBuffer, Rect rect, float borderWidth);
 
     void Text(std::string text, Vec2f position, Vec3f colour = Vec3f(0.1f, 0.1f, 0.4f));
@@ -177,15 +178,17 @@ private:
 
     size_t m_HashCount = 0;
 
-    Mesh_ID m_RectMesh;
-    Mesh_ID m_BorderMesh;
+    StaticMesh_ID m_RectMesh;
+    StaticMesh_ID m_BorderMesh;
     Texture_ID m_DefaultBorderTexture;
     Texture_ID m_DefaultFrameTexture;
     Shader_ID m_UIShader;
 
-    Renderer& m_Renderer;
+    GraphicsModule& m_Graphics;
     TextModule& m_Text;
     InputModule& m_Input;
+    // TEMP(Fraser) Modules that aren't the Graphics module probably shouldn't be able to access the renderer...
+    Renderer& m_Renderer;
 
     Font m_FrameFont;
 
