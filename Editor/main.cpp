@@ -11,6 +11,8 @@
 #include <iostream>
 #include <filesystem>
 
+static bool FirstPersonPlayerEnabled = true;
+
 static Vec3f SunLight = Vec3f(1.0f, 1.0f, 1.0f);
 
 struct Player
@@ -1413,110 +1415,111 @@ void UpdateGame(ModuleManager& modules)
         holdingAlt = false;
     }
 
-    if (cursorLocked)
-    {
-        //MoveCamera(input, graphics, cam, 0.001f);
-    }
-
-    // Update behaviours
-
-    BehaviourRegistry::Get()->UpdateAllBehaviours(modules, &scene, 0.0f);
-
     // Update player
 
-    Vec3f inputDir = Vec3f();
-
-    Vec3f leftVec = Math::normalize(cam.GetPerpVector());
-    Vec3f forwardVec = Math::cross(leftVec, Vec3f(0.0f, 0.0f, 1.0f));
-
-    bool movedLaterally = false;
-
-    if (input.IsKeyDown(Key::A))
+    if (FirstPersonPlayerEnabled)
     {
-        inputDir -= leftVec;
-        movedLaterally = true;
-    }
-    if (input.IsKeyDown(Key::D))
-    {
-        inputDir += leftVec;
-        movedLaterally = true;
-    }
-    if (input.IsKeyDown(Key::W))
-    {
-        inputDir -= forwardVec;
-        movedLaterally = true;
-    }
-    if (input.IsKeyDown(Key::S))
-    {
-        inputDir += forwardVec;
-        movedLaterally = true;
-    }
-
-    //if (input.IsKeyDown(Key::Space))
-    //{
-    //    inputDir += Vec3f(0.0f, 0.0f, 0.1f);
-    //}
-
-    //if (input.IsKeyDown(Key::Ctrl))
-    //{
-    //    inputDir += Vec3f(0.0f, 0.0f, -0.1f);
-    //}
-
-    if (movedLaterally)
-    {
-        inputDir = Math::normalize(inputDir) * 0.05f;
-    }
-
-    player.velocity.x = inputDir.x;
-    player.velocity.y = inputDir.y;
-
-    //player.velocity.z += -0.005f;
-    //player.velocity += Vec3f(0.0f, 0.0f, -0.01f);
-
-    //player.velocity = inputDir;
-    
-    player.grounded = false;
-
-    SceneRayCastHit movement = scene.RayCast(Ray(player.position, Math::normalize(player.velocity)), collisions);
-
-    float hitDist = 0.0f;
-    float testHitDist = 0.0f;
-    float playerVel = 0.0f;
-
-    if (movement.rayCastHit.hit)
-    {
-        hitDist = movement.rayCastHit.hitDistance;
-        testHitDist = Math::magnitude(movement.rayCastHit.hitPoint - player.position);
-        playerVel = Math::magnitude(player.velocity);
-        if (hitDist <= playerVel + 0.0001f) // TODO: whyyy is this necessary
+        if (cursorLocked)
         {
-            graphics.DebugDrawPoint(movement.rayCastHit.hitPoint, Vec3f(1.0f, 0.3f, 0.2f));
-            player.position = movement.rayCastHit.hitPoint + (movement.rayCastHit.hitNormal * 0.01f);
-            player.velocity.z = 0.0f;
-            player.grounded = true;
+            MoveCamera(input, graphics, cam, 0.001f);
+        }
+
+        Vec3f inputDir = Vec3f();
+
+        Vec3f leftVec = Math::normalize(cam.GetPerpVector());
+        Vec3f forwardVec = Math::cross(leftVec, Vec3f(0.0f, 0.0f, 1.0f));
+
+        bool movedLaterally = false;
+
+        if (input.IsKeyDown(Key::A))
+        {
+            inputDir -= leftVec;
+            movedLaterally = true;
+        }
+        if (input.IsKeyDown(Key::D))
+        {
+            inputDir += leftVec;
+            movedLaterally = true;
+        }
+        if (input.IsKeyDown(Key::W))
+        {
+            inputDir -= forwardVec;
+            movedLaterally = true;
+        }
+        if (input.IsKeyDown(Key::S))
+        {
+            inputDir += forwardVec;
+            movedLaterally = true;
+        }
+
+        //if (input.IsKeyDown(Key::Space))
+        //{
+        //    inputDir += Vec3f(0.0f, 0.0f, 0.1f);
+        //}
+
+        //if (input.IsKeyDown(Key::Ctrl))
+        //{
+        //    inputDir += Vec3f(0.0f, 0.0f, -0.1f);
+        //}
+
+        if (movedLaterally)
+        {
+            inputDir = Math::normalize(inputDir) * 0.05f;
+        }
+
+        player.velocity.x = inputDir.x;
+        player.velocity.y = inputDir.y;
+        player.velocity.z += -0.005f;
+
+        //player.velocity += Vec3f(0.0f, 0.0f, -0.01f);
+
+        player.grounded = false;
+
+        SceneRayCastHit movement = scene.RayCast(Ray(player.position, Math::normalize(player.velocity)), collisions);
+
+        float hitDist = 0.0f;
+        float testHitDist = 0.0f;
+        float playerVel = 0.0f;
+
+        if (movement.rayCastHit.hit)
+        {
+            hitDist = movement.rayCastHit.hitDistance;
+            testHitDist = Math::magnitude(movement.rayCastHit.hitPoint - player.position);
+            playerVel = Math::magnitude(player.velocity);
+            if (hitDist <= playerVel + 0.0001f) // TODO: whyyy is this necessary
+            {
+                graphics.DebugDrawPoint(movement.rayCastHit.hitPoint, Vec3f(1.0f, 0.3f, 0.2f));
+                player.position = movement.rayCastHit.hitPoint + (movement.rayCastHit.hitNormal * 0.01f);
+                player.velocity.z = 0.0f;
+                player.grounded = true;
+            }
+            else
+            {
+                graphics.DebugDrawPoint(movement.rayCastHit.hitPoint);
+                player.position += player.velocity;
+            }
         }
         else
         {
-            graphics.DebugDrawPoint(movement.rayCastHit.hitPoint);
             player.position += player.velocity;
         }
-    }
-    else
-    {
-        player.position += player.velocity;
+
+        if (input.GetKeyState(Key::Space) && player.grounded)
+        {
+            player.velocity.z = 0.175f;
+        }
+
+        if (movement.rayCastHit.hit && movement.rayCastHit.hitDistance > Math::magnitude(player.velocity))
+        {
+            graphics.DebugDrawPoint(movement.rayCastHit.hitPoint);
+        }
+
+        player.cam->SetPosition(player.position + Vec3f(0.0f, 0.0f, 2.5f));
     }
 
-    if (input.GetKeyState(Key::Space) && player.grounded)
-    {
-        player.velocity.z = 0.175f;
-    }
+    // Update behaviours
+    BehaviourRegistry::Get()->UpdateAllBehaviours(modules, &scene, 0.0f);
 
-    if (movement.rayCastHit.hit && movement.rayCastHit.hitDistance > Math::magnitude(player.velocity))
-    {
-        graphics.DebugDrawPoint(movement.rayCastHit.hitPoint); 
-    }
-
-    //player.cam->SetPosition(player.position + Vec3f(0.0f, 0.0f, 2.5f));
 
     // Drop models
 
