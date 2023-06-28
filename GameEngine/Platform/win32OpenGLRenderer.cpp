@@ -904,6 +904,11 @@ Renderer::Renderer()
         glContext = tempGlContext;
     }
 
+    if (wglewIsSupported("WGL_EXT_swap_control") == 1)
+    {
+        wglSwapIntervalEXT(1);
+    }
+
     // Enable various OpenGL features
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);

@@ -41,11 +41,14 @@ public:
     static float Round(float num, float multiple = 1.0f);
 
     static float dot(Vec3f leftVec, Vec3f rightVec);
+    static float dot(Vec2f leftVec, Vec2f rightVec);
     static Vec3f cross(Vec3f leftVec, Vec3f rightVec);
+    static float cross(Vec2f leftVec, Vec2f rightVec);
     static Vec3f rotate(Vec3f inputVec, float radians, Vec3f axis);
 
     static Vec3f normalize(Vec3f vec);
     static float magnitude(Vec3f vec);
+    static float magnitude(Vec2f vec);
     static float lenSquared(Vec3f vec);
 
     static Quaternion normalize(Quaternion quat);

@@ -251,7 +251,7 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
         {
             diffuse = 0.0;
         }
-        float ambient = 0.25;        
+        float ambient = 0.35;        
 
         float shadow = ShadowCalculation(FragPosLightSpace);
 

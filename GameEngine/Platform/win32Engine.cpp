@@ -12,6 +12,7 @@ static bool cursorLocked = false;
 static bool cursorHidden = false;
 
 static int64_t TICKS_PER_SECOND;
+static int64_t LAST_FRAME_TICK_COUNT;
 
 float Engine::GetElapsedTime()
 {
@@ -293,7 +294,7 @@ LRESULT CALLBACK WindowProc(_In_ HWND WindowHandle, _In_ UINT Message, _In_ WPAR
         
             graphics->OnFrameStart();
             ui->OnFrameStart();
-            Update(*modules);
+            Update(*modules, 0.0);
             graphics->OnFrameEnd();
             ui->OnFrameEnd();
         }
@@ -377,6 +378,7 @@ int WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ L
     ShowWindow(WindowHandle, SW_SHOW);
 
     QueryPerformanceFrequency((LARGE_INTEGER*)&TICKS_PER_SECOND);
+    QueryPerformanceCounter((LARGE_INTEGER*)&LAST_FRAME_TICK_COUNT);
 
     // Set up modules
     Renderer renderer;
@@ -427,7 +429,17 @@ int WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ L
 
         Graphics.OnFrameStart();
         UI.OnFrameStart();
-        Update(Modules);
+
+        int64_t CURRENT_TICK_COUNT;
+        QueryPerformanceCounter((LARGE_INTEGER*)&CURRENT_TICK_COUNT);
+
+        int64_t DELTA_TICKS = CURRENT_TICK_COUNT - LAST_FRAME_TICK_COUNT;
+
+        LAST_FRAME_TICK_COUNT = CURRENT_TICK_COUNT;
+
+        double DeltaSeconds = (double)DELTA_TICKS / (double)TICKS_PER_SECOND;
+
+        Update(Modules, DeltaSeconds);
         Graphics.OnFrameEnd();
         UI.OnFrameEnd();
         Input.OnFrameEnd();

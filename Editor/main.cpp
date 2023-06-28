@@ -11,9 +11,9 @@
 #include <iostream>
 #include <filesystem>
 
-static bool FirstPersonPlayerEnabled = true;
+static bool FirstPersonPlayerEnabled = false;
 
-static Vec3f SunLight = Vec3f(1.0f, 1.0f, 1.0f);
+static Vec3f SunLight = Vec3f(0.8f, 0.7f, 0.9f);
 
 struct Player
 {
@@ -990,7 +990,7 @@ void UpdateBehaviourPlace(InputModule& input, CollisionModule& collisions)
     }
 }
 
-void UpdateEditor(ModuleManager& modules)
+void UpdateEditor(ModuleManager& modules, double deltaTime)
 {
     GraphicsModule& graphics = *modules.GetGraphics();
     CollisionModule& collisions = *modules.GetCollision();
@@ -1380,7 +1380,7 @@ void UpdateEditor(ModuleManager& modules)
     // END DRAW
 }
 
-void UpdateGame(ModuleManager& modules)
+void UpdateGame(ModuleManager& modules, double deltaTime)
 {
     GraphicsModule& graphics = *modules.GetGraphics();
     CollisionModule& collisions = *modules.GetCollision();
@@ -1518,7 +1518,7 @@ void UpdateGame(ModuleManager& modules)
     }
 
     // Update behaviours
-    BehaviourRegistry::Get()->UpdateAllBehaviours(modules, &scene, 0.0f);
+    BehaviourRegistry::Get()->UpdateAllBehaviours(modules, &scene, deltaTime);
 
 
     // Drop models
@@ -1557,10 +1557,14 @@ void UpdateGame(ModuleManager& modules)
 
     ui.BufferPanel(viewportBuffer, screenRect);
 
+    text.DrawText("Frame Time: " + std::to_string(deltaTime), &testFont, Vec2f(0.0f, 0.0f));
 
-    text.DrawText(std::to_string(player.position.x) + ", " + std::to_string(player.position.y) + ", " + std::to_string(player.position.z), &testFont, Vec2f(0.0f, 0.0f), Vec3f(0.6f, 0.2f, 0.7f));
-    std::string groundedText = player.grounded ? "Grounded" : "Not Grounded";
-    text.DrawText(groundedText, &testFont, Vec2f(0.0f, 30.0f));
+    int FPS = round(1.0 / deltaTime);
+
+    text.DrawText("FPS: " + std::to_string(FPS), &testFont, Vec2f(0.0f, 30.0f));
+    //text.DrawText(std::to_string(player.position.x) + ", " + std::to_string(player.position.y) + ", " + std::to_string(player.position.z), &testFont, Vec2f(0.0f, 0.0f), Vec3f(0.6f, 0.2f, 0.7f));
+    //std::string groundedText = player.grounded ? "Grounded" : "Not Grounded";
+    //text.DrawText(groundedText, &testFont, Vec2f(0.0f, 30.0f));
 
     //text.DrawText(std::to_string(hitDist), &testFont, Vec2f(0.0f, 0.0f), Vec3f(1.0f, 0.5f, 0.5f));
     //text.DrawText(std::to_string(testHitDist), &testFont, Vec2f(0.0f, 24.0f), Vec3f(1.0f, 0.5f, 0.5f));
@@ -1701,15 +1705,15 @@ void Initialize(ModuleManager& modules)
 
 }
 
-void Update(ModuleManager& modules)
+void Update(ModuleManager& modules, double deltaTime)
 {
     if (state == State::EDITOR)
     {
-        UpdateEditor(modules);
+        UpdateEditor(modules, deltaTime);
     }
     else if (state == State::GAME)
     {
-        UpdateGame(modules);
+        UpdateGame(modules, deltaTime);
     }
 }
 

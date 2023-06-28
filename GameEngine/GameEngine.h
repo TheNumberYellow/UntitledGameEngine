@@ -19,5 +19,5 @@
 
 // These functions are to be defined in client code
 extern void Initialize(ModuleManager& modules);
-extern void Update(ModuleManager& modules);
+extern void Update(ModuleManager& modules, double deltaTime);
 extern void Resize(ModuleManager& modules, Vec2i newSize);

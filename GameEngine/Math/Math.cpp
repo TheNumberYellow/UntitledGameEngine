@@ -3,12 +3,20 @@
 #include "Vector.h"
 #include "Quaternion.h"
 
+#include "../GameEngine.h"
+
 #include <glm/gtx/rotate_vector.hpp>
 #include <glm/gtx/matrix_decompose.hpp>
 
 float Math::dot(Vec3f leftVec, Vec3f rightVec)
 {
     float result = (leftVec.x * rightVec.x) + (leftVec.y * rightVec.y) + (leftVec.z * rightVec.z);
+    return result;
+}
+
+float Math::dot(Vec2f leftVec, Vec2f rightVec)
+{
+    float result = (leftVec.x * rightVec.x) + (leftVec.y * rightVec.y);
     return result;
 }
 
@@ -19,6 +27,11 @@ Vec3f Math::cross(Vec3f leftVec, Vec3f rightVec)
     result.y = leftVec.z * rightVec.x - leftVec.x * rightVec.z;
     result.z = leftVec.x * rightVec.y - leftVec.y * rightVec.x;
     return result;
+}
+
+float Math::cross(Vec2f leftVec, Vec2f rightVec)
+{
+    return (leftVec.x * rightVec.y) - (leftVec.y * rightVec.x);
 }
 
 Vec3f Math::rotate(Vec3f inputVec, float radians, Vec3f axis)
@@ -37,6 +50,11 @@ Vec3f Math::normalize(Vec3f vec)
 float Math::magnitude(Vec3f vec)
 {
     return sqrt(lenSquared(vec));
+}
+
+float Math::magnitude(Vec2f vec)
+{
+    return sqrt(vec.x * vec.x + vec.y * vec.y);
 }
 
 float Math::lenSquared(Vec3f vec)
@@ -74,11 +92,13 @@ Quaternion Math::VecDiffToQuat(Vec3f v1, Vec3f v2)
 
     if (k_cos_theta / k == -1.0f)
     {
+        Engine::DEBUGPrint("FIRST");
         result.w = 0.0f;
         result.vec = Math::normalize(orthogonal(v1));
     }
     else
     {
+        Engine::DEBUGPrint("SECOND");
         result.w = k_cos_theta + k;
         result.vec = Math::cross(v2, v1);
     }
