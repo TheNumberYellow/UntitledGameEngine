@@ -284,9 +284,11 @@ Ray GetMouseRay(Camera& cam, Vec2i mousePosition, Rect viewPort)
     return Ray(cam.GetPosition(), ray);
 }
 
-void MoveCamera(InputModule& inputs, GraphicsModule& graphics, Camera& cam, float pixelToRadians)
+void MoveCamera(InputModule& inputs, GraphicsModule& graphics, Camera& cam, float pixelToRadians, double deltaTime)
 {
-    float speed = 0.075f;
+    const float CamSpeed = 10.0f;
+
+    float speed = CamSpeed * deltaTime;
 
     if (inputs.IsKeyDown(Key::Shift))
     {
@@ -1000,7 +1002,7 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
 
     if (cursorLocked)
     {
-        MoveCamera(input, graphics, cam, 0.001f);
+        MoveCamera(input, graphics, cam, 0.001f, deltaTime);
     }
 
     Vec2i mousePos = Engine::GetMousePosition();
@@ -1421,7 +1423,7 @@ void UpdateGame(ModuleManager& modules, double deltaTime)
     {
         if (cursorLocked)
         {
-            MoveCamera(input, graphics, cam, 0.001f);
+            MoveCamera(input, graphics, cam, 0.001f, deltaTime);
         }
 
         Vec3f inputDir = Vec3f();

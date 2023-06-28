@@ -11,5 +11,7 @@ public:
 
 private:
     float CamHeight = 8.0f;
+
+    float Speed = 8.0f;
 };
 

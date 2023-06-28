@@ -38,7 +38,7 @@ void TopDownPlayer::Update(ModuleManager& Modules, Scene* Scene, float DeltaTime
     if (AnyInput && Math::magnitude(InputDir) > 0.01f)
     {
         InputDir = Math::normalize(InputDir);
-        m_Model->GetTransform().Move(InputDir * 0.05f);
+        m_Model->GetTransform().Move((InputDir * Speed) * DeltaTime);
     
         Vec2f InputDir2D = Vec2f(InputDir.x, InputDir.y);
         Vec2f Left2D = Vec2f(-1.0f, 0.0f);
