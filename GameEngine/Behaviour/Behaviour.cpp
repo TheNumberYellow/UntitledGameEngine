@@ -46,9 +46,14 @@ void BehaviourRegistry::AttachNewBehaviour(std::string BehaviourName, Model* Mod
 
 void BehaviourRegistry::UpdateAllBehaviours(ModuleManager& Modules, Scene* Scene, float DeltaTime)
 {
-    for (auto Behaviour : m_AttachedBehaviours)
+    // TODO(Fraser): For some reason this _sometimes_ causes a nullptr exception on the Behaviour... look into later.
+    //for (auto Behaviour : m_AttachedBehaviours)
+    //{
+    //    Behaviour->Update(Modules, Scene, DeltaTime);
+    //}
+    for (int i = 0; i < m_AttachedBehaviours.size(); ++i)
     {
-        Behaviour->Update(Modules, Scene, DeltaTime);
+        m_AttachedBehaviours[i]->Update(Modules, Scene, DeltaTime);
     }
 }
 

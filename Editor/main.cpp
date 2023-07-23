@@ -121,6 +121,13 @@ MoveMode moveMode = MoveMode::TRANSLATE;
 
 State state = State::EDITOR;
 
+std::string ipString;
+
+bool m_IsServer = false;
+bool m_IsClient = false;
+
+Model OtherPlayerModel;
+
 void CycleMoveMode()
 {
     if (moveMode == MoveMode::TRANSLATE)
@@ -406,13 +413,16 @@ void UpdateSelectTool(InputModule& input, CollisionModule& collisions)
     if (input.GetMouseState().IsButtonDown(Mouse::LMB))
     {
         Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
-        Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
-
-        SceneRayCastHit finalHit = scene.RayCast(mouseRay, collisions);
-
-        if (finalHit.rayCastHit.hit)
+        if (viewportRect.contains(Engine::GetMousePosition()))
         {
-            selectedModelPtr = finalHit.hitModel;
+            Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
+
+            SceneRayCastHit finalHit = scene.RayCast(mouseRay, collisions);
+
+            if (finalHit.rayCastHit.hit)
+            {
+                selectedModelPtr = finalHit.hitModel;
+            }
         }
     }
 }
@@ -750,7 +760,7 @@ void UpdateModelRotate(InputModule& input, CollisionModule& collisions, Graphics
         Vec3f angleVec = hitPoint - objectCenter;
         float dot = Math::dot(angleVec, perpUnitVec);
         float det = Math::dot(axisPlane.normal, (Math::cross(angleVec, perpUnitVec)));
-        
+
         float deltaAngle = initialAngle - atan2(det, dot);
 
         Quaternion axisQuat = Quaternion(axisPlane.normal, deltaAngle);
@@ -1066,6 +1076,70 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
         {
             graphics.Draw(*draggingModel);
         }
+
+        NetworkModule& Network = *modules.GetNetwork();
+
+        Vec3f OtherPlayerPosition;
+
+        static bool GotOtherPlayerPos = false;
+
+        if (m_IsClient)
+        {
+            Packet Data;
+            while (Network.ClientPollData(Data))
+            {
+                std::vector<std::string> Tokens = StringUtils::Split(Data.Data, " ");
+                if (Tokens.size() >= 3)
+                {
+                    OtherPlayerPosition.x = std::stof(Tokens[0]);
+                    OtherPlayerPosition.y = std::stof(Tokens[1]);
+                    OtherPlayerPosition.z = std::stof(Tokens[2]);
+
+                    OtherPlayerModel.GetTransform().SetPosition(OtherPlayerPosition);
+
+                    GotOtherPlayerPos = true;
+                }
+            }
+
+            Packet OutData;
+            Vec3f MyPos = cam.GetPosition();
+
+            OutData.Data = std::to_string(MyPos.x) + " " + std::to_string(MyPos.y) + " " + std::to_string(MyPos.z) + " ";
+
+            Network.ClientSendData(OutData.Data);
+        }
+
+        if (m_IsServer)
+        {
+            Packet Data;
+            while (Network.ServerPollData(Data))
+            {
+                std::vector<std::string> Tokens = StringUtils::Split(Data.Data, " ");
+                if (Tokens.size() >= 3)
+                {
+                    OtherPlayerPosition.x = std::stof(Tokens[0]);
+                    OtherPlayerPosition.y = std::stof(Tokens[1]);
+                    OtherPlayerPosition.z = std::stof(Tokens[2]);
+
+                    OtherPlayerModel.GetTransform().SetPosition(OtherPlayerPosition);
+
+                    GotOtherPlayerPos = true;
+                }
+            }
+
+            Packet OutData;
+            Vec3f MyPos = cam.GetPosition();
+
+            OutData.Data = std::to_string(MyPos.x) + " " + std::to_string(MyPos.y) + " " + std::to_string(MyPos.z) + " ";
+
+            Network.ServerSendData(OutData.Data);
+        }
+
+        if (GotOtherPlayerPos && (m_IsClient || m_IsServer))
+        {
+            graphics.Draw(OtherPlayerModel);
+        }
+
         if (selectedModelPtr)
         {
             AABB aabb = collisions.GetCollisionMeshFromMesh(selectedModelPtr->m_TexturedMeshes[0].m_Mesh).boundingBox;
@@ -1120,10 +1194,38 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
             }
         }
 
-        //ui.ImgButton(loadedTextures[1], Rect(Vec2f(160.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f);
-        //ui.ImgButton(loadedTextures[1], Rect(Vec2f(200.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f);
-        //ui.ImgButton(loadedTextures[1], Rect(Vec2f(240.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f);
-        //ui.ImgButton(loadedTextures[1], Rect(Vec2f(280.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f);
+        NetworkModule& Network = *modules.GetNetwork();
+
+        if (ui.TextButton("Host", Rect(Vec2f(screen.x - 600.0f, 0.0f), Vec2f(40, 40)), 4.0f) && !m_IsClient)
+        {
+            Network.StartServer();
+            m_IsServer = true;
+        }
+
+        ui.TextEntry(ipString, Rect(Vec2f(screen.x - 560.0f, 0.0f), Vec2f(200.0f, 40.0f)));
+
+        if (ui.TextButton("Join", Rect(Vec2f(screen.x - 360.0f, 0.0f), Vec2f(40, 40)), 4.0f) && !m_IsServer)
+        {
+            Network.StartClient(ipString);
+            m_IsClient = true;
+        }
+
+        if (ui.TextButton("Ping", Rect(Vec2f(screen.x - 320.0f, 0.0f), Vec2f(40, 40)), 4.0f))
+        {
+            if (m_IsServer)
+            {
+                Network.ServerPing();
+            }
+            if (m_IsClient)
+            {
+                Network.ClientPing();
+            }
+        }
+
+        if (ui.TextButton("Disconnect", Rect(Vec2f(screen.x - 280.0f, 0.0f), Vec2f(80, 40)), 4.0f))
+        {
+            Network.DisconnectAll();
+        }
     }
 
     ui.EndFrame();
@@ -1197,26 +1299,57 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
 
     if (selectedModelPtr)
     {
-        Vec3f pos = selectedModelPtr->GetTransform().GetPosition();
-        std::string xText = "X: " + std::to_string(pos.x);
-        std::string yText = "Y: " + std::to_string(pos.y);
-        std::string zText = "Z: " + std::to_string(pos.z);
+        Vec2f Cursor = Vec2f(0.0f, 5.0f);
 
-        text.DrawText(xText, &inspectorFont, Vec2f(screen.x - 180.0f, 20.0f), Vec3f(0.0f, 0.0f, 0.0f));
-        text.DrawText(yText, &inspectorFont, Vec2f(screen.x - 180.0f, 35.0f), Vec3f(0.0f, 0.0f, 0.0f));
-        text.DrawText(zText, &inspectorFont, Vec2f(screen.x - 180.0f, 50.0f), Vec3f(0.0f, 0.0f, 0.0f));
+        Vec3f Position = selectedModelPtr->GetTransform().GetPosition();
+        Vec3f Scale = selectedModelPtr->GetTransform().GetScale();
 
-        //static std::string testString = "Hello";
-        //text.DrawText(testString, &inspectorFont, Vec2f(screen.x - 180.0f, 65.0f));
+        Vec3f NewPos;
 
-        ui.TextEntry(selectedModelPtr->m_Name, Rect(Vec2f(0.0f, 65.0f), Vec2f(160.0f, 20.0f)));
+        ui.Text("Position", Cursor, Vec3f(0.0f, 0.0f, 0.0f));
+        Cursor.y += 15.0f;
+
+        std::string xString = std::to_string(Position.x);
+        ui.TextEntry(xString, Rect(Cursor, Vec2f(160.0f, 15.0f)));
+        NewPos.x = std::stof(xString);
+        //ui.Text(xText, Cursor, Vec3f(0.0f, 0.0f, 0.0f));
+        Cursor.y += 15.0f;
+        
+        std::string yString = std::to_string(Position.y);
+        ui.TextEntry(yString, Rect(Cursor, Vec2f(160.0f, 15.0f)));
+        NewPos.y = std::stof(yString);
+        //ui.Text(yText, Cursor, Vec3f(0.0f, 0.0f, 0.0f));
+        Cursor.y += 15.0f;
+
+        std::string zString = std::to_string(Position.z);
+        ui.TextEntry(zString, Rect(Cursor, Vec2f(160.0f, 15.0f)));
+        NewPos.z = std::stof(zString);
+        //ui.Text(zText, Cursor, Vec3f(0.0f, 0.0f, 0.0f));
+        Cursor.y += 25.0f;
+
+        selectedModelPtr->GetTransform().SetPosition(NewPos);
+
+        ui.Text("Tags", Cursor, Vec3f(0.0f, 0.0f, 0.0f));
+        Cursor.y += 15.0f;
+
+        ui.TextEntry(selectedModelPtr->m_Name, Rect(Cursor, Vec2f(160.0f, 20.0f)));
+        Cursor.y += 25.0f;
+
+        std::vector<std::string> BehavioursOnModel = BehaviourRegistry::Get()->GetBehavioursAttachedToEntity(selectedModelPtr);
+
+        ui.Text("Behaviours:", Cursor, Vec3f(0.0f, 0.0f, 0.0f));
+        Cursor.y += 15.0f;
+        for (auto& Behaviour : BehavioursOnModel)
+        {
+            ui.TextButton(Behaviour, Rect(Cursor, Vec2f(160.0f, 20.0f)), 4.0f);
+            Cursor.y += 20.0f;
+        }
     }
     else
     {
         posText = "No model selected.";
         text.DrawText(posText, &inspectorFont, Vec2f(screen.x - 180.0f, 20.0f), Vec3f(0.0f, 0.0f, 0.0f));
     }
-
 
     ui.EndFrame();
 
@@ -1380,6 +1513,8 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
     text.DrawText(modeString, &testFont, Vec2f(100.0f, 40.0f), Vec3f(0.0f, 0.0f, 0.0f));
 
     // END DRAW
+
+
 }
 
 void UpdateGame(ModuleManager& modules, double deltaTime)
@@ -1517,6 +1652,7 @@ void UpdateGame(ModuleManager& modules, double deltaTime)
         }
 
         player.cam->SetPosition(player.position + Vec3f(0.0f, 0.0f, 2.5f));
+
     }
 
     // Update behaviours
@@ -1564,13 +1700,6 @@ void UpdateGame(ModuleManager& modules, double deltaTime)
     int FPS = round(1.0 / deltaTime);
 
     text.DrawText("FPS: " + std::to_string(FPS), &testFont, Vec2f(0.0f, 30.0f));
-    //text.DrawText(std::to_string(player.position.x) + ", " + std::to_string(player.position.y) + ", " + std::to_string(player.position.z), &testFont, Vec2f(0.0f, 0.0f), Vec3f(0.6f, 0.2f, 0.7f));
-    //std::string groundedText = player.grounded ? "Grounded" : "Not Grounded";
-    //text.DrawText(groundedText, &testFont, Vec2f(0.0f, 30.0f));
-
-    //text.DrawText(std::to_string(hitDist), &testFont, Vec2f(0.0f, 0.0f), Vec3f(1.0f, 0.5f, 0.5f));
-    //text.DrawText(std::to_string(testHitDist), &testFont, Vec2f(0.0f, 24.0f), Vec3f(1.0f, 0.5f, 0.5f));
-    //text.DrawText(std::to_string(playerVel), &testFont, Vec2f(0.0f, 48.0f), Vec3f(1.0f, 0.5f, 0.5f));
 }
 
 void Initialize(ModuleManager& modules)
@@ -1705,6 +1834,7 @@ void Initialize(ModuleManager& modules)
     
     auto Behaviours = BehaviourRegistry::Get()->GetBehaviours();
 
+    OtherPlayerModel = graphics.CloneModel(xAxisArrow);
 }
 
 void Update(ModuleManager& modules, double deltaTime)

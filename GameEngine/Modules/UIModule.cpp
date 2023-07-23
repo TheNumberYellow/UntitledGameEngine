@@ -211,14 +211,13 @@ void UIModule::TextEntry(std::string& stringRef, Rect rect)
     if (!ShouldDisplay())
         return;
 
+    //rect.location += GetFrame().location;
+
+    Click click = TextButton(stringRef, rect, 4.0f);
+    
     TextEntryState* State = GetTextEntryState(rect);
     
-    Click click = TextButton(stringRef, rect, 0.0f);
-
-    //if (click.clicked)
-    //{
-    //    State->focused = !State->focused;
-    //}
+    //Click click = TextButton(stringRef, rect, m_ActiveElement == State ? 0.0f : 4.0f);
 
     if (m_ActiveElement == State)
     {
@@ -242,10 +241,14 @@ void UIModule::TextEntry(std::string& stringRef, Rect rect)
                     stringRef.pop_back();
                 }
             }
-            // Escape
-            else if (Character == '\x1b')
+            // Escape/Enter
+            else if (Character == '\x1b' || Character == '\r')
             {
                 State->focused = false;
+                if (m_ActiveElement == State)
+                {
+                    m_ActiveElement = nullptr;
+                }
                 break;
             }
             else

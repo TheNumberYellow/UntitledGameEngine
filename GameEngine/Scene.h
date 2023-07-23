@@ -34,8 +34,10 @@ public:
     void Init(GraphicsModule& graphics, CollisionModule& collisions);
 
     Model* AddModel(Model model, std::string name = "");
-    Model* GetModel(std::string name);
     void DeleteModel(Model* model);
+    
+    Model* GetModel(std::string name);
+    Model* GetModelByTag(std::string tag);
 
     void AddCamera(Camera* camera);
 

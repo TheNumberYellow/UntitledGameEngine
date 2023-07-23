@@ -1,4 +1,5 @@
 #include <Windows.h>
+#include <xinput.h>
 
 #include "atlstr.h"
 
@@ -80,12 +81,20 @@ void Engine::DEBUGPrint(std::string string)
     OutputDebugStringA((LPCSTR)((string + "\n").c_str()));
 }
 
+void Engine::Error(std::string errorMessage)
+{
+    Engine::UnlockCursor();
+    Engine::ShowCursor();
+
+    MessageBoxA(NULL, errorMessage.c_str(), "Error", MB_OK | MB_ICONEXCLAMATION | MB_TASKMODAL);
+}
+
 void Engine::FatalError(std::string errorMessage)
 {
     Engine::UnlockCursor();
     Engine::ShowCursor();
 
-    MessageBoxA(NULL, errorMessage.c_str(), "Error", MB_OK | MB_ICONEXCLAMATION);
+    MessageBoxA(NULL, errorMessage.c_str(), "FatalError", MB_OK | MB_ICONEXCLAMATION | MB_TASKMODAL);
     exit(EXIT_FAILURE);
 }
 
@@ -247,6 +256,96 @@ void GetKeyboardState(InputModule& inputs)
 
     inputs.GetMouseState().SetButtonDown(Mouse::LMB, GetAsyncKeyState(VK_LBUTTON));
     inputs.GetMouseState().SetButtonDown(Mouse::RMB, GetAsyncKeyState(VK_RBUTTON));
+}
+
+void GetControllerState(InputModule& inputs)
+{
+    DWORD dwResult;
+    for (DWORD i = 0; i < XUSER_MAX_COUNT; ++i)
+    {
+        XINPUT_STATE state;
+        ZeroMemory(&state, sizeof(XINPUT_STATE));
+
+        dwResult = XInputGetState(i, &state);
+
+        GamepadState& GamepadState = inputs.GetGamepadState(i);
+
+        if (dwResult == ERROR_SUCCESS)
+        {
+            GamepadState.SetEnabled(true);
+
+            XINPUT_GAMEPAD Gamepad = state.Gamepad;
+
+            Vec2f LeftStickAxis;
+            Vec2f LeftInputAxis = Vec2f(Gamepad.sThumbLX, Gamepad.sThumbLY);
+            if (Math::magnitude(LeftInputAxis) > XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE)
+            {
+                LeftStickAxis.x = (float)Gamepad.sThumbLX / 32767;
+                LeftStickAxis.y = (float)Gamepad.sThumbLY / 32767;
+            }
+            else
+            {
+                LeftStickAxis.x = 0.0f;
+                LeftStickAxis.y = 0.0f;
+            }
+
+            Vec2f RightStickAxis;
+            Vec2f RightInputAxis = Vec2f(Gamepad.sThumbRX, Gamepad.sThumbRY);
+            if (Math::magnitude(RightInputAxis) > XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE)
+            {
+                RightStickAxis.x = (float)Gamepad.sThumbRX / 32767;
+                RightStickAxis.y = (float)Gamepad.sThumbRY / 32767;
+            }
+            else
+            {
+                RightStickAxis.x = 0.0f;
+                RightStickAxis.y = 0.0f;
+            }
+
+            float LeftTriggerAnalog = 0.0f;
+            float RightTriggerAnalog = 0.0f;
+
+            if (Gamepad.bLeftTrigger > XINPUT_GAMEPAD_TRIGGER_THRESHOLD)
+            {
+                LeftTriggerAnalog = (float)Gamepad.bLeftTrigger / 255;
+            }
+
+            if (Gamepad.bRightTrigger > XINPUT_GAMEPAD_TRIGGER_THRESHOLD)
+            {
+                RightTriggerAnalog = (float)Gamepad.bRightTrigger / 255;
+            }
+
+            GamepadState.UpdateLeftStickAxis(LeftStickAxis);
+            GamepadState.UpdateRightStickAxis(RightStickAxis);
+
+            GamepadState.UpdateLeftTriggerAnalog(LeftTriggerAnalog);
+            GamepadState.UpdateRightTriggerAnalog(RightTriggerAnalog);
+
+            GamepadState.SetButtonDown(Button::Face_North, Gamepad.wButtons & XINPUT_GAMEPAD_Y);
+            GamepadState.SetButtonDown(Button::Face_West, Gamepad.wButtons & XINPUT_GAMEPAD_X);
+            GamepadState.SetButtonDown(Button::Face_East, Gamepad.wButtons & XINPUT_GAMEPAD_B);
+            GamepadState.SetButtonDown(Button::Face_South, Gamepad.wButtons & XINPUT_GAMEPAD_A);
+
+            GamepadState.SetButtonDown(Button::DPad_Up, Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_UP);
+            GamepadState.SetButtonDown(Button::DPad_Left, Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_LEFT);
+            GamepadState.SetButtonDown(Button::DPad_Right, Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_RIGHT);
+            GamepadState.SetButtonDown(Button::DPad_Down, Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_DOWN);
+
+            GamepadState.SetButtonDown(Button::Start, Gamepad.wButtons & XINPUT_GAMEPAD_START);
+            GamepadState.SetButtonDown(Button::Back, Gamepad.wButtons & XINPUT_GAMEPAD_BACK);
+
+            GamepadState.SetButtonDown(Button::Shoulder_Left, Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER);
+            GamepadState.SetButtonDown(Button::Shoulder_Right, Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER);
+
+            GamepadState.SetButtonDown(Button::Thumb_Left, Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_THUMB);
+            GamepadState.SetButtonDown(Button::Thumb_Right, Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_THUMB);
+        }
+        else
+        {
+
+            GamepadState.SetEnabled(false);
+        }
+    }
 }
 
 // Window callback function
@@ -426,6 +525,7 @@ int WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ L
         }
 
         GetKeyboardState(Input);
+        GetControllerState(Input);
 
         Graphics.OnFrameStart();
         UI.OnFrameStart();

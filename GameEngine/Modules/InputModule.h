@@ -68,6 +68,26 @@ enum class Key
 	Count
 };
 
+enum class Button
+{
+	Face_North,
+	Face_West,
+	Face_East,
+	Face_South,
+	DPad_Up,
+	DPad_Left,
+	DPad_Right,
+	DPad_Down,
+	Start,
+	Back,
+	Shoulder_Right,
+	Shoulder_Left,
+	Thumb_Left,
+	Thumb_Right,
+
+	Count
+};
+
 struct KeyState
 {
 	explicit operator bool() const
@@ -129,6 +149,40 @@ private:
 	bool m_Buttons[static_cast<size_t>(Mouse::Count)];
 };
 
+class GamepadState
+{
+public:
+
+	void SetEnabled(bool enabled);
+	void UpdateLeftStickAxis(Vec2f newAxis);
+	void UpdateRightStickAxis(Vec2f newAxis);
+
+	void UpdateLeftTriggerAnalog(float newValue);
+	void UpdateRightTriggerAnalog(float newValue);
+
+	void SetButtonDown(Button button, bool pressed);
+
+	bool IsEnabled();
+	Vec2f GetLeftStickAxis();
+	Vec2f GetRightStickAxis();
+	
+	float GetLeftTriggerAnalog();
+	float GetRightTriggerAnalog();
+
+	KeyState GetButtonState(Button button);
+
+private:
+	bool m_Enabled = false;
+	
+	Vec2f m_LeftStickAxis;
+	Vec2f m_RightStickAxis;
+
+	float m_LeftTriggerAnalog;
+	float m_RightTriggerAnalog;
+
+	KeyState m_Buttons[static_cast<size_t>(Button::Count)];
+};
+
 class InputModule : public IResizeable
 {
 public:
@@ -146,6 +200,8 @@ public:
 	void SetMouseLocked(bool locked);
 	void SetMouseCenter(Vec2i newCenter);
 
+	GamepadState& GetGamepadState(int controllerIndex = 0);
+
 	void InputCharacter(char c);
 	bool ConsumeCharacter(char& c);
 	void ClearCharacters();
@@ -158,10 +214,10 @@ private:
 
 	KeyState m_Keys[static_cast<size_t>(Key::Count)];
 	MouseState m_MouseState;
+	GamepadState m_GamepadState[4];
 
 	std::queue<char> m_CharQueue;
 
 	bool m_MouseLocked;
 	Vec2i m_MouseCenter;
-
 };

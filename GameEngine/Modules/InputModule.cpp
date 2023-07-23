@@ -7,6 +7,7 @@ InputModule::InputModule()
 	, m_MouseState(Engine::GetMousePosition())
 	, m_MouseCenter(Vec2i(Engine::GetClientAreaSize().x / 2, Engine::GetClientAreaSize().y / 2))
 	, m_MouseLocked(false)
+	, m_GamepadState{ GamepadState(), GamepadState(), GamepadState(), GamepadState() }
 {
 }
 
@@ -52,6 +53,11 @@ void InputModule::SetMouseLocked(bool locked)
 void InputModule::SetMouseCenter(Vec2i newCenter)
 {
 	m_MouseCenter = newCenter;
+}
+
+GamepadState& InputModule::GetGamepadState(int controllerIndex /*= 0*/)
+{
+	return m_GamepadState[controllerIndex];
 }
 
 void InputModule::InputCharacter(char c)
@@ -143,3 +149,62 @@ void MouseState::SetButtonDown(Mouse button, bool pressed)
 	m_Buttons[static_cast<size_t>(button)] = pressed;
 }
 
+void GamepadState::SetEnabled(bool enabled)
+{
+	m_Enabled = enabled;
+}
+
+void GamepadState::UpdateLeftStickAxis(Vec2f newAxis)
+{
+	m_LeftStickAxis = newAxis;
+}
+
+void GamepadState::UpdateRightStickAxis(Vec2f newAxis)
+{
+	m_RightStickAxis = newAxis;
+}
+
+void GamepadState::UpdateLeftTriggerAnalog(float newValue)
+{
+	m_LeftTriggerAnalog = newValue;
+}
+
+void GamepadState::UpdateRightTriggerAnalog(float newValue)
+{
+	m_RightTriggerAnalog = newValue;
+}
+
+void GamepadState::SetButtonDown(Button button, bool pressed)
+{
+	m_Buttons[static_cast<size_t>(button)].UpdateState(pressed);
+}
+
+bool GamepadState::IsEnabled()
+{
+	return m_Enabled;
+}
+
+Vec2f GamepadState::GetLeftStickAxis()
+{
+	return m_LeftStickAxis;
+}
+
+Vec2f GamepadState::GetRightStickAxis()
+{
+	return m_RightStickAxis;
+}
+
+float GamepadState::GetLeftTriggerAnalog()
+{
+	return m_LeftTriggerAnalog;
+}
+
+float GamepadState::GetRightTriggerAnalog()
+{
+	return m_RightTriggerAnalog;
+}
+
+KeyState GamepadState::GetButtonState(Button button)
+{
+	return m_Buttons[static_cast<size_t>(button)];
+}

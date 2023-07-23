@@ -92,13 +92,11 @@ Quaternion Math::VecDiffToQuat(Vec3f v1, Vec3f v2)
 
     if (k_cos_theta / k == -1.0f)
     {
-        Engine::DEBUGPrint("FIRST");
         result.w = 0.0f;
         result.vec = Math::normalize(orthogonal(v1));
     }
     else
     {
-        Engine::DEBUGPrint("SECOND");
         result.w = k_cos_theta + k;
         result.vec = Math::cross(v2, v1);
     }

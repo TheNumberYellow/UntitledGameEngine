@@ -70,6 +70,18 @@ Model* Scene::GetModel(std::string name)
     }
 }
 
+Model* Scene::GetModelByTag(std::string tag)
+{
+    for (auto& model : m_UntrackedModels)
+    {
+        if (model->m_Name == tag)
+        {
+            return model;
+        }
+    }
+    return nullptr;
+}
+
 void Scene::DeleteModel(Model* model)
 {
     auto it = std::find(m_UntrackedModels.begin(), m_UntrackedModels.end(), model);
@@ -221,7 +233,6 @@ Model* Scene::MenuListEntities(UIModule& ui, Font& font)
 
 void Scene::Save(std::string FileName)
 {   
-
     // Set of all textures used in the scene (TODO: replace with Materials)
     std::set<Texture> Textures;
     // Set of all Static Meshes used in the scene
@@ -337,7 +348,6 @@ void Scene::Save(std::string FileName)
 
 void Scene::Load(std::string FileName)
 {
-
     std::ifstream File(FileName);
 
     if (!File.is_open())
