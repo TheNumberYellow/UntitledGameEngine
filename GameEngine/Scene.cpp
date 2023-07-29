@@ -415,11 +415,11 @@ void Scene::Load(std::string FileName)
 
             NewModel->GetTransform().SetTransformMatrix(EntityTransform);
 
-            size_t NumBehaviours = LineTokens.size() - (At + 1);
+            size_t NumBehaviours = LineTokens.size() - (At);
 
             for (int i = 0; i < NumBehaviours; ++i)
             {
-                std::string BehaviourName = LineTokens[At + i];
+                std::string BehaviourName = LineTokens[At++];
                 BehaviourRegistry::Get()->AttachNewBehaviour(BehaviourName, NewModel);
             }
 

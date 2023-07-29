@@ -357,7 +357,11 @@ void NetworkInterface::ServerReceiveData()
         }
         else
         {
-            std::string ReceivedData = recvbuf;
+            std::string ReceivedData;
+            for (int i = 0; i < iResult; ++i)
+            {
+                ReceivedData += recvbuf[i];
+            }
             if (ReceivedData == "PING")
             {
                 Engine::Error("Received ping from client.");
