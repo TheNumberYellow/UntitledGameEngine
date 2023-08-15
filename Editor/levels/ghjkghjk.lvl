@@ -1,0 +1,8 @@
+Textures:
+textures/marble.jpg textures/marble.norm.png
+StaticMeshes:
+models/Curvy.obj
+models/Fire.obj
+Entities:
+0 1 1 0 0 0 0 1 0 0 0 0 1 0 1.00812 -4.61565 2.667 1 
+0 0 1 0 0 0 0 1 0 0 0 0 1 0 -6.64275 -1.83098 2.04816 1 

@@ -20,3 +20,12 @@ std::vector<std::string> StringUtils::Split(std::string inputString, std::string
 
     return output;
 }
+
+bool StringUtils::Contains(std::string inputString, std::string subString)
+{
+    if (inputString.find(subString) != std::string::npos)
+    {
+        return true;
+    }
+    return false;
+}

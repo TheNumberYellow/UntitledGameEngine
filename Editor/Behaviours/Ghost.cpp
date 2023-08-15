@@ -1,5 +1,7 @@
 #include "Ghost.h"
 
+#include "TopDownPlayer.h"
+
 REGISTER_BEHAVIOUR(Ghost);
 
 void Ghost::Update(ModuleManager& Modules, Scene* Scene, float DeltaTime)
@@ -15,9 +17,23 @@ void Ghost::Update(ModuleManager& Modules, Scene* Scene, float DeltaTime)
     {
         Vec3f GhostToTarget = Target->GetTransform().GetPosition() - m_Model->GetTransform().GetPosition();
 
+        Vec2f InputDir2D = Vec2f(GhostToTarget.x, GhostToTarget.y);
+
+        if (Math::magnitude(InputDir2D) < 0.25f)
+        {
+            TopDownPlayer* PlayerBehaviour = static_cast<TopDownPlayer*>(BehaviourRegistry::Get()->GetBehaviourAttachedToEntity(Target));
+            if (PlayerBehaviour)
+            {
+                PlayerBehaviour->Hurt();
+            }
+
+            Scene->DeleteModel(m_Model);
+
+            return;
+        }
+
         GhostToTarget = Math::normalize(GhostToTarget);
 
-        Vec2f InputDir2D = Vec2f(GhostToTarget.x, GhostToTarget.y);
         Vec2f Left2D = Vec2f(1.0f, 0.0f);
 
         float dot = Math::dot(InputDir2D, Left2D);
@@ -31,6 +47,7 @@ void Ghost::Update(ModuleManager& Modules, Scene* Scene, float DeltaTime)
         Vec3f GhostToTargetHorizontal = Math::normalize(Vec3f(GhostToTarget.x, GhostToTarget.y, 0.0f));
 
         m_Model->GetTransform().Move(GhostToTargetHorizontal * GhostSpeed * DeltaTime);
+
 
     }
 }

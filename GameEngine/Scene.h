@@ -33,11 +33,16 @@ public:
 
     void Init(GraphicsModule& graphics, CollisionModule& collisions);
 
+    void Pause();
+    void UnPause();
+    bool IsPaused();
+
     Model* AddModel(Model model, std::string name = "");
     void DeleteModel(Model* model);
     
     Model* GetModel(std::string name);
     Model* GetModelByTag(std::string tag);
+    std::vector<Model*> GetModelsByTag(std::string tag);
 
     void AddCamera(Camera* camera);
 
@@ -67,8 +72,17 @@ private:
 
     std::vector<Camera*> m_Cameras;
 
+    bool m_Paused = false;
+
+    // TEMP member variables start
     Camera m_ShadowCamera;
     Framebuffer_ID shadowBuffer;
+
+    //GBuffer GBuf;
+
+    //Shader_ID PosShader;
+
+    // TEMP member variables end
 
     GraphicsModule* m_Graphics;
     CollisionModule* m_Collisions;

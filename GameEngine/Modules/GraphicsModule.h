@@ -11,6 +11,14 @@
 
 class GraphicsModule;
 
+struct GBuffer
+{
+    Framebuffer_ID PositionBuffer;
+    Framebuffer_ID NormalBuffer;
+    Framebuffer_ID AlbedoBuffer;
+    Framebuffer_ID SpecularBuffer;
+};
+
 class Texture : public Asset
 {
 public:
@@ -50,13 +58,18 @@ struct Material
 
     Texture m_DiffuseTexture;
     Texture m_NormalMap;
-};
 
-struct RenderCommand
-{
-    StaticMesh_ID mesh;
-    bool depthTest;
-    uint32_t order;
+    friend bool operator<(const Material& lhs, const Material& rhs)
+    {
+        return lhs.m_DiffuseTexture < rhs.m_DiffuseTexture
+            || lhs.m_NormalMap < rhs.m_NormalMap;
+    }
+
+    friend bool operator==(const Material& lhs, const Material& rhs)
+    {
+        return lhs.m_DiffuseTexture == rhs.m_DiffuseTexture
+            && lhs.m_NormalMap == rhs.m_NormalMap;
+    }
 };
 
 enum class Vis
@@ -154,12 +167,26 @@ struct DirectionalLight
     Vec3f colour;
 };
 
+// TODO: Add more information here later, shader type for example, whether mesh casts shadows, etc.
+struct RenderCommand
+{
+    StaticMesh_ID mesh;
+    Material material;
+    Transform transform;
+    Model* model;
+};
+
 class GraphicsModule
     : public IResizeable
 {
 public:
     GraphicsModule(Renderer& renderer);
     ~GraphicsModule();
+
+    void AddRenderCommand(RenderCommand Command);
+
+    // Render all submitted render commands into the specified buffer
+    void Render(Framebuffer_ID OutBuffer, Camera Cam, DirectionalLight DirLight);
 
     Shader_ID CreateShader(std::string vertShaderSource, std::string fragShaderSource);
     Framebuffer_ID CreateFBuffer(Vec2i size, FBufferFormat format = FBufferFormat::COLOUR);
@@ -259,6 +286,14 @@ private:
     std::unordered_map<Vec3f, std::vector<float>, Vec3fHash> m_DebugLineMap;
     VertexBufferFormat m_DebugVertFormat;
     StaticMesh_ID m_DebugDrawMesh;
+
+    Framebuffer_ID m_ShadowBuffer;
+    Camera m_ShadowCamera;
+    Shader_ID m_PosShader;
+    Shader_ID m_NormalsShader;
+    Shader_ID m_AlbedoShader;
+
+    std::vector<RenderCommand> m_RenderCommands;
 
     // todo(Fraser): move this to some GUI module?
     Mat4x4f m_OrthoProjection;

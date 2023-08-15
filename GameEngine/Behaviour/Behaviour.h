@@ -35,11 +35,13 @@ public:
 
     Behaviour* AddBehaviourPrototype(std::string BehaviourName, Behaviour* NewBehaviour);
 
-    void AttachNewBehaviour(std::string BehaviourName, Model* Model);
+    Behaviour* AttachNewBehaviour(std::string BehaviourName, Model* Model);
 
     void UpdateAllBehaviours(ModuleManager& Modules, Scene* Scene, float DeltaTime);
 
+    Behaviour* GetBehaviourAttachedToEntity(Model* Model);
     std::vector<std::string> GetBehavioursAttachedToEntity(Model* Model);
+    void ClearBehavioursOnEntity(Model* Model);
 
     void ClearAllAttachedBehaviours();
 

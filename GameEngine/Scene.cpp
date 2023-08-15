@@ -31,6 +31,9 @@ Scene::Scene()
 
     m_DirLight.colour = Vec3f(1.0, 1.0, 1.0);
     m_DirLight.direction = m_ShadowCamera.GetDirection();
+
+
+
 }
 
 Scene::~Scene()
@@ -42,6 +45,21 @@ void Scene::Init(GraphicsModule& graphics, CollisionModule& collisions)
     m_Graphics = &graphics;
     m_Collisions = &collisions;
     shadowBuffer = graphics.CreateFBuffer(Vec2i(8000, 8000), FBufferFormat::DEPTH);
+}
+
+void Scene::Pause()
+{
+    m_Paused = true;
+}
+
+void Scene::UnPause()
+{
+    m_Paused = false;
+}
+
+bool Scene::IsPaused()
+{
+    return m_Paused;
 }
 
 Model* Scene::AddModel(Model model, std::string name)
@@ -82,12 +100,27 @@ Model* Scene::GetModelByTag(std::string tag)
     return nullptr;
 }
 
+std::vector<Model*> Scene::GetModelsByTag(std::string tag)
+{
+    std::vector<Model*> result;
+    for (auto& model : m_UntrackedModels)
+    {
+        if (model->m_Name == tag)
+        {
+            result.push_back(model);
+        }
+    }
+    return result;
+}
+
 void Scene::DeleteModel(Model* model)
 {
     auto it = std::find(m_UntrackedModels.begin(), m_UntrackedModels.end(), model);
     if (it != m_UntrackedModels.end())
     {
         m_UntrackedModels.erase(it);
+
+        BehaviourRegistry::Get()->ClearBehavioursOnEntity(model);
     }
 }
 
@@ -121,6 +154,33 @@ void Scene::Update()
 
 void Scene::Draw(GraphicsModule& graphics, Framebuffer_ID buffer)
 {
+
+    for (auto& it : m_Models)
+    {
+        RenderCommand command;
+        command.material = it.second->m_TexturedMeshes[0].m_Material;
+        command.mesh = it.second->m_TexturedMeshes[0].m_Mesh.Id;
+        command.transform = it.second->GetTransform();
+        command.model = it.second;
+
+        graphics.AddRenderCommand(command);
+    }
+
+    for (auto& it : m_UntrackedModels)
+    {
+        RenderCommand command;
+        command.material = it->m_TexturedMeshes[0].m_Material;
+        command.mesh = it->m_TexturedMeshes[0].m_Mesh.Id;
+        command.transform = it->GetTransform();
+        command.model = it;
+
+        graphics.AddRenderCommand(command);
+
+    }
+
+    graphics.Render(buffer, *(m_Cameras[0]), m_DirLight);
+    
+#if 0
     Vec3f shadowCamPos = m_Cameras[0]->GetPosition() + (-m_ShadowCamera.GetDirection() * 40.0f);
     m_ShadowCamera.SetPosition(shadowCamPos);
     m_ShadowCamera.SetDirection(m_DirLight.direction);
@@ -162,13 +222,12 @@ void Scene::Draw(GraphicsModule& graphics, Framebuffer_ID buffer)
     {
         graphics.Draw(*it);
     }
+#endif
 }
 
 void Scene::EditorDraw(GraphicsModule& graphics, Framebuffer_ID buffer)
 {
     Draw(graphics, buffer);
-
-
 }
 
 void Scene::SetDirectionalLight(DirectionalLight light)
@@ -234,7 +293,7 @@ Model* Scene::MenuListEntities(UIModule& ui, Font& font)
 void Scene::Save(std::string FileName)
 {   
     // Set of all textures used in the scene (TODO: replace with Materials)
-    std::set<Texture> Textures;
+    std::set<Material> Materials;
     // Set of all Static Meshes used in the scene
     std::set<StaticMesh> StaticMeshes;
 
@@ -242,17 +301,20 @@ void Scene::Save(std::string FileName)
     {
         Texture tex = it->m_TexturedMeshes[0].m_Material.m_DiffuseTexture;
         StaticMesh mesh = it->m_TexturedMeshes[0].m_Mesh;
-        if (tex.LoadedFromFile)
-        {
-            Textures.insert(it->m_TexturedMeshes[0].m_Material.m_DiffuseTexture);
-        }
+        
+        Material mat = it->m_TexturedMeshes[0].m_Material;
+        //if (tex.LoadedFromFile)
+        //{
+        //  Materials.insert(mat);
+        //}
+        Materials.insert(mat);
         if (mesh.LoadedFromFile)
         {
             StaticMeshes.insert(it->m_TexturedMeshes[0].m_Mesh);
         }
     }
 
-    std::vector<Texture> TextureVec(Textures.begin(), Textures.end());
+    std::vector<Material> MaterialVec(Materials.begin(), Materials.end());
     std::vector<StaticMesh> StaticMeshVec(StaticMeshes.begin(), StaticMeshes.end());
 
 
@@ -265,10 +327,11 @@ void Scene::Save(std::string FileName)
     }
 
     File << "Textures:" << std::endl;
-    for (auto& Tex : TextureVec)
+    for (auto& Mat : MaterialVec)
     {
-        std::string Path = Tex.Path.GetFullPath();
-        File << Path << std::endl;
+        std::string Path = Mat.m_DiffuseTexture.Path.GetFullPath();
+        std::string NormPath = Mat.m_NormalMap.Path.GetFullPath();
+        File << Path << " " << NormPath << std::endl;
     }
 
     File << "StaticMeshes:" << std::endl;
@@ -298,10 +361,10 @@ void Scene::Save(std::string FileName)
             //Engine::FatalError("Could not find mesh while saving scene (this should never happen)");
         }
 
-        auto TextureIt = std::find(TextureVec.begin(), TextureVec.end(), it->m_TexturedMeshes[0].m_Material.m_DiffuseTexture);
-        if (TextureIt != TextureVec.end())
+        auto MaterialIt = std::find(MaterialVec.begin(), MaterialVec.end(), it->m_TexturedMeshes[0].m_Material);
+        if (MaterialIt != MaterialVec.end())
         {
-            TextureIndex = TextureIt - TextureVec.begin();
+            TextureIndex = MaterialIt - MaterialVec.begin();
         }
         else
         {
@@ -360,7 +423,7 @@ void Scene::Load(std::string FileName)
 
     BehaviourRegistry::Get()->ClearAllAttachedBehaviours();
 
-    std::vector<Texture> SceneTextures;
+    std::vector<Material> SceneMaterials;
     std::vector<StaticMesh> SceneStaticMeshes;
 
     FileReaderState ReaderState;
@@ -378,7 +441,18 @@ void Scene::Load(std::string FileName)
         switch (ReaderState)
         {
         case TEXTURES:
-            SceneTextures.push_back(m_Graphics->LoadTexture(LineTokens[0]));
+            if (LineTokens.size() == 2)
+            {
+                Texture DiffuseTex = m_Graphics->LoadTexture(LineTokens[0]);
+                Texture NormalTex = m_Graphics->LoadTexture(LineTokens[1]);
+
+                SceneMaterials.push_back(m_Graphics->CreateMaterial(DiffuseTex, NormalTex));
+            }
+            else
+            {
+                Texture DiffuseTex = m_Graphics->LoadTexture(LineTokens[0]);
+                SceneMaterials.push_back(m_Graphics->CreateMaterial(DiffuseTex));
+            }
             break;
         case STATIC_MESHES:
             SceneStaticMeshes.push_back(m_Graphics->LoadMesh(LineTokens[0]));
@@ -387,7 +461,7 @@ void Scene::Load(std::string FileName)
         {
             int At = 0;
             
-            int TextureIndex = std::stoi(LineTokens[At++]);
+            int MaterialIndex = std::stoi(LineTokens[At++]);
             
             Model* NewModel;
 
@@ -397,12 +471,12 @@ void Scene::Load(std::string FileName)
                 BoxAABB.min.x = std::stof(LineTokens[At++]); BoxAABB.min.y = std::stof(LineTokens[At++]); BoxAABB.min.z = std::stof(LineTokens[At++]);
                 BoxAABB.max.x = std::stof(LineTokens[At++]); BoxAABB.max.y = std::stof(LineTokens[At++]); BoxAABB.max.z = std::stof(LineTokens[At++]);
 
-                NewModel = new Model(m_Graphics->CreateBoxModel(BoxAABB, m_Graphics->CreateMaterial(SceneTextures[TextureIndex])));
+                NewModel = new Model(m_Graphics->CreateBoxModel(BoxAABB, SceneMaterials[MaterialIndex]));
             }
             else
             {
                 int StaticMeshIndex = std::stoi(LineTokens[1]);
-                NewModel = new Model(m_Graphics->CreateModel(TexturedMesh(SceneStaticMeshes[StaticMeshIndex], m_Graphics->CreateMaterial(SceneTextures[TextureIndex]))));
+                NewModel = new Model(m_Graphics->CreateModel(TexturedMesh(SceneStaticMeshes[StaticMeshIndex], SceneMaterials[MaterialIndex])));
             }
 
 

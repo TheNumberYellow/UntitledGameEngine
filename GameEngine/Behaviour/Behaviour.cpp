@@ -27,7 +27,7 @@ Behaviour* BehaviourRegistry::AddBehaviourPrototype(std::string BehaviourName, B
     return m_BehaviourPrototypes[BehaviourName];
 }
 
-void BehaviourRegistry::AttachNewBehaviour(std::string BehaviourName, Model* Model)
+Behaviour* BehaviourRegistry::AttachNewBehaviour(std::string BehaviourName, Model* Model)
 {
     auto it = m_BehaviourPrototypes.find(BehaviourName);
     if (it != m_BehaviourPrototypes.end())
@@ -37,11 +37,15 @@ void BehaviourRegistry::AttachNewBehaviour(std::string BehaviourName, Model* Mod
         NewBehaviour->BehaviourName = BehaviourName;
 
         m_AttachedBehaviours.push_back(NewBehaviour);
+
+        return NewBehaviour;
     }
     else
     {
         Engine::FatalError("Could not find behaviour " + BehaviourName);
     }
+
+    return nullptr;
 }
 
 void BehaviourRegistry::UpdateAllBehaviours(ModuleManager& Modules, Scene* Scene, float DeltaTime)
@@ -51,10 +55,33 @@ void BehaviourRegistry::UpdateAllBehaviours(ModuleManager& Modules, Scene* Scene
     //{
     //    Behaviour->Update(Modules, Scene, DeltaTime);
     //}
-    for (int i = 0; i < m_AttachedBehaviours.size(); ++i)
+
+    if (Scene->IsPaused())
     {
+        return;
+    }
+
+    for (int i = (int)m_AttachedBehaviours.size() - 1; i >= 0; --i)
+    {
+        if (m_AttachedBehaviours[i]->m_Model == nullptr)
+        {
+            m_AttachedBehaviours.erase(m_AttachedBehaviours.begin() + i);
+            continue;
+        }
         m_AttachedBehaviours[i]->Update(Modules, Scene, DeltaTime);
     }
+}
+
+Behaviour* BehaviourRegistry::GetBehaviourAttachedToEntity(Model* Model)
+{
+    for (auto Behaviour : m_AttachedBehaviours)
+    {
+        if (Behaviour->m_Model == Model)
+        {
+            return Behaviour;
+        }
+    }
+    return nullptr;
 }
 
 std::vector<std::string> BehaviourRegistry::GetBehavioursAttachedToEntity(Model* Model)
@@ -69,6 +96,18 @@ std::vector<std::string> BehaviourRegistry::GetBehavioursAttachedToEntity(Model*
     }
 
     return Result;
+}
+
+void BehaviourRegistry::ClearBehavioursOnEntity(Model* Model)
+{
+    for (int i = (int)m_AttachedBehaviours.size() - 1; i >= 0; --i)
+    {
+        if (m_AttachedBehaviours[i]->m_Model == Model)
+        {
+            m_AttachedBehaviours.erase(m_AttachedBehaviours.begin() + i);
+            continue;
+        }
+    }
 }
 
 void BehaviourRegistry::ClearAllAttachedBehaviours()

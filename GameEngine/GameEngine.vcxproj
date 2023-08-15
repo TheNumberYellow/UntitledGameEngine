@@ -396,6 +396,7 @@
     <ClInclude Include="Components\Component.h" />
     <ClInclude Include="ControlInputs.h" />
     <ClInclude Include="Entities\Entity.h" />
+    <ClInclude Include="FileIO\FileIO.h" />
     <ClInclude Include="Interfaces\Resizeable_i.h" />
     <ClInclude Include="Math\Geometry.h" />
     <ClInclude Include="Math\Quaternion.h" />

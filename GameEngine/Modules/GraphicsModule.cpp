@@ -83,7 +83,7 @@ bool Transform::WasTransformMatrixUpdated()
 void Transform::UpdateTransformMatrix()
 {
     m_Transform = Math::GenerateTransformMatrix(m_Position, m_Scale, m_Rotation);
-    
+
     m_WasTransformMatrixUpdated = true;
 }
 
@@ -195,7 +195,7 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
     uniform samplerCube Skybox;	
     uniform sampler2D ShadowMap;
 
-	uniform float Time;
+	//uniform float Time;
 	uniform vec3 SunDirection;
     uniform vec3 SunColour;
 
@@ -206,6 +206,35 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
     float rand(vec2 co)
     {
         return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
+    }
+
+    mat3 cotangent_frame( vec3 N, vec3 p, vec2 uv )
+    {
+        // get edge vectors of the pixel triangle
+        vec3 dp1 = dFdx( p );
+        vec3 dp2 = dFdy( p );
+        vec2 duv1 = dFdx( uv );
+        vec2 duv2 = dFdy( uv );
+ 
+        // solve the linear system
+        vec3 dp2perp = cross( dp2, N );
+        vec3 dp1perp = cross( N, dp1 );
+        vec3 T = dp2perp * duv1.x + dp1perp * duv2.x;
+        vec3 B = dp2perp * duv1.y + dp1perp * duv2.y;
+ 
+        // construct a scale-invariant frame 
+        float invmax = inversesqrt( max( dot(T,T), dot(B,B) ) );
+        return mat3( T * invmax, B * invmax, N );
+    }
+
+    vec3 perturb_normal( vec3 N, vec3 V, vec2 texcoord )
+    {
+        // assume N, the interpolated vertex normal and 
+        // V, the view vector (vertex to eye)
+        vec3 map = texture2D( NormalMap, texcoord ).xyz;
+        map = normalize(map * 2.0 - 1.0);
+        mat3 TBN = cotangent_frame( N, -V, texcoord );
+        return normalize( TBN * map );
     }
 
     float ShadowCalculation(vec4 fragPosLightSpace)
@@ -237,15 +266,22 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
 	{
 		vec3 sun = vec3(-SunDirection.x, -SunDirection.y, -SunDirection.z);
 
-        vec4 normalAt = texture(NormalMap, FragUV);
-        vec3 normal = normalAt.rgb;
-        normal = normalize(normal * 2.0 - 1.0);		
+        //vec4 normalAt = texture(NormalMap, FragUV);
+        //vec3 normal = normalAt.rgb;
+        ////normal = normalize(normal * 2.0 - 1.0);		
+        //normal = normalize(normal);
 
+        //vec3 ViewVector = FragPosition - CameraPos;
+        vec3 ViewVector = CameraPos - FragPosition;
+        
         vec3 normalizedNormal = normalize(FragNormal);
+        
+        vec3 normal = perturb_normal(normalizedNormal, ViewVector, FragUV);
+
 		vec4 textureAt = texture(DiffuseTexture, FragUV);
 
-        float diffuse = ((dot(normalizedNormal.xyz, normalize(sun))) + 1.0) / 2.0;
-		//float diffuse = ((dot(normal.xyz, normalize(sun))) + 1.0) / 2.0;
+        //float diffuse = ((dot(normalizedNormal.xyz, normalize(sun))) + 1.0) / 2.0;
+		float diffuse = ((dot(normal.xyz, normalize(sun))) + 1.0) / 2.0;
         // Temp: reduces shadow acne
         if (diffuse < 0.53)
         {
@@ -418,7 +454,117 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
     )";
 
     m_UIShader = m_Renderer.LoadShader(vertShaderSource, fragShaderSource);
-    
+
+    // ~~~~~~~~~~~~~~~~~~~~~Position buffer shader code~~~~~~~~~~~~~~~~~~~~~ //
+    vertShaderSource = R"(
+    #version 400
+
+    uniform mat4x4 Transformation;
+	uniform mat4x4 Camera;    
+
+	in vec4 VertPosition;
+
+    smooth out vec4 FragPosition;
+
+    void main()
+    {
+        gl_Position = (Camera * Transformation) * VertPosition;
+        FragPosition = Transformation * VertPosition;
+    }
+
+    )";
+
+    fragShaderSource = R"(
+    #version 400
+
+    smooth in vec4 FragPosition;    
+
+    out vec4 OutColour;
+
+    void main()
+    {
+        //OutColour = vec4(1.0, 0.0, 1.0, 1.0);
+        OutColour = FragPosition;
+    }   
+        
+    )";
+
+    m_PosShader = m_Renderer.LoadShader(vertShaderSource, fragShaderSource);
+
+    // ~~~~~~~~~~~~~~~~~~~~~Normals buffer shader code~~~~~~~~~~~~~~~~~~~~~ //
+    vertShaderSource = R"(
+    #version 400
+
+    uniform mat4x4 Transformation;
+	uniform mat4x4 Camera;    
+
+	in vec4 VertPosition;
+    in vec3 VertNormal;    
+
+    smooth out vec3 FragNormal;
+
+    void main()
+    {
+        gl_Position = (Camera * Transformation) * VertPosition;
+        FragNormal = mat3(transpose(inverse(Transformation))) * VertNormal.xyz;
+    }
+
+    )";
+
+    fragShaderSource = R"(
+    #version 400
+
+    smooth in vec3 FragNormal;    
+
+    out vec4 OutColour;
+
+    void main()
+    {
+        //OutColour = vec4(1.0, 0.0, 1.0, 1.0);
+        OutColour = vec4(normalize(FragNormal), 1.0);
+    }   
+        
+    )";
+
+    m_NormalsShader = m_Renderer.LoadShader(vertShaderSource, fragShaderSource);
+
+    // ~~~~~~~~~~~~~~~~~~~~~Albedo buffer shader code~~~~~~~~~~~~~~~~~~~~~ //
+    vertShaderSource = R"(
+    #version 400
+
+    uniform mat4x4 Transformation;
+	uniform mat4x4 Camera;    
+
+	in vec4 VertPosition;
+    in vec3 VertNormal;    
+
+    smooth out vec3 FragNormal;
+
+    void main()
+    {
+        gl_Position = (Camera * Transformation) * VertPosition;
+        FragNormal = mat3(transpose(inverse(Transformation))) * VertNormal.xyz;
+    }
+
+    )";
+
+    fragShaderSource = R"(
+    #version 400
+
+    smooth in vec3 FragNormal;    
+
+    out vec4 OutColour;
+
+    void main()
+    {
+        //OutColour = vec4(1.0, 0.0, 1.0, 1.0);
+        OutColour = vec4(normalize(FragNormal), 1.0);
+    }   
+        
+    )";
+
+    m_AlbedoShader = m_Renderer.LoadShader(vertShaderSource, fragShaderSource);
+
     Vec2i viewportSize = GetViewportSize();
     float sizeX = (float)viewportSize.x;
     float sizeY = (float)viewportSize.y;
@@ -426,9 +572,9 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
     m_OrthoProjection = Math::GenerateOrthoMatrix(0.0f, sizeX, 0.0f, sizeY, 0.1f, 100.0f);
     m_Renderer.SetShaderUniformMat4x4f(m_UIShader, "Projection", m_OrthoProjection);
 
-    m_DefaultNormalMap = LoadTexture("textures/blue.png", TextureMode::NEAREST, TextureMode::NEAREST);
-    m_DebugMaterial = CreateMaterial(   LoadTexture("textures/debugTexture.png", TextureMode::LINEAR, TextureMode::LINEAR),
-                                        LoadTexture("textures/marble_norm.png"));
+    m_DefaultNormalMap = LoadTexture("textures/default_norm.png", TextureMode::NEAREST, TextureMode::NEAREST);
+    m_DebugMaterial = CreateMaterial(LoadTexture("textures/debugTexture.png", TextureMode::LINEAR, TextureMode::LINEAR),
+        LoadTexture("textures/debugTexture.norm.png"));
 
     m_Renderer.SetShaderUniformVec2f(m_UIShader, "WindowSize", (Vec2f)Engine::GetClientAreaSize());
 
@@ -475,16 +621,101 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
          1.0f,  -1.0f,    -1.0f,
          1.0f,  -1.0f,    -1.0f,
         -1.0f,   1.0f,    -1.0f,
-         1.0f,   1.0f,  - 1.0f,
+         1.0f,   1.0f,  -1.0f,
     };
 
     m_SkyboxMesh = m_Renderer.LoadMesh(VertexBufferFormat({ VertAttribute::Vec3f }), skyboxVertices);
     m_SkyboxCubemap = m_Renderer.LoadCubemap("asda");
     m_IsSkyboxSet = true;
+
+    m_ShadowBuffer = CreateFBuffer(Vec2i(8000, 8000), FBufferFormat::DEPTH);
+
+    m_ShadowCamera = Camera(Projection::Orthographic);
+    m_ShadowCamera.SetScreenSize(Vec2f(100.0f, 100.0f));
+    m_ShadowCamera.SetNearPlane(0.0f);
+    m_ShadowCamera.SetFarPlane(100.0f);
+    m_ShadowCamera.SetPosition(Vec3f(0.0f, -30.0f, 6.0f));
 }
 
 GraphicsModule::~GraphicsModule()
 {
+}
+
+void GraphicsModule::AddRenderCommand(RenderCommand Command)
+{
+    m_RenderCommands.push_back(Command);
+}
+
+void GraphicsModule::Render(Framebuffer_ID OutBuffer, Camera Cam, DirectionalLight DirLight)
+{
+    // Create directional light shadow map
+    m_ShadowCamera.SetPosition(Cam.GetPosition() + (-m_ShadowCamera.GetDirection() * 40.0f));
+    m_ShadowCamera.SetDirection(DirLight.direction);
+
+    m_Renderer.SetActiveShader(m_ShadowShader);
+    SetActiveFrameBuffer(m_ShadowBuffer);
+    {
+        m_Renderer.SetShaderUniformMat4x4f(m_ShadowShader, "LightSpaceMatrix", m_ShadowCamera.GetCamMatrix());
+
+        for (RenderCommand& Command : m_RenderCommands)
+        {
+            // Set mesh-specific transform uniform
+            m_Renderer.SetShaderUniformMat4x4f(m_ShadowShader, "Transformation", Command.transform.GetTransformMatrix());
+
+            // Draw mesh to shadow map
+            m_Renderer.DrawMesh(Command.mesh);
+        }
+    }
+
+    m_Renderer.SetActiveFBuffer(OutBuffer);
+
+#if 0
+    m_Renderer.SetActiveShader(m_NormalsShader);
+
+    m_Renderer.SetShaderUniformMat4x4f(m_NormalsShader, "Camera", Cam.GetCamMatrix());
+    
+    for (RenderCommand& Command : m_RenderCommands)
+    {
+        // Set mesh-specific transform uniform
+        m_Renderer.SetShaderUniformMat4x4f(m_NormalsShader, "Transformation", Command.transform.GetTransformMatrix());
+
+        // Draw mesh
+        m_Renderer.DrawMesh(Command.mesh);
+    }
+#endif
+#if 1
+    // Begin actual draw
+    m_Renderer.SetActiveFBuffer(OutBuffer);
+
+    m_Renderer.SetActiveShader(m_TexturedMeshShader);
+
+    m_Renderer.SetActiveFBufferTexture(m_ShadowBuffer, "ShadowMap");
+    m_Renderer.SetShaderUniformMat4x4f(m_TexturedMeshShader, "LightSpaceMatrix", m_ShadowCamera.GetCamMatrix());
+
+    m_Renderer.SetShaderUniformVec3f(m_TexturedMeshShader, "SunDirection", DirLight.direction);
+    m_Renderer.SetShaderUniformVec3f(m_TexturedMeshShader, "SunColour", DirLight.colour);
+
+    // Set Camera uniforms
+    m_Renderer.SetShaderUniformMat4x4f(m_TexturedMeshShader, "Camera", Cam.GetCamMatrix());
+    m_Renderer.SetShaderUniformVec3f(m_TexturedMeshShader, "CameraPos", Cam.GetPosition());
+
+    for (RenderCommand& Command : m_RenderCommands)
+    {
+        // Set mesh-specific transform uniform
+        m_Renderer.SetShaderUniformMat4x4f(m_TexturedMeshShader, "Transformation", Command.transform.GetTransformMatrix());
+
+        // Set material
+        m_Renderer.SetActiveTexture(Command.material.m_DiffuseTexture.Id, "DiffuseTexture");
+        m_Renderer.SetActiveTexture(Command.material.m_NormalMap.Id, "NormalMap");
+
+        // Draw mesh
+        m_Renderer.DrawMesh(Command.mesh);
+    }
+#endif
+
+    DrawDebugDrawMesh();
+
+    m_RenderCommands.clear();
 }
 
 Shader_ID GraphicsModule::CreateShader(std::string vertShaderSource, std::string fragShaderSource)
@@ -500,7 +731,7 @@ Framebuffer_ID GraphicsModule::CreateFBuffer(Vec2i size, FBufferFormat format)
 Texture GraphicsModule::CreateTexture(Vec2i size)
 {
     Texture_ID Id = m_Renderer.CreateEmptyTexture(size);
-    
+
     Texture Result;
     Result.Id = Id;
     Result.LoadedFromFile = false;
@@ -511,7 +742,7 @@ Texture GraphicsModule::CreateTexture(Vec2i size)
 Texture GraphicsModule::LoadTexture(std::string filePath, TextureMode minFilter, TextureMode magFilter)
 {
     Texture_ID Id = m_Renderer.LoadTexture(filePath, minFilter, magFilter);
-    
+
     Texture Result;
     Result.Id = Id;
     Result.LoadedFromFile = true;
@@ -534,7 +765,7 @@ StaticMesh GraphicsModule::LoadMesh(std::string filePath)
 }
 
 void GraphicsModule::AttachTextureToFBuffer(Texture texture, Framebuffer_ID fBufferID)
-{ 
+{
     m_Renderer.AttachTextureToFramebuffer(texture.Id, fBufferID);
 }
 
@@ -737,8 +968,8 @@ void GraphicsModule::Draw(Model& model)
 
         for (int i = 0; i < model.m_TexturedMeshes.size(); ++i)
         {
+            m_Renderer.SetActiveTexture(model.m_TexturedMeshes[i].m_Material.m_NormalMap.Id, "NormalMap");
             m_Renderer.SetActiveTexture(model.m_TexturedMeshes[i].m_Material.m_DiffuseTexture.Id, "DiffuseTexture");
-            //m_Renderer.SetActiveTexture(model.m_TexturedMeshes[i].m_Material.m_NormalMap, "NormalMap");
             m_Renderer.DrawMesh(model.m_TexturedMeshes[i].m_Mesh.Id);
         }
 
@@ -748,8 +979,8 @@ void GraphicsModule::Draw(Model& model)
         // Temp(fraser): Matrix set this frame PER render mode
         //if (!m_CameraMatrixSetThisFrame && m_Camera != nullptr)
         //{
-            m_Renderer.SetShaderUniformMat4x4f(m_UnlitShader, "Camera", m_Camera->GetCamMatrix());
-            m_CameraMatrixSetThisFrame = true;
+        m_Renderer.SetShaderUniformMat4x4f(m_UnlitShader, "Camera", m_Camera->GetCamMatrix());
+        m_CameraMatrixSetThisFrame = true;
         //}
 
         m_Renderer.SetActiveShader(m_UnlitShader);
@@ -897,11 +1128,11 @@ void GraphicsModule::DebugDrawPoint(Vec3f p, Vec3f colour)
         m_DebugLineMap[colour] = std::vector<float>();
     }
 
-    m_DebugLineMap[colour].insert(m_DebugLineMap[colour].end(), { 
+    m_DebugLineMap[colour].insert(m_DebugLineMap[colour].end(), {
         p.x, p.y - 0.5f, p.z, p.x, p.y + 0.5f, p.z,
         p.x - 0.5f, p.y, p.z, p.x + 0.5f, p.y, p.z,
         p.x, p.y, p.z - 0.5f, p.x, p.y, p.z + 0.5f,
-        
+
         });
 }
 

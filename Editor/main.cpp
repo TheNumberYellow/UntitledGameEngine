@@ -381,15 +381,33 @@ std::vector<Material> LoadMaterials(GraphicsModule& graphics)
     for (const auto& entry : std::filesystem::directory_iterator(path))
     {
         std::filesystem::path ext = entry.path().extension();
-        if (ext.string() == ".png" || ext.string() == ".jpg")
+        std::string extensionString = ext.string();
+        if (extensionString == ".png" || extensionString == ".jpg")
         {
             std::string fileName = entry.path().generic_string();
+
+            if (StringUtils::Contains(fileName, ".norm."))
+            {
+                continue;
+            }
 
             Engine::DEBUGPrint(fileName);
 
             Texture newTexture = graphics.LoadTexture(fileName);
 
-            loadedMaterials.push_back(graphics.CreateMaterial(newTexture));
+            
+            std::string NormalMapString = entry.path().parent_path().generic_string() + "/" + entry.path().stem().generic_string() + ".norm.png";
+
+            if (std::filesystem::exists(NormalMapString))
+            {
+                Texture newNormal = graphics.LoadTexture(NormalMapString);
+                loadedMaterials.push_back(graphics.CreateMaterial(newTexture, newNormal));
+            }
+            else
+            {
+                loadedMaterials.push_back(graphics.CreateMaterial(newTexture));
+            }
+
         }
     }
 

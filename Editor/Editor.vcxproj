@@ -293,6 +293,7 @@
     <ClCompile Include="Behaviours\Wobble.cpp" />
     <ClCompile Include="Behaviours\RCCar.cpp" />
     <ClCompile Include="Behaviours\TopDownPlayer.cpp" />
+    <ClCompile Include="Behaviours\TopDownBullet.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Behaviours\Spin.h" />
@@ -302,6 +303,7 @@
     <ClInclude Include="Behaviours\RCCar.h" />
     <ClInclude Include="Behaviours\TopDownPlayer.h" />
     <ClInclude Include="Behaviours\Ghost.h" />
+    <ClInclude Include="Behaviours\TopDownBullet.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
