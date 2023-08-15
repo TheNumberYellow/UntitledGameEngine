@@ -33,7 +33,7 @@ void TopDownBullet::Update(ModuleManager& Modules, Scene* Scene, float DeltaTime
         {
             Scene->DeleteModel(G);
             //Scene->DeleteModel(m_Model);
-            return;
+            //return;
         }
     }
 }
