@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Modules/ModuleManager.h"
 #include "Modules/CollisionModule.h"
 #include "Modules/GraphicsModule.h"
 #include "Modules/UIModule.h"
@@ -29,6 +30,8 @@ class Scene
 {
 public:
     Scene();
+    Scene(Scene& other);
+    Scene& operator=(const Scene& other);
     ~Scene();
 
     void Init(GraphicsModule& graphics, CollisionModule& collisions);
@@ -49,7 +52,7 @@ public:
     Camera* GetCamera();
     void SetCamera(Camera* camera);
 
-    void Update();
+    void UpdateBehaviours(ModuleManager& Modules, float DeltaTime);
 
     void Draw(GraphicsModule& graphics, Framebuffer_ID buffer);
     void EditorDraw(GraphicsModule& graphics, Framebuffer_ID buffer);
@@ -76,7 +79,7 @@ private:
 
     // TEMP member variables start
     Camera m_ShadowCamera;
-    Framebuffer_ID shadowBuffer;
+    Framebuffer_ID m_ShadowBuffer;
 
     //GBuffer GBuf;
 

@@ -36,7 +36,7 @@ Behaviour* BehaviourRegistry::AttachNewBehaviour(std::string BehaviourName, Mode
         NewBehaviour->m_Model = Model;
         NewBehaviour->BehaviourName = BehaviourName;
 
-        m_AttachedBehaviours.push_back(NewBehaviour);
+        m_AttachedBehaviours[Model].push_back(NewBehaviour);
 
         return NewBehaviour;
     }
@@ -48,38 +48,24 @@ Behaviour* BehaviourRegistry::AttachNewBehaviour(std::string BehaviourName, Mode
     return nullptr;
 }
 
-void BehaviourRegistry::UpdateAllBehaviours(ModuleManager& Modules, Scene* Scene, float DeltaTime)
+void BehaviourRegistry::UpdateModelBehaviours(Model* Model, ModuleManager& Modules, Scene* Scene, float DeltaTime)
 {
-    // TODO(Fraser): For some reason this _sometimes_ causes a nullptr exception on the Behaviour... look into later.
-    //for (auto Behaviour : m_AttachedBehaviours)
-    //{
-    //    Behaviour->Update(Modules, Scene, DeltaTime);
-    //}
-
-    if (Scene->IsPaused())
+    auto it = m_AttachedBehaviours.find(Model);
+    if (it != m_AttachedBehaviours.end())
     {
-        return;
-    }
-
-    for (int i = (int)m_AttachedBehaviours.size() - 1; i >= 0; --i)
-    {
-        if (m_AttachedBehaviours[i]->m_Model == nullptr)
+        for (auto& Behaviour : it->second)
         {
-            m_AttachedBehaviours.erase(m_AttachedBehaviours.begin() + i);
-            continue;
+            Behaviour->Update(Modules, Scene, DeltaTime);
         }
-        m_AttachedBehaviours[i]->Update(Modules, Scene, DeltaTime);
     }
 }
 
 Behaviour* BehaviourRegistry::GetBehaviourAttachedToEntity(Model* Model)
 {
-    for (auto Behaviour : m_AttachedBehaviours)
+    auto it = m_AttachedBehaviours.find(Model);
+    if (it != m_AttachedBehaviours.end())
     {
-        if (Behaviour->m_Model == Model)
-        {
-            return Behaviour;
-        }
+        return it->second[0];
     }
     return nullptr;
 }
@@ -87,9 +73,11 @@ Behaviour* BehaviourRegistry::GetBehaviourAttachedToEntity(Model* Model)
 std::vector<std::string> BehaviourRegistry::GetBehavioursAttachedToEntity(Model* Model)
 {
     std::vector<std::string> Result;
-    for (auto Behaviour : m_AttachedBehaviours)
+
+    auto it = m_AttachedBehaviours.find(Model);
+    if (it != m_AttachedBehaviours.end())
     {
-        if (Behaviour->m_Model == Model)
+        for (auto& Behaviour : it->second)
         {
             Result.push_back(Behaviour->BehaviourName);
         }
@@ -100,14 +88,15 @@ std::vector<std::string> BehaviourRegistry::GetBehavioursAttachedToEntity(Model*
 
 void BehaviourRegistry::ClearBehavioursOnEntity(Model* Model)
 {
-    for (int i = (int)m_AttachedBehaviours.size() - 1; i >= 0; --i)
-    {
-        if (m_AttachedBehaviours[i]->m_Model == Model)
-        {
-            m_AttachedBehaviours.erase(m_AttachedBehaviours.begin() + i);
-            continue;
-        }
-    }
+    m_AttachedBehaviours.erase(Model);
+    //for (int i = (int)m_AttachedBehaviours.size() - 1; i >= 0; --i)
+    //{
+    //    if (m_AttachedBehaviours[i]->m_Model == Model)
+    //    {
+    //        m_AttachedBehaviours.erase(m_AttachedBehaviours.begin() + i);
+    //        continue;
+    //    }
+    //}
 }
 
 void BehaviourRegistry::ClearAllAttachedBehaviours()

@@ -37,7 +37,8 @@ public:
 
     Behaviour* AttachNewBehaviour(std::string BehaviourName, Model* Model);
 
-    void UpdateAllBehaviours(ModuleManager& Modules, Scene* Scene, float DeltaTime);
+    void UpdateModelBehaviours(Model* Model, ModuleManager& Modules, Scene* Scene, float DeltaTime);
+    //void UpdateAllBehaviours(ModuleManager& Modules, Scene* Scene, float DeltaTime);
 
     Behaviour* GetBehaviourAttachedToEntity(Model* Model);
     std::vector<std::string> GetBehavioursAttachedToEntity(Model* Model);
@@ -52,7 +53,7 @@ private:
     BehaviourRegistry() = default;
 
     std::unordered_map<std::string, Behaviour*> m_BehaviourPrototypes;
-    std::vector<Behaviour*> m_AttachedBehaviours;
+    std::unordered_map<Model*, std::vector<Behaviour*>> m_AttachedBehaviours;
 
     static BehaviourRegistry* Instance;    
 };

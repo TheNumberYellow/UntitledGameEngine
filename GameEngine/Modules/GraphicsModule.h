@@ -58,6 +58,8 @@ struct Material
 
     Texture m_DiffuseTexture;
     Texture m_NormalMap;
+    
+
 
     friend bool operator<(const Material& lhs, const Material& rhs)
     {

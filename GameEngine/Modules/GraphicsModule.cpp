@@ -264,51 +264,45 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
 
 	void main()
 	{
-		vec3 sun = vec3(-SunDirection.x, -SunDirection.y, -SunDirection.z);
+        // Ambient
+        float ambientStrength = 0.35;
+        vec3 ambient = ambientStrength * SunColour;
 
-        //vec4 normalAt = texture(NormalMap, FragUV);
-        //vec3 normal = normalAt.rgb;
-        ////normal = normalize(normal * 2.0 - 1.0);		
-        //normal = normalize(normal);
-
-        //vec3 ViewVector = FragPosition - CameraPos;
-        vec3 ViewVector = CameraPos - FragPosition;
-        
+        // Diffuse
         vec3 normalizedNormal = normalize(FragNormal);
-        
+        vec3 ViewVector = CameraPos - FragPosition;       
         vec3 normal = perturb_normal(normalizedNormal, ViewVector, FragUV);
-
-		vec4 textureAt = texture(DiffuseTexture, FragUV);
-
-        //float diffuse = ((dot(normalizedNormal.xyz, normalize(sun))) + 1.0) / 2.0;
-		float diffuse = ((dot(normal.xyz, normalize(sun))) + 1.0) / 2.0;
+        
+        vec3 lightDir = normalize(vec3(-SunDirection.x, -SunDirection.y, -SunDirection.z));
+        float diff = max(dot(normal, lightDir), 0.0);
         // Temp: reduces shadow acne
-        if (diffuse < 0.53)
+        if (diff < 0.15)
         {
-            diffuse = 0.0;
-        }
-        float ambient = 0.35;        
+            diff = 0.0;
+        }     
+        vec3 diffuse = diff * SunColour;        
+
+		//float diffuse = ((dot(normal.xyz, normalize(sun))) + 1.0) / 2.0;
+        // Temp: reduces shadow acne
+        //if (diffuse < 0.53)
+        //{
+        //    diffuse = 0.0;
+        //}     
+
+        // Specular
+        float specularStrength = 0.5;
+        vec3 viewDir = normalize(ViewVector);
+        vec3 reflectDir = reflect(-lightDir, normal);
+        float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
+        vec3 specular = specularStrength * spec * SunColour;
 
         float shadow = ShadowCalculation(FragPosLightSpace);
-
-    	OutColour.rgb = SunColour * (ambient + (1.0 - shadow) * diffuse) * (textureAt.rgb * FragColour.rgb);
-        //OutColour = textureAt;
-
-        float ratio = 1.00 / 1.52;
-        vec3 I = normalize(FragPosition - CameraPos);
-        vec3 R = reflect(I, normalizedNormal);
-        vec4 reflectColour = vec4(texture(Skybox, R).rgb, 1.0);
 		
-        R = refract(I, normalizedNormal, ratio);
-        vec4 refractColour = vec4(texture(Skybox, R).rgb, 1.0);
+        vec4 textureAt = texture(DiffuseTexture, FragUV);
 
-        //OutColour = mix(reflectColour, OutColour, 0.8);
-        //OutColour = mix(OutColour, refractColour, 1.0);
-		//OutColour = reflectColour * OutColour;
-        //OutColour = reflectColour;
+        OutColour.rgb = (ambient + (1.0 - shadow) * (diffuse + specular)) * (textureAt.rgb * FragColour.rgb);
+
         OutColour.a = textureAt.a * FragColour.a;
-	
-        //OutColour = vec4(vec3(gl_FragCoord.z / (1.0 / gl_FragCoord.w)), 1.0);
     }
 	)";
 

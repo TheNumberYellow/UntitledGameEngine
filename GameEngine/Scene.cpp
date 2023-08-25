@@ -36,15 +36,78 @@ Scene::Scene()
 
 }
 
+Scene::Scene(Scene& other)
+{
+    m_Cameras.resize(1);
+
+    m_Graphics = other.m_Graphics;
+    m_Collisions = other.m_Collisions;
+
+    m_ShadowCamera = other.m_ShadowCamera;
+    m_DirLight = other.m_DirLight;
+    m_ShadowBuffer = other.m_ShadowBuffer;
+
+    for (auto& model : other.m_UntrackedModels)
+    {
+        Model* newModel = new Model(*model);
+        m_UntrackedModels.push_back(newModel);
+
+        Behaviour* oldBehaviour = BehaviourRegistry::Get()->GetBehaviourAttachedToEntity(model);
+        if (oldBehaviour)
+        {
+            BehaviourRegistry::Get()->AttachNewBehaviour(oldBehaviour->BehaviourName, newModel);
+        }
+    }
+}
+
+Scene& Scene::operator=(const Scene& other)
+{
+    for (auto& model : m_UntrackedModels)
+    {
+        BehaviourRegistry::Get()->ClearBehavioursOnEntity(model);
+    }
+    m_UntrackedModels.clear();
+
+    m_Cameras.clear();
+    m_Cameras.resize(1);
+
+    m_Graphics = other.m_Graphics;
+    m_Collisions = other.m_Collisions;
+
+    m_ShadowCamera = other.m_ShadowCamera;
+    m_DirLight = other.m_DirLight;
+    m_ShadowBuffer = other.m_ShadowBuffer;
+
+    for (auto& model : other.m_UntrackedModels)
+    {
+        Model* newModel = new Model(*model);
+        m_UntrackedModels.push_back(newModel);
+
+        Behaviour* oldBehaviour = BehaviourRegistry::Get()->GetBehaviourAttachedToEntity(model);
+        if (oldBehaviour)
+        {
+            BehaviourRegistry::Get()->AttachNewBehaviour(oldBehaviour->BehaviourName, newModel);
+        }
+    }
+
+    return *this;
+}
+
 Scene::~Scene()
 {
+    for (auto& model : m_UntrackedModels)
+    {
+        BehaviourRegistry::Get()->ClearBehavioursOnEntity(model);
+    }
+    m_UntrackedModels.clear();
+
 }
 
 void Scene::Init(GraphicsModule& graphics, CollisionModule& collisions)
 {
     m_Graphics = &graphics;
     m_Collisions = &collisions;
-    shadowBuffer = graphics.CreateFBuffer(Vec2i(8000, 8000), FBufferFormat::DEPTH);
+    m_ShadowBuffer = graphics.CreateFBuffer(Vec2i(8000, 8000), FBufferFormat::DEPTH);
 }
 
 void Scene::Pause()
@@ -148,8 +211,13 @@ void Scene::SetCamera(Camera* camera)
     m_Cameras[0] = camera;
 }
 
-void Scene::Update()
+void Scene::UpdateBehaviours(ModuleManager& Modules, float DeltaTime)
 {
+    BehaviourRegistry* Registry = BehaviourRegistry::Get();
+    for (auto& it : m_UntrackedModels)
+    {
+        Registry->UpdateModelBehaviours(it, Modules, this, DeltaTime);
+    }
 }
 
 void Scene::Draw(GraphicsModule& graphics, Framebuffer_ID buffer)

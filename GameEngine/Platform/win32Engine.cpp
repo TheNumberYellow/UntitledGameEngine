@@ -145,6 +145,7 @@ bool Engine::FileOpenDialog(std::string& OutFileString)
 {
     OPENFILENAME ofn;
     wchar_t szFileName[MAX_PATH];
+    szFileName[0] = '\0';
 
     ZeroMemory(&ofn, sizeof(ofn));
 
@@ -452,6 +453,8 @@ int WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ L
     {
         return 1;
     }
+
+    CoInitialize(nullptr);
 
     WindowHandle = CreateWindowEx
     (

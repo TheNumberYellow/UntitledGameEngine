@@ -91,6 +91,7 @@ std::vector<Framebuffer_ID> modelFBuffers;
 Camera modelCam;
 
 Scene scene;
+Scene runtimeScene;
 
 bool draggingNewModel = false;
 Model* draggingModel = nullptr;
@@ -1088,6 +1089,14 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
     graphics.SetActiveFrameBuffer(viewportBuffer);
     {
         scene.SetCamera(&cam);
+
+        if (selectedModelPtr)
+        {
+            AABB aabb = collisions.GetCollisionMeshFromMesh(selectedModelPtr->m_TexturedMeshes[0].m_Mesh).boundingBox;
+            graphics.DebugDrawAABB(aabb, Vec3f(0.6f, 0.95f, 0.65f), selectedModelPtr->GetTransform().GetTransformMatrix());
+            //graphics.DebugDrawModelMesh(*selectedModelPtr, Vec3f(0.9f, 0.8f, 0.4f));
+        }
+
         scene.Draw(graphics, viewportBuffer);
 
         if (draggingModel)
@@ -1157,13 +1166,6 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
         {
             graphics.Draw(OtherPlayerModel);
         }
-
-        if (selectedModelPtr)
-        {
-            AABB aabb = collisions.GetCollisionMeshFromMesh(selectedModelPtr->m_TexturedMeshes[0].m_Mesh).boundingBox;
-            graphics.DebugDrawAABB(aabb, Vec3f(0.6f, 0.95f, 0.65f), selectedModelPtr->GetTransform().GetTransformMatrix());
-            //graphics.DebugDrawModelMesh(*selectedModelPtr, Vec3f(0.9f, 0.8f, 0.4f));
-        }
     }
     graphics.SetRenderMode(RenderMode::FULLBRIGHT);
     graphics.Draw(gridModel);
@@ -1187,6 +1189,7 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
             state = State::GAME;
             player.velocity = Vec3f(0.0f, 0.0f, 0.0f);
             player.position = cam.GetPosition();
+            runtimeScene = Scene(scene);
         }
 
         if (ui.ImgButton(cameraButtonTexture, Rect(Vec2f(40.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f))
@@ -1328,21 +1331,20 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
         Cursor.y += 15.0f;
 
         std::string xString = std::to_string(Position.x);
+        xString.erase(xString.find_last_not_of('0') + 1, std::string::npos);
+        //xString.erase(xString.find_last_not_of('.') + 1, std::string::npos);
         ui.TextEntry(xString, Rect(Cursor, Vec2f(160.0f, 15.0f)));
         NewPos.x = std::stof(xString);
-        //ui.Text(xText, Cursor, Vec3f(0.0f, 0.0f, 0.0f));
         Cursor.y += 15.0f;
         
         std::string yString = std::to_string(Position.y);
         ui.TextEntry(yString, Rect(Cursor, Vec2f(160.0f, 15.0f)));
         NewPos.y = std::stof(yString);
-        //ui.Text(yText, Cursor, Vec3f(0.0f, 0.0f, 0.0f));
         Cursor.y += 15.0f;
 
         std::string zString = std::to_string(Position.z);
         ui.TextEntry(zString, Rect(Cursor, Vec2f(160.0f, 15.0f)));
         NewPos.z = std::stof(zString);
-        //ui.Text(zText, Cursor, Vec3f(0.0f, 0.0f, 0.0f));
         Cursor.y += 25.0f;
 
         selectedModelPtr->GetTransform().SetPosition(NewPos);
@@ -1630,7 +1632,7 @@ void UpdateGame(ModuleManager& modules, double deltaTime)
 
         player.grounded = false;
 
-        SceneRayCastHit movement = scene.RayCast(Ray(player.position, Math::normalize(player.velocity)), collisions);
+        SceneRayCastHit movement = runtimeScene.RayCast(Ray(player.position, Math::normalize(player.velocity)), collisions);
 
         float hitDist = 0.0f;
         float testHitDist = 0.0f;
@@ -1674,7 +1676,8 @@ void UpdateGame(ModuleManager& modules, double deltaTime)
     }
 
     // Update behaviours
-    BehaviourRegistry::Get()->UpdateAllBehaviours(modules, &scene, deltaTime);
+    runtimeScene.UpdateBehaviours(modules, deltaTime);
+    //BehaviourRegistry::Get()->UpdateAllBehaviours(modules, &runtimeScene, deltaTime);
 
 
     // Drop models
@@ -1700,8 +1703,8 @@ void UpdateGame(ModuleManager& modules, double deltaTime)
 
     graphics.SetActiveFrameBuffer(viewportBuffer);
     {
-        scene.SetCamera(&cam);
-        scene.Draw(graphics, viewportBuffer);
+        runtimeScene.SetCamera(&cam);
+        runtimeScene.Draw(graphics, viewportBuffer);
 
     }
     graphics.ResetFrameBuffer();
