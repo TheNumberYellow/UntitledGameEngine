@@ -6,26 +6,27 @@
 - Clean up and provide interface for switching skybox in Graphics Module.
 - Implement cascaded shadowmaps, and look deeper into shadow acne problems.
   - https://docs.microsoft.com/en-us/windows/win32/dxtecharts/common-techniques-to-improve-shadow-depth-maps 
-- Implement materials system.
+- Improve materials system (PBR)
+- Add light types (point lights, directional spotlights, etc.)
 
 #### UI Module
 - Optimize + clean up UI Module functions.
-- Add scrolling + tabs + other immediate mode UI concepts.
-  - ~~Tabs~~
+- Add scrolling + other immediate mode UI concepts.
   - Scrolling
+  - Fields for more variable types
 - Add frame dynamic resizing, minimizing, etc.
-
+- Add concept of overlapping UI elements (so clicks are only routed to the topmost element)
 #### Physics Module
 - idk do physics things lol
-
+#### Asset Manager
+- Unified manager for loading all asset types (and managing asset lifetimes/preventing double loading)
 #### Editor
-- ~~Implement more translation/rotation/scaling options for editor.~~
 - Improve editor experience.
-  - ~~Rework tool widgets to show through other objects, scale with distance from camera.~~
   - Add inspector window changes.
 - Add vertex edit tool to edit brushes/blocks.
-
+- Add terrain editing tool (kriging?)
+#### Scene
+- Create a file type for named data (or use JSON) for scene loading/saving.
 #### New features
-- Implement scene saving/loading (as well as a scene object).
 - Implement states and state switching.
 - Add a network module.
