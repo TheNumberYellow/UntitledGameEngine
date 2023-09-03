@@ -71,6 +71,11 @@ CollisionMesh& CollisionModule::GenerateCollisionMeshFromMesh(StaticMesh mesh)
     return m_CollisionMeshMap[Id];
 }
 
+void CollisionModule::InvalidateMeshCollisionData(StaticMesh_ID mesh)
+{
+    m_CollisionMeshMap.erase(mesh);
+}
+
 RayCastHit CollisionModule::RayCast(Ray ray, const CollisionMesh& mesh, Transform& transform)
 {
     return RayCast(ray, mesh, transform.GetTransformMatrix());

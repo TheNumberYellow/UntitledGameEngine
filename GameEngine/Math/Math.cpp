@@ -301,6 +301,23 @@ std::pair<Vec3f, Vec3f> Math::ClosestPointsOnLines(Line a, Line b)
     return std::pair<Vec3f, Vec3f>(c1, c2);
 }
 
+Vec3f Math::ClosestPointOnPlaneToPoint(Plane plane, Vec3f point)
+{
+    float dist = Math::dot(plane.normal, point) - Math::dot(plane.normal, plane.center);
+
+    return point - (dist * plane.normal);
+}
+
+float Math::Max(float a, float b)
+{
+    return a > b ? a : b;
+}
+
+float Math::Min(float a, float b)
+{
+    return a < b ? a : b;
+}
+
 float Math::RandomFloat(float min, float max)
 {
     float random = ((float)rand()) / (float)RAND_MAX;

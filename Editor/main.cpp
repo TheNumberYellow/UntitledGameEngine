@@ -13,7 +13,7 @@
 
 static bool FirstPersonPlayerEnabled = false;
 
-static Vec3f SunLight = Vec3f(0.8f, 0.7f, 0.9f);
+static Vec3f SunLight = Vec3f(1.0f, 1.0f, 1.0f);
 
 struct Player
 {
@@ -34,7 +34,8 @@ enum class ToolMode
     SELECT,
     GEOMETRY,
     MOVE,
-    VERTEX
+    VERTEX,
+    SCULPT
 };
 
 enum class GeometryMode
@@ -58,13 +59,17 @@ Texture playButtonTexture;
 Texture cameraButtonTexture;
 
 Texture cursorToolTexture;
+
 Texture boxToolTexture;
+Texture planeToolTexture;
 
 Texture translateToolTexture;
 Texture rotateToolTexture;
 Texture scaleToolTexture;
 
 Texture vertexToolTexture;
+
+Texture sculptToolTexture;
 
 Material tempWhiteMaterial;
 
@@ -83,6 +88,8 @@ StaticMesh quadMesh;
 
 bool holdingAlt = false;
 bool cursorLocked = false;
+
+bool gridEnabled = true;
 
 std::vector<Material> loadedMaterials;
 std::vector<Model> loadedModels;
@@ -142,6 +149,18 @@ void CycleMoveMode()
     else if (moveMode == MoveMode::SCALE)
     {
         moveMode = MoveMode::TRANSLATE;
+    }
+}
+
+void CycleGeometryMode()
+{
+    if (geometryMode == GeometryMode::BOX)
+    {
+        geometryMode = GeometryMode::PLANE;
+    }
+    else if (geometryMode == GeometryMode::PLANE)
+    {
+        geometryMode = GeometryMode::BOX;
     }
 }
 
@@ -391,18 +410,62 @@ std::vector<Material> LoadMaterials(GraphicsModule& graphics)
             {
                 continue;
             }
+            if (StringUtils::Contains(fileName, ".metal."))
+            {
+                continue;
+            }
+            if (StringUtils::Contains(fileName, ".rough."))
+            {
+                continue;
+            }
+            if (StringUtils::Contains(fileName, ".ao."))
+            {
+                continue;
+            }
 
             Engine::DEBUGPrint(fileName);
 
             Texture newTexture = graphics.LoadTexture(fileName);
 
-            
             std::string NormalMapString = entry.path().parent_path().generic_string() + "/" + entry.path().stem().generic_string() + ".norm.png";
+            std::string RoughnessMapString = entry.path().parent_path().generic_string() + "/" + entry.path().stem().generic_string() + ".rough.png";
+            std::string MetallicMapString = entry.path().parent_path().generic_string() + "/" + entry.path().stem().generic_string() + ".metal.png";
+            std::string AOMapString = entry.path().parent_path().generic_string() + "/" + entry.path().stem().generic_string() + ".ao.png";
 
             if (std::filesystem::exists(NormalMapString))
             {
-                Texture newNormal = graphics.LoadTexture(NormalMapString);
-                loadedMaterials.push_back(graphics.CreateMaterial(newTexture, newNormal));
+                if (std::filesystem::exists(RoughnessMapString))
+                {
+                    if (std::filesystem::exists(MetallicMapString))
+                    {
+                        if (std::filesystem::exists(AOMapString))
+                        {
+                            Texture newNormal = graphics.LoadTexture(NormalMapString);
+                            Texture newRoughness = graphics.LoadTexture(RoughnessMapString);
+                            Texture newMetal = graphics.LoadTexture(MetallicMapString);
+                            Texture newAO = graphics.LoadTexture(AOMapString);
+                            loadedMaterials.push_back(graphics.CreateMaterial(newTexture, newNormal, newRoughness, newMetal, newAO));
+                        }
+                        else
+                        {
+                            Texture newNormal = graphics.LoadTexture(NormalMapString);
+                            Texture newRoughness = graphics.LoadTexture(RoughnessMapString);
+                            Texture newMetal = graphics.LoadTexture(MetallicMapString);
+                            loadedMaterials.push_back(graphics.CreateMaterial(newTexture, newNormal, newRoughness, newMetal));
+                        }
+                    }
+                    else
+                    {
+                        Texture newNormal = graphics.LoadTexture(NormalMapString);
+                        Texture newRoughness = graphics.LoadTexture(RoughnessMapString);
+                        loadedMaterials.push_back(graphics.CreateMaterial(newTexture, newNormal, newRoughness));
+                    }
+                }
+                else
+                {
+                    Texture newNormal = graphics.LoadTexture(NormalMapString);
+                    loadedMaterials.push_back(graphics.CreateMaterial(newTexture, newNormal));
+                }
             }
             else
             {
@@ -456,6 +519,9 @@ void UpdateBoxCreate(InputModule& input, CollisionModule& collisions, GraphicsMo
     static const float snap = 1.0f;
 
     if (toolMode != ToolMode::GEOMETRY)
+        return;
+
+    if (geometryMode != GeometryMode::BOX)
         return;
 
     if (draggingNewModel)
@@ -545,6 +611,136 @@ void UpdateBoxCreate(InputModule& input, CollisionModule& collisions, GraphicsMo
 
 }
 
+void UpdatePlaneCreate(InputModule& input, CollisionModule& collisions, GraphicsModule& graphics)
+{
+    static bool draggingNewPlane = false;
+    static Vec3f planeStartPoint;
+    static Vec3f planeMin, planeMax;
+
+    static int subdivisions = 1;
+
+    static const float snap = 1.0f;
+
+    if (toolMode != ToolMode::GEOMETRY)
+        return;
+
+    if (geometryMode != GeometryMode::PLANE)
+        return;
+
+    if (draggingNewModel)
+        return;
+
+    if (draggingNewTexture)
+        return;
+
+    if (draggingNewBehaviour)
+        return;
+
+    Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
+    Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
+
+    if (!viewportRect.contains(Engine::GetMousePosition()))
+    {
+        return;
+    }
+
+    if (input.GetMouseState().IsButtonDown(Mouse::LMB))
+    {
+        if (!draggingNewPlane)
+        {
+            // Find intersect with horizontal plane as a default box start point
+            RayCastHit finalHit = collisions.RayCast(mouseRay, Plane{ Vec3f(0.0f, 0.0f, 0.0f), Vec3f(0.0f, 0.0f, 1.0f) });
+
+            // Test against existing level geometry
+            SceneRayCastHit levelHit = scene.RayCast(mouseRay, collisions);
+
+            if (levelHit.rayCastHit.hitDistance < finalHit.hitDistance) finalHit = levelHit.rayCastHit;
+
+            if (finalHit.hit)
+            {
+                finalHit.hitPoint.x = Math::Round(finalHit.hitPoint.x, snap);
+                finalHit.hitPoint.y = Math::Round(finalHit.hitPoint.y, snap);
+                finalHit.hitPoint.z = Math::Round(finalHit.hitPoint.z, snap);
+
+                planeStartPoint = finalHit.hitPoint;
+                draggingNewPlane = true;
+            }
+        }
+        else
+        {
+            RayCastHit hit = collisions.RayCast(mouseRay, Plane{ planeStartPoint, Vec3f(0.0f, 0.0f, 1.0f) });
+
+            int DeltaMouseWheel = input.GetMouseState().GetDeltaMouseWheel();
+            if (DeltaMouseWheel > 0)
+            {
+                subdivisions += 1;
+            }
+            else if (DeltaMouseWheel < 0)
+            {
+                subdivisions -= 1;
+                if (subdivisions < 1)
+                {
+                    subdivisions = 1;
+                }
+            }
+
+            Vec3f originalHitPoint = hit.hitPoint;
+
+            hit.hitPoint.x = Math::Round(hit.hitPoint.x, snap);
+            hit.hitPoint.y = Math::Round(hit.hitPoint.y, snap);
+            hit.hitPoint.z = Math::Round(hit.hitPoint.z, snap);
+
+            float minX = std::min(hit.hitPoint.x, planeStartPoint.x);
+            float minY = std::min(hit.hitPoint.y, planeStartPoint.y);
+
+            float maxX = std::max(hit.hitPoint.x, planeStartPoint.x);
+            float maxY = std::max(hit.hitPoint.y, planeStartPoint.y);
+
+            planeMin = Vec3f(minX, minY, hit.hitPoint.z);
+            planeMax = Vec3f(maxX, maxY, hit.hitPoint.z);
+
+            Vec3f Green = Vec3f(0.1f, 1.0f, 0.3f);
+
+            Vec3f SouthWest = planeMin;
+            Vec3f NorthWest = Vec3f(minX, maxY, hit.hitPoint.z);
+            Vec3f NorthEast = planeMax;
+            Vec3f SouthEast = Vec3f(maxX, minY, hit.hitPoint.z);
+
+            //graphics.DebugDrawLine(SouthWest, NorthWest, Green);
+            //graphics.DebugDrawLine(NorthWest, NorthEast, Green);
+            //graphics.DebugDrawLine(NorthEast, SouthEast, Green);
+            //graphics.DebugDrawLine(SouthEast, SouthWest, Green);
+
+            for (int i = 0; i < subdivisions + 1; ++i)
+            {
+                Vec3f HorizonalLeft = SouthWest + (i * ((NorthWest - SouthWest) / (float)subdivisions));
+                Vec3f HorizontalRight = SouthEast + (i * ((NorthEast - SouthEast) / (float)subdivisions));
+
+                Vec3f VerticalBottom = SouthWest + (i * ((SouthEast - SouthWest) / (float)subdivisions));
+                Vec3f VerticalTop = NorthWest + (i * ((NorthEast - NorthWest) / (float)subdivisions));
+
+                graphics.DebugDrawLine(HorizonalLeft, HorizontalRight, Green);
+                graphics.DebugDrawLine(VerticalBottom, VerticalTop, Green);
+            }
+
+            //graphics.DebugDrawAABB(aabbBox, Vec3f(0.1f, 1.0f, 0.3f));
+            graphics.DebugDrawLine(originalHitPoint, hit.hitPoint, Vec3f(1.0f, 0.5f, 0.5f));
+
+        }
+    }
+    else
+    {
+        if (draggingNewPlane)
+        {
+            Model* newPlane = new Model(graphics.CreatePlaneModel(Vec2f(planeMin.x, planeMin.y), Vec2f(planeMax.x, planeMax.y), planeMin.z, subdivisions));
+            scene.AddModel(*newPlane);
+            draggingNewPlane = false;
+
+            selectedModelPtr = nullptr;
+        }
+    }
+}
+
 void UpdateModelPlace(InputModule& input, CollisionModule& collisions, GraphicsModule& graphics)
 {
     if (draggingNewModel)
@@ -555,6 +751,19 @@ void UpdateModelPlace(InputModule& input, CollisionModule& collisions, GraphicsM
             Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
 
             SceneRayCastHit finalHit = scene.RayCast(mouseRay, collisions);
+
+            if (input.GetMouseState().GetDeltaMouseWheel() > 0)
+            {
+                Vec3f PrevScale = draggingModel->GetTransform().GetScale();
+                PrevScale += Vec3f(0.1f, 0.1f, 0.1f);
+                draggingModel->GetTransform().SetScale(PrevScale);
+            }
+            else if (input.GetMouseState().GetDeltaMouseWheel() < 0)
+            {
+                Vec3f PrevScale = draggingModel->GetTransform().GetScale();
+                PrevScale -= Vec3f(0.1f, 0.1f, 0.1f);
+                draggingModel->GetTransform().SetScale(PrevScale);
+            }
 
             if (finalHit.rayCastHit.hit)
             {
@@ -977,6 +1186,66 @@ void UpdateModelScale(InputModule& input, CollisionModule& collisions, GraphicsM
     }
 }
 
+void UpdateSculptTool(InputModule& input, CollisionModule& collisions, GraphicsModule& graphics, float deltaTime)
+{
+    if (toolMode != ToolMode::SCULPT)
+    {
+        return;
+    }
+
+    static float radius = 1.0f;
+
+    if (input.GetMouseState().GetDeltaMouseWheel() > 0)
+    {
+        radius += 0.1f;
+    }
+    else if (input.GetMouseState().GetDeltaMouseWheel() < 0)
+    {
+        radius -= 0.1f;
+    }
+
+    Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
+    Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
+
+    SceneRayCastHit finalHit = scene.RayCast(mouseRay, collisions);
+
+    if (finalHit.rayCastHit.hit)
+    {
+        Vec3f HitPoint = finalHit.rayCastHit.hitPoint;
+
+        graphics.DebugDrawSphere(HitPoint, radius, Vec3f(0.6, 0.3, 0.9));
+
+        if (input.GetMouseState().IsButtonDown(Mouse::LMB) || input.GetMouseState().IsButtonDown(Mouse::RMB))
+        {
+            if (finalHit.hitModel->Type == ModelType::PLANE)
+            {
+                Model* PlaneModel = finalHit.hitModel;
+                Vec3f ModelSpaceVertPos = HitPoint * Math::inv(PlaneModel->GetTransform().GetTransformMatrix());
+
+                float VerticalDir = input.GetMouseState().IsButtonDown(Mouse::RMB) ? -1.0f : 1.0f;
+
+                StaticMesh_ID Mesh =  PlaneModel->m_TexturedMeshes[0].m_Mesh.Id;
+
+                std::vector<Vertex*> Vertices = graphics.m_Renderer.MapMeshVertices(Mesh);
+
+                for (auto& Vert : Vertices)
+                {
+                    float Dist = Math::magnitude(Vert->position - ModelSpaceVertPos);
+                    if (Dist < radius)
+                    {
+                        float Strength = Math::Min(radius / Dist, 2.0f) * VerticalDir;
+                        Vert->position += Vec3f(0.0f, 0.0f, Strength) * deltaTime;
+                    }
+                }
+
+                graphics.m_Renderer.UnmapMeshVertices(Mesh);
+                collisions.InvalidateMeshCollisionData(Mesh);
+                graphics.RecalculateTerrainModelNormals(*PlaneModel);
+            }
+        }
+    }
+}
+
 void UpdateTexturePlace(InputModule& input, CollisionModule& collisions, GraphicsModule& graphics)
 {
     if (draggingNewTexture)
@@ -1042,10 +1311,12 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
     {
         UpdateSelectTool(input, collisions);
         UpdateBoxCreate(input, collisions, graphics);
+        UpdatePlaneCreate(input, collisions, graphics);
         UpdateModelPlace(input, collisions, graphics);
         UpdateModelTranslate(input, collisions, graphics);
         UpdateModelRotate(input, collisions, graphics);
         UpdateModelScale(input, collisions, graphics);
+        UpdateSculptTool(input, collisions, graphics, deltaTime);
         UpdateTexturePlace(input, collisions, graphics);
         UpdateBehaviourPlace(input, collisions);
     }
@@ -1168,7 +1439,10 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
         }
     }
     graphics.SetRenderMode(RenderMode::FULLBRIGHT);
-    graphics.Draw(gridModel);
+    if (gridEnabled)
+    {
+        graphics.Draw(gridModel);
+    }
     graphics.SetRenderMode(renderMode);
 
     graphics.ResetFrameBuffer();
@@ -1213,6 +1487,11 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
                 Engine::DEBUGPrint(FileName);
                 scene.Save(FileName);
             }
+        }
+
+        if (ui.TextButton("Grid", Rect(Vec2f(160.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f))
+        {
+            gridEnabled = !gridEnabled;
         }
 
         NetworkModule& Network = *modules.GetNetwork();
@@ -1274,7 +1553,7 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
     ui.StartTab("Textures");
     for (int i = 0; i < loadedMaterials.size(); ++i)
     {
-        if (ui.ImgButton(loadedMaterials[i].m_DiffuseTexture, Rect(Vec2f(i * 40, 0.0f), Vec2f(40, 80)), 2.5f).clicking)
+        if (ui.ImgButton(loadedMaterials[i].m_Albedo, Rect(Vec2f(i * 40, 0.0f), Vec2f(40, 80)), 2.5f).clicking)
         {
             if (!draggingNewTexture)
             {
@@ -1312,7 +1591,6 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
     ui.EndTab();
 
     ui.EndFrame();
-
 
     ui.StartFrame(Rect(Vec2f(screen.x - 200.0f, 0.0f), Vec2f(200.0f, screen.y / 2)), 20.0f, "Inspector");
 
@@ -1384,7 +1662,7 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
 
     if (draggingNewTexture)
     {
-        ui.ImgPanel(draggingMaterial.m_DiffuseTexture, Rect(Engine::GetMousePosition(), Vec2f(80.0f, 80.0f)));
+        ui.ImgPanel(draggingMaterial.m_Albedo, Rect(Engine::GetMousePosition(), Vec2f(80.0f, 80.0f)));
     }
 
     if (draggingNewBehaviour)
@@ -1396,10 +1674,36 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
     {
         toolMode = ToolMode::SELECT;
     }
-    if (ui.ImgButton(boxToolTexture, Rect(Vec2f(0.0f, 140.0f), Vec2f(100.0f, 100.0f)), 20.0f))
+
+    if (geometryMode == GeometryMode::BOX)
     {
-        toolMode = ToolMode::GEOMETRY;
+        if (ui.ImgButton(boxToolTexture, Rect(Vec2f(0.0f, 140.0f), Vec2f(100.0f, 100.0f)), 20.0f))
+        {
+            if (toolMode == ToolMode::GEOMETRY)
+            {
+                CycleGeometryMode();
+            }
+            else
+            {
+                toolMode = ToolMode::GEOMETRY;
+            }
+        }
     }
+    else if (geometryMode == GeometryMode::PLANE)
+    {
+        if (ui.ImgButton(planeToolTexture, Rect(Vec2f(0.0f, 140.0f), Vec2f(100.0f, 100.0f)), 20.0f))
+        {
+            if (toolMode == ToolMode::GEOMETRY)
+            {
+                CycleGeometryMode();
+            }
+            else
+            {
+                toolMode = ToolMode::GEOMETRY;
+            }
+        }
+    }
+
 
     if (moveMode == MoveMode::TRANSLATE)
     {
@@ -1462,6 +1766,11 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
         graphics.SetRenderMode(renderMode);
     }
 
+    if (ui.ImgButton(sculptToolTexture, Rect(Vec2f(0.0f, 540.0f), Vec2f(100.0f, 100.0f)), 20.0f))
+    {
+        toolMode = ToolMode::SCULPT;
+    }
+
     if (input.IsKeyDown(Key::Escape))
     {
         selectedModelPtr = nullptr;
@@ -1481,7 +1790,17 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
     }
     if (input.IsKeyDown(Key::Two))
     {
-        toolMode = ToolMode::GEOMETRY;
+        if (toolMode == ToolMode::GEOMETRY)
+        {
+            if (input.GetKeyState(Key::Two).justPressed)
+            {
+                CycleGeometryMode();
+            }
+        }
+        else
+        {
+            toolMode = ToolMode::GEOMETRY;
+        }
     }
     if (input.IsKeyDown(Key::Three))
     {
@@ -1501,39 +1820,53 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
     {
         toolMode = ToolMode::VERTEX;
     }
+    if (input.IsKeyDown(Key::Five))
+    {
+        toolMode = ToolMode::SCULPT;
+    }
 
     std::string modeString;
     switch (toolMode)
     {
     case ToolMode::SELECT:
-        modeString = "Select mode";
+        modeString = "Select Mode";
         break;
     case ToolMode::GEOMETRY:
-        modeString = "Box mode";
+        switch (geometryMode)
+        {
+        case GeometryMode::BOX:
+            modeString = "Box Mode";
+            break;
+        case GeometryMode::PLANE:
+            modeString = "Plane Mode";
+            break;
+        }
         break;
     case ToolMode::MOVE:
         switch (moveMode)
         {
         case MoveMode::TRANSLATE:
-            modeString = "Translate mode";
+            modeString = "Translate Mode";
             break;
         case MoveMode::ROTATE:
-            modeString = "Rotate mode";
+            modeString = "Rotate Mode";
             break;
         case MoveMode::SCALE:
-            modeString = "Scale mode";
+            modeString = "Scale Mode";
             break;
         }
         break;
     case ToolMode::VERTEX:
         modeString = "Vertex Edit Mode";
         break;
+    case ToolMode::SCULPT:
+        modeString = "Terrain Sculpt Mode";
+        break;
     }
 
     text.DrawText(modeString, &testFont, Vec2f(100.0f, 40.0f), Vec3f(0.0f, 0.0f, 0.0f));
 
     // END DRAW
-
 
 }
 
@@ -1784,12 +2117,14 @@ void Initialize(ModuleManager& modules)
 
     cursorToolTexture = graphics.LoadTexture("images/cursorTool.png");
     boxToolTexture = graphics.LoadTexture("images/boxTool.png");
-    
+    planeToolTexture = graphics.LoadTexture("images/planeTool.png");
+
     translateToolTexture = graphics.LoadTexture("images/translateTool.png");
     rotateToolTexture = graphics.LoadTexture("images/rotateTool.png");
     scaleToolTexture = graphics.LoadTexture("images/scaleTool.png");
 
     vertexToolTexture = graphics.LoadTexture("images/vertexTool.png");
+    sculptToolTexture = graphics.LoadTexture("images/vertexTool.png");
 
     Vec2i screenSizeI = Engine::GetClientAreaSize();
     cam = Camera(Projection::Perspective);

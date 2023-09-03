@@ -36,6 +36,10 @@ struct Mat4x4f
 class Math
 {
 public:    
+
+    static float Max(float a, float b);
+    static float Min(float a, float b);
+
     static float RandomFloat(float min, float max);
 
     static float Round(float num, float multiple = 1.0f);
@@ -77,5 +81,6 @@ public:
     static void DecomposeMatrix(Mat4x4f matrix, Vec3f& OutTranslation, Quaternion& OutRotation, Vec3f& OutScale);
 
     static std::pair<Vec3f, Vec3f> ClosestPointsOnLines(Line a, Line b);
+    static Vec3f ClosestPointOnPlaneToPoint(Plane plane, Vec3f point);
 
 };

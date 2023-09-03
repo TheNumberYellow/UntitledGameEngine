@@ -33,5 +33,7 @@ private:
     float BulletShootTimer = BulletShootPeriod;
 
     int GhostCount = 0;
+
+    float TimeAlive = 0.0f;
 };
 

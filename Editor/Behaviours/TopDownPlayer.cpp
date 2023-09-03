@@ -15,7 +15,13 @@ void TopDownPlayer::Update(ModuleManager& Modules, Scene* Scene, float DeltaTime
 
     InputModule& Input = *Modules.GetInput();
     GraphicsModule& Graphics = *Modules.GetGraphics();
+    CollisionModule& Collisions = *Modules.GetCollision();
+    //UIModule& UI = *Modules.GetUI();
 
+    //TimeAlive += DeltaTime;
+    //std::string TimeAliveString = "Time Alive: " + std::to_string(TimeAlive);
+    //UI.Text(TimeAliveString, Vec2f(0.0f, 50.0f));
+    //UI.TextButton(TimeAliveString, Rect(Vec2f(50.0f, 50.0f), Vec2f(100.0f, 100.0f)), 2.0f);
     if (!Started)
     {
         GhostModelPrototype = Graphics.CreateModel(TexturedMesh(Graphics.LoadMesh("models/Ghost.obj"), Graphics.CreateMaterial(Graphics.LoadTexture("textures/Ghost.png"))));
@@ -44,6 +50,7 @@ void TopDownPlayer::Update(ModuleManager& Modules, Scene* Scene, float DeltaTime
         Ghost* GhostBehaviour = static_cast<Ghost*>(BehaviourRegistry::Get()->AttachNewBehaviour("Ghost", What));
 
         GhostBehaviour->GhostSpeed = Math::RandomFloat(3.0f, 6.0f);
+        GhostBehaviour->SetTarget(m_Model);
 
         What->m_Name = "Ghost";
 
@@ -128,7 +135,24 @@ void TopDownPlayer::Update(ModuleManager& Modules, Scene* Scene, float DeltaTime
         {
             InputDir = Math::normalize(InputDir);
         }
-        m_Model->GetTransform().Move((InputDir * Speed * Mult) * DeltaTime);
+        Vec3f Pos = m_Model->GetTransform().GetPosition();
+        Vec3f Movement = (InputDir * Speed * Mult) * DeltaTime;
+        
+        Vec3f Skin = Vec3f(0.0f, 0.0f, 0.01f);
+
+        std::vector<Model*> IgnoredModels;
+        IgnoredModels.push_back(m_Model);
+        SceneRayCastHit MoveHit = Scene->RayCast(Ray(Pos + Skin, Math::normalize(Movement)), Collisions, IgnoredModels);
+
+        if (!MoveHit.rayCastHit.hit || MoveHit.rayCastHit.hitDistance > Math::magnitude(Movement))
+        {
+            m_Model->GetTransform().Move(Movement);
+        }
+        else
+        {
+            Vec3f HitPos = MoveHit.rayCastHit.hitPoint + (0.01f * MoveHit.rayCastHit.hitNormal);
+            m_Model->GetTransform().SetPosition(HitPos - Skin);
+        }
     
         if (AnyFacingInput)
         {

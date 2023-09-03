@@ -54,24 +54,35 @@ public:
 struct Material
 {
     Material() {}
-    Material(Texture DiffuseTexture, Texture NormalMap);
+    Material(Texture Albedo, Texture Normal, Texture Metallic, Texture Roughness, Texture AO);
 
-    Texture m_DiffuseTexture;
-    Texture m_NormalMap;
-    
-
+    Texture m_Albedo;
+    Texture m_Normal;
+    Texture m_Metallic;
+    Texture m_Roughness;
+    Texture m_AO;
 
     friend bool operator<(const Material& lhs, const Material& rhs)
     {
-        return lhs.m_DiffuseTexture < rhs.m_DiffuseTexture
-            || lhs.m_NormalMap < rhs.m_NormalMap;
+        return lhs.m_Albedo < rhs.m_Albedo
+            || lhs.m_Normal < rhs.m_Normal;
     }
 
     friend bool operator==(const Material& lhs, const Material& rhs)
     {
-        return lhs.m_DiffuseTexture == rhs.m_DiffuseTexture
-            && lhs.m_NormalMap == rhs.m_NormalMap;
+        return lhs.m_Albedo == rhs.m_Albedo
+            && lhs.m_Normal == rhs.m_Normal
+            && lhs.m_Metallic == rhs.m_Metallic
+            && lhs.m_Roughness == rhs.m_Roughness
+            && lhs.m_AO == rhs.m_AO;
     }
+};
+
+enum class ModelType
+{
+    BLOCK,
+    PLANE,
+    MODEL
 };
 
 enum class Vis
@@ -159,6 +170,8 @@ public:
     std::vector<TexturedMesh> m_TexturedMeshes;
 
     std::string m_Name = "";
+
+    ModelType Type = ModelType::MODEL;
 private:
     Transform m_Transform;
 };
@@ -202,8 +215,11 @@ public:
     void ResizeFrameBuffer(Framebuffer_ID fBufferID, Vec2i size);
     void ResetFrameBuffer();
 
-    Material CreateMaterial(Texture DiffuseTexture, Texture NormalMap);
-    Material CreateMaterial(Texture DiffuseTexture);
+    Material CreateMaterial(Texture AlbedoMap, Texture NormalMap, Texture RoughnessMap, Texture MetallicMap, Texture AOMap);
+    Material CreateMaterial(Texture AlbedoMap, Texture NormalMap, Texture RoughnessMap, Texture MetallicMap);
+    Material CreateMaterial(Texture AlbedoMap, Texture NormalMap, Texture RoughnessMap);
+    Material CreateMaterial(Texture AlbedoMap, Texture NormalMap);
+    Material CreateMaterial(Texture AlbedoMap);
 
     Model CreateModel(TexturedMesh texturedMesh);
 
@@ -213,8 +229,10 @@ public:
     Model CreateBoxModel(AABB box);
     Model CreateBoxModel(AABB box, Material texture);
 
-    Model CreatePlaneModel(Vec2f min, Vec2f max);
-    Model CreatePlaneModel(Vec2f min, Vec2f max, Material material);
+    Model CreatePlaneModel(Vec2f min, Vec2f max, float elevation = 0.0f, int subsections = 1);
+    Model CreatePlaneModel(Vec2f min, Vec2f max, Material material, float elevation = 0.0f, int subsections = 1);
+
+    void RecalculateTerrainModelNormals(Model& model);
 
     void Draw(Model& model);
 
@@ -236,6 +254,7 @@ public:
     void DebugDrawModelMesh(Model model, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
     void DebugDrawAABB(AABB box, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f), Mat4x4f transform = Mat4x4f());
     void DebugDrawPoint(Vec3f p, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
+    void DebugDrawSphere(Vec3f p, float radius = 1.0f, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
 
     Vec2i GetViewportSize();
 
@@ -249,9 +268,6 @@ public:
     Camera* m_Camera;
 private:
 
-    StaticMesh_ID CreateBoxMesh(AABB box);
-    StaticMesh_ID CreatePlaneMesh(Vec2f min, Vec2f max);
-
     bool m_CameraMatrixSetThisFrame;
 
 public:
@@ -264,6 +280,9 @@ private:
     Shader_ID m_UIShader;
 
     Texture m_DefaultNormalMap;
+    Texture m_DefaultMetallicMap;
+    Texture m_DefaultRoughnessMap;
+    Texture m_DefaultAOMap;
 
     Material m_DebugMaterial;
     

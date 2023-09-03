@@ -1,7 +1,8 @@
 #include <Windows.h>
 #include <xinput.h>
 
-#include "atlstr.h"
+#include <locale>
+#include <codecvt>
 
 #include "..\GameEngine.h"
 
@@ -14,6 +15,16 @@ static bool cursorHidden = false;
 
 static int64_t TICKS_PER_SECOND;
 static int64_t LAST_FRAME_TICK_COUNT;
+
+// Convert a wide Unicode string to an UTF8 string
+std::string utf8_encode(const std::wstring& wstr)
+{
+    if (wstr.empty()) return std::string();
+    int size_needed = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);
+    std::string strTo(size_needed, 0);
+    WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), &strTo[0], size_needed, NULL, NULL);
+    return strTo;
+}
 
 float Engine::GetElapsedTime()
 {
@@ -162,7 +173,8 @@ bool Engine::FileOpenDialog(std::string& OutFileString)
     if (GetOpenFileName(&ofn))
     {
         // Do something useful with the filename stored in szFileName
-        OutFileString = CW2A(szFileName);
+        std::wstring WideString(szFileName);
+        OutFileString = utf8_encode(WideString);
         return true;
     }
     return false;
@@ -189,7 +201,8 @@ bool Engine::FileSaveDialog(std::string& OutFileString)
     if (GetSaveFileName(&ofn))
     {
         // Do something useful with the filename stored in szFileName 
-        OutFileString = CW2A(szFileName);
+        std::wstring WideString(szFileName);
+        OutFileString = utf8_encode(WideString);
         return true;
     }
     return false;

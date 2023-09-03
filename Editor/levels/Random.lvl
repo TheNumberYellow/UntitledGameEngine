@@ -1,86 +1,95 @@
 Textures:
-textures/0527-1-1024x1024.jpg
-textures/tileable_concrete_tiles_texture.jpg
-textures/218-comp-1024x1024.jpg
-textures/debugTexture.norm.png
-textures/tileable_concrete_tiles_texture.jpg
-textures/0527-1-1024x1024.jpg
-textures/220-comp-1024x685.jpg
-textures/159-compr-1024x1024.jpg
-textures/220-comp-1024x685.jpg
-textures/a75fddfe-0138-1024x1024.jpg
-textures/dirt.png
-textures/Gravel.jpg
-textures/groundTexture.png
-textures/marble.jpg
-textures/PlayerSpawn.png
-textures/tileable_concrete_tiles_texture.jpg
-textures/TreeStump.png
+textures/scuffed-plastic.png textures/scuffed-plastic.norm.png textures/scuffed-plastic.rough.png textures/scuffed-plastic.metal.png textures/scuffed-plastic.ao.png
+textures/streaked-marble.png textures/streaked-marble.norm.png textures/streaked-marble.rough.png textures/streaked-marble.metal.png textures/default_ao.png
+textures/TreeStump.png textures/default_norm.png textures/default_roughness.png textures/default_metallic.png textures/default_ao.png
+textures/159-compr-1024x1024.jpg textures/default_norm.png textures/default_roughness.png textures/default_metallic.png textures/default_ao.png
+textures/159-compr-1024x1024.jpg textures/default_norm.png textures/default_roughness.png textures/default_metallic.png textures/default_ao.png
+textures/220-comp-1024x685.jpg textures/default_norm.png textures/default_roughness.png textures/default_metallic.png textures/default_ao.png
+textures/dirt.png textures/default_norm.png textures/default_roughness.png textures/default_metallic.png textures/default_ao.png
+textures/Gravel.jpg textures/default_norm.png textures/default_roughness.png textures/default_metallic.png textures/default_ao.png
+textures/groundTexture.png textures/default_norm.png textures/default_roughness.png textures/default_metallic.png textures/default_ao.png
+textures/Brick.png textures/Brick.norm.png textures/default_roughness.png textures/default_metallic.png textures/default_ao.png
+textures/marble.jpg textures/marble.norm.png textures/default_roughness.png textures/default_metallic.png textures/default_ao.png
+textures/metal.jpg textures/metal.norm.png textures/default_roughness.png textures/default_metallic.png textures/default_ao.png
+textures/sandstone-blocks.png textures/sandstone-blocks.norm.png textures/default_roughness.png textures/default_metallic.png textures/default_ao.png
+textures/tiles.jpg textures/tiles.norm.png textures/default_roughness.png textures/default_metallic.png textures/default_ao.png
+textures/0527-1-1024x1024.jpg textures/default_norm.png textures/default_roughness.png textures/default_metallic.png textures/default_ao.png
+textures/0527-1-1024x1024.jpg textures/default_norm.png textures/default_roughness.png textures/default_metallic.png textures/default_ao.png
+textures/220-comp-1024x685.jpg textures/default_norm.png textures/default_roughness.png textures/default_metallic.png textures/default_ao.png
+textures/PlayerSpawn.png textures/default_norm.png textures/default_roughness.png textures/default_metallic.png textures/default_ao.png
+textures/TreeStump.png textures/default_norm.png textures/default_roughness.png textures/default_metallic.png textures/default_ao.png
 StaticMeshes:
+models/ScaleWidget.obj
+models/TreeStumpTri.obj
+models/TreeTri.obj
 models/ToyCar.obj
 models/PlayerSpawn.obj
 models/ScaleWidget.obj
 models/TreeStumpTri.obj
 models/TreeTri.obj
 Entities:
-7 B -9.5 -5 -1 9.5 5 1 1 0 0 0 0 1 0 0 0 0 1 0 -2.5 -7 1 1 
-11 B -4 -1 -1 4 1 1 1 0 0 0 0 1 0 0 0 0 1 0 -16 -7 1 1 
-11 B -1 -3 -1 1 3 1 1 0 0 0 0 1 0 0 0 0 1 0 -19 -11 1 1 
-11 B -7 -1 -1 7 1 1 1 0 0 0 0 1 0 0 0 0 1 0 -25 -15 1 1 
-12 B -3 -4 -1 3 4 1 1 0 0 0 0 1 0 0 0 0 1 0 -15 -12 1 1 
-12 B -4 -2 -1 4 2 1 1 0 0 0 0 1 0 0 0 0 1 0 -16 -4 1 1 
-12 B -6 -6 -1 6 6 1 1 0 0 0 0 1 0 0 0 0 1 0 -26 -8 1 1 
-9 B -1 -1 -1 1 1 1 1 0 0 0 0 1 0 0 0 0 1 0 -33 -15 1 1 
-15 B -1 -3 -4 1 3 4 1 0 0 0 0 1 0 0 0 0 1 0 -33 -19 4 1 
-15 B -1 -1 -1 1 1 1 1 0 0 0 0 1 0 0 0 0 1 0 -33 -15 7 1 
-15 B -1 -1 -4 1 1 4 1 0 0 0 0 1 0 0 0 0 1 0 -33 -13 4 1 
-15 B -1 -5 -3 1 5 3 1 0 0 0 0 1 0 0 0 0 1 0 -33 -7 3 1 
-15 B -1 -1 -1 1 1 1 1 0 0 0 0 1 0 0 0 0 1 0 -33 -3 7 1 
-15 B -5 -1 -4 5 1 4 1 0 0 0 0 1 0 0 0 0 1 0 -39 -3 4 1 
-15 B -5 -1 -4 5 1 4 1 0 0 0 0 1 0 0 0 0 1 0 -39 -21 4 1 
-13 B -5 -8 -0.5 5 8 0.5 1 0 0 0 0 1 0 0 0 0 1 0 -39 -12 0.5 1 
-8 B -2 -10 -0.5 2 10 0.5 1 0 0 0 0 1 0 0 0 0 1 0 -34 -12 8.5 1 
-8 B -3 -10 -0.5 3 10 0.5 1 0 0 0 0 1 0 0 0 0 1 0 -41 -12 8.5 1 
-8 B -1 -1 -0.5 1 1 0.5 1 0 0 0 0 1 0 0 0 0 1 0 -37 -3 8.5 1 
-8 B -1 -1 -0.5 1 1 0.5 1 0 0 0 0 1 0 0 0 0 1 0 -37 -21 8.5 1 
-15 B -0.5 -10 -4 0.5 10 4 1 0 0 0 0 1 0 0 0 0 1 0 -44.5 -12 4 1 
-8 B -0.5 -10 -0.5 0.5 10 0.5 1 0 0 0 0 1 0 0 0 0 1 0 -44.5 -12 8.5 1 
-10 B -19.5 -8 -1 19.5 8 1 1 0 0 0 0 1 0 0 0 0 1 0 -12.5 -30 1 1 
-12 B -5 -3 -1 5 3 1 1 0 0 0 0 1 0 0 0 0 1 0 -27 -19 1 1 
-12 B -4 -3 -1 4 3 1 1 0 0 0 0 1 0 0 0 0 1 0 -16 -19 1 1 
-11 B -1 -3 -1 1 3 1 1 0 0 0 0 1 0 0 0 0 1 0 -21 -19 1 1 
-15 B -3.5 -9 -10 3.5 9 10 1 0 0 0 0 1 0 0 0 0 1 0 10.5 -21 10 1 
-9 B -1 -1 -1 1 1 1 0.844337 0.535813 0 0 -0.535813 0.844337 0 0 0 0 1 0 -21 -25 3 1 
-9 B -1 -1 -1.5 1 1 1.5 0.499943 0.866058 0 0 -0.866058 0.499943 0 0 0 0 1 0 -18 -27 3.5 1 
-9 B -1 -1 -2 1 1 2 0.962171 -0.272445 0 0 0.272445 0.962171 0 0 0 0 1 0 -14 -28 4 1 
-9 B -1 -1 -2.5 1 1 2.5 0.991723 -0.128398 0 0 0.128398 0.991723 0 0 0 0 1 0 -11 -29 4.5 1 
-9 B -1 -1 -3.5 1 1 3.5 0.999009 0.0445088 0 0 -0.0445088 0.999009 0 0 0 0 1 0 -7 -29 5.5 1 
-9 B -1 -1 -4 1 1 4 0.804334 -0.594019 0.013725 0 0.594075 0.80441 0 0 -0.0110405 0.00815366 0.999906 0 -3 -28 6 1 
-9 B -1 -1 -4.5 1 1 4.5 0.987518 0.157506 0 0 -0.157506 0.987518 0 0 0 0 1 0 -3 -25 6.5 1 
-9 B -1 -1 -0.5 1 1 0.5 0.948966 0.315377 0 0 -0.315377 0.948966 0 0 0 0 1 0 -5 -19 10.5 1 
-9 B -1 -1 -1.5 1 1 1.5 0.993542 -0.113462 0 0 0.113462 0.993542 0 0 0 0 1 0 -6 -16 11.5 1 
-9 B -1 -1 -2.5 1 1 2.5 0.99905 -0.0435748 0 0 0.0435748 0.99905 0 0 0 0 1 0 -2 -14 12.5 1 
-9 B -1 -1 -3.5 1 1 3.5 0.907237 -0.420552 -0.00753205 0 0.420564 0.907263 0 0 0.00683355 -0.00316771 0.999972 0 2 -16 13.5 1 
-9 B -1 -1 -4.5 1 1 4.5 0.726981 -0.686657 0 0 0.686657 0.726981 0 0 0 0 1 0 4 -18 14.5 1 
-9 B -1 -1 -5.5 1 1 5.5 1 0 0 0 0 1 0 0 0 0 1 0 6 -21 15.5 1 
-16 3 1 0 0 0 0 1 0 0 0 0 1 0 -24.4992 -8.45606 2 1 
-16 4 1 0 0 0 0 1 0 0 0 0 1 0 -14.9797 -11.1281 2 1 
-14 1 -0.553209 0.828977 0 0 -0.828977 -0.553209 0 0 0 0 1 0 10.2797 -15.8179 20 1 Spin 
-14 1 -0.553209 0.828977 0 0 -0.828977 -0.553209 0 0 0 0 1 0 10.1898 -25.7467 20 1 Spin 
-5 2 1.77678 -0.317007 0 0 0.324242 1.81734 0 0 0 0 1.50395 0 -33.6076 -15.0767 9 1 Spin 
-6 0 -1.67705 0.0923693 0 0 -0.0676053 -1.22744 0 0 0 0 1.45718 0 3.21963 -4.30689 2 1 
-3 B -9.5 -5 -1 9.5 5 1 1 0 0 0 0 1 0 0 0 0 1 0 -2.5 -17 1 1 
-2 B -9.5 -0.5 -4 9.5 0.5 4 1 0 0 0 0 1 0 0 0 0 1 0 -2.5 -12.5 6 1 
-2 B -9.5 -4 -0.5 9.5 4 0.5 1 0 0 0 0 1 0 0 0 0 1 0 -2.5 -17 9.5 1 
-2 B -0.5 -1.5 -3.5 0.5 1.5 3.5 1 0 0 0 0 1 0 0 0 0 1 0 -11.5 -14.5 5.5 1 
-2 B -0.5 -1.5 -3.5 0.5 1.5 3.5 1 0 0 0 0 1 0 0 0 0 1 0 -11.5 -19.5 5.5 1 
-2 B -0.5 -1 -1.5 0.5 1 1.5 1 0 0 0 0 1 0 0 0 0 1 0 -11.5 -17 7.5 1 
-2 B -9.5 -0.5 -0.5 9.5 0.5 0.5 1 0 0 0 0 1 0 0 0 0 1 0 -2.5 -21.5 9.5 1 
-2 B -9.5 -0.5 -1.5 9.5 0.5 1.5 1 0 0 0 0 1 0 0 0 0 1 0 -2.5 -21.5 3.5 1 
-2 B -1 -0.5 -2 1 0.5 2 1 0 0 0 0 1 0 0 0 0 1 0 -11 -21.5 7 1 
-4 B -1 -0.5 -2 1 0.5 2 1 0 0 0 0 1 0 0 0 0 1 0 -6 -21.5 7 1 
-4 B -1 -0.5 -2 1 0.5 2 1 0 0 0 0 1 0 0 0 0 1 0 -1 -21.5 7 1 
-4 B -1 -0.5 -2 1 0.5 2 1 0 0 0 0 1 0 0 0 0 1 0 4 -21.5 7 1 
-1 B -3 -9 -1 3 9 1 1 0 0 0 0 1 0 0 0 0 1 0 -23 -47 1 1 
-1 B -1 -1 -0.5 1 1 0.5 1 0 0 0 0 1 0 0 0 0 1 0 -25 -20 2.5 1 
-0 B -4 -1 -1.5 4 1 1.5 1 0 0 0 0 1 0 0 0 0 1 0 -18 -3 3.5 1 
+4 B -9.5 -5 -1 9.5 5 1 1 0 0 0 0 1 0 0 0 0 1 0 -2.5 -7 1 1 
+7 B -4 -1 -1 4 1 1 1 0 0 0 0 1 0 0 0 0 1 0 -16 -7 1 1 
+7 B -1 -3 -1 1 3 1 1 0 0 0 0 1 0 0 0 0 1 0 -19 -11 1 1 
+7 B -7 -1 -1 7 1 1 1 0 0 0 0 1 0 0 0 0 1 0 -25 -15 1 1 
+8 B -3 -4 -1 3 4 1 1 0 0 0 0 1 0 0 0 0 1 0 -15 -12 1 1 
+8 B -4 -2 -1 4 2 1 1 0 0 0 0 1 0 0 0 0 1 0 -16 -4 1 1 
+8 B -6 -6 -1 6 6 1 1 0 0 0 0 1 0 0 0 0 1 0 -26 -8 1 1 
+13 B -1 -1 -1 1 1 1 1 0 0 0 0 1 0 0 0 0 1 0 -33 -15 1 1 
+13 B -1 -3 -4 1 3 4 1 0 0 0 0 1 0 0 0 0 1 0 -33 -19 4 1 
+13 B -1 -1 -1 1 1 1 1 0 0 0 0 1 0 0 0 0 1 0 -33 -15 7 1 
+13 B -1 -1 -4 1 1 4 1 0 0 0 0 1 0 0 0 0 1 0 -33 -13 4 1 
+13 B -1 -5 -3 1 5 3 1 0 0 0 0 1 0 0 0 0 1 0 -33 -7 3 1 
+13 B -1 -1 -1 1 1 1 1 0 0 0 0 1 0 0 0 0 1 0 -33 -3 7 1 
+13 B -5 -1 -4 5 1 4 1 0 0 0 0 1 0 0 0 0 1 0 -39 -3 4 1 
+13 B -5 -1 -4 5 1 4 1 0 0 0 0 1 0 0 0 0 1 0 -39 -21 4 1 
+10 B -5 -8 -0.5 5 8 0.5 1 0 0 0 0 1 0 0 0 0 1 0 -39 -12 0.5 1 
+5 B -2 -10 -0.5 2 10 0.5 1 0 0 0 0 1 0 0 0 0 1 0 -34 -12 8.5 1 
+5 B -3 -10 -0.5 3 10 0.5 1 0 0 0 0 1 0 0 0 0 1 0 -41 -12 8.5 1 
+5 B -1 -1 -0.5 1 1 0.5 1 0 0 0 0 1 0 0 0 0 1 0 -37 -3 8.5 1 
+5 B -1 -1 -0.5 1 1 0.5 1 0 0 0 0 1 0 0 0 0 1 0 -37 -21 8.5 1 
+13 B -0.5 -10 -4 0.5 10 4 1 0 0 0 0 1 0 0 0 0 1 0 -44.5 -12 4 1 
+5 B -0.5 -10 -0.5 0.5 10 0.5 1 0 0 0 0 1 0 0 0 0 1 0 -44.5 -12 8.5 1 
+6 B -19.5 -8 -1 19.5 8 1 1 0 0 0 0 1 0 0 0 0 1 0 -12.5 -30 1 1 
+8 B -5 -3 -1 5 3 1 1 0 0 0 0 1 0 0 0 0 1 0 -27 -19 1 1 
+8 B -4 -3 -1 4 3 1 1 0 0 0 0 1 0 0 0 0 1 0 -16 -19 1 1 
+7 B -1 -3 -1 1 3 1 1 0 0 0 0 1 0 0 0 0 1 0 -21 -19 1 1 
+12 B -3.5 -9 -10 3.5 9 10 1 0 0 0 0 1 0 0 0 0 1 0 10.5 -21 10 1 
+11 B -1 -1 -1 1 1 1 0.844337 0.535813 0 0 -0.535813 0.844337 0 0 0 0 1 0 -21 -25 3 1 
+11 B -1 -1 -1.5 1 1 1.5 0.499943 0.866058 0 0 -0.866058 0.499943 0 0 0 0 1 0 -18 -27 3.5 1 
+11 B -1 -1 -2 1 1 2 0.962171 -0.272445 0 0 0.272445 0.962171 0 0 0 0 1 0 -14 -28 4 1 
+11 B -1 -1 -2.5 1 1 2.5 0.991723 -0.128398 0 0 0.128398 0.991723 0 0 0 0 1 0 -11 -29 4.5 1 
+11 B -1 -1 -3.5 1 1 3.5 0.999009 0.0445088 0 0 -0.0445088 0.999009 0 0 0 0 1 0 -7 -29 5.5 1 
+11 B -1 -1 -4 1 1 4 0.804334 -0.594019 0.013725 0 0.594075 0.80441 0 0 -0.0110405 0.00815366 0.999906 0 -3 -28 6 1 
+11 B -1 -1 -4.5 1 1 4.5 0.987518 0.157506 0 0 -0.157506 0.987518 0 0 0 0 1 0 -3 -25 6.5 1 
+11 B -1 -1 -0.5 1 1 0.5 0.948966 0.315377 0 0 -0.315377 0.948966 0 0 0 0 1 0 -5 -19 10.5 1 
+11 B -1 -1 -1.5 1 1 1.5 0.993542 -0.113462 0 0 0.113462 0.993542 0 0 0 0 1 0 -6 -16 11.5 1 
+11 B -1 -1 -2.5 1 1 2.5 0.99905 -0.0435748 0 0 0.0435748 0.99905 0 0 0 0 1 0 -2 -14 12.5 1 
+11 B -1 -1 -3.5 1 1 3.5 0.907237 -0.420552 -0.00753205 0 0.420564 0.907263 0 0 0.00683355 -0.00316771 0.999972 0 2 -16 13.5 1 
+11 B -1 -1 -4.5 1 1 4.5 0.726981 -0.686657 0 0 0.686657 0.726981 0 0 0 0 1 0 4 -18 14.5 1 
+11 B -1 -1 -5.5 1 1 5.5 1 0 0 0 0 1 0 0 0 0 1 0 6 -21 15.5 1 
+18 6 1 0 0 0 0 1 0 0 0 0 1 0 -24.4992 -8.45606 2 1 
+18 7 1 0 0 0 0 1 0 0 0 0 1 0 -14.9797 -11.1281 2 1 
+17 4 -0.553209 0.828977 0 0 -0.828977 -0.553209 0 0 0 0 1 0 10.2797 -15.8179 20 1 Spin 
+17 4 -0.553209 0.828977 0 0 -0.828977 -0.553209 0 0 0 0 1 0 10.1898 -25.7467 20 1 Spin 
+15 5 1.77678 -0.317007 0 0 0.324242 1.81734 0 0 0 0 1.50395 0 -33.6076 -15.0767 9 1 Spin 
+16 3 -1.67705 0.0923693 0 0 -0.0676053 -1.22744 0 0 0 0 1.45718 0 3.21963 -4.30689 2 1 
+1 B -9.5 -5 -1 9.5 5 1 1 0 0 0 0 1 0 0 0 0 1 0 -2.5 -17 1 1 
+9 B -9.5 -0.5 -4 9.5 0.5 4 1 0 0 0 0 1 0 0 0 0 1 0 -2.5 -12.5 6 1 
+9 B -9.5 -4 -0.5 9.5 4 0.5 1 0 0 0 0 1 0 0 0 0 1 0 -2.5 -17 9.5 1 
+9 B -0.5 -1.5 -3.5 0.5 1.5 3.5 1 0 0 0 0 1 0 0 0 0 1 0 -11.5 -14.5 5.5 1 
+9 B -0.5 -1.5 -3.5 0.5 1.5 3.5 1 0 0 0 0 1 0 0 0 0 1 0 -11.5 -19.5 5.5 1 
+9 B -0.5 -1 -1.5 0.5 1 1.5 1 0 0 0 0 1 0 0 0 0 1 0 -11.5 -17 7.5 1 
+9 B -9.5 -0.5 -0.5 9.5 0.5 0.5 1 0 0 0 0 1 0 0 0 0 1 0 -2.5 -21.5 9.5 1 
+9 B -9.5 -0.5 -1.5 9.5 0.5 1.5 1 0 0 0 0 1 0 0 0 0 1 0 -2.5 -21.5 3.5 1 
+9 B -1 -0.5 -2 1 0.5 2 1 0 0 0 0 1 0 0 0 0 1 0 -11 -21.5 7 1 
+9 B -1 -0.5 -2 1 0.5 2 1 0 0 0 0 1 0 0 0 0 1 0 -6 -21.5 7 1 
+9 B -1 -0.5 -2 1 0.5 2 1 0 0 0 0 1 0 0 0 0 1 0 -1 -21.5 7 1 
+9 B -1 -0.5 -2 1 0.5 2 1 0 0 0 0 1 0 0 0 0 1 0 4 -21.5 7 1 
+3 B -3 -9 -1 3 9 1 1 0 0 0 0 1 0 0 0 0 1 0 -23 -47 1 1 
+11 B -1 -1 -0.5 1 1 0.5 1 0 0 0 0 1 0 0 0 0 1 0 -25 -20 2.5 1 
+14 B -4 -1 -1.5 4 1 1.5 1 0 0 0 0 1 0 0 0 0 1 0 -18 -3 3.5 1 
+2 1 0.6 0 0 0 0 0.6 0 0 0 0 0.6 0 -28.3637 -10.1793 2 1 
+2 1 0.6 0 0 0 0 0.6 0 0 0 0 0.6 0 -28.4832 -6.58438 2 1 
+2 2 0.8 0 0 0 0 0.8 0 0 0 0 0.8 0 -17.0945 -18.4824 2 1 
+0 0 0.9 0 0 0 0 0.9 0 0 0 0 0.9 0 -33.2335 -9.53096 9 1 Spin 

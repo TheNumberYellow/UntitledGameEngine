@@ -5,8 +5,12 @@
 #include <random>
 #include "Scene.h"
 
-Material::Material(Texture DiffuseTexture, Texture NormalMap)
-    : m_DiffuseTexture(DiffuseTexture), m_NormalMap(NormalMap)
+Material::Material(Texture Albedo, Texture Normal, Texture Roughness, Texture Metallic, Texture AO)
+    : m_Albedo(Albedo)
+    , m_Normal(Normal)
+    , m_Roughness(Roughness)
+    , m_Metallic(Metallic)
+    , m_AO(AO)
 {
 }
 
@@ -132,13 +136,13 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
 	smooth in vec4 FragColour;
 	smooth in vec2 FragUV;   
 
-	uniform sampler2D DiffuseTexture;
+	uniform sampler2D AlbedoMap;
 
     out vec4 OutColour;
 
     void main()
     {
-        vec4 textureAt = texture(DiffuseTexture, FragUV);
+        vec4 textureAt = texture(AlbedoMap, FragUV);
         //OutColour = textureAt;
         OutColour.rgb = textureAt.rgb * FragColour.rgb;
         OutColour.a = textureAt.a * FragColour.a;
@@ -190,9 +194,13 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
 	smooth in vec2 FragUV;	
     in vec4 FragPosLightSpace;
 
-	uniform sampler2D DiffuseTexture;
+	uniform sampler2D AlbedoMap;
     uniform sampler2D NormalMap;
-    uniform samplerCube Skybox;	
+    uniform sampler2D MetallicMap;
+    uniform sampler2D RoughnessMap;
+    uniform sampler2D AOMap;
+
+    uniform samplerCube SkyBox;	
     uniform sampler2D ShadowMap;
 
 	//uniform float Time;
@@ -202,6 +210,49 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
     uniform vec3 CameraPos;    
 
 	out vec4 OutColour;
+
+    const float PI = 3.14159265359;
+    // ----------------------------------------------------------------------------
+    float DistributionGGX(vec3 N, vec3 H, float roughness)
+    {
+        float a = roughness*roughness;
+        float a2 = a*a;
+        float NdotH = max(dot(N, H), 0.0);
+        float NdotH2 = NdotH*NdotH;
+
+        float nom   = a2;
+        float denom = (NdotH2 * (a2 - 1.0) + 1.0);
+        denom = PI * denom * denom;
+
+        return nom / denom;
+    }
+    // ----------------------------------------------------------------------------
+    float GeometrySchlickGGX(float NdotV, float roughness)
+    {
+        float r = (roughness + 1.0);
+        float k = (r*r) / 8.0;
+
+        float nom   = NdotV;
+        float denom = NdotV * (1.0 - k) + k;
+
+        return nom / denom;
+    }
+    // ----------------------------------------------------------------------------
+    float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
+    {
+        float NdotV = max(dot(N, V), 0.0);
+        float NdotL = max(dot(N, L), 0.0);
+        float ggx2 = GeometrySchlickGGX(NdotV, roughness);
+        float ggx1 = GeometrySchlickGGX(NdotL, roughness);
+
+        return ggx1 * ggx2;
+    }
+
+    // ----------------------------------------------------------------------------
+    vec3 fresnelSchlick(float cosTheta, vec3 F0)
+    {
+        return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+    }
 
     float rand(vec2 co)
     {
@@ -264,45 +315,79 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
 
 	void main()
 	{
-        // Ambient
-        float ambientStrength = 0.35;
-        vec3 ambient = ambientStrength * SunColour;
-
-        // Diffuse
+        //vec3 Albedo = pow(texture(AlbedoMap, FragUV).rgb, vec3(2.2));
+        vec4 TexAt = texture(AlbedoMap, FragUV);
+        vec3 Albedo = TexAt.rgb;
         vec3 normalizedNormal = normalize(FragNormal);
         vec3 ViewVector = CameraPos - FragPosition;       
-        vec3 normal = perturb_normal(normalizedNormal, ViewVector, FragUV);
         
-        vec3 lightDir = normalize(vec3(-SunDirection.x, -SunDirection.y, -SunDirection.z));
-        float diff = max(dot(normal, lightDir), 0.0);
-        // Temp: reduces shadow acne
-        if (diff < 0.15)
-        {
-            diff = 0.0;
-        }     
-        vec3 diffuse = diff * SunColour;        
+        vec3 Normal = perturb_normal(normalizedNormal, ViewVector, FragUV);
+        float Metallic = texture(MetallicMap, FragUV).r;
+        float Roughness = texture(RoughnessMap, FragUV).g;
+        float AO = texture(AOMap, FragUV).r;            
 
-		//float diffuse = ((dot(normal.xyz, normalize(sun))) + 1.0) / 2.0;
-        // Temp: reduces shadow acne
-        //if (diffuse < 0.53)
-        //{
-        //    diffuse = 0.0;
-        //}     
+        vec3 N = normalize(Normal);
+        vec3 V = normalize(CameraPos - FragPosition);
 
-        // Specular
-        float specularStrength = 0.5;
-        vec3 viewDir = normalize(ViewVector);
-        vec3 reflectDir = reflect(-lightDir, normal);
-        float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
-        vec3 specular = specularStrength * spec * SunColour;
+        // calculate reflectance at normal incidence; if dia-electric (like plastic) use F0 
+        // of 0.04 and if it's a metal, use the albedo color as F0 (metallic workflow)    
+        vec3 F0 = vec3(0.04); 
+        F0 = mix(F0, Albedo, Metallic);
 
+        // reflectance equation
+        vec3 Lo = vec3(0.0);
+
+        // Directional light
+        vec3 L = -SunDirection;
+        vec3 H = normalize(V + L);
+        //float distance = 0.35;
+        //float attenuation = 1.0 / (distance * distance);
+        vec3 radiance = SunColour * 3.0;
+
+        // Cook-Torrance BRDF
+        float NDF = DistributionGGX(N, H, Roughness);   
+        float G   = GeometrySmith(N, V, L, Roughness);      
+        vec3 F    = fresnelSchlick(clamp(dot(H, V), 0.0, 1.0), F0);
+    
+        vec3 numerator    = NDF * G * F; 
+        float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001; // + 0.0001 to prevent divide by zero
+        vec3 specular = numerator / denominator;    
+
+        // kS is equal to Fresnel
+        vec3 kS = F;
+        // for energy conservation, the diffuse and specular light can't
+        // be above 1.0 (unless the surface emits light); to preserve this
+        // relationship the diffuse component (kD) should equal 1.0 - kS.
+        vec3 kD = vec3(1.0) - kS;
+        // multiply kD by the inverse metalness such that only non-metals 
+        // have diffuse lighting, or a linear blend if partly metal (pure metals
+        // have no diffuse light).
+        kD *= 1.0 - Metallic;	  
+
+        // scale light by NdotL
+        float NdotL = max(dot(N, L), 0.0);        
+
+        // add to outgoing radiance Lo
+        Lo += (kD * Albedo / PI + specular) * radiance * NdotL;  // note that we already multiplied the BRDF by the Fresnel (kS) so we won't multiply by kS again    
+
+        // ambient lighting (note that the next IBL tutorial will replace 
+        // this ambient lighting with environment lighting).
+        
+        vec3 I = normalize(FragPosition - CameraPos);
+        vec3 R = reflect(I, normalize(Normal));
+        vec3 reflectColour = texture(SkyBox, R).rgb * Metallic;
+        //vec3 reflectColour = texture(Sky;
+        vec3 ambient = max(reflectColour, vec3(0.25)) * Albedo * AO;
+        
         float shadow = ShadowCalculation(FragPosLightSpace);
-		
-        vec4 textureAt = texture(DiffuseTexture, FragUV);
+        vec3 color = ambient + (1.0 - shadow) * Lo;
 
-        OutColour.rgb = (ambient + (1.0 - shadow) * (diffuse + specular)) * (textureAt.rgb * FragColour.rgb);
+        // HDR tonemapping
+        //color = color / (color + vec3(1.0));
+        // gamma correct
+        //color = pow(color, vec3(1.0/2.2)); 
 
-        OutColour.a = textureAt.a * FragColour.a;
+        OutColour = vec4(color, TexAt.a);
     }
 	)";
 
@@ -356,13 +441,13 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
 
     in vec3 TexCoords;
     
-    uniform samplerCube skybox;
+    uniform samplerCube SkyBox;
 
     out vec4 OutColour;
 
     void main()
     {
-        OutColour = texture(skybox, TexCoords);
+        OutColour = texture(SkyBox, TexCoords);
     }
     )";
 
@@ -567,6 +652,10 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
     m_Renderer.SetShaderUniformMat4x4f(m_UIShader, "Projection", m_OrthoProjection);
 
     m_DefaultNormalMap = LoadTexture("textures/default_norm.png", TextureMode::NEAREST, TextureMode::NEAREST);
+    m_DefaultMetallicMap = LoadTexture("textures/default_metallic.png", TextureMode::NEAREST, TextureMode::NEAREST);
+    m_DefaultRoughnessMap = LoadTexture("textures/default_roughness.png", TextureMode::NEAREST, TextureMode::NEAREST);
+    m_DefaultAOMap = LoadTexture("textures/default_ao.png", TextureMode::NEAREST, TextureMode::NEAREST);
+
     m_DebugMaterial = CreateMaterial(LoadTexture("textures/debugTexture.png", TextureMode::LINEAR, TextureMode::LINEAR),
         LoadTexture("textures/debugTexture.norm.png"));
 
@@ -693,14 +782,20 @@ void GraphicsModule::Render(Framebuffer_ID OutBuffer, Camera Cam, DirectionalLig
     m_Renderer.SetShaderUniformMat4x4f(m_TexturedMeshShader, "Camera", Cam.GetCamMatrix());
     m_Renderer.SetShaderUniformVec3f(m_TexturedMeshShader, "CameraPos", Cam.GetPosition());
 
+    // Set skybox
+    m_Renderer.SetActiveCubemap(m_SkyboxCubemap, "SkyBox");
+
     for (RenderCommand& Command : m_RenderCommands)
     {
         // Set mesh-specific transform uniform
         m_Renderer.SetShaderUniformMat4x4f(m_TexturedMeshShader, "Transformation", Command.transform.GetTransformMatrix());
 
         // Set material
-        m_Renderer.SetActiveTexture(Command.material.m_DiffuseTexture.Id, "DiffuseTexture");
-        m_Renderer.SetActiveTexture(Command.material.m_NormalMap.Id, "NormalMap");
+        m_Renderer.SetActiveTexture(Command.material.m_Albedo.Id, "AlbedoMap");
+        m_Renderer.SetActiveTexture(Command.material.m_Normal.Id, "NormalMap");
+        m_Renderer.SetActiveTexture(Command.material.m_Metallic.Id, "MetallicMap");
+        m_Renderer.SetActiveTexture(Command.material.m_Roughness.Id, "RoughnessMap");
+        m_Renderer.SetActiveTexture(Command.material.m_AO.Id, "AOMap");
 
         // Draw mesh
         m_Renderer.DrawMesh(Command.mesh);
@@ -775,7 +870,7 @@ void GraphicsModule::SetActiveFrameBuffer(Framebuffer_ID fBufferID)
         m_Renderer.DisableDepthTesting();
 
         m_Renderer.SetActiveShader(m_TexturedMeshShader);
-        m_Renderer.SetActiveCubemap(m_SkyboxCubemap, 1);
+        m_Renderer.SetActiveCubemap(m_SkyboxCubemap, "SkyBox");
 
         m_Renderer.SetActiveShader(m_SkyboxShader);
 
@@ -794,7 +889,7 @@ void GraphicsModule::SetActiveFrameBuffer(Framebuffer_ID fBufferID)
 
         m_Renderer.SetShaderUniformMat4x4f(m_SkyboxShader, "view", newView);
 
-        m_Renderer.SetActiveCubemap(m_SkyboxCubemap);
+        m_Renderer.SetActiveCubemap(m_SkyboxCubemap, "SkyBox");
         m_Renderer.DrawMesh(m_SkyboxMesh);
 
         m_Renderer.EnableDepthTesting();
@@ -815,15 +910,33 @@ void GraphicsModule::ResetFrameBuffer()
     m_Renderer.ResetToScreenBuffer();
 }
 
-Material GraphicsModule::CreateMaterial(Texture DiffuseTexture, Texture NormalMap)
+Material GraphicsModule::CreateMaterial(Texture AlbedoMap, Texture NormalMap, Texture RoughnessMap, Texture MetallicMap, Texture AOMap)
 {
-    Material Result = Material(DiffuseTexture, NormalMap);
+    Material Result = Material(AlbedoMap, NormalMap, RoughnessMap, MetallicMap, AOMap);
     return Result;
 }
 
-Material GraphicsModule::CreateMaterial(Texture DiffuseTexture)
+Material GraphicsModule::CreateMaterial(Texture AlbedoMap, Texture NormalMap, Texture RoughnessMap, Texture MetallicMap)
 {
-    Material Result = Material(DiffuseTexture, m_DefaultNormalMap);
+    Material Result = Material(AlbedoMap, NormalMap, RoughnessMap, MetallicMap, m_DefaultAOMap);
+    return Result;
+}
+
+Material GraphicsModule::CreateMaterial(Texture AlbedoMap, Texture NormalMap, Texture RoughnessMap)
+{
+    Material Result = Material(AlbedoMap, NormalMap, RoughnessMap, m_DefaultMetallicMap, m_DefaultAOMap);
+    return Result;
+}
+
+Material GraphicsModule::CreateMaterial(Texture AlbedoMap, Texture NormalMap)
+{
+    Material Result = Material(AlbedoMap, NormalMap, m_DefaultRoughnessMap, m_DefaultMetallicMap, m_DefaultAOMap);
+    return Result;
+}
+
+Material GraphicsModule::CreateMaterial(Texture AlbedoMap)
+{
+    Material Result = Material(AlbedoMap, m_DefaultNormalMap, m_DefaultRoughnessMap, m_DefaultMetallicMap, m_DefaultAOMap);
     return Result;
 }
 
@@ -926,24 +1039,136 @@ Model GraphicsModule::CreateBoxModel(AABB box, Material material)
 
     Model result = Model(TexturedMesh(boxMesh, material));
     result.GetTransform().SetPosition(averagePoint);
+    result.Type = ModelType::BLOCK;
 
     return result;
 }
 
-Model GraphicsModule::CreatePlaneModel(Vec2f min, Vec2f max)
+Model GraphicsModule::CreatePlaneModel(Vec2f min, Vec2f max, float elevation, int subsections)
 {
-    return CreatePlaneModel(min, max, m_DebugMaterial);
+    return CreatePlaneModel(min, max, m_DebugMaterial, elevation, subsections);
 }
 
-Model GraphicsModule::CreatePlaneModel(Vec2f min, Vec2f max, Material material)
+Model GraphicsModule::CreatePlaneModel(Vec2f min, Vec2f max, Material material, float elevation, int subsections)
 {
-    StaticMesh_ID planeMeshId = CreatePlaneMesh(min, max);
+    int Rows = subsections;
+    int Columns = subsections;
+
+    float Width = max.x - min.x;
+    float Height = max.y - min.y;
+
+    Vec3f SouthWest = Vec3f(min.x, min.y, elevation);
+    Vec3f NorthWest = Vec3f(min.x, max.y, elevation);
+    Vec3f NorthEast = Vec3f(max.x, max.y, elevation);
+    Vec3f SouthEast = Vec3f(max.x, min.y, elevation);
+
+    Vec3f AveragePoint = Vec3f((min.x + max.x) / 2.0f, (min.y + max.y) / 2.0f, elevation);
+
+    std::vector<float> Vertices;
+    for (int y = 0; y < Rows + 1; ++y)
+    {
+        for (int x = 0; x < Columns + 1; ++x)
+        {
+            float NewX = min.x + (x * Width / Rows);
+            float NewY = min.y + (y * Height / Columns);
+            float NewZ = elevation;
+
+            float NormX = 0.0f;
+            float NormY = 0.0f;
+            float NormZ = 1.0f;
+
+            float ColR = 1.0f;
+            float ColG = 1.0f;
+            float ColB = 1.0f;
+            float ColA = 1.0f;
+
+            float TexU = (x * Width / Rows);
+            float TexV = (y * Height / Columns);
+
+            Vec3f NewPoint = Vec3f(NewX, NewY, NewZ) - AveragePoint;
+            Vertices.insert(Vertices.end(), { NewPoint.x, NewPoint.y, NewPoint.z, NormX, NormY, NormZ, ColR, ColG, ColB, ColA, TexU, TexV});
+        }
+    }
+
+    std::vector<ElementIndex> Indices;
+
+    for (int y = 0; y < Rows; ++y)
+    {
+        for (int x = 0; x < Columns; ++x)
+        {
+            unsigned int FlatIndex = (y * (Columns + 1)) + x;
+
+
+            Indices.insert(Indices.end(), { FlatIndex, FlatIndex + (Columns + 1), FlatIndex + (Columns + 2) });
+            Indices.insert(Indices.end(), { FlatIndex, FlatIndex + (Columns + 2), FlatIndex + 1 });
+        }
+    }
+
+    StaticMesh_ID planeMeshId = m_Renderer.LoadMesh(m_TexturedMeshFormat, Vertices, Indices);
 
     StaticMesh planeMesh;
     planeMesh.Id = planeMeshId;
     planeMesh.LoadedFromFile = false;
 
-    return Model(TexturedMesh(planeMesh, material));
+    Model result = Model(TexturedMesh(planeMesh, material));
+    result.GetTransform().SetPosition(AveragePoint);
+    result.Type = ModelType::PLANE;
+
+    return result;
+}
+
+void GraphicsModule::RecalculateTerrainModelNormals(Model& model)
+{
+    if (model.Type != ModelType::PLANE)
+    {
+        Engine::Error("Tried to recalculate normals on a non-terrain model");
+        return;
+    }
+
+    StaticMesh_ID MeshId = model.m_TexturedMeshes[0].m_Mesh.Id;
+
+    std::vector<Vertex*> Vertices = m_Renderer.MapMeshVertices(MeshId);
+
+    // TODO(fraser): Assumption: plane meshes have same vertex width/height. Will need to store width/height info in model
+    int Width = (int)sqrt(Vertices.size());
+    int Height = (int)sqrt(Vertices.size());
+
+    for (int i = 0; i < Vertices.size(); ++i)
+    {
+        int x = i % Width;
+        int y = i / Width;
+
+        Vec3f North = Vertices[i]->position + Vec3f(0.0f, 1.0f, 0.0f);
+        Vec3f South = Vertices[i]->position + Vec3f(0.0f, -1.0f, 0.0f);
+        Vec3f East = Vertices[i]->position + Vec3f(1.0f, 0.0f, 0.0f);
+        Vec3f West = Vertices[i]->position + Vec3f(-1.0f, 0.0f, 0.0f);
+
+        if (x != 0)
+        {
+            West = Vertices[i - 1]->position;
+        }
+        if (x != Width - 1)
+        {
+            East = Vertices[i + 1]->position;
+        }
+        if (y != 0)
+        {
+            South = Vertices[i - Width]->position;
+        }
+        if (y != Height - 1)
+        {
+            North = Vertices[i + Width]->position;
+        }
+
+        Vec3f PlaneNorm = -Math::cross(North - East, North - West);
+
+        PlaneNorm = Math::normalize(PlaneNorm);
+
+        Vertices[i]->normal = PlaneNorm;
+
+    }
+
+    m_Renderer.UnmapMeshVertices(MeshId);
 }
 
 void GraphicsModule::Draw(Model& model)
@@ -962,8 +1187,11 @@ void GraphicsModule::Draw(Model& model)
 
         for (int i = 0; i < model.m_TexturedMeshes.size(); ++i)
         {
-            m_Renderer.SetActiveTexture(model.m_TexturedMeshes[i].m_Material.m_NormalMap.Id, "NormalMap");
-            m_Renderer.SetActiveTexture(model.m_TexturedMeshes[i].m_Material.m_DiffuseTexture.Id, "DiffuseTexture");
+            m_Renderer.SetActiveTexture(model.m_TexturedMeshes[i].m_Material.m_Normal.Id, "NormalMap");
+            m_Renderer.SetActiveTexture(model.m_TexturedMeshes[i].m_Material.m_Albedo.Id, "AlbedoMap");
+            m_Renderer.SetActiveTexture(model.m_TexturedMeshes[i].m_Material.m_Metallic.Id, "MetallicMap");
+            m_Renderer.SetActiveTexture(model.m_TexturedMeshes[i].m_Material.m_Roughness.Id, "RoughnessMap");
+            m_Renderer.SetActiveTexture(model.m_TexturedMeshes[i].m_Material.m_AO.Id, "AOMap");
             m_Renderer.DrawMesh(model.m_TexturedMeshes[i].m_Mesh.Id);
         }
 
@@ -982,7 +1210,7 @@ void GraphicsModule::Draw(Model& model)
 
         for (int i = 0; i < model.m_TexturedMeshes.size(); ++i)
         {
-            m_Renderer.SetActiveTexture(model.m_TexturedMeshes[i].m_Material.m_DiffuseTexture.Id, "DiffuseTexture");
+            m_Renderer.SetActiveTexture(model.m_TexturedMeshes[i].m_Material.m_Albedo.Id, "AlbedoMap");
             m_Renderer.DrawMesh(model.m_TexturedMeshes[i].m_Mesh.Id);
         }
     }
@@ -1130,6 +1358,39 @@ void GraphicsModule::DebugDrawPoint(Vec3f p, Vec3f colour)
         });
 }
 
+void GraphicsModule::DebugDrawSphere(Vec3f p, float radius /*= 1.0f*/, Vec3f colour /*= Vec3f(1.0f, 1.0f, 1.0f)*/)
+{
+    Vec3f Top = p + Vec3f(0.0f, 0.0f, 1.0f) * radius;
+    Vec3f Bot = p + Vec3f(0.0f, 0.0f, -1.0f) * radius;
+    Vec3f Left = p + Vec3f(1.0f, 0.0f, 0.0f) * radius;
+    Vec3f Right = p + Vec3f(-1.0f, 0.0f, 0.0f) * radius;
+    Vec3f Back = p + Vec3f(0.0f, -1.0f, 0.0f) * radius;
+    Vec3f Front = p + Vec3f(0.0f, 1.0f, 0.0f) * radius;
+
+    //DebugDrawPoint(Top, colour);
+    //DebugDrawPoint(Bot, colour);
+    //DebugDrawPoint(Left, colour);
+    //DebugDrawPoint(Right, colour);
+    //DebugDrawPoint(Back, colour);
+    //DebugDrawPoint(Front, colour);
+
+    DebugDrawLine(Top, Left, colour);
+    DebugDrawLine(Top, Right, colour);
+    DebugDrawLine(Top, Back, colour);
+    DebugDrawLine(Top, Front, colour);
+
+    DebugDrawLine(Bot, Left, colour);
+    DebugDrawLine(Bot, Right, colour);
+    DebugDrawLine(Bot, Back, colour);
+    DebugDrawLine(Bot, Front, colour);
+
+    DebugDrawLine(Back, Left, colour);
+    DebugDrawLine(Left, Front, colour);
+    DebugDrawLine(Front, Right, colour);
+    DebugDrawLine(Right, Back, colour);
+
+}
+
 Vec2i GraphicsModule::GetViewportSize()
 {
     return m_Renderer.GetViewportSize();
@@ -1138,117 +1399,6 @@ Vec2i GraphicsModule::GetViewportSize()
 void GraphicsModule::SetRenderMode(RenderMode mode)
 {
     m_RenderMode = mode;
-}
-
-StaticMesh_ID GraphicsModule::CreateBoxMesh(AABB box)
-{
-    Vec3f min = box.min;
-    Vec3f max = box.max;
-
-    Vec3f size = (box.max - box.min) / 2.0f;
-
-    Vec3f points[] =
-    {
-        box.min,
-        box.min + Vec3f(0.0f, box.max.y - box.min.y, 0.0f),
-        box.min + Vec3f(box.max.x - box.min.x, box.max.y - box.min.y, 0.0f),
-        box.min + Vec3f(box.max.x - box.min.x, 0.0f, 0.0f),
-
-        box.max - Vec3f(box.max.x - box.min.x, box.max.y - box.min.y, 0.0f),
-        box.max - Vec3f(box.max.x - box.min.x, 0.0f, 0.0f),
-        box.max,
-        box.max - Vec3f(0.0f, box.max.y - box.min.y, 0.0f)
-    };
-
-    Vec3f averagePoint = Vec3f();
-    for (int i = 0; i < 8; ++i)
-    {
-        averagePoint += points[i];
-    }
-    averagePoint = averagePoint / 8.0f;
-
-    for (int i = 0; i < 8; ++i)
-    {
-        points[i] -= averagePoint;
-    }
-
-    std::vector<float> vertices =
-    {
-        // Positions                                // Normals              // Colours                  // Texcoords
-        points[0].x, points[0].y, points[0].z,      0.0f, 0.0f, -1.0f,      1.0f, 1.0f, 1.0f, 1.0f,     0.0f, 0.0f,
-        points[1].x, points[1].y, points[1].z,      0.0f, 0.0f, -1.0f,      1.0f, 1.0f, 1.0f, 1.0f,     0.0f, size.y,
-        points[2].x, points[2].y, points[2].z,      0.0f, 0.0f, -1.0f,      1.0f, 1.0f, 1.0f, 1.0f,     size.x, size.y,
-        points[3].x, points[3].y, points[3].z,      0.0f, 0.0f, -1.0f,      1.0f, 1.0f, 1.0f, 1.0f,     size.x, 0.0f,
-
-        points[4].x, points[4].y, points[4].z,      0.0f, 0.0f, 1.0f,       1.0f, 1.0f, 1.0f, 1.0f,     0.0f, 0.0f,
-        points[5].x, points[5].y, points[5].z,      0.0f, 0.0f, 1.0f,       1.0f, 1.0f, 1.0f, 1.0f,     0.0f, size.y,
-        points[6].x, points[6].y, points[6].z,      0.0f, 0.0f, 1.0f,       1.0f, 1.0f, 1.0f, 1.0f,     size.x, size.y,
-        points[7].x, points[7].y, points[7].z,      0.0f, 0.0f, 1.0f,       1.0f, 1.0f, 1.0f, 1.0f,     size.x, 0.0f,
-
-        points[0].x, points[0].y, points[0].z,      -1.0f, 0.0f, 0.0f,      1.0f, 1.0f, 1.0f, 1.0f,     0.0f, 0.0f,
-        points[1].x, points[1].y, points[1].z,      -1.0f, 0.0f, 0.0f,      1.0f, 1.0f, 1.0f, 1.0f,     0.0f, size.y,
-        points[5].x, points[5].y, points[5].z,      -1.0f, 0.0f, 0.0f,      1.0f, 1.0f, 1.0f, 1.0f,     size.z, size.y,
-        points[4].x, points[4].y, points[4].z,      -1.0f, 0.0f, 0.0f,      1.0f, 1.0f, 1.0f, 1.0f,     size.z, 0.0f,
-
-        points[2].x, points[2].y, points[2].z,      1.0f, 0.0f, 0.0f,       1.0f, 1.0f, 1.0f, 1.0f,     0.0f, 0.0f,
-        points[3].x, points[3].y, points[3].z,      1.0f, 0.0f, 0.0f,       1.0f, 1.0f, 1.0f, 1.0f,     0.0f, size.y,
-        points[7].x, points[7].y, points[7].z,      1.0f, 0.0f, 0.0f,       1.0f, 1.0f, 1.0f, 1.0f,     size.z, size.y,
-        points[6].x, points[6].y, points[6].z,      1.0f, 0.0f, 0.0f,       1.0f, 1.0f, 1.0f, 1.0f,     size.z, 0.0f,
-
-        points[0].x, points[0].y, points[0].z,      0.0f, -1.0f, 0.0f,      1.0f, 1.0f, 1.0f, 1.0f,     0.0f, 0.0f,
-        points[4].x, points[4].y, points[4].z,      0.0f, -1.0f, 0.0f,      1.0f, 1.0f, 1.0f, 1.0f,     0.0f, size.z,
-        points[7].x, points[7].y, points[7].z,      0.0f, -1.0f, 0.0f,      1.0f, 1.0f, 1.0f, 1.0f,     size.x, size.z,
-        points[3].x, points[3].y, points[3].z,      0.0f, -1.0f, 0.0f,      1.0f, 1.0f, 1.0f, 1.0f,     size.x, 0.0f,
-
-        points[1].x, points[1].y, points[1].z,      0.0f, 1.0f, 0.0f,       1.0f, 1.0f, 1.0f, 1.0f,     0.0f, 0.0f,
-        points[5].x, points[5].y, points[5].z,      0.0f, 1.0f, 0.0f,       1.0f, 1.0f, 1.0f, 1.0f,     0.0f, size.z,
-        points[6].x, points[6].y, points[6].z,      0.0f, 1.0f, 0.0f,       1.0f, 1.0f, 1.0f, 1.0f,     size.x, size.z,
-        points[2].x, points[2].y, points[2].z,      0.0f, 1.0f, 0.0f,       1.0f, 1.0f, 1.0f, 1.0f,     size.x, 0.0f,
-    };
-
-    std::vector<ElementIndex> indices =
-    {
-        0, 2, 1, 0, 3, 2,
-        4, 5, 6, 4, 6, 7,
-        8, 9, 10, 8, 10, 11,
-        12, 13, 14, 12, 14, 15,
-        16, 17, 18, 16, 18, 19,
-        20, 22, 21, 20, 23, 22
-    };
-
-    StaticMesh_ID boxMesh = m_Renderer.LoadMesh(m_TexturedMeshFormat, vertices, indices);
-
-    return boxMesh;
-}
-
-StaticMesh_ID GraphicsModule::CreatePlaneMesh(Vec2f min, Vec2f max)
-{
-    Vec3f points[] =
-    {
-        Vec3f(min.x, min.y, 0.0f),
-        Vec3f(min.x, max.y, 0.0f),
-        Vec3f(max.x, max.y, 0.0f),
-        Vec3f(max.x, min.y, 0.0f)
-    };
-
-    std::vector<float> vertices =
-    {
-        // Positions                                // Normals              // Colours                  // Texcoords
-        points[0].x, points[0].y, points[0].z,      0.0f, 0.0f, 1.0f,       1.0f, 1.0f, 1.0f, 1.0f,     0.0f, 0.0f,
-        points[1].x, points[1].y, points[1].z,      0.0f, 0.0f, 1.0f,       1.0f, 1.0f, 1.0f, 1.0f,     0.0f, max.y,
-        points[2].x, points[2].y, points[2].z,      0.0f, 0.0f, 1.0f,       1.0f, 1.0f, 1.0f, 1.0f,     max.x, max.y,
-        points[3].x, points[3].y, points[3].z,      0.0f, 0.0f, 1.0f,       1.0f, 1.0f, 1.0f, 1.0f,     max.x, 0.0f
-    };
-
-    std::vector<ElementIndex> indices =
-    {
-        0, 1, 2, 0, 2, 3,
-        0, 2, 1, 0, 3, 2,
-    };
-
-    StaticMesh_ID planeMesh = m_Renderer.LoadMesh(m_TexturedMeshFormat, vertices, indices);
-
-    return planeMesh;
 }
 
 void GraphicsModule::DrawDebugDrawMesh()

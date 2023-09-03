@@ -46,6 +46,8 @@ public:
     CollisionMesh& GetCollisionMeshFromMesh(StaticMesh mesh);
     CollisionMesh& GenerateCollisionMeshFromMesh(StaticMesh mesh);
 
+    void InvalidateMeshCollisionData(StaticMesh_ID mesh);
+
     RayCastHit RayCast(Ray ray, const CollisionMesh& mesh, Transform& transform);
     RayCastHit RayCast(Ray ray, const CollisionMesh& mesh, const Mat4x4f& meshTransform = Mat4x4f());
     RayCastHit RayCast(Ray ray, AABB aabb);

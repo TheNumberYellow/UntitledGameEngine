@@ -8,7 +8,7 @@ void Ghost::Update(ModuleManager& Modules, Scene* Scene, float DeltaTime)
 {
     if (!Started)
     {
-        Target = Scene->GetModelByTag("Player");
+        //Target = Scene->GetModelByTag("Player");
 
         Started = true;
     }

@@ -11,8 +11,15 @@ public:
 
 private:
 
+    Vec3f FrontLeftTire;
+    Vec3f FrontRightTire;
+    Vec3f BackLeftTire;
+    Vec3f BackRightTire;
+
     Vec3f AimingDirection = Vec3f(1.0f, 0.0f, 0.0f);
     float Speed = 0.0f;
     Quaternion Rotation;
+
+    bool Started = false;
 };
 

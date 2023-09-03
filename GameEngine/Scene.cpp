@@ -242,6 +242,24 @@ void Scene::Draw(GraphicsModule& graphics, Framebuffer_ID buffer)
         command.transform = it->GetTransform();
         command.model = it;
 
+        //if (it->Type == ModelType::PLANE)
+        //{
+        //    std::vector<Vertex*> Vertices = graphics.m_Renderer.MapMeshVertices(command.mesh);
+        //    
+        //    Vec3f Pos = it->GetTransform().GetPosition();
+
+        //    for (auto& Vert : Vertices)
+        //    {
+        //        Vec3f A = Vert->position + Pos;
+        //        Vec3f B = (A + Vert->normal);
+
+        //        graphics.DebugDrawLine(A, B);
+        //    }
+
+
+        //    graphics.m_Renderer.UnmapMeshVertices(command.mesh);
+        //}
+
         graphics.AddRenderCommand(command);
 
     }
@@ -367,7 +385,7 @@ void Scene::Save(std::string FileName)
 
     for (auto& it : m_UntrackedModels)
     {
-        Texture tex = it->m_TexturedMeshes[0].m_Material.m_DiffuseTexture;
+        Texture tex = it->m_TexturedMeshes[0].m_Material.m_Albedo;
         StaticMesh mesh = it->m_TexturedMeshes[0].m_Mesh;
         
         Material mat = it->m_TexturedMeshes[0].m_Material;
@@ -397,9 +415,13 @@ void Scene::Save(std::string FileName)
     File << "Textures:" << std::endl;
     for (auto& Mat : MaterialVec)
     {
-        std::string Path = Mat.m_DiffuseTexture.Path.GetFullPath();
-        std::string NormPath = Mat.m_NormalMap.Path.GetFullPath();
-        File << Path << " " << NormPath << std::endl;
+        std::string Path = Mat.m_Albedo.Path.GetFullPath();
+        std::string NormPath = Mat.m_Normal.Path.GetFullPath();
+        std::string RoughPath = Mat.m_Roughness.Path.GetFullPath();
+        std::string MetalPath = Mat.m_Metallic.Path.GetFullPath();
+        std::string AOPath = Mat.m_AO.Path.GetFullPath();
+
+        File << Path << Separator << NormPath << Separator << RoughPath << Separator << MetalPath << Separator << AOPath << std::endl;
     }
 
     File << "StaticMeshes:" << std::endl;
@@ -411,69 +433,69 @@ void Scene::Save(std::string FileName)
 
     File << "Entities:" << std::endl;
 
-    for (auto& it : m_UntrackedModels)
+for (auto& it : m_UntrackedModels)
+{
+    int64_t StaticMeshIndex = 0;
+    int64_t TextureIndex = 0;
+
+    bool GeneratedMesh = false;
+
+    auto MeshIt = std::find(StaticMeshVec.begin(), StaticMeshVec.end(), it->m_TexturedMeshes[0].m_Mesh);
+    if (MeshIt != StaticMeshVec.end())
     {
-        int64_t StaticMeshIndex = 0;
-        int64_t TextureIndex = 0;
-
-        bool GeneratedMesh = false;
-
-        auto MeshIt = std::find(StaticMeshVec.begin(), StaticMeshVec.end(), it->m_TexturedMeshes[0].m_Mesh);
-        if (MeshIt != StaticMeshVec.end())
-        {
-            StaticMeshIndex = MeshIt - StaticMeshVec.begin();
-        }
-        else
-        {
-            GeneratedMesh = true;
-            //Engine::FatalError("Could not find mesh while saving scene (this should never happen)");
-        }
-
-        auto MaterialIt = std::find(MaterialVec.begin(), MaterialVec.end(), it->m_TexturedMeshes[0].m_Material);
-        if (MaterialIt != MaterialVec.end())
-        {
-            TextureIndex = MaterialIt - MaterialVec.begin();
-        }
-        else
-        {
-            Engine::FatalError("Could not find texture while saving scene (this should never happen)");
-        }
-
-        File << TextureIndex << Separator;
-
-        if (!GeneratedMesh)
-        {
-            File << StaticMeshIndex << Separator;
-        }
-        else
-        {
-            File << "B" << Separator;
-            // For now, all generated meshes are boxes, so store the AABB
-            AABB BoxAABB = m_Collisions->GetCollisionMeshFromMesh(it->m_TexturedMeshes[0].m_Mesh).boundingBox;
-
-            File << BoxAABB.min.x << Separator << BoxAABB.min.y << Separator << BoxAABB.min.z << Separator;
-            File << BoxAABB.max.x << Separator << BoxAABB.max.y << Separator << BoxAABB.max.z << Separator;
-        }
-
-        Mat4x4f TransMat = it->GetTransform().GetTransformMatrix();
-
-        for (int i = 0; i < 4; ++i)
-        {
-            File << TransMat[i].x << Separator << TransMat[i].y << Separator << TransMat[i].z << Separator << TransMat[i].w << Separator;
-        }
-
-        std::vector<std::string> BehaviourNames = BehaviourRegistry::Get()->GetBehavioursAttachedToEntity(it);
-
-        for (std::string BehaviourName : BehaviourNames)
-        {
-            File << BehaviourName << Separator;
-        }
-
-        File << std::endl;
-
+        StaticMeshIndex = MeshIt - StaticMeshVec.begin();
+    }
+    else
+    {
+        GeneratedMesh = true;
+        //Engine::FatalError("Could not find mesh while saving scene (this should never happen)");
     }
 
-    File.close();
+    auto MaterialIt = std::find(MaterialVec.begin(), MaterialVec.end(), it->m_TexturedMeshes[0].m_Material);
+    if (MaterialIt != MaterialVec.end())
+    {
+        TextureIndex = MaterialIt - MaterialVec.begin();
+    }
+    else
+    {
+        Engine::FatalError("Could not find texture while saving scene (this should never happen)");
+    }
+
+    File << TextureIndex << Separator;
+
+    if (!GeneratedMesh)
+    {
+        File << StaticMeshIndex << Separator;
+    }
+    else
+    {
+        File << "B" << Separator;
+        // For now, all generated meshes are boxes, so store the AABB
+        AABB BoxAABB = m_Collisions->GetCollisionMeshFromMesh(it->m_TexturedMeshes[0].m_Mesh).boundingBox;
+
+        File << BoxAABB.min.x << Separator << BoxAABB.min.y << Separator << BoxAABB.min.z << Separator;
+        File << BoxAABB.max.x << Separator << BoxAABB.max.y << Separator << BoxAABB.max.z << Separator;
+    }
+
+    Mat4x4f TransMat = it->GetTransform().GetTransformMatrix();
+
+    for (int i = 0; i < 4; ++i)
+    {
+        File << TransMat[i].x << Separator << TransMat[i].y << Separator << TransMat[i].z << Separator << TransMat[i].w << Separator;
+    }
+
+    std::vector<std::string> BehaviourNames = BehaviourRegistry::Get()->GetBehavioursAttachedToEntity(it);
+
+    for (std::string BehaviourName : BehaviourNames)
+    {
+        File << BehaviourName << Separator;
+    }
+
+    File << std::endl;
+
+}
+
+File.close();
 
 }
 
@@ -500,7 +522,7 @@ void Scene::Load(std::string FileName)
     while (std::getline(File, Line))
     {
         std::vector<std::string> LineTokens = StringUtils::Split(Line, Separator);
-    
+
         if (GetReaderStateFromToken(LineTokens[0], ReaderState))
         {
             // State changed, go to next line
@@ -509,7 +531,34 @@ void Scene::Load(std::string FileName)
         switch (ReaderState)
         {
         case TEXTURES:
-            if (LineTokens.size() == 2)
+            if (LineTokens.size() == 5)
+            {
+                Texture DiffuseTex = m_Graphics->LoadTexture(LineTokens[0]);
+                Texture NormalTex = m_Graphics->LoadTexture(LineTokens[1]);
+                Texture RoughnessTex = m_Graphics->LoadTexture(LineTokens[2]);
+                Texture MetallicTex = m_Graphics->LoadTexture(LineTokens[3]);
+                Texture AOTex = m_Graphics->LoadTexture(LineTokens[4]);
+
+                SceneMaterials.push_back(m_Graphics->CreateMaterial(DiffuseTex, NormalTex, RoughnessTex, MetallicTex, AOTex));
+            }
+            else if (LineTokens.size() == 4)
+            {
+                Texture DiffuseTex = m_Graphics->LoadTexture(LineTokens[0]);
+                Texture NormalTex = m_Graphics->LoadTexture(LineTokens[1]);
+                Texture RoughnessTex = m_Graphics->LoadTexture(LineTokens[2]);
+                Texture MetallicTex = m_Graphics->LoadTexture(LineTokens[3]);
+
+                SceneMaterials.push_back(m_Graphics->CreateMaterial(DiffuseTex, NormalTex, RoughnessTex, MetallicTex));
+            }
+            else if (LineTokens.size() == 3)
+            {
+                Texture DiffuseTex = m_Graphics->LoadTexture(LineTokens[0]);
+                Texture NormalTex = m_Graphics->LoadTexture(LineTokens[1]);
+                Texture RoughnessTex = m_Graphics->LoadTexture(LineTokens[2]);
+
+                SceneMaterials.push_back(m_Graphics->CreateMaterial(DiffuseTex, NormalTex, RoughnessTex));
+            }
+            else if (LineTokens.size() == 2)
             {
                 Texture DiffuseTex = m_Graphics->LoadTexture(LineTokens[0]);
                 Texture NormalTex = m_Graphics->LoadTexture(LineTokens[1]);
@@ -547,8 +596,6 @@ void Scene::Load(std::string FileName)
                 NewModel = new Model(m_Graphics->CreateModel(TexturedMesh(SceneStaticMeshes[StaticMeshIndex], SceneMaterials[MaterialIndex])));
             }
 
-
-            
             Mat4x4f EntityTransform;
             EntityTransform[0].x = std::stof(LineTokens[At++]); EntityTransform[0].y = std::stof(LineTokens[At++]); EntityTransform[0].z = std::stof(LineTokens[At++]); EntityTransform[0].w = std::stof(LineTokens[At++]);
             EntityTransform[1].x = std::stof(LineTokens[At++]); EntityTransform[1].y = std::stof(LineTokens[At++]); EntityTransform[1].z = std::stof(LineTokens[At++]); EntityTransform[1].w = std::stof(LineTokens[At++]);
