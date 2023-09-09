@@ -9,6 +9,7 @@
 - Improve materials system (PBR)
   - Implement image based lighting (IBL)
   - Implement parallax mapping with height maps.
+- Deferred rendering
 - Add light types (point lights, directional spotlights, etc.)
 - Add billboards
 #### UI Module
