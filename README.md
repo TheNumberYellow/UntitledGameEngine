@@ -10,7 +10,7 @@
   - Implement image based lighting (IBL)
   - Implement parallax mapping with height maps.
 - Add light types (point lights, directional spotlights, etc.)
-- Add
+- Add billboards
 #### UI Module
 - Optimize + clean up UI Module functions.
 - Add scrolling + other immediate mode UI concepts.
