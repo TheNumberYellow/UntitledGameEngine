@@ -1,8 +1,11 @@
 #include "NetworkModule.h"
 
+NetworkModule* NetworkModule::s_Instance = nullptr;
+
 NetworkModule::NetworkModule(NetworkInterface& NetworkInterface)
     : m_NetworkInterface(NetworkInterface)
 {
+    s_Instance = this;
 }
 
 NetworkModule::~NetworkModule()

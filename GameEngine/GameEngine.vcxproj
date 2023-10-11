@@ -354,6 +354,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Asset\AssetRegistry.cpp" />
+    <ClCompile Include="State\BaseState.cpp" />
     <ClCompile Include="Behaviour\Behaviour.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="Collisions.cpp" />
@@ -390,6 +391,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Asset\AssetRegistry.h" />
+    <ClInclude Include="State\BaseState.h" />
     <ClInclude Include="Behaviour\Behaviour.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="Collisions.h" />

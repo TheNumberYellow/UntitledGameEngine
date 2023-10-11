@@ -13,6 +13,9 @@
 
 static bool FirstPersonPlayerEnabled = false;
 
+float TransSnap = 1.0f;
+float RotSnap = Math::Pi() / 18.0f;
+
 static Vec3f SunLight = Vec3f(1.0f, 1.0f, 1.0f);
 
 struct Player
@@ -70,6 +73,7 @@ Texture scaleToolTexture;
 Texture vertexToolTexture;
 
 Texture sculptToolTexture;
+Texture lightToolTexture;
 
 Material tempWhiteMaterial;
 
@@ -83,6 +87,8 @@ Camera cam;
 
 Framebuffer_ID viewportBuffer;
 Framebuffer_ID widgetViewportBuffer;
+
+GBuffer gBuffer;
 
 StaticMesh quadMesh;
 
@@ -109,7 +115,10 @@ Material draggingMaterial;
 bool draggingNewBehaviour = false;
 std::string draggingBehaviourName;
 
-static Model* selectedModelPtr = nullptr;
+bool draggingNewPointLight = false;
+
+//static Model* selectedModelPtr = nullptr;
+static Transform* selectedTransformPtr = nullptr;
 
 Model xAxisArrow;
 Model yAxisArrow;
@@ -169,15 +178,15 @@ void DrawToolWidgets(ModuleManager& modules)
     GraphicsModule& graphics = *modules.GetGraphics();
     CollisionModule& collisions = *modules.GetCollision();
 
-    // Draw tools on separate buffer to they're in front
+    // Draw tools on separate buffer so they're in front
     graphics.SetActiveFrameBuffer(widgetViewportBuffer);
     {
-        if (selectedModelPtr && toolMode == ToolMode::MOVE)
+        if (selectedTransformPtr && toolMode == ToolMode::MOVE)
         {
             graphics.SetRenderMode(RenderMode::FULLBRIGHT);
             if (moveMode == MoveMode::TRANSLATE)
             {
-                Vec3f movingModelPos = selectedModelPtr->GetTransform().GetPosition();
+                Vec3f movingModelPos = selectedTransformPtr->GetPosition();
 
                 float scale = Math::magnitude(movingModelPos - cam.GetPosition()) * 0.05f;
 
@@ -189,7 +198,7 @@ void DrawToolWidgets(ModuleManager& modules)
                 yAxisArrow.GetTransform().SetScale(Vec3f(scale / 3.f, scale, scale / 3.f));
                 zAxisArrow.GetTransform().SetScale(Vec3f(scale / 3.f, scale, scale / 3.f));
 
-                graphics.DebugDrawAABB(collisions.GetCollisionMeshFromMesh(selectedModelPtr->m_TexturedMeshes[0].m_Mesh).boundingBox, Vec3f(1.0f, 1.0f, 0.7f), selectedModelPtr->GetTransform().GetTransformMatrix());
+                //graphics.DebugDrawAABB(collisions.GetCollisionMeshFromMesh(selectedModelPtr->m_TexturedMeshes[0].m_Mesh).boundingBox, Vec3f(1.0f, 1.0f, 0.7f), selectedModelPtr->GetTransform().GetTransformMatrix());
 
                 graphics.Draw(xAxisArrow);
                 graphics.Draw(yAxisArrow);
@@ -198,7 +207,7 @@ void DrawToolWidgets(ModuleManager& modules)
 
             if (moveMode == MoveMode::ROTATE)
             {
-                Vec3f rotatingModelPos = selectedModelPtr->GetTransform().GetPosition();
+                Vec3f rotatingModelPos = selectedTransformPtr->GetPosition();
 
                 xAxisRing.GetTransform().SetPosition(rotatingModelPos);
                 yAxisRing.GetTransform().SetPosition(rotatingModelPos);
@@ -210,7 +219,7 @@ void DrawToolWidgets(ModuleManager& modules)
                 yAxisRing.GetTransform().SetScale(Vec3f(scale, scale, scale));
                 zAxisRing.GetTransform().SetScale(Vec3f(scale, scale, scale));
 
-                graphics.DebugDrawAABB(collisions.GetCollisionMeshFromMesh(selectedModelPtr->m_TexturedMeshes[0].m_Mesh).boundingBox, Vec3f(1.0f, 1.0f, 0.7f), selectedModelPtr->GetTransform().GetTransformMatrix());
+                //graphics.DebugDrawAABB(collisions.GetCollisionMeshFromMesh(selectedModelPtr->m_TexturedMeshes[0].m_Mesh).boundingBox, Vec3f(1.0f, 1.0f, 0.7f), selectedModelPtr->GetTransform().GetTransformMatrix());
 
                 graphics.Draw(xAxisRing);
                 graphics.Draw(yAxisRing);
@@ -219,10 +228,10 @@ void DrawToolWidgets(ModuleManager& modules)
             }
             if (moveMode == MoveMode::SCALE)
             {
-                Vec3f scalingModelPos = selectedModelPtr->GetTransform().GetPosition();
-                Quaternion scalingModelRot = selectedModelPtr->GetTransform().GetRotation();
+                Vec3f scalingModelPos = selectedTransformPtr->GetPosition();
+                Quaternion scalingModelRot = selectedTransformPtr->GetRotation();
 
-                Vec3f modelScale = selectedModelPtr->GetTransform().GetScale();
+                Vec3f modelScale = selectedTransformPtr->GetScale();
                 float scale = Math::magnitude(scalingModelPos - cam.GetPosition()) * 0.05f;
 
                 xScaleWidget.GetTransform().SetScale(Vec3f(scale, scale, scale));
@@ -233,9 +242,9 @@ void DrawToolWidgets(ModuleManager& modules)
                 yScaleWidget.GetTransform().SetPosition(scalingModelPos + Vec3f(0.0f, modelScale.y, 0.0f) * scalingModelRot);
                 zScaleWidget.GetTransform().SetPosition(scalingModelPos + Vec3f(0.0f, 0.0f, modelScale.z) * scalingModelRot);
 
-                xScaleWidget.GetTransform().SetRotation(scalingModelRot * Quaternion(Vec3f(0.0f, 1.0f, 0.0f), M_PI_2));
-                yScaleWidget.GetTransform().SetRotation(scalingModelRot * Quaternion(Vec3f(1.0f, 0.0f, 0.0f), -M_PI_2));
-                zScaleWidget.GetTransform().SetRotation(scalingModelRot * Quaternion(Vec3f(0.0f, 0.0f, 1.0f), M_PI_2));
+                xScaleWidget.GetTransform().SetRotation(scalingModelRot * Quaternion(Vec3f(0.0f, 1.0f, 0.0f), (float)M_PI_2));
+                yScaleWidget.GetTransform().SetRotation(scalingModelRot * Quaternion(Vec3f(1.0f, 0.0f, 0.0f), (float)-M_PI_2));
+                zScaleWidget.GetTransform().SetRotation(scalingModelRot * Quaternion(Vec3f(0.0f, 0.0f, 1.0f), (float)M_PI_2));
 
                 graphics.Draw(xScaleWidget);
                 graphics.Draw(yScaleWidget);
@@ -288,8 +297,8 @@ Ray GetMouseRay(Camera& cam, Vec2i mousePosition, Rect viewPort)
     Vec2i screenSize = viewPort.size;
 
     Vec2i mousePos;
-    mousePos.x = mousePosition.x - viewPort.location.x;
-    mousePos.y = mousePosition.y - viewPort.location.y;
+    mousePos.x = mousePosition.x - (int)viewPort.location.x;
+    mousePos.y = mousePosition.y - (int)viewPort.location.y;
 
     float x = ((2.0f * (float)mousePos.x) / (float)screenSize.x) - 1.0f;
     float y = 1.0f - ((2.0f * (float)mousePos.y) / (float)screenSize.y);
@@ -315,7 +324,7 @@ void MoveCamera(InputModule& inputs, GraphicsModule& graphics, Camera& cam, floa
 {
     const float CamSpeed = 10.0f;
 
-    float speed = CamSpeed * deltaTime;
+    float speed = CamSpeed * (float)deltaTime;
 
     if (inputs.IsKeyDown(Key::Shift))
     {
@@ -361,6 +370,8 @@ void MoveCamera(InputModule& inputs, GraphicsModule& graphics, Camera& cam, floa
 
 std::vector<Model> LoadModels(GraphicsModule& graphics)
 {
+    AssetRegistry* Registry = AssetRegistry::Get();
+
     auto CurrentPath = std::filesystem::current_path();
 
     Engine::DEBUGPrint(CurrentPath.generic_string());
@@ -378,7 +389,7 @@ std::vector<Model> LoadModels(GraphicsModule& graphics)
 
             Engine::DEBUGPrint(fileName);
 
-            StaticMesh newMesh = graphics.LoadMesh(fileName);
+            StaticMesh newMesh = *Registry->LoadStaticMesh(fileName);
 
             // For now we load all models with a temporary white texture
             Model newModel = graphics.CreateModel(TexturedMesh(newMesh, tempWhiteMaterial));
@@ -394,6 +405,8 @@ std::vector<Model> LoadModels(GraphicsModule& graphics)
 
 std::vector<Material> LoadMaterials(GraphicsModule& graphics)
 {
+    AssetRegistry* Registry = AssetRegistry::Get();
+
     std::vector<Material> loadedMaterials;
 
     std::string path = "textures";
@@ -425,7 +438,7 @@ std::vector<Material> LoadMaterials(GraphicsModule& graphics)
 
             Engine::DEBUGPrint(fileName);
 
-            Texture newTexture = graphics.LoadTexture(fileName);
+            Texture newTexture = *Registry->LoadTexture(fileName);
 
             std::string NormalMapString = entry.path().parent_path().generic_string() + "/" + entry.path().stem().generic_string() + ".norm.png";
             std::string RoughnessMapString = entry.path().parent_path().generic_string() + "/" + entry.path().stem().generic_string() + ".rough.png";
@@ -440,30 +453,30 @@ std::vector<Material> LoadMaterials(GraphicsModule& graphics)
                     {
                         if (std::filesystem::exists(AOMapString))
                         {
-                            Texture newNormal = graphics.LoadTexture(NormalMapString);
-                            Texture newRoughness = graphics.LoadTexture(RoughnessMapString);
-                            Texture newMetal = graphics.LoadTexture(MetallicMapString);
-                            Texture newAO = graphics.LoadTexture(AOMapString);
+                            Texture newNormal = *Registry->LoadTexture(NormalMapString);
+                            Texture newRoughness = *Registry->LoadTexture(RoughnessMapString);
+                            Texture newMetal = *Registry->LoadTexture(MetallicMapString);
+                            Texture newAO = *Registry->LoadTexture(AOMapString);
                             loadedMaterials.push_back(graphics.CreateMaterial(newTexture, newNormal, newRoughness, newMetal, newAO));
                         }
                         else
                         {
-                            Texture newNormal = graphics.LoadTexture(NormalMapString);
-                            Texture newRoughness = graphics.LoadTexture(RoughnessMapString);
-                            Texture newMetal = graphics.LoadTexture(MetallicMapString);
+                            Texture newNormal = *Registry->LoadTexture(NormalMapString);
+                            Texture newRoughness = *Registry->LoadTexture(RoughnessMapString);
+                            Texture newMetal = *Registry->LoadTexture(MetallicMapString);
                             loadedMaterials.push_back(graphics.CreateMaterial(newTexture, newNormal, newRoughness, newMetal));
                         }
                     }
                     else
                     {
-                        Texture newNormal = graphics.LoadTexture(NormalMapString);
-                        Texture newRoughness = graphics.LoadTexture(RoughnessMapString);
+                        Texture newNormal = *Registry->LoadTexture(NormalMapString);
+                        Texture newRoughness = *Registry->LoadTexture(RoughnessMapString);
                         loadedMaterials.push_back(graphics.CreateMaterial(newTexture, newNormal, newRoughness));
                     }
                 }
                 else
                 {
-                    Texture newNormal = graphics.LoadTexture(NormalMapString);
+                    Texture newNormal = *Registry->LoadTexture(NormalMapString);
                     loadedMaterials.push_back(graphics.CreateMaterial(newTexture, newNormal));
                 }
             }
@@ -492,6 +505,9 @@ void UpdateSelectTool(InputModule& input, CollisionModule& collisions)
     if (draggingNewBehaviour)
         return;
 
+    if (draggingNewPointLight)
+        return;
+
     if (input.GetMouseState().IsButtonDown(Mouse::LMB))
     {
         Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
@@ -503,7 +519,7 @@ void UpdateSelectTool(InputModule& input, CollisionModule& collisions)
 
             if (finalHit.rayCastHit.hit)
             {
-                selectedModelPtr = finalHit.hitModel;
+                selectedTransformPtr = &finalHit.hitModel->GetTransform();
             }
         }
     }
@@ -531,6 +547,9 @@ void UpdateBoxCreate(InputModule& input, CollisionModule& collisions, GraphicsMo
         return;
 
     if (draggingNewBehaviour)
+        return;
+    
+    if (draggingNewPointLight)
         return;
 
     Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
@@ -605,7 +624,7 @@ void UpdateBoxCreate(InputModule& input, CollisionModule& collisions, GraphicsMo
             scene.AddModel(*newBox);
             draggingNewBox = false;
 
-            selectedModelPtr = nullptr;
+            selectedTransformPtr = nullptr;
         }
     }
 
@@ -634,6 +653,9 @@ void UpdatePlaneCreate(InputModule& input, CollisionModule& collisions, Graphics
         return;
 
     if (draggingNewBehaviour)
+        return;
+
+    if (draggingNewPointLight)
         return;
 
     Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
@@ -673,11 +695,11 @@ void UpdatePlaneCreate(InputModule& input, CollisionModule& collisions, Graphics
             int DeltaMouseWheel = input.GetMouseState().GetDeltaMouseWheel();
             if (DeltaMouseWheel > 0)
             {
-                subdivisions += 1;
+                subdivisions *= 2;
             }
             else if (DeltaMouseWheel < 0)
             {
-                subdivisions -= 1;
+                subdivisions /= 2;
                 if (subdivisions < 1)
                 {
                     subdivisions = 1;
@@ -713,11 +735,11 @@ void UpdatePlaneCreate(InputModule& input, CollisionModule& collisions, Graphics
 
             for (int i = 0; i < subdivisions + 1; ++i)
             {
-                Vec3f HorizonalLeft = SouthWest + (i * ((NorthWest - SouthWest) / (float)subdivisions));
-                Vec3f HorizontalRight = SouthEast + (i * ((NorthEast - SouthEast) / (float)subdivisions));
+                Vec3f HorizonalLeft = SouthWest + ((float)i * ((NorthWest - SouthWest) / (float)subdivisions));
+                Vec3f HorizontalRight = SouthEast + ((float)i * ((NorthEast - SouthEast) / (float)subdivisions));
 
-                Vec3f VerticalBottom = SouthWest + (i * ((SouthEast - SouthWest) / (float)subdivisions));
-                Vec3f VerticalTop = NorthWest + (i * ((NorthEast - NorthWest) / (float)subdivisions));
+                Vec3f VerticalBottom = SouthWest + ((float)i * ((SouthEast - SouthWest) / (float)subdivisions));
+                Vec3f VerticalTop = NorthWest + ((float)i * ((NorthEast - NorthWest) / (float)subdivisions));
 
                 graphics.DebugDrawLine(HorizonalLeft, HorizontalRight, Green);
                 graphics.DebugDrawLine(VerticalBottom, VerticalTop, Green);
@@ -736,7 +758,7 @@ void UpdatePlaneCreate(InputModule& input, CollisionModule& collisions, Graphics
             scene.AddModel(*newPlane);
             draggingNewPlane = false;
 
-            selectedModelPtr = nullptr;
+            selectedTransformPtr = nullptr;
         }
     }
 }
@@ -768,7 +790,14 @@ void UpdateModelPlace(InputModule& input, CollisionModule& collisions, GraphicsM
             if (finalHit.rayCastHit.hit)
             {
                 RayCastHit hit = finalHit.rayCastHit;
-                draggingModel->GetTransform().SetPosition(hit.hitPoint);
+
+                Vec3f modelPos = hit.hitPoint;
+
+                modelPos.x = Math::Round(modelPos.x, TransSnap);
+                modelPos.y = Math::Round(modelPos.y, TransSnap);
+                modelPos.z = Math::Round(modelPos.z, TransSnap);
+
+                draggingModel->GetTransform().SetPosition(modelPos);
                 Quaternion q = Math::VecDiffToQuat(hit.hitNormal, Vec3f(0.0f, 0.0f, 1.0f));
                 q = Math::normalize(q);
 
@@ -777,7 +806,13 @@ void UpdateModelPlace(InputModule& input, CollisionModule& collisions, GraphicsM
             }
             else
             {
-                draggingModel->GetTransform().SetPosition(mouseRay.point + mouseRay.direction * 12.0f);
+                Vec3f modelPos = mouseRay.point + mouseRay.direction * 12.0f;
+
+                modelPos.x = Math::Round(modelPos.x, TransSnap);
+                modelPos.y = Math::Round(modelPos.y, TransSnap);
+                modelPos.z = Math::Round(modelPos.z, TransSnap);
+
+                draggingModel->GetTransform().SetPosition(modelPos);
 
                 draggingModel->GetTransform().SetRotation(Quaternion());
             }
@@ -803,6 +838,18 @@ void UpdateModelTranslate(InputModule& input, CollisionModule& collisions, Graph
     static bool slidingZ = false;
 
     static Vec3f slidingStartHitPoint;
+
+    if (draggingNewModel)
+        return;
+
+    if (draggingNewTexture)
+        return;
+
+    if (draggingNewBehaviour)
+        return;
+
+    if (draggingNewPointLight)
+        return;
 
     if (moveMode != MoveMode::TRANSLATE || toolMode != ToolMode::MOVE)
     {
@@ -839,35 +886,41 @@ void UpdateModelTranslate(InputModule& input, CollisionModule& collisions, Graph
         if (slidingX)
         {
             Line mouseLine(mouseRay.point - slidingStartHitPoint, mouseRay.direction);
-            Line axisLine(selectedModelPtr->GetTransform().GetPosition(), Vec3f(1.0f, 0.0f, 0.0f));
+            Line axisLine(selectedTransformPtr->GetPosition(), Vec3f(1.0f, 0.0f, 0.0f));
             Vec3f pointAlongAxis = Math::ClosestPointsOnLines(mouseLine, axisLine).second;
 
-            selectedModelPtr->GetTransform().SetPosition(pointAlongAxis);
+            pointAlongAxis.x = Math::Round(pointAlongAxis.x, TransSnap / 2.0f);
+
+            selectedTransformPtr->SetPosition(pointAlongAxis);
         }
 
         if (slidingY)
         {
             Line mouseLine(mouseRay.point - slidingStartHitPoint, mouseRay.direction);
-            Line axisLine(selectedModelPtr->GetTransform().GetPosition(), Vec3f(0.0f, 1.0f, 0.0f));
+            Line axisLine(selectedTransformPtr->GetPosition(), Vec3f(0.0f, 1.0f, 0.0f));
             Vec3f pointAlongAxis = Math::ClosestPointsOnLines(mouseLine, axisLine).second;
 
-            selectedModelPtr->GetTransform().SetPosition(pointAlongAxis);
+            pointAlongAxis.y = Math::Round(pointAlongAxis.y, TransSnap / 2.0f);
+
+            selectedTransformPtr->SetPosition(pointAlongAxis);
         }
 
         if (slidingZ)
         {
             Line mouseLine(mouseRay.point - slidingStartHitPoint, mouseRay.direction);
-            Line axisLine(selectedModelPtr->GetTransform().GetPosition(), Vec3f(0.0f, 0.0f, 1.0f));
+            Line axisLine(selectedTransformPtr->GetPosition(), Vec3f(0.0f, 0.0f, 1.0f));
             Vec3f pointAlongAxis = Math::ClosestPointsOnLines(mouseLine, axisLine).second;
 
-            selectedModelPtr->GetTransform().SetPosition(pointAlongAxis);
+            pointAlongAxis.z = Math::Round(pointAlongAxis.z, TransSnap / 2.0f);
+
+            selectedTransformPtr->SetPosition(pointAlongAxis);
         }
 
 
         return;
     }
 
-    if (selectedModelPtr)
+    if (selectedTransformPtr)
     {
         if (input.GetMouseState().IsButtonDown(Mouse::LMB))
         {
@@ -881,21 +934,21 @@ void UpdateModelTranslate(InputModule& input, CollisionModule& collisions, Graph
             hit = collisions.RayCast(mouseRay, arrowToolCollMesh, xAxisArrow.GetTransform());
             if (hit.hit)
             {
-                slidingStartHitPoint = hit.hitPoint - selectedModelPtr->GetTransform().GetPosition();
+                slidingStartHitPoint = hit.hitPoint - selectedTransformPtr->GetPosition();
                 slidingX = true;
             }
 
             hit = collisions.RayCast(mouseRay, arrowToolCollMesh, yAxisArrow.GetTransform());
             if (hit.hit)
             {
-                slidingStartHitPoint = hit.hitPoint - selectedModelPtr->GetTransform().GetPosition();
+                slidingStartHitPoint = hit.hitPoint - selectedTransformPtr->GetPosition();
                 slidingY = true;
             }
 
             hit = collisions.RayCast(mouseRay, arrowToolCollMesh, zAxisArrow.GetTransform());
             if (hit.hit)
             {
-                slidingStartHitPoint = hit.hitPoint - selectedModelPtr->GetTransform().GetPosition();
+                slidingStartHitPoint = hit.hitPoint - selectedTransformPtr->GetPosition();
                 slidingZ = true;
             }
 
@@ -915,7 +968,7 @@ void UpdateModelTranslate(InputModule& input, CollisionModule& collisions, Graph
 
         if (finalHit.rayCastHit.hit)
         {
-            selectedModelPtr = finalHit.hitModel;
+            selectedTransformPtr = &finalHit.hitModel->GetTransform();
         }
     }
 }
@@ -928,6 +981,18 @@ void UpdateModelRotate(InputModule& input, CollisionModule& collisions, Graphics
 
     static float initialAngle;
     static Quaternion initialRotation;
+
+    if (draggingNewModel)
+        return;
+
+    if (draggingNewTexture)
+        return;
+
+    if (draggingNewBehaviour)
+        return;
+
+    if (draggingNewPointLight)
+        return;
 
     if (moveMode != MoveMode::ROTATE || toolMode != ToolMode::MOVE)
     {
@@ -963,7 +1028,7 @@ void UpdateModelRotate(InputModule& input, CollisionModule& collisions, Graphics
         Plane axisPlane;
         Vec3f perpUnitVec;
 
-        axisPlane.center = selectedModelPtr->GetTransform().GetPosition();
+        axisPlane.center = selectedTransformPtr->GetPosition();
 
         if (rotatingX)
         {
@@ -983,7 +1048,7 @@ void UpdateModelRotate(InputModule& input, CollisionModule& collisions, Graphics
 
         RayCastHit planeHit = collisions.RayCast(mouseRay, axisPlane);
 
-        Vec3f objectCenter = selectedModelPtr->GetTransform().GetPosition();
+        Vec3f objectCenter = selectedTransformPtr->GetPosition();
         Vec3f hitPoint = planeHit.hitPoint;
         Vec3f angleVec = hitPoint - objectCenter;
         float dot = Math::dot(angleVec, perpUnitVec);
@@ -991,11 +1056,13 @@ void UpdateModelRotate(InputModule& input, CollisionModule& collisions, Graphics
 
         float deltaAngle = initialAngle - atan2(det, dot);
 
+        deltaAngle = Math::Round(deltaAngle, RotSnap);
+
         Quaternion axisQuat = Quaternion(axisPlane.normal, deltaAngle);
 
-        selectedModelPtr->GetTransform().SetRotation(axisQuat * initialRotation);
+        selectedTransformPtr->SetRotation(axisQuat * initialRotation);
     }
-    else if (selectedModelPtr)
+    else if (selectedTransformPtr)
     {
         if (input.GetMouseState().IsButtonDown(Mouse::LMB))
         {
@@ -1019,7 +1086,7 @@ void UpdateModelRotate(InputModule& input, CollisionModule& collisions, Graphics
                 Plane axisPlane;
                 Vec3f perpUnitVec;
 
-                axisPlane.center = selectedModelPtr->GetTransform().GetPosition();
+                axisPlane.center = selectedTransformPtr->GetPosition();
 
                 if (rotatingX)
                 {
@@ -1039,9 +1106,9 @@ void UpdateModelRotate(InputModule& input, CollisionModule& collisions, Graphics
 
                 RayCastHit planeHit = collisions.RayCast(mouseRay, axisPlane);
 
-                initialRotation = selectedModelPtr->GetTransform().GetRotation();
+                initialRotation = selectedTransformPtr->GetRotation();
 
-                Vec3f objectCenter = selectedModelPtr->GetTransform().GetPosition();
+                Vec3f objectCenter = selectedTransformPtr->GetPosition();
                 Vec3f hitPoint = planeHit.hitPoint;
                 Vec3f angleVec = hitPoint - objectCenter;
                 float dot = Math::dot(angleVec, perpUnitVec);
@@ -1059,7 +1126,7 @@ void UpdateModelRotate(InputModule& input, CollisionModule& collisions, Graphics
 
         if (finalHit.rayCastHit.hit)
         {
-            selectedModelPtr = finalHit.hitModel;
+            selectedTransformPtr = &finalHit.hitModel->GetTransform();
         }
     }
 }
@@ -1071,6 +1138,18 @@ void UpdateModelScale(InputModule& input, CollisionModule& collisions, GraphicsM
     static bool scalingZ = false;
 
     static Vec3f scalingStartHitPoint;
+
+    if (draggingNewModel)
+        return;
+
+    if (draggingNewTexture)
+        return;
+
+    if (draggingNewBehaviour)
+        return;
+
+    if (draggingNewPointLight)
+        return;
 
     if (moveMode != MoveMode::SCALE || toolMode != ToolMode::MOVE)
     {
@@ -1104,46 +1183,46 @@ void UpdateModelScale(InputModule& input, CollisionModule& collisions, GraphicsM
         Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
         Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
 
-        Quaternion scalingModelRot = selectedModelPtr->GetTransform().GetRotation();
+        Quaternion scalingModelRot = selectedTransformPtr->GetRotation();
 
         if (scalingX)
         {
             Line mouseLine(mouseRay.point - scalingStartHitPoint, mouseRay.direction);
-            Line axisLine(selectedModelPtr->GetTransform().GetPosition(), Vec3f(1.0f, 0.0f, 0.0f) * scalingModelRot);
+            Line axisLine(selectedTransformPtr->GetPosition(), Vec3f(1.0f, 0.0f, 0.0f) * scalingModelRot);
             Vec3f pointAlongAxis = Math::ClosestPointsOnLines(mouseLine, axisLine).second;
 
-            Vec3f prevScale = selectedModelPtr->GetTransform().GetScale();
+            Vec3f prevScale = selectedTransformPtr->GetScale();
 
-            float newScale = Math::magnitude(selectedModelPtr->GetTransform().GetPosition() - pointAlongAxis);
+            float newScale = Math::magnitude(selectedTransformPtr->GetPosition() - pointAlongAxis);
 
-            selectedModelPtr->GetTransform().SetScale(Vec3f(newScale, prevScale.y, prevScale.z));
+            selectedTransformPtr->SetScale(Vec3f(newScale, prevScale.y, prevScale.z));
         }
         if (scalingY)
         {
             Line mouseLine(mouseRay.point - scalingStartHitPoint, mouseRay.direction);
-            Line axisLine(selectedModelPtr->GetTransform().GetPosition(), Vec3f(0.0f, 1.0f, 0.0f) * scalingModelRot);
+            Line axisLine(selectedTransformPtr->GetPosition(), Vec3f(0.0f, 1.0f, 0.0f) * scalingModelRot);
             Vec3f pointAlongAxis = Math::ClosestPointsOnLines(mouseLine, axisLine).second;
 
-            Vec3f prevScale = selectedModelPtr->GetTransform().GetScale();
+            Vec3f prevScale = selectedTransformPtr->GetScale();
 
-            float newScale = Math::magnitude(selectedModelPtr->GetTransform().GetPosition() - pointAlongAxis);
+            float newScale = Math::magnitude(selectedTransformPtr->GetPosition() - pointAlongAxis);
 
-            selectedModelPtr->GetTransform().SetScale(Vec3f(prevScale.x, newScale, prevScale.z));
+            selectedTransformPtr->SetScale(Vec3f(prevScale.x, newScale, prevScale.z));
         }
         if (scalingZ)
         {
             Line mouseLine(mouseRay.point - scalingStartHitPoint, mouseRay.direction);
-            Line axisLine(selectedModelPtr->GetTransform().GetPosition(), Vec3f(0.0f, 0.0f, 1.0f) * scalingModelRot);
+            Line axisLine(selectedTransformPtr->GetPosition(), Vec3f(0.0f, 0.0f, 1.0f) * scalingModelRot);
             Vec3f pointAlongAxis = Math::ClosestPointsOnLines(mouseLine, axisLine).second;
 
-            Vec3f prevScale = selectedModelPtr->GetTransform().GetScale();
+            Vec3f prevScale = selectedTransformPtr->GetScale();
 
-            float newScale = Math::magnitude(selectedModelPtr->GetTransform().GetPosition() - pointAlongAxis);
+            float newScale = Math::magnitude(selectedTransformPtr->GetPosition() - pointAlongAxis);
 
-            selectedModelPtr->GetTransform().SetScale(Vec3f(prevScale.x, prevScale.y, newScale));
+            selectedTransformPtr->SetScale(Vec3f(prevScale.x, prevScale.y, newScale));
         }
     }
-    else if (selectedModelPtr)
+    else if (selectedTransformPtr)
     {
         if (input.GetMouseState().IsButtonDown(Mouse::LMB))
         {
@@ -1181,13 +1260,27 @@ void UpdateModelScale(InputModule& input, CollisionModule& collisions, GraphicsM
 
         if (finalHit.rayCastHit.hit)
         {
-            selectedModelPtr = finalHit.hitModel;
+            selectedTransformPtr = &finalHit.hitModel->GetTransform();
         }
     }
 }
 
-void UpdateSculptTool(InputModule& input, CollisionModule& collisions, GraphicsModule& graphics, float deltaTime)
+void UpdateSculptTool(InputModule& input, CollisionModule& collisions, GraphicsModule& graphics, double deltaTime)
 {
+    static const float SculptSpeed = 3.0f;
+
+    if (draggingNewModel)
+        return;
+
+    if (draggingNewTexture)
+        return;
+
+    if (draggingNewBehaviour)
+        return;
+
+    if (draggingNewPointLight)
+        return;
+
     if (toolMode != ToolMode::SCULPT)
     {
         return;
@@ -1213,7 +1306,7 @@ void UpdateSculptTool(InputModule& input, CollisionModule& collisions, GraphicsM
     {
         Vec3f HitPoint = finalHit.rayCastHit.hitPoint;
 
-        graphics.DebugDrawSphere(HitPoint, radius, Vec3f(0.6, 0.3, 0.9));
+        graphics.DebugDrawSphere(HitPoint, radius, Vec3f(0.6f, 0.3f, 0.9f));
 
         if (input.GetMouseState().IsButtonDown(Mouse::LMB) || input.GetMouseState().IsButtonDown(Mouse::RMB))
         {
@@ -1222,7 +1315,7 @@ void UpdateSculptTool(InputModule& input, CollisionModule& collisions, GraphicsM
                 Model* PlaneModel = finalHit.hitModel;
                 Vec3f ModelSpaceVertPos = HitPoint * Math::inv(PlaneModel->GetTransform().GetTransformMatrix());
 
-                float VerticalDir = input.GetMouseState().IsButtonDown(Mouse::RMB) ? -1.0f : 1.0f;
+                float VerticalDir = input.GetMouseState().IsButtonDown(Mouse::RMB) ? -SculptSpeed : SculptSpeed;
 
                 StaticMesh_ID Mesh =  PlaneModel->m_TexturedMeshes[0].m_Mesh.Id;
 
@@ -1231,11 +1324,51 @@ void UpdateSculptTool(InputModule& input, CollisionModule& collisions, GraphicsM
                 for (auto& Vert : Vertices)
                 {
                     float Dist = Math::magnitude(Vert->position - ModelSpaceVertPos);
+                    //if (Dist < radius)
+                    //{
+                        float Strength = Math::SmoothStep(Dist, radius, 0.5f) * VerticalDir * (radius * 0.25f);
+                        Vert->position += Vec3f(0.0f, 0.0f, Strength) * (float)deltaTime;
+                    //}
+                }
+
+                graphics.m_Renderer.UnmapMeshVertices(Mesh);
+                collisions.InvalidateMeshCollisionData(Mesh);
+                graphics.RecalculateTerrainModelNormals(*PlaneModel);
+            }
+        }
+        else if (input.GetMouseState().IsButtonDown(Mouse::MIDDLE))
+        {
+            if (finalHit.hitModel->Type == ModelType::PLANE)
+            {
+                Model* PlaneModel = finalHit.hitModel;
+                Vec3f ModelSpaceVertPos = HitPoint * Math::inv(PlaneModel->GetTransform().GetTransformMatrix());
+
+                StaticMesh_ID Mesh = PlaneModel->m_TexturedMeshes[0].m_Mesh.Id;
+
+                std::vector<Vertex*> Vertices = graphics.m_Renderer.MapMeshVertices(Mesh);
+
+                std::vector<Vertex*> VerticesInRange;
+                float AverageElevation = 0.0f;
+
+                for (auto& Vert : Vertices)
+                {
+                    float Dist = Math::magnitude(Vert->position - ModelSpaceVertPos);
                     if (Dist < radius)
                     {
-                        float Strength = Math::Min(radius / Dist, 2.0f) * VerticalDir;
-                        Vert->position += Vec3f(0.0f, 0.0f, Strength) * deltaTime;
+                        VerticesInRange.push_back(Vert);
+                        AverageElevation += Vert->position.z;
                     }
+                }
+                AverageElevation /= VerticesInRange.size();
+
+                for (auto& InRangeVert : VerticesInRange)
+                {
+                    float Dist = Math::magnitude(InRangeVert->position - ModelSpaceVertPos);
+                    float Strength = Math::SmoothStep(Dist, radius, 0.0f);
+
+                    float Diff = AverageElevation - InRangeVert->position.z;
+
+                    InRangeVert->position.z += SculptSpeed * Diff * Strength * (float)deltaTime;
                 }
 
                 graphics.m_Renderer.UnmapMeshVertices(Mesh);
@@ -1290,6 +1423,79 @@ void UpdateBehaviourPlace(InputModule& input, CollisionModule& collisions)
     }
 }
 
+void UpdatePointLightPlace(InputModule& input, CollisionModule& collisions, GraphicsModule& graphics)
+{
+    static Vec3f LightPos;
+    if (draggingNewPointLight)
+    {
+        if (input.GetMouseState().IsButtonDown(Mouse::LMB))
+        {
+            Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
+            Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
+
+            SceneRayCastHit finalHit = scene.RayCast(mouseRay, collisions);
+
+            
+
+            if (finalHit.rayCastHit.hit)
+            {
+                static float NormalOffset = TransSnap;
+
+                if (input.GetMouseState().GetDeltaMouseWheel() > 0)
+                {
+                    NormalOffset += TransSnap;
+                }
+                else if (input.GetMouseState().GetDeltaMouseWheel() < 0)
+                {
+                    NormalOffset -= TransSnap;
+                    if (NormalOffset < TransSnap)
+                    {
+                        NormalOffset = TransSnap;
+                    }
+                }
+
+                RayCastHit hit = finalHit.rayCastHit;
+
+                LightPos = hit.hitPoint + (finalHit.rayCastHit.hitNormal * NormalOffset);
+
+                LightPos.x = Math::Round(LightPos.x, TransSnap);
+                LightPos.y = Math::Round(LightPos.y, TransSnap);
+                LightPos.z = Math::Round(LightPos.z, TransSnap);
+
+            }
+            else
+            {
+                LightPos = mouseRay.point + mouseRay.direction * 12.0f;
+
+                LightPos.x = Math::Round(LightPos.x, TransSnap);
+                LightPos.y = Math::Round(LightPos.y, TransSnap);
+                LightPos.z = Math::Round(LightPos.z, TransSnap);
+            }
+
+            PointLightRenderCommand RenderCommand;
+            RenderCommand.m_Colour = Vec3f(1.0f, 1.0f, 1.0f);
+            RenderCommand.m_Position = LightPos;
+
+            BillboardRenderCommand BBRenderCommand;
+            BBRenderCommand.m_Texture = graphics.GetLightTexture();
+            BBRenderCommand.m_Position = LightPos;
+
+            graphics.AddRenderCommand(RenderCommand);
+            graphics.AddRenderCommand(BBRenderCommand);
+
+        }
+        else
+        {
+            // Place the light in the scene
+            draggingNewPointLight = false;
+
+            PointLight NewLight;
+            NewLight.position = LightPos;
+            scene.AddPointLight(NewLight);
+        }
+    }
+}
+
 void UpdateEditor(ModuleManager& modules, double deltaTime)
 {
     GraphicsModule& graphics = *modules.GetGraphics();
@@ -1319,6 +1525,7 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
         UpdateSculptTool(input, collisions, graphics, deltaTime);
         UpdateTexturePlace(input, collisions, graphics);
         UpdateBehaviourPlace(input, collisions);
+        UpdatePointLightPlace(input, collisions, graphics);
     }
 
     if (input.IsKeyDown(Key::Alt))
@@ -1361,19 +1568,24 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
     {
         scene.SetCamera(&cam);
 
-        if (selectedModelPtr)
+        if (selectedTransformPtr)
         {
-            AABB aabb = collisions.GetCollisionMeshFromMesh(selectedModelPtr->m_TexturedMeshes[0].m_Mesh).boundingBox;
-            graphics.DebugDrawAABB(aabb, Vec3f(0.6f, 0.95f, 0.65f), selectedModelPtr->GetTransform().GetTransformMatrix());
+            //AABB aabb = collisions.GetCollisionMeshFromMesh(selectedModelPtr->m_TexturedMeshes[0].m_Mesh).boundingBox;
+            //graphics.DebugDrawAABB(aabb, Vec3f(0.6f, 0.95f, 0.65f), selectedModelPtr->GetTransform().GetTransformMatrix());
             //graphics.DebugDrawModelMesh(*selectedModelPtr, Vec3f(0.9f, 0.8f, 0.4f));
         }
 
-        scene.Draw(graphics, viewportBuffer);
-
         if (draggingModel)
         {
-            graphics.Draw(*draggingModel);
+            StaticMeshRenderCommand draggingModelRC;
+            draggingModelRC.m_Material = draggingModel->m_TexturedMeshes[0].m_Material;
+            draggingModelRC.m_Mesh = draggingModel->m_TexturedMeshes[0].m_Mesh.Id;
+            draggingModelRC.m_Transform = draggingModel->GetTransform();
+            graphics.AddRenderCommand(draggingModelRC);
+            //graphics.Draw(*draggingModel);
         }
+        
+        scene.Draw(graphics, viewportBuffer, gBuffer);
 
         NetworkModule& Network = *modules.GetNetwork();
 
@@ -1441,7 +1653,7 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
     graphics.SetRenderMode(RenderMode::FULLBRIGHT);
     if (gridEnabled)
     {
-        graphics.Draw(gridModel);
+        //graphics.Draw(gridModel);
     }
     graphics.SetRenderMode(renderMode);
 
@@ -1451,8 +1663,22 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
 
     Vec2i screen = Engine::GetClientAreaSize();
 
-    ui.BufferPanel(viewportBuffer, newViewport);
+    //ui.BufferPanel(viewportBuffer, newViewport);
+
+
+
+    ui.BufferPanel(gBuffer.TestFinalOutput, newViewport);
     ui.BufferPanel(widgetViewportBuffer, newViewport);
+    
+    //ui.ImgPanel(gBuffer.PositionTex, Rect(Vec2f(100.0f, 40.0f), Vec2f(200.0f, 200.0f)));
+    //ui.ImgPanel(gBuffer.NormalTex, Rect(Vec2f(300.0f, 40.0f), Vec2f(200.0f, 200.0f)));
+    //ui.ImgPanel(gBuffer.AlbedoTex, Rect(Vec2f(500.0f, 40.0f), Vec2f(200.0f, 200.0f)));
+    //ui.ImgPanel(gBuffer.MetallicTex, Rect(Vec2f(700.0f, 40.0f), Vec2f(200.0f, 200.0f)));
+    //ui.ImgPanel(gBuffer.RoughnessTex, Rect(Vec2f(900.0f, 40.0f), Vec2f(200.0f, 200.0f)));
+    //ui.ImgPanel(gBuffer.AOTex, Rect(Vec2f(1100.0f, 40.0f), Vec2f(200.0f, 200.0f)));
+    //
+    //ui.ImgPanel(gBuffer.SkyTex, Rect(Vec2f(100.0f, 240.0f), Vec2f(200.0f, 200.0f)));
+    //ui.ImgPanel(gBuffer.LightTex, Rect(Vec2f(300.0f, 240.0f), Vec2f(200.0f, 200.0f)));
 
 
     ui.StartFrame(Rect(Vec2f(0.0f, 0.0f), Vec2f(screen.x - 200.0f, 40.0f)), 0.0f, "MEMES");
@@ -1530,7 +1756,7 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
 
     ui.EndFrame();
     
-    ui.StartFrame(Rect(Vec2f(100.0f, screen.y - 200), Vec2f(screen.x - 300.0f, 200.0f)), 20.0f, "Resources");
+    ui.StartFrame(Rect(Vec2f(100.0f, screen.y - 200.0f), Vec2f(screen.x - 300.0f, 200.0f)), 20.0f, "Resources");
 
     ui.StartTab("Models");
     for (int i = 0; i < loadedModels.size(); ++i)
@@ -1542,7 +1768,7 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
             {
                 draggingNewModel = true;
            
-                selectedModelPtr = nullptr;
+                selectedTransformPtr = nullptr;
 
                 draggingModel = new Model(graphics.CloneModel(loadedModels[i]));
             }
@@ -1553,13 +1779,13 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
     ui.StartTab("Textures");
     for (int i = 0; i < loadedMaterials.size(); ++i)
     {
-        if (ui.ImgButton(loadedMaterials[i].m_Albedo, Rect(Vec2f(i * 40, 0.0f), Vec2f(40, 80)), 2.5f).clicking)
+        if (ui.ImgButton(loadedMaterials[i].m_Albedo, Rect(Vec2f(i * 40.0f, 0.0f), Vec2f(40, 80)), 2.5f).clicking)
         {
             if (!draggingNewTexture)
             {
                 draggingNewTexture = true;
 
-                selectedModelPtr = nullptr;
+                selectedTransformPtr = nullptr;
 
                 draggingMaterial = loadedMaterials[i];
             }
@@ -1574,13 +1800,13 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
     int i = 0;
     for (auto Behaviour : BehaviourMap)
     {
-        if (ui.TextButton(Behaviour.first, Rect(Vec2f(i * 80, 0.0f), Vec2f(80, 80)), 2.0f).clicking)
+        if (ui.TextButton(Behaviour.first, Rect(Vec2f(i * 80.0f, 0.0f), Vec2f(80, 80)), 2.0f).clicking)
         {
             if (!draggingNewBehaviour)
             {
                 draggingNewBehaviour = true;
 
-                selectedModelPtr = nullptr;
+                selectedTransformPtr = nullptr;
 
                 draggingBehaviourName = Behaviour.first;
             }
@@ -1592,16 +1818,16 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
 
     ui.EndFrame();
 
-    ui.StartFrame(Rect(Vec2f(screen.x - 200.0f, 0.0f), Vec2f(200.0f, screen.y / 2)), 20.0f, "Inspector");
+    ui.StartFrame(Rect(Vec2f(screen.x - 200.0f, 0.0f), Vec2f(200.0f, screen.y / 2.0f)), 20.0f, "Inspector");
 
     std::string posText;
 
-    if (selectedModelPtr)
+    if (selectedTransformPtr)
     {
         Vec2f Cursor = Vec2f(0.0f, 5.0f);
 
-        Vec3f Position = selectedModelPtr->GetTransform().GetPosition();
-        Vec3f Scale = selectedModelPtr->GetTransform().GetScale();
+        Vec3f Position = selectedTransformPtr->GetPosition();
+        Vec3f Scale = selectedTransformPtr->GetScale();
 
         Vec3f NewPos;
 
@@ -1625,23 +1851,23 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
         NewPos.z = std::stof(zString);
         Cursor.y += 25.0f;
 
-        selectedModelPtr->GetTransform().SetPosition(NewPos);
+        selectedTransformPtr->SetPosition(NewPos);
 
         ui.Text("Tags", Cursor, Vec3f(0.0f, 0.0f, 0.0f));
         Cursor.y += 15.0f;
 
-        ui.TextEntry(selectedModelPtr->m_Name, Rect(Cursor, Vec2f(160.0f, 20.0f)));
+        //ui.TextEntry(selectedModelPtr->m_Name, Rect(Cursor, Vec2f(160.0f, 20.0f)));
         Cursor.y += 25.0f;
 
-        std::vector<std::string> BehavioursOnModel = BehaviourRegistry::Get()->GetBehavioursAttachedToEntity(selectedModelPtr);
+        //std::vector<std::string> BehavioursOnModel = BehaviourRegistry::Get()->GetBehavioursAttachedToEntity(selectedModelPtr);
 
-        ui.Text("Behaviours:", Cursor, Vec3f(0.0f, 0.0f, 0.0f));
-        Cursor.y += 15.0f;
-        for (auto& Behaviour : BehavioursOnModel)
-        {
-            ui.TextButton(Behaviour, Rect(Cursor, Vec2f(160.0f, 20.0f)), 4.0f);
-            Cursor.y += 20.0f;
-        }
+        //ui.Text("Behaviours:", Cursor, Vec3f(0.0f, 0.0f, 0.0f));
+        //Cursor.y += 15.0f;
+        //for (auto& Behaviour : BehavioursOnModel)
+        //{
+        //    ui.TextButton(Behaviour, Rect(Cursor, Vec2f(160.0f, 20.0f)), 4.0f);
+        //    Cursor.y += 20.0f;
+        //}
     }
     else
     {
@@ -1651,11 +1877,11 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
 
     ui.EndFrame();
 
-    ui.StartFrame(Rect(Vec2f(screen.x - 200.0f, screen.y / 2), Vec2f(200.0f, screen.y / 2)), 20.0f, "Entities");
+    ui.StartFrame(Rect(Vec2f(screen.x - 200.0f, screen.y / 2.0f), Vec2f(200.0f, screen.y / 2.0f)), 20.0f, "Entities");
 
     if (Model* modelPtr = scene.MenuListEntities(ui, inspectorFont))
     {
-        selectedModelPtr = modelPtr;
+        //selectedModelPtr = modelPtr;
     }
 
     ui.EndFrame();
@@ -1771,17 +1997,26 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
         toolMode = ToolMode::SCULPT;
     }
 
+    if (ui.ImgButton(lightToolTexture, Rect(Vec2f(0.0f, 640.0f), Vec2f(100.0f, 100.0f)), 20.0f).clicking)
+    {
+        if (!draggingNewPointLight)
+        {
+            draggingNewPointLight = true;
+
+        }
+    }
+
     if (input.IsKeyDown(Key::Escape))
     {
-        selectedModelPtr = nullptr;
+        selectedTransformPtr = nullptr;
     }
 
     if (input.GetKeyState(Key::Delete))
     {
-        if (selectedModelPtr) {
-            scene.DeleteModel(selectedModelPtr);
-            selectedModelPtr = nullptr;
-        }
+        //if (selectedModelPtr) {
+        //    scene.DeleteModel(selectedModelPtr);
+        //    selectedModelPtr = nullptr;
+        //}
     }
 
     if (input.IsKeyDown(Key::One))
@@ -1957,13 +2192,35 @@ void UpdateGame(ModuleManager& modules, double deltaTime)
             inputDir = Math::normalize(inputDir) * 0.05f;
         }
 
+        if (player.grounded)
+        {
+            SceneRayCastHit groundCheck = runtimeScene.RayCast(Ray(player.position, Vec3f(0.0f, 0.0f, -1.0f)), collisions);
+            
+            if (!groundCheck.rayCastHit.hit)
+            {
+                player.grounded = false;
+            }
+            else
+            {
+                if (groundCheck.rayCastHit.hitDistance > 0.02)
+                {
+                    player.grounded = false;
+                }
+            }
+        }
+
+
         player.velocity.x = inputDir.x;
         player.velocity.y = inputDir.y;
-        player.velocity.z += -0.005f;
+        
+        if (!player.grounded)
+        {
+            player.velocity.z += -0.005f;
+        }
 
         //player.velocity += Vec3f(0.0f, 0.0f, -0.01f);
 
-        player.grounded = false;
+        //player.grounded = false;
 
         SceneRayCastHit movement = runtimeScene.RayCast(Ray(player.position, Math::normalize(player.velocity)), collisions);
 
@@ -1996,7 +2253,7 @@ void UpdateGame(ModuleManager& modules, double deltaTime)
 
         if (input.GetKeyState(Key::Space) && player.grounded)
         {
-            player.velocity.z = 0.175f;
+            player.velocity.z = 0.145f;
         }
 
         if (movement.rayCastHit.hit && movement.rayCastHit.hitDistance > Math::magnitude(player.velocity))
@@ -2008,8 +2265,10 @@ void UpdateGame(ModuleManager& modules, double deltaTime)
 
     }
 
+
+
     // Update behaviours
-    runtimeScene.UpdateBehaviours(modules, deltaTime);
+    runtimeScene.UpdateBehaviours(modules, (float)deltaTime);
     //BehaviourRegistry::Get()->UpdateAllBehaviours(modules, &runtimeScene, deltaTime);
 
 
@@ -2037,7 +2296,7 @@ void UpdateGame(ModuleManager& modules, double deltaTime)
     graphics.SetActiveFrameBuffer(viewportBuffer);
     {
         runtimeScene.SetCamera(&cam);
-        runtimeScene.Draw(graphics, viewportBuffer);
+        runtimeScene.Draw(graphics, viewportBuffer, gBuffer);
 
     }
     graphics.ResetFrameBuffer();
@@ -2047,13 +2306,15 @@ void UpdateGame(ModuleManager& modules, double deltaTime)
     Rect screenRect;
     screenRect.size = Engine::GetClientAreaSize();
 
-    ui.BufferPanel(viewportBuffer, screenRect);
+    //ui.BufferPanel(viewportBuffer, screenRect);
+    ui.BufferPanel(gBuffer.TestFinalOutput, screenRect);
 
     text.DrawText("Frame Time: " + std::to_string(deltaTime), &testFont, Vec2f(0.0f, 0.0f));
 
-    int FPS = round(1.0 / deltaTime);
+    int FPS = (int)round(1.0f / deltaTime);
 
     text.DrawText("FPS: " + std::to_string(FPS), &testFont, Vec2f(0.0f, 30.0f));
+    text.DrawText("Player grounded: " + std::to_string(player.grounded), &testFont, Vec2f(0.0f, 60.0f));
 }
 
 void Initialize(ModuleManager& modules)
@@ -2063,9 +2324,11 @@ void Initialize(ModuleManager& modules)
     TextModule& text = *modules.GetText();
     InputModule& input = *modules.GetInput();
 
-    Texture redTexture = graphics.LoadTexture("textures/red.png");
-    Texture greenTexture = graphics.LoadTexture("textures/green.png");
-    Texture blueTexture = graphics.LoadTexture("textures/blue.png");
+    AssetRegistry* Registry = AssetRegistry::Get();
+
+    Texture redTexture = *Registry->LoadTexture("textures/red.png");
+    Texture greenTexture = *Registry->LoadTexture("textures/green.png");
+    Texture blueTexture = *Registry->LoadTexture("textures/blue.png");
 
     scene.Init(graphics, collisions);
     
@@ -2073,36 +2336,36 @@ void Initialize(ModuleManager& modules)
     Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
 
     xAxisArrow = graphics.CreateModel(TexturedMesh(
-        graphics.LoadMesh("models/ArrowSmooth.obj"),
-        graphics.CreateMaterial(graphics.LoadTexture("textures/whiteTexture.png"))
+        *Registry->LoadStaticMesh("models/ArrowSmooth.obj"),
+        graphics.CreateMaterial(*Registry->LoadTexture("textures/whiteTexture.png"))
     ));
     
     yAxisArrow = graphics.CloneModel(xAxisArrow);
     zAxisArrow = graphics.CloneModel(xAxisArrow);
 
-    xAxisArrow.GetTransform().SetRotation(Quaternion(Vec3f(0.0f, 0.0f, 1.0f), -M_PI_2));
-    zAxisArrow.GetTransform().SetRotation(Quaternion(Vec3f(1.0f, 0.0f, 0.0f), M_PI_2));
+    xAxisArrow.GetTransform().SetRotation(Quaternion(Vec3f(0.0f, 0.0f, 1.0f), (float)-M_PI_2));
+    zAxisArrow.GetTransform().SetRotation(Quaternion(Vec3f(1.0f, 0.0f, 0.0f), (float)M_PI_2));
 
     xAxisArrow.SetMaterial(graphics.CreateMaterial(redTexture));
     yAxisArrow.SetMaterial(graphics.CreateMaterial(greenTexture));
     zAxisArrow.SetMaterial(graphics.CreateMaterial(blueTexture));
 
     xAxisRing = graphics.CreateModel(TexturedMesh(
-        graphics.LoadMesh("models/RotationHoop.obj"),
+        *Registry->LoadStaticMesh("models/RotationHoop.obj"),
         graphics.CreateMaterial(redTexture)
     ));
 
     yAxisRing = graphics.CloneModel(xAxisRing);
     zAxisRing = graphics.CloneModel(xAxisRing);
 
-    xAxisRing.GetTransform().SetRotation(Quaternion(Vec3f(0.0f, 0.0f, 1.0f), M_PI_2));
-    zAxisRing.GetTransform().SetRotation(Quaternion(Vec3f(1.0f, 0.0f, 0.0f), M_PI_2));
+    xAxisRing.GetTransform().SetRotation(Quaternion(Vec3f(0.0f, 0.0f, 1.0f), (float)M_PI_2));
+    zAxisRing.GetTransform().SetRotation(Quaternion(Vec3f(1.0f, 0.0f, 0.0f), (float)M_PI_2));
 
     yAxisRing.SetMaterial(graphics.CreateMaterial(greenTexture));
     zAxisRing.SetMaterial(graphics.CreateMaterial(blueTexture));
 
     xScaleWidget = graphics.CreateModel(TexturedMesh(
-        graphics.LoadMesh("models/ScaleWidget.obj"),
+        *Registry->LoadStaticMesh("models/ScaleWidget.obj"),
         graphics.CreateMaterial(redTexture)
     ));
 
@@ -2112,19 +2375,20 @@ void Initialize(ModuleManager& modules)
     yScaleWidget.SetMaterial(graphics.CreateMaterial(greenTexture));
     zScaleWidget.SetMaterial(graphics.CreateMaterial(blueTexture));
 
-    playButtonTexture = graphics.LoadTexture("images/playButton.png");
-    cameraButtonTexture = graphics.LoadTexture("images/cameraButton.png");
+    playButtonTexture = *Registry->LoadTexture("images/playButton.png");
+    cameraButtonTexture = *Registry->LoadTexture("images/cameraButton.png");
 
-    cursorToolTexture = graphics.LoadTexture("images/cursorTool.png");
-    boxToolTexture = graphics.LoadTexture("images/boxTool.png");
-    planeToolTexture = graphics.LoadTexture("images/planeTool.png");
+    cursorToolTexture = *Registry->LoadTexture("images/cursorTool.png");
+    boxToolTexture = *Registry->LoadTexture("images/boxTool.png");
+    planeToolTexture = *Registry->LoadTexture("images/planeTool.png");
 
-    translateToolTexture = graphics.LoadTexture("images/translateTool.png");
-    rotateToolTexture = graphics.LoadTexture("images/rotateTool.png");
-    scaleToolTexture = graphics.LoadTexture("images/scaleTool.png");
+    translateToolTexture = *Registry->LoadTexture("images/translateTool.png");
+    rotateToolTexture = *Registry->LoadTexture("images/rotateTool.png");
+    scaleToolTexture = *Registry->LoadTexture("images/scaleTool.png");
 
-    vertexToolTexture = graphics.LoadTexture("images/vertexTool.png");
-    sculptToolTexture = graphics.LoadTexture("images/vertexTool.png");
+    vertexToolTexture = *Registry->LoadTexture("images/vertexTool.png");
+    sculptToolTexture = *Registry->LoadTexture("images/vertexTool.png");
+    lightToolTexture = *Registry->LoadTexture("images/lightTool.png");
 
     Vec2i screenSizeI = Engine::GetClientAreaSize();
     cam = Camera(Projection::Perspective);
@@ -2143,6 +2407,8 @@ void Initialize(ModuleManager& modules)
     viewportBuffer = graphics.CreateFBuffer(Vec2i(viewportRect.size), FBufferFormat::COLOUR);
 
     widgetViewportBuffer = graphics.CreateFBuffer(Vec2i(viewportRect.size), FBufferFormat::COLOUR);
+
+    gBuffer = graphics.CreateGBuffer(Vec2i(viewportRect.size));
 
     std::vector<float> quadVertices =
     {
@@ -2167,9 +2433,9 @@ void Initialize(ModuleManager& modules)
     
     graphics.SetRenderMode(renderMode);
 
-    tempWhiteMaterial = graphics.CreateMaterial(graphics.LoadTexture("images/white.png", TextureMode::NEAREST, TextureMode::NEAREST));
+    tempWhiteMaterial = graphics.CreateMaterial(*Registry->LoadTexture("images/white.png"));
 
-    gridTexture = graphics.LoadTexture("images/grid.png", TextureMode::LINEAR, TextureMode::NEAREST);
+    gridTexture = *Registry->LoadTexture("images/grid.png");
     gridModel = graphics.CreatePlaneModel(Vec2f(-4000.0f, -4000.0f), Vec2f(4000.0f, 4000.0f), graphics.CreateMaterial(gridTexture));
 
     testFont = text.LoadFont("fonts/ARLRDBD.TTF", 30);
@@ -2181,7 +2447,7 @@ void Initialize(ModuleManager& modules)
 
     Vec2i clientArea = Engine::GetClientAreaSize();
 
-    Vec2i newCenter = Vec2i(viewportRect.location.x + viewportRect.size.x / 2, viewportRect.location.y + viewportRect.size.y / 2);
+    Vec2i newCenter = Vec2i((int)(viewportRect.location.x + viewportRect.size.x / 2.0f), (int)(viewportRect.location.y + viewportRect.size.y / 2.0f));
     //TODO(fraser): clean up mouse constrain/input code
     input.SetMouseCenter(newCenter);
     Engine::SetCursorCenter(newCenter);
@@ -2215,9 +2481,10 @@ void Resize(ModuleManager& modules, Vec2i newSize)
         InputModule* input = modules.GetInput();
 
         graphics->ResizeFrameBuffer(viewportBuffer, viewportRect.size);
+        graphics->ResizeGBuffer(gBuffer, viewportRect.size);
         Vec2i clientArea = Engine::GetClientAreaSize();
 
-        Vec2i newCenter = Vec2i(viewportRect.location.x + viewportRect.size.x / 2, viewportRect.location.y + viewportRect.size.y / 2);
+        Vec2i newCenter = Vec2i((int)(viewportRect.location.x + viewportRect.size.x / 2.0f), (int)(viewportRect.location.y + viewportRect.size.y / 2.0f));
         //TODO(fraser): clean up mouse constrain/input code
         input->SetMouseCenter(newCenter);
         Engine::SetCursorCenter(newCenter);
@@ -2229,6 +2496,7 @@ void Resize(ModuleManager& modules, Vec2i newSize)
 
         cam.SetScreenSize(Engine::GetClientAreaSize());
         graphics->ResizeFrameBuffer(viewportBuffer, Engine::GetClientAreaSize());
+        graphics->ResizeGBuffer(gBuffer, Engine::GetClientAreaSize());
 
         Vec2i newCenter = Vec2i(Engine::GetClientAreaSize().x / 2, Engine::GetClientAreaSize().y / 2);
         //TODO(fraser): clean up mouse constrain/input code

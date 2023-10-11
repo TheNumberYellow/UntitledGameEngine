@@ -33,6 +33,7 @@ public:
 
     Vec3f GetPosition() const;
     Vec3f GetDirection() const;
+    Vec3f GetUp() const;
     Vec3f GetPerpVector() const;
 
     void RotateCamBasedOnDeltaMouse(Vec2i deltaMouse, float radsPerScreenPixel);

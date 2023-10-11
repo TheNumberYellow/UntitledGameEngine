@@ -24,8 +24,9 @@ void TopDownPlayer::Update(ModuleManager& Modules, Scene* Scene, float DeltaTime
     //UI.TextButton(TimeAliveString, Rect(Vec2f(50.0f, 50.0f), Vec2f(100.0f, 100.0f)), 2.0f);
     if (!Started)
     {
-        GhostModelPrototype = Graphics.CreateModel(TexturedMesh(Graphics.LoadMesh("models/Ghost.obj"), Graphics.CreateMaterial(Graphics.LoadTexture("textures/Ghost.png"))));
-        BulletModelPrototype = Graphics.CreateModel(TexturedMesh(Graphics.LoadMesh("models/Buckyball.obj"), Graphics.CreateMaterial(Graphics.LoadTexture("textures/transpink.png"))));
+        AssetRegistry* Registry = AssetRegistry::Get();
+        GhostModelPrototype = Graphics.CreateModel(TexturedMesh(*Registry->LoadStaticMesh("models/Ghost.obj"), Graphics.CreateMaterial(*Registry->LoadTexture("textures/Ghost.png"))));
+        BulletModelPrototype = Graphics.CreateModel(TexturedMesh(*Registry->LoadStaticMesh("models/Buckyball.obj"), Graphics.CreateMaterial(*Registry->LoadTexture("textures/transpink.png"))));
 
         Started = true;
     }

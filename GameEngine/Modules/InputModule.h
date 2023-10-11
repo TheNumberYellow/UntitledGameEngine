@@ -9,6 +9,7 @@ enum class Mouse
 {
 	LMB,
 	RMB,
+	MIDDLE,
 
 	Count
 };
@@ -210,6 +211,8 @@ public:
 
 	// Inherited via IResizeable
 	virtual void Resize(Vec2i newSize) override;
+
+	static InputModule* Get() { return s_Instance; };
 private:
 
 	KeyState m_Keys[static_cast<size_t>(Key::Count)];
@@ -220,4 +223,6 @@ private:
 
 	bool m_MouseLocked;
 	Vec2i m_MouseCenter;
+
+	static InputModule* s_Instance;
 };

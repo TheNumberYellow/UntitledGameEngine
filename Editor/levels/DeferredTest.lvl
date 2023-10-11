@@ -1,0 +1,19 @@
+Textures:
+textures/AK_103.png textures/AK_103.norm.png textures/AK_103.rough.png textures/AK_103.metal.png textures/default_ao.png
+textures/Ghost.png textures/default_norm.png textures/default_roughness.png textures/default_metallic.png textures/default_ao.png
+textures/dented-metal.png textures/dented-metal.norm.png textures/dented-metal.rough.png textures/dented-metal.metal.png textures/dented-metal.ao.png
+textures/mixedmoss.png textures/mixedmoss.norm.png textures/mixedmoss.rough.png textures/mixedmoss.metal.png textures/mixedmoss.ao.png
+textures/rusted-steel.png textures/rusted-steel.norm.png textures/rusted-steel.rough.png textures/rusted-steel.metal.png textures/rusted-steel.ao.png
+textures/worn-factory-siding.png textures/worn-factory-siding.norm.png textures/worn-factory-siding.rough.png textures/worn-factory-siding.metal.png textures/worn-factory-siding.ao.png
+StaticMeshes:
+models/AK47.obj
+models/Curvy.obj
+models/Ghost.obj
+models/UVBall.obj
+Entities:
+3 1 1 0 0 0 0 1 0 0 0 0 1 0 -0.755413 -1.71701 -0.116029 1 
+4 3 1 0 0 0 0 0.999999 0 0 0 0 1 0 3.44853 -1.51077 1.39248 1 
+0 0 0.0795879 2.89891 0 0 -2.89891 0.0795879 0 0 0 0 2.9 0 3.18429 -6.79088 2.2449 1 
+5 B -2 -4 -1 2 4 1 1 0 0 0 0 1 0 0 0 0 1 0 13 -2 1 1 
+1 2 -0.0562822 0.998415 0 0 -0.998415 -0.0562822 0 0 0 0 1 0 13.1603 -2.2976 2 1 
+2 1 1 0 0 0 0 1 0 0 0 0 1 0 7.36191 -1.74616 0.01205 1 

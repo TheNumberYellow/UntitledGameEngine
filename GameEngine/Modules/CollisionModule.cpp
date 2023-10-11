@@ -1,9 +1,39 @@
 #include "CollisionModule.h"
 
+CollisionModule* CollisionModule::s_Instance = nullptr;
+
+void OctreeNode::AddTriangle(Triangle t)
+{
+    if (IsLeaf)
+    {
+        Triangles.push_back(t);
+
+        if (Triangles.size() > MaxTriangles)
+        {
+            AddLevel();
+        }
+    }
+    else
+    {
+        for (int i = 0; i < 8; ++i)
+        {
+
+        }
+    }
+}
+
+void OctreeNode::AddLevel()
+{
+    IsLeaf = false;
+
+
+
+}
+
 CollisionModule::CollisionModule(Renderer& renderer)
     : m_Renderer(renderer)
 {
-
+    s_Instance = this;
 }
 
 CollisionModule::~CollisionModule()

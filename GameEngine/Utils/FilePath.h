@@ -11,6 +11,12 @@ public:
         SetPath("");
     }
 
+    FilePath(const char* InPath)
+        : FilePath(std::string(InPath))
+    {
+
+    }
+
     FilePath(std::string InPath)
     {
         SetPath(InPath);

@@ -1,5 +1,7 @@
 #include "UIModule.h"
 
+UIModule* UIModule::s_Instance = nullptr;
+
 void Click::Update(Rect bounds)
 {
     Vec2i mousePos = Engine::GetMousePosition();
@@ -106,6 +108,8 @@ UIModule::UIModule(GraphicsModule& graphics, TextModule& text, InputModule& inpu
     m_RectMesh = m_Renderer.CreateEmptyMesh(vertFormat, true);
 
     m_FrameFont = m_Text.LoadFont("fonts/ARLRDBD.TTF", 12);
+
+    s_Instance = this;
 }
 
 UIModule::~UIModule()
@@ -148,6 +152,32 @@ void UIModule::ImgPanel(Texture texture, Rect rect)
     m_Renderer.UpdateMeshData(m_RectMesh, vertFormat, vertexData.first, vertexData.second);
 
     m_Renderer.SetActiveTexture(texture.Id, "Texture");
+    m_Renderer.SetActiveShader(m_UIShader);
+
+    m_Renderer.SetShaderUniformBool(m_UIShader, "Hovering", false);
+    m_Renderer.SetShaderUniformBool(m_UIShader, "Clicking", false);
+
+    m_Renderer.DrawMesh(m_RectMesh);
+
+    m_Renderer.EnableDepthTesting();
+}
+
+void UIModule::ImgPanel(Texture_ID texture, Rect rect)
+{
+    if (!ShouldDisplay())
+        return;
+
+    rect.location += GetFrame().location;
+
+    m_Renderer.DisableDepthTesting();
+
+    MeshData vertexData = GetVertexDataForRect(rect);
+
+    VertexBufferFormat vertFormat = VertexBufferFormat({ VertAttribute::Vec2f, VertAttribute::Vec2f });
+
+    m_Renderer.UpdateMeshData(m_RectMesh, vertFormat, vertexData.first, vertexData.second);
+
+    m_Renderer.SetActiveTexture(texture, "Texture");
     m_Renderer.SetActiveShader(m_UIShader);
 
     m_Renderer.SetShaderUniformBool(m_UIShader, "Hovering", false);

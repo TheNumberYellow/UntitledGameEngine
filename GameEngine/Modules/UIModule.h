@@ -10,8 +10,6 @@
 #include <functional>
 #include <stack>
 
-typedef std::pair<std::vector<float>, std::vector<ElementIndex>> MeshData;
-
 struct Click
 {
     void Update(Rect bounds);
@@ -126,6 +124,7 @@ public:
     void AlignBottom();
 
     void ImgPanel(Texture texture, Rect rect);
+    void ImgPanel(Texture_ID texture, Rect rect);
     void BufferPanel(Framebuffer_ID fBuffer, Rect rect);
 
     Click TextButton(std::string text, Rect rect, float borderWidth);
@@ -147,6 +146,8 @@ public:
 
     // Inherited via IResizeable
     virtual void Resize(Vec2i newSize) override;
+
+    static UIModule* Get() { return s_Instance; }
 private:
 
     Click Button(unsigned int img, Rect rect, float borderWidth, bool hasImage, bool isBuffer, bool hasText, std::string text = "");
@@ -205,4 +206,6 @@ private:
 
     const float c_TabButtonWidth = 75.0f;
 
+
+    static UIModule* s_Instance;
 };

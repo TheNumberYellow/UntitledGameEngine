@@ -77,6 +77,8 @@ public:
 
     // Inherited via IResizeable
     virtual void Resize(Vec2i newSize) override;
+
+    static TextModule* Get() { return s_Instance; }
 private:
 
     std::unordered_map<TextInfo, TextMeshInfo, Hash::Hasher<TextInfo>> m_CachedStrings;
@@ -89,5 +91,6 @@ private:
 
     Shader_ID m_TextShader;
 
+    static TextModule* s_Instance;
 };
 

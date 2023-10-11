@@ -40,6 +40,10 @@ public:
     static float Max(float a, float b);
     static float Min(float a, float b);
 
+    static float SmoothStep(float in, float edge0 = 0.0f, float edge1 = 0.0f);
+
+    static float Clamp(float in, float lower = 0.0f, float upper = 1.0f);
+
     static float RandomFloat(float min, float max);
 
     static float Round(float num, float multiple = 1.0f);

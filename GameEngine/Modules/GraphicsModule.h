@@ -9,46 +9,33 @@
 #include <unordered_map>
 #include <vector>
 
+typedef std::pair<std::vector<float>, std::vector<ElementIndex>> MeshData;
+
 class GraphicsModule;
 
 struct GBuffer
 {
-    Framebuffer_ID PositionBuffer;
-    Framebuffer_ID NormalBuffer;
-    Framebuffer_ID AlbedoBuffer;
-    Framebuffer_ID SpecularBuffer;
-};
+    Framebuffer_ID Buffer;
+    Texture_ID PositionTex;
+    Texture_ID NormalTex;
+    Texture_ID AlbedoTex;
+    Texture_ID MetallicTex;
+    Texture_ID RoughnessTex;
+    Texture_ID AOTex;
 
-class Texture : public Asset
-{
-public:
-    Texture_ID Id;
+    Framebuffer_ID SkyBuffer;
+    Texture_ID SkyTex;
 
-    friend bool operator<(const Texture& lhs, const Texture& rhs)
-    {
-        return lhs.Id < rhs.Id;
-    }
+    Framebuffer_ID LightBuffer;
+    Texture_ID LightTex;
 
-    friend bool operator==(const Texture& lhs, const Texture& rhs)
-    {
-        return lhs.Id == rhs.Id;
-    }
-};
+    Framebuffer_ID DebugBuffer;
+    Texture_ID DebugTex;
 
-class StaticMesh : public Asset
-{
-public:
-    StaticMesh_ID Id;
+    StaticMesh_ID QuadMesh;
 
-    friend bool operator<(const StaticMesh& lhs, const StaticMesh& rhs)
-    {
-        return lhs.Id < rhs.Id;
-    }
-    
-    friend bool operator==(const StaticMesh& lhs, const StaticMesh& rhs)
-    {
-        return lhs.Id == rhs.Id;
-    }
+    Framebuffer_ID TestFinalOutput;
+    Framebuffer_ID FinalOutput;
 };
 
 struct Material
@@ -61,6 +48,7 @@ struct Material
     Texture m_Metallic;
     Texture m_Roughness;
     Texture m_AO;
+    Texture m_Height;
 
     friend bool operator<(const Material& lhs, const Material& rhs)
     {
@@ -182,13 +170,31 @@ struct DirectionalLight
     Vec3f colour;
 };
 
-// TODO: Add more information here later, shader type for example, whether mesh casts shadows, etc.
-struct RenderCommand
+struct PointLight
 {
-    StaticMesh_ID mesh;
-    Material material;
-    Transform transform;
-    Model* model;
+    Vec3f position = Vec3f(0.0f, 0.0f, 0.0f);
+    Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f);
+};
+
+struct StaticMeshRenderCommand
+{
+    StaticMesh_ID m_Mesh;
+    Material m_Material;
+    Transform m_Transform;
+};
+
+struct BillboardRenderCommand
+{
+    Texture_ID m_Texture;
+    Vec3f m_Position;
+    Vec3f m_Colour = Vec3f(1.0f, 1.0f, 1.0f);
+    float m_Size = 1.0f;
+};
+
+struct PointLightRenderCommand
+{
+    Vec3f m_Colour;
+    Vec3f m_Position;
 };
 
 class GraphicsModule
@@ -198,23 +204,33 @@ public:
     GraphicsModule(Renderer& renderer);
     ~GraphicsModule();
 
-    void AddRenderCommand(RenderCommand Command);
+    GBuffer CreateGBuffer(Vec2i Size);
+
+    void AddRenderCommand(StaticMeshRenderCommand Command);
+    void AddRenderCommand(BillboardRenderCommand Command);
+    void AddRenderCommand(PointLightRenderCommand Command);
 
     // Render all submitted render commands into the specified buffer
-    void Render(Framebuffer_ID OutBuffer, Camera Cam, DirectionalLight DirLight);
+    //void Render(Framebuffer_ID OutBuffer, Camera Cam, DirectionalLight DirLight);
+
+    void Render(GBuffer Buffer, Camera Cam, DirectionalLight DirLight);
 
     Shader_ID CreateShader(std::string vertShaderSource, std::string fragShaderSource);
+
     Framebuffer_ID CreateFBuffer(Vec2i size, FBufferFormat format = FBufferFormat::COLOUR);
+    
+    void AttachTextureToFBuffer(Texture texture, Framebuffer_ID fBufferID);
+    
     Texture CreateTexture(Vec2i size);
     Texture LoadTexture(std::string filePath, TextureMode minFilter = TextureMode::LINEAR, TextureMode magFilter = TextureMode::LINEAR);
     StaticMesh LoadMesh(std::string filePath);
 
-    void AttachTextureToFBuffer(Texture texture, Framebuffer_ID fBufferID);
-
     void SetActiveFrameBuffer(Framebuffer_ID fBufferID);
     void ResizeFrameBuffer(Framebuffer_ID fBufferID, Vec2i size);
+    void ResizeGBuffer(GBuffer Buffer, Vec2i Size);
     void ResetFrameBuffer();
 
+    //Material CreateMaterial(Texture AlbedoMap, Texture NormalMap, Texture RoughnessMap, Texture MetallicMap, Texture AOMap, Texture HeightMap);
     Material CreateMaterial(Texture AlbedoMap, Texture NormalMap, Texture RoughnessMap, Texture MetallicMap, Texture AOMap);
     Material CreateMaterial(Texture AlbedoMap, Texture NormalMap, Texture RoughnessMap, Texture MetallicMap);
     Material CreateMaterial(Texture AlbedoMap, Texture NormalMap, Texture RoughnessMap);
@@ -263,6 +279,10 @@ public:
     // Inherited via IResizeable
     virtual void Resize(Vec2i newSize) override;
 
+    Texture_ID GetLightTexture();
+
+    static GraphicsModule* Get() { return s_Instance; }
+
     //TEMP: public
     Renderer& m_Renderer;
     Camera* m_Camera;
@@ -283,6 +303,7 @@ private:
     Texture m_DefaultMetallicMap;
     Texture m_DefaultRoughnessMap;
     Texture m_DefaultAOMap;
+    Texture m_DefaultHeightMap;
 
     Material m_DebugMaterial;
     
@@ -304,9 +325,15 @@ private:
 
     void DrawDebugDrawMesh();
 
+    MeshData GetVertexDataForQuad();
+    MeshData GetVertexDataFor3DQuad();
+
     std::unordered_map<Vec3f, std::vector<float>, Vec3fHash> m_DebugLineMap;
     VertexBufferFormat m_DebugVertFormat;
     StaticMesh_ID m_DebugDrawMesh;
+
+    StaticMesh_ID m_BillboardQuadMesh;
+    Texture_ID m_LightTexture;
 
     Framebuffer_ID m_ShadowBuffer;
     Camera m_ShadowCamera;
@@ -314,8 +341,23 @@ private:
     Shader_ID m_NormalsShader;
     Shader_ID m_AlbedoShader;
 
-    std::vector<RenderCommand> m_RenderCommands;
+    std::vector<StaticMeshRenderCommand> m_StaticMeshRenderCommands;
+    std::vector<BillboardRenderCommand> m_BillboardRenderCommands;
+    std::vector<PointLightRenderCommand> m_PointLightRenderCommands;
+
+    // GBuffer stuff
+    Shader_ID m_GBufferShader;
+    Shader_ID m_GBufferOldLightingShader;
+    Shader_ID m_GBufferSkyShader;
+    Shader_ID m_GBufferDebugShader;
+
+    Shader_ID m_GBufferDirectionalLightShader;
+    Shader_ID m_GBufferPointLightShader;
+
+    Shader_ID m_GBufferCombinerShader;
 
     // todo(Fraser): move this to some GUI module?
     Mat4x4f m_OrthoProjection;
+
+    static GraphicsModule* s_Instance;
 };

@@ -22,15 +22,8 @@ Scene::Scene()
 {
     m_Cameras.resize(1);
 
-    // TEMP
-    m_ShadowCamera = Camera(Projection::Orthographic);
-    m_ShadowCamera.SetScreenSize(Vec2f(100.0f, 100.0f));
-    m_ShadowCamera.SetNearPlane(0.0f);
-    m_ShadowCamera.SetFarPlane(100.0f);
-    m_ShadowCamera.SetPosition(Vec3f(0.0f, -30.0f, 6.0f));
 
     m_DirLight.colour = Vec3f(1.0, 1.0, 1.0);
-    m_DirLight.direction = m_ShadowCamera.GetDirection();
 
 
 
@@ -39,13 +32,13 @@ Scene::Scene()
 Scene::Scene(Scene& other)
 {
     m_Cameras.resize(1);
+    m_PointLights.clear();
 
     m_Graphics = other.m_Graphics;
     m_Collisions = other.m_Collisions;
 
-    m_ShadowCamera = other.m_ShadowCamera;
     m_DirLight = other.m_DirLight;
-    m_ShadowBuffer = other.m_ShadowBuffer;
+    m_PointLights = other.m_PointLights;
 
     for (auto& model : other.m_UntrackedModels)
     {
@@ -71,12 +64,13 @@ Scene& Scene::operator=(const Scene& other)
     m_Cameras.clear();
     m_Cameras.resize(1);
 
+    m_PointLights.clear();
+
     m_Graphics = other.m_Graphics;
     m_Collisions = other.m_Collisions;
 
-    m_ShadowCamera = other.m_ShadowCamera;
     m_DirLight = other.m_DirLight;
-    m_ShadowBuffer = other.m_ShadowBuffer;
+    m_PointLights = other.m_PointLights;
 
     for (auto& model : other.m_UntrackedModels)
     {
@@ -100,14 +94,13 @@ Scene::~Scene()
         BehaviourRegistry::Get()->ClearBehavioursOnEntity(model);
     }
     m_UntrackedModels.clear();
-
+    m_PointLights.clear();
 }
 
 void Scene::Init(GraphicsModule& graphics, CollisionModule& collisions)
 {
     m_Graphics = &graphics;
     m_Collisions = &collisions;
-    m_ShadowBuffer = graphics.CreateFBuffer(Vec2i(8000, 8000), FBufferFormat::DEPTH);
 }
 
 void Scene::Pause()
@@ -176,6 +169,11 @@ std::vector<Model*> Scene::GetModelsByTag(std::string tag)
     return result;
 }
 
+void Scene::AddPointLight(PointLight newLight)
+{
+    m_PointLights.push_back(newLight);
+}
+
 void Scene::DeleteModel(Model* model)
 {
     auto it = std::find(m_UntrackedModels.begin(), m_UntrackedModels.end(), model);
@@ -220,27 +218,25 @@ void Scene::UpdateBehaviours(ModuleManager& Modules, float DeltaTime)
     }
 }
 
-void Scene::Draw(GraphicsModule& graphics, Framebuffer_ID buffer)
+void Scene::Draw(GraphicsModule& graphics, Framebuffer_ID buffer, GBuffer gBuffer)
 {
 
     for (auto& it : m_Models)
     {
-        RenderCommand command;
-        command.material = it.second->m_TexturedMeshes[0].m_Material;
-        command.mesh = it.second->m_TexturedMeshes[0].m_Mesh.Id;
-        command.transform = it.second->GetTransform();
-        command.model = it.second;
+        StaticMeshRenderCommand command;
+        command.m_Material = it.second->m_TexturedMeshes[0].m_Material;
+        command.m_Mesh = it.second->m_TexturedMeshes[0].m_Mesh.Id;
+        command.m_Transform = it.second->GetTransform();
 
         graphics.AddRenderCommand(command);
     }
 
     for (auto& it : m_UntrackedModels)
     {
-        RenderCommand command;
-        command.material = it->m_TexturedMeshes[0].m_Material;
-        command.mesh = it->m_TexturedMeshes[0].m_Mesh.Id;
-        command.transform = it->GetTransform();
-        command.model = it;
+        StaticMeshRenderCommand command;
+        command.m_Material = it->m_TexturedMeshes[0].m_Material;
+        command.m_Mesh = it->m_TexturedMeshes[0].m_Mesh.Id;
+        command.m_Transform = it->GetTransform();
 
         //if (it->Type == ModelType::PLANE)
         //{
@@ -263,57 +259,30 @@ void Scene::Draw(GraphicsModule& graphics, Framebuffer_ID buffer)
         graphics.AddRenderCommand(command);
 
     }
-
-    graphics.Render(buffer, *(m_Cameras[0]), m_DirLight);
-    
-#if 0
-    Vec3f shadowCamPos = m_Cameras[0]->GetPosition() + (-m_ShadowCamera.GetDirection() * 40.0f);
-    m_ShadowCamera.SetPosition(shadowCamPos);
-    m_ShadowCamera.SetDirection(m_DirLight.direction);
-
-    // THIS IS ALL TEMPORARY WHILE I WORK ON A SHADOW SYSTEM IN THE GRAPHICS MODULE :^) 
-    graphics.SetActiveFrameBuffer(shadowBuffer);
-    //graphics.m_Renderer.SetCulling(Cull::Front);
-    graphics.m_Renderer.SetActiveShader(graphics.m_ShadowShader);
+    for (PointLight& Light : m_PointLights)
     {
-        graphics.m_Renderer.SetShaderUniformMat4x4f(graphics.m_ShadowShader, "LightSpaceMatrix", m_ShadowCamera.GetCamMatrix());
-        for (auto& it : m_Models)
-        {
-            graphics.m_Renderer.SetShaderUniformMat4x4f(graphics.m_ShadowShader, "Transformation", it.second->GetTransform().GetTransformMatrix());
-            graphics.m_Renderer.DrawMesh(it.second->m_TexturedMeshes[0].m_Mesh.Id);
-        }
-        for (auto& it : m_UntrackedModels)
-        {
-            graphics.m_Renderer.SetShaderUniformMat4x4f(graphics.m_ShadowShader, "Transformation", it->GetTransform().GetTransformMatrix());
-            graphics.m_Renderer.DrawMesh(it->m_TexturedMeshes[0].m_Mesh.Id);
-        }
-    }
-    graphics.SetActiveFrameBuffer(buffer);
+        PointLightRenderCommand LightRC;
+        LightRC.m_Colour = Light.colour;
+        LightRC.m_Position = Light.position;
 
-    graphics.m_Renderer.SetActiveShader(graphics.m_TexturedMeshShader);
+        BillboardRenderCommand BillboardRC;
+        BillboardRC.m_Colour = Light.colour;
+        BillboardRC.m_Position = Light.position;
+        BillboardRC.m_Texture = graphics.GetLightTexture();
+        BillboardRC.m_Size = 0.5f;
 
-    graphics.m_Renderer.SetActiveFBufferTexture(shadowBuffer, "ShadowMap");
-    graphics.m_Renderer.SetShaderUniformMat4x4f(graphics.m_TexturedMeshShader, "LightSpaceMatrix", m_ShadowCamera.GetCamMatrix());
-
-    graphics.SetCamera(m_Cameras[0]);
-
-    graphics.SetDirectionalLight(m_DirLight);
-
-    for (auto& it : m_Models)
-    {
-        graphics.Draw(*it.second);
+        graphics.AddRenderCommand(LightRC);
+        graphics.AddRenderCommand(BillboardRC);
     }
 
-    for (auto& it : m_UntrackedModels)
-    {
-        graphics.Draw(*it);
-    }
-#endif
+    graphics.Render(gBuffer, *(m_Cameras[0]), m_DirLight);
+
+    //graphics.Render(buffer, *(m_Cameras[0]), m_DirLight);
 }
 
 void Scene::EditorDraw(GraphicsModule& graphics, Framebuffer_ID buffer)
 {
-    Draw(graphics, buffer);
+    //Draw(graphics, buffer);
 }
 
 void Scene::SetDirectionalLight(DirectionalLight light)
@@ -501,6 +470,8 @@ File.close();
 
 void Scene::Load(std::string FileName)
 {
+    AssetRegistry* Registry = AssetRegistry::Get();
+
     std::ifstream File(FileName);
 
     if (!File.is_open())
@@ -510,6 +481,7 @@ void Scene::Load(std::string FileName)
 
     m_Models.clear();
     m_UntrackedModels.clear();
+    m_PointLights.clear();
 
     BehaviourRegistry::Get()->ClearAllAttachedBehaviours();
 
@@ -533,46 +505,46 @@ void Scene::Load(std::string FileName)
         case TEXTURES:
             if (LineTokens.size() == 5)
             {
-                Texture DiffuseTex = m_Graphics->LoadTexture(LineTokens[0]);
-                Texture NormalTex = m_Graphics->LoadTexture(LineTokens[1]);
-                Texture RoughnessTex = m_Graphics->LoadTexture(LineTokens[2]);
-                Texture MetallicTex = m_Graphics->LoadTexture(LineTokens[3]);
-                Texture AOTex = m_Graphics->LoadTexture(LineTokens[4]);
+                Texture DiffuseTex = *Registry->LoadTexture(LineTokens[0]);
+                Texture NormalTex = *Registry->LoadTexture(LineTokens[1]);
+                Texture RoughnessTex = *Registry->LoadTexture(LineTokens[2]);
+                Texture MetallicTex = *Registry->LoadTexture(LineTokens[3]);
+                Texture AOTex = *Registry->LoadTexture(LineTokens[4]);
 
                 SceneMaterials.push_back(m_Graphics->CreateMaterial(DiffuseTex, NormalTex, RoughnessTex, MetallicTex, AOTex));
             }
             else if (LineTokens.size() == 4)
             {
-                Texture DiffuseTex = m_Graphics->LoadTexture(LineTokens[0]);
-                Texture NormalTex = m_Graphics->LoadTexture(LineTokens[1]);
-                Texture RoughnessTex = m_Graphics->LoadTexture(LineTokens[2]);
-                Texture MetallicTex = m_Graphics->LoadTexture(LineTokens[3]);
+                Texture DiffuseTex = *Registry->LoadTexture(LineTokens[0]);
+                Texture NormalTex = *Registry->LoadTexture(LineTokens[1]);
+                Texture RoughnessTex = *Registry->LoadTexture(LineTokens[2]);
+                Texture MetallicTex = *Registry->LoadTexture(LineTokens[3]);
 
                 SceneMaterials.push_back(m_Graphics->CreateMaterial(DiffuseTex, NormalTex, RoughnessTex, MetallicTex));
             }
             else if (LineTokens.size() == 3)
             {
-                Texture DiffuseTex = m_Graphics->LoadTexture(LineTokens[0]);
-                Texture NormalTex = m_Graphics->LoadTexture(LineTokens[1]);
-                Texture RoughnessTex = m_Graphics->LoadTexture(LineTokens[2]);
+                Texture DiffuseTex = *Registry->LoadTexture(LineTokens[0]);
+                Texture NormalTex = *Registry->LoadTexture(LineTokens[1]);
+                Texture RoughnessTex = *Registry->LoadTexture(LineTokens[2]);
 
                 SceneMaterials.push_back(m_Graphics->CreateMaterial(DiffuseTex, NormalTex, RoughnessTex));
             }
             else if (LineTokens.size() == 2)
             {
-                Texture DiffuseTex = m_Graphics->LoadTexture(LineTokens[0]);
-                Texture NormalTex = m_Graphics->LoadTexture(LineTokens[1]);
+                Texture DiffuseTex = *Registry->LoadTexture(LineTokens[0]);
+                Texture NormalTex = *Registry->LoadTexture(LineTokens[1]);
 
                 SceneMaterials.push_back(m_Graphics->CreateMaterial(DiffuseTex, NormalTex));
             }
             else
             {
-                Texture DiffuseTex = m_Graphics->LoadTexture(LineTokens[0]);
+                Texture DiffuseTex = *Registry->LoadTexture(LineTokens[0]);
                 SceneMaterials.push_back(m_Graphics->CreateMaterial(DiffuseTex));
             }
             break;
         case STATIC_MESHES:
-            SceneStaticMeshes.push_back(m_Graphics->LoadMesh(LineTokens[0]));
+            SceneStaticMeshes.push_back(*Registry->LoadStaticMesh(LineTokens[0]));
             break;
         case ENTITIES:
         {

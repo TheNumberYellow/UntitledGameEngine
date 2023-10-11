@@ -27,8 +27,12 @@ public:
 
     void DisconnectAll();
 
+    static NetworkModule* Get() { return s_Instance; }
+
 private:
 
     NetworkInterface& m_NetworkInterface;
+
+    static NetworkModule* s_Instance;
 };
 

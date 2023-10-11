@@ -318,6 +318,20 @@ float Math::Min(float a, float b)
     return a < b ? a : b;
 }
 
+float Math::SmoothStep(float in, float edge0, float edge1)
+{
+    in = Clamp((in - edge0) / (edge1 - edge0));
+    
+    return in * in * (3.0f - 2.0f * in);
+}
+
+float Math::Clamp(float in, float lower, float upper)
+{
+    if (in < lower) return lower;
+    if (in > upper) return upper;
+    return in;
+}
+
 float Math::RandomFloat(float min, float max)
 {
     float random = ((float)rand()) / (float)RAND_MAX;

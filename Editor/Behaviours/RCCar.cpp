@@ -40,33 +40,14 @@ void RCCar::Update(ModuleManager& Modules, Scene* Scene, float DeltaTime)
 
     GraphicsModule* Graphics = Modules.GetGraphics();
 
-    //Graphics->DebugDrawLine(m_Transform->GetPosition(), m_Transform->GetPosition() + Math::normalize(Displacement));
-
-    //SceneRayCastHit Hit = Scene->RayCast(Ray(m_Transform->GetPosition(), Math::normalize(Displacement)), *Collisions);
-
-    //if (false && Hit.rayCastHit.hit && Hit.rayCastHit.hitDistance <= Math::magnitude(Displacement) + 0.0001f)
-    //{
-    //    Vec3f newPos = Hit.rayCastHit.hitPoint + (2.0f * Hit.rayCastHit.hitNormal);
-
-    //    m_Transform->SetPosition(newPos);
-    //    Engine::DEBUGPrint("HIT SOMETHING");
-    //}
-    //else
-    //{
     m_Model->GetTransform().Move(Displacement);
-    //}
 
     Quaternion AimRot = Math::VecDiffToQuat(AimingDirection, Vec3f(1.0f, 0.0f, 0.0f));
 
-    //Vec3f FrontLeftTirePos =    m_Model->GetTransform().GetPosition() + (Vec3f(1.58f, 1.07f, 0.0f) * AimRot);
-    //Vec3f FrontRightTirePos =   m_Model->GetTransform().GetPosition() + (Vec3f(1.58f, -1.07f, 0.0f) * AimRot);
-    //Vec3f BackLeftTirePos =     m_Model->GetTransform().GetPosition() + (Vec3f(-1.15f, 1.07f, 0.0f) * AimRot);
-    //Vec3f BackRightTirePos =    m_Model->GetTransform().GetPosition() + (Vec3f(-1.15f, -1.07f, 0.0f) * AimRot);
-
-    Graphics->DebugDrawLine(FrontLeftTire, FrontLeftTire + Vec3f(0.0f, 0.0f, 5.0f));
-    Graphics->DebugDrawLine(FrontRightTire, FrontRightTire + Vec3f(0.0f, 0.0f, 5.0f));
-    Graphics->DebugDrawLine(BackLeftTire, BackLeftTire + Vec3f(0.0f, 0.0f, 5.0f));
-    Graphics->DebugDrawLine(BackRightTire, BackRightTire + Vec3f(0.0f, 0.0f, 5.0f));
+    //Graphics->DebugDrawLine(FrontLeftTire, FrontLeftTire + Vec3f(0.0f, 0.0f, 5.0f));
+    //Graphics->DebugDrawLine(FrontRightTire, FrontRightTire + Vec3f(0.0f, 0.0f, 5.0f));
+    //Graphics->DebugDrawLine(BackLeftTire, BackLeftTire + Vec3f(0.0f, 0.0f, 5.0f));
+    //Graphics->DebugDrawLine(BackRightTire, BackRightTire + Vec3f(0.0f, 0.0f, 5.0f));
 
 
     std::vector<Model*> IgnoredModels;
@@ -102,10 +83,10 @@ void RCCar::Update(ModuleManager& Modules, Scene* Scene, float DeltaTime)
         NewBackRightTirePos = BackRightTireHit.rayCastHit.hitPoint;
     }
 
-    Graphics->DebugDrawPoint(NewFrontLeftTirePos, Vec3f(1.0f, 0.2f, 0.2f));
-    Graphics->DebugDrawPoint(NewFrontRightTirePos, Vec3f(1.0f, 0.2f, 0.2f));
-    Graphics->DebugDrawPoint(NewBackLeftTirePos, Vec3f(1.0f, 0.2f, 0.2f));
-    Graphics->DebugDrawPoint(NewBackRightTirePos, Vec3f(1.0f, 0.2f, 0.2f));
+    //Graphics->DebugDrawPoint(NewFrontLeftTirePos, Vec3f(1.0f, 0.2f, 0.2f));
+    //Graphics->DebugDrawPoint(NewFrontRightTirePos, Vec3f(1.0f, 0.2f, 0.2f));
+    //Graphics->DebugDrawPoint(NewBackLeftTirePos, Vec3f(1.0f, 0.2f, 0.2f));
+    //Graphics->DebugDrawPoint(NewBackRightTirePos, Vec3f(1.0f, 0.2f, 0.2f));
 
     Vec3f PlaneNormal1 = Math::cross((NewFrontLeftTirePos - NewFrontRightTirePos), (NewFrontLeftTirePos - NewBackLeftTirePos));
     Vec3f PlaneNormal2 = -Math::cross((NewFrontRightTirePos - NewFrontLeftTirePos), (NewFrontRightTirePos - NewBackRightTirePos));
@@ -114,7 +95,7 @@ void RCCar::Update(ModuleManager& Modules, Scene* Scene, float DeltaTime)
 
     PlaneNormal = Math::normalize(-PlaneNormal);
 
-    Graphics->DebugDrawLine(m_Model->GetTransform().GetPosition(), m_Model->GetTransform().GetPosition() + PlaneNormal, Vec3f(0.0f, 1.0f, 0.0f));
+    //Graphics->DebugDrawLine(m_Model->GetTransform().GetPosition(), m_Model->GetTransform().GetPosition() + PlaneNormal, Vec3f(0.0f, 1.0f, 0.0f));
 
     Quaternion q = Math::VecDiffToQuat(PlaneNormal, Vec3f(0.0f, 0.0f, 1.0f));
 
@@ -127,28 +108,6 @@ void RCCar::Update(ModuleManager& Modules, Scene* Scene, float DeltaTime)
     Vec3f NewCarPos = Math::ClosestPointOnPlaneToPoint(p, m_Model->GetTransform().GetPosition());
     m_Model->GetTransform().SetPosition(NewCarPos);
 
-    //SceneRayCastHit Hit = Scene->RayCast(Ray(m_Model->GetTransform().GetPosition() + Vec3f(0.0f, 0.0f, 1.0f), Vec3f(0.0f, 0.0f, -1.0f)), *Collisions, IgnoredModels);
-    //if (Hit.rayCastHit.hit)
-    //{
-    //    Vec3f newPos = Hit.rayCastHit.hitPoint;
-    //    m_Model->GetTransform().SetPosition(newPos);
-    //    
-    //    Quaternion q = Math::VecDiffToQuat(Hit.rayCastHit.hitNormal, Vec3f(0.0f, 0.0f, 1.0f));
-
-    //    Quaternion r = Math::VecDiffToQuat(AimingDirection, Vec3f(1.0f, 0.0f, 0.0f));
-
-    //    m_Model->GetTransform().SetRotation(q * r);
-
-    //    std::string ModelName = Hit.hitModel->m_Name;
-
-    //    Engine::DEBUGPrint(ModelName);
-    //}
-    //else
-    //{
-    //    Quaternion r = Math::VecDiffToQuat(AimingDirection, Vec3f(1.0f, 0.0f, 0.0f));
-
-    //    m_Model->GetTransform().SetRotation(r);
-    //}
 
     Camera* Cam = Scene->GetCamera();
     

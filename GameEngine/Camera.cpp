@@ -37,6 +37,11 @@ Vec3f Camera::GetDirection() const
     return m_Direction;
 }
 
+Vec3f Camera::GetUp() const
+{
+    return m_Up;
+}
+
 Vec3f Camera::GetPerpVector() const
 {
     return Math::cross(m_Direction, m_Up);

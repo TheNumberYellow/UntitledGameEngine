@@ -5,6 +5,8 @@
 
 #include <algorithm>
 
+TextModule* TextModule::s_Instance = nullptr;
+
 TextModule::TextModule(Renderer& renderer)
     : m_Renderer(renderer)
 {
@@ -59,18 +61,7 @@ TextModule::TextModule(Renderer& renderer)
     Mat4x4f orthoMatrix = Math::GenerateOrthoMatrix(0.0f, (float)viewportSize.x, 0.0f, (float)viewportSize.y, 0.0f, 100.0f);
     m_Renderer.SetShaderUniformMat4x4f(m_TextShader, "Projection", orthoMatrix);
 
-
-    //TextStringInfo tsf;
-    //tsf.m_String = "Yeetus";
-    //tsf.m_Bounds = Rect(Vec2f(2.0f, 3.0f), Vec2f(40.0f, 50.0f));
-    //tsf.m_Mesh = 123;
-
-
-    //size_t tsfHash = Hash_Value(tsf);
-
-    //Engine::DEBUGPrint(std::to_string(tsfHash));
-
-
+    s_Instance = this;
 }
 
 TextModule::~TextModule()

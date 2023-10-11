@@ -2,6 +2,8 @@
 
 #include "..\GameEngine.h"
 
+InputModule* InputModule::s_Instance = nullptr;
+
 InputModule::InputModule()
 	: m_Keys{ false }
 	, m_MouseState(Engine::GetMousePosition())
@@ -9,6 +11,7 @@ InputModule::InputModule()
 	, m_MouseLocked(false)
 	, m_GamepadState{ GamepadState(), GamepadState(), GamepadState(), GamepadState() }
 {
+	s_Instance = this;
 }
 
 InputModule::~InputModule()

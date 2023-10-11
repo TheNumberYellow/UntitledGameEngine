@@ -238,6 +238,64 @@ namespace
         return result;
     }
 
+    GLenum ColourFormatToGLFormat(ColourFormat format)
+    {
+        switch (format)
+        {
+        case ColourFormat::RGB:
+            return GL_RGB;
+        case ColourFormat::RGBA:
+            return GL_RGBA;
+        case ColourFormat::Red:
+            return GL_RED;
+        case ColourFormat::DEPTH:
+            return GL_DEPTH_COMPONENT;
+        default:
+            return GL_RGBA;
+        }
+    }
+
+    GLenum DataFormatToGLFormat(DataFormat format)
+    {
+        switch (format)
+        {
+        case DataFormat::FLOAT:
+            return GL_FLOAT;
+        case DataFormat::UNSIGNED_BYTE:
+            return GL_UNSIGNED_BYTE;
+        default:
+            return GL_FLOAT;
+        }
+    }
+
+    GLint GetUniformLocation(std::unordered_map<std::string, GLint>& uniformMap, std::string key)
+    {
+        auto it = uniformMap.find(key);
+        if (it != uniformMap.end())
+        {
+            return it->second;
+        }
+        else
+        {
+            Engine::DEBUGPrint("ERROR: Could not find uniform <" + key + ">. It may have been optimized out by OpenGL.");
+            return -1;
+        }
+    }
+
+    GLint GetSamplerLocation(std::unordered_map<std::string, GLint>& samplerMap, std::string key)
+    {
+        auto it = samplerMap.find(key);
+        if (it != samplerMap.end())
+        {
+            return it->second;
+        }
+        else
+        {
+            Engine::DEBUGPrint("ERROR: Could not find sampler <" + key + ">. It may have been optimized out by OpenGL.");
+            return -1;
+        }
+    }
+
     struct GLAttribInfo
     {
         GLAttribInfo() {};
@@ -255,17 +313,22 @@ namespace
 
             glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
-            glGenTextures(1, &texture);
-            glBindTexture(GL_TEXTURE_2D, texture);
+
 
             if (format == FBufferFormat::DEPTH)
             {
+                glGenTextures(1, &texture);
+                glBindTexture(GL_TEXTURE_2D, texture);
+
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, size.x, size.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
 
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+                // Temp(fraser): this is specifically for shadow maps, technically this should be a construction parameter
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+                float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+                glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
 
                 glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, texture, 0);
                 glDrawBuffer(GL_NONE);
@@ -274,7 +337,10 @@ namespace
             }
             else if (format == FBufferFormat::COLOUR)
             {
-                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, size.x, size.y, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+                glGenTextures(1, &texture);
+                glBindTexture(GL_TEXTURE_2D, texture);
+
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, size.x, size.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
@@ -286,7 +352,17 @@ namespace
 
                 glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
             
-                // For colour buffers, we also need to create a render buffer to hold depth and stencil information
+                // For colour buffers, we also need to create a render buffer to hold depth and stencil information (these could be attached
+                glGenRenderbuffers(1, &rbo);
+                glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+                glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, size.x, size.y);
+                glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+                glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
+            }
+            else if (format == FBufferFormat::EMPTY)
+            {
+                // We'll assume that empty fbuffers will have color attachments added later, so just add the render buffer to allow depth/stencil info now
                 glGenRenderbuffers(1, &rbo);
                 glBindRenderbuffer(GL_RENDERBUFFER, rbo);
                 glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, size.x, size.y);
@@ -298,6 +374,21 @@ namespace
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
         }
         
+        OpenGLFBuffer(Vec2i size, FBufferFormat format, GLuint renderBuffer)
+            : size(size)
+            , format(format)
+            , rbo(renderBuffer)
+        {
+            glGenFramebuffers(1, &fbo);
+
+            glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, renderBuffer);
+
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        }
+
+        std::vector<unsigned int> attachments;
         GLuint texture;
         GLuint fbo;
         GLuint rbo;
@@ -350,15 +441,19 @@ namespace
             {
             case ColourFormat::RGB:
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, size.x, size.y, 0, GL_RGB, GL_UNSIGNED_BYTE, textureData.data());
+                createInfo = TextureCreateInfo(size, format, format, DataFormat::UNSIGNED_BYTE);
                 break;
             case ColourFormat::RGBA:
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, size.x, size.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, textureData.data());
+                createInfo = TextureCreateInfo(size, format, format, DataFormat::UNSIGNED_BYTE);
                 break;
             case ColourFormat::Red:
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, size.x, size.y, 0, GL_RED, GL_UNSIGNED_BYTE, textureData.data());
+                createInfo = TextureCreateInfo(size, format, format, DataFormat::UNSIGNED_BYTE);
                 break;
             case ColourFormat::DEPTH:
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, size.x, size.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, textureData.data());
+                createInfo = TextureCreateInfo(size, format, format, DataFormat::FLOAT);
                 break;
             }
 
@@ -416,10 +511,12 @@ namespace
             {
             case 3:
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, textureData);
+                createInfo = TextureCreateInfo(Vec2i(width, height), ColourFormat::RGB, ColourFormat::RGB, DataFormat::UNSIGNED_BYTE);
                 break;
             case 4:
             default:
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, textureData);
+                createInfo = TextureCreateInfo(Vec2i(width, height), ColourFormat::RGBA, ColourFormat::RGBA, DataFormat::UNSIGNED_BYTE);
                 break;
 
             }
@@ -452,15 +549,18 @@ namespace
                 break;
             }
 
+
             // For now I'll be using a float for depth component textures - 
             // likely will want to give more options to the caller if more of these cases emerge
             if (format == ColourFormat::DEPTH)
             {
                 glTexImage2D(GL_TEXTURE_2D, 0, glFormat, size.x, size.y, 0, glFormat, GL_FLOAT, 0);
+                createInfo = TextureCreateInfo(size, format, format, DataFormat::FLOAT);
             }
             else
             {
                 glTexImage2D(GL_TEXTURE_2D, 0, glFormat, size.x, size.y, 0, glFormat, GL_UNSIGNED_BYTE, 0);
+                createInfo = TextureCreateInfo(size, format, format, DataFormat::UNSIGNED_BYTE);
             }
 
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -476,10 +576,40 @@ namespace
             glGenerateMipmap(GL_TEXTURE_2D);
 
             glBindTexture(GL_TEXTURE_2D, 0);
+        }
 
+        OpenGLTexture(TextureCreateInfo& CreateInfo) :
+            createInfo(CreateInfo)
+        {
+            glGenTextures(1, &texture);
+            glBindTexture(GL_TEXTURE_2D, texture);
+
+            Vec2i Size = CreateInfo.Size;
+            GLenum InternalFormat = ColourFormatToGLFormat(CreateInfo.InternalFormat);
+            GLenum ExternalFormat = ColourFormatToGLFormat(CreateInfo.ExternalFormat);
+            GLenum DataFormat = DataFormatToGLFormat(CreateInfo.DataFormat);
+
+            // TEMP: FORMAT
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, Size.x, Size.y, 0, GL_RGBA, DataFormat, 0);
+
+            // TODO(fraser) Specify these parameters via the TextureCreateInfo struct as well
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+            float anisotropic = 0.0f;
+            glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &anisotropic);
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, anisotropic);
+
+            glGenerateMipmap(GL_TEXTURE_2D);
+
+            glBindTexture(GL_TEXTURE_2D, 0);
         }
 
         GLuint texture;
+        TextureCreateInfo createInfo;
     };
 
     struct OpenGLCubemap
@@ -840,10 +970,18 @@ MessageCallback(GLenum source,
     const GLchar* message,
     const void* userParam)
 {
-    if (severity == GL_DEBUG_SEVERITY_HIGH || severity == GL_DEBUG_SEVERITY_MEDIUM)
+    if (severity == GL_DEBUG_SEVERITY_MEDIUM)
     {
-        Engine::DEBUGPrint(std::string(message) + "\n");
+        Engine::DEBUGPrint("Medium severity: " + std::string(message) + "\n");
     }
+    else if (severity == GL_DEBUG_SEVERITY_HIGH)
+    {
+        Engine::DEBUGPrint("High severity: " + std::string(message) + "\n");
+    }
+    //else
+    //{
+    //    Engine::DEBUGPrint("Low severity: " + std::string(message) + "\n");
+    //}
 }
 
 Renderer::Renderer()
@@ -851,7 +989,6 @@ Renderer::Renderer()
     HWND window = GetActiveWindow();
 
     deviceContext = GetDC(window);
-
 
     PIXELFORMATDESCRIPTOR desiredPixelFormat = {};
     desiredPixelFormat.nSize = sizeof(PIXELFORMATDESCRIPTOR);
@@ -906,7 +1043,7 @@ Renderer::Renderer()
 
     if (wglewIsSupported("WGL_EXT_swap_control") == 1)
     {
-        wglSwapIntervalEXT(1);
+        wglSwapIntervalEXT(0);
     }
 
     // Enable various OpenGL features
@@ -936,6 +1073,7 @@ Renderer::Renderer()
     glEnable(GL_LINE_SMOOTH);
     glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glDepthFunc(GL_LEQUAL);
 
 }
 
@@ -955,6 +1093,18 @@ Framebuffer_ID Renderer::CreateFrameBuffer(Vec2i size, FBufferFormat format)
     return newID;
 }
 
+Framebuffer_ID Renderer::CreateFBufferWithExistingDepthBuffer(Framebuffer_ID existingFBuffer, Vec2i size, FBufferFormat format)
+{
+    OpenGLFBuffer fBuffer = *GetGLFBufferFromFBufferID(existingFBuffer);
+
+    OpenGLFBuffer newBuffer = OpenGLFBuffer(size, format, fBuffer.rbo);
+    
+    Framebuffer_ID newID = GUIDGen::Generate();
+
+    fBufferMap.insert(std::pair<Framebuffer_ID, OpenGLFBuffer>(newID, newBuffer));
+    return newID;
+}
+
 void Renderer::AttachTextureToFramebuffer(Texture_ID textureID, Framebuffer_ID fBufferID)
 {
     OpenGLFBuffer fBuffer = *GetGLFBufferFromFBufferID(fBufferID);
@@ -965,6 +1115,34 @@ void Renderer::AttachTextureToFramebuffer(Texture_ID textureID, Framebuffer_ID f
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture.texture, 0);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+Texture_ID Renderer::AttachColourAttachmentToFrameBuffer(Framebuffer_ID buffer, TextureCreateInfo createInfo, int attachmentIndex)
+{
+    OpenGLFBuffer* fBuffer = GetGLFBufferFromFBufferID(buffer);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, fBuffer->fbo);
+
+    if (attachmentIndex > GL_MAX_COLOR_ATTACHMENTS)
+    {
+        Engine::FatalError("Unsupported color attachment index");
+        return 0;
+    }
+
+    OpenGLTexture newTexture = OpenGLTexture(createInfo);
+
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + attachmentIndex, GL_TEXTURE_2D, newTexture.texture, 0);
+
+    fBuffer->attachments.push_back(GL_COLOR_ATTACHMENT0 + attachmentIndex);
+
+    glDrawBuffers((GLsizei)fBuffer->attachments.size(), fBuffer->attachments.data());
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    Texture_ID newID = GUIDGen::Generate();
+    textureMap.insert(std::pair<Texture_ID, OpenGLTexture>(newID, newTexture));
+    
+    return newID;
 }
 
 Texture_ID Renderer::LoadTexture(Vec2i size, std::vector<unsigned char> textureData, ColourFormat format, TextureMode minTexMode, TextureMode magTexMode)
@@ -1190,21 +1368,27 @@ void Renderer::ResizeFBuffer(Framebuffer_ID fBufferID, Vec2i newSize)
         bufferPtr->size = newSize;
 
         glBindFramebuffer(GL_FRAMEBUFFER, bufferPtr->fbo);
-        glBindTexture(GL_TEXTURE_2D, bufferPtr->texture);
 
         if (bufferPtr->format == FBufferFormat::DEPTH)
         {
+            glBindTexture(GL_TEXTURE_2D, bufferPtr->texture);
             glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, newSize.x, newSize.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
         }
         if (bufferPtr->format == FBufferFormat::COLOUR)
         {
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, newSize.x, newSize.y, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+            glBindTexture(GL_TEXTURE_2D, bufferPtr->texture);
+
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, newSize.x, newSize.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
 
             glBindRenderbuffer(GL_RENDERBUFFER, bufferPtr->rbo);
             glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, newSize.x, newSize.y);
         }
+        if (bufferPtr->format == FBufferFormat::EMPTY)
+        {
+            glBindRenderbuffer(GL_RENDERBUFFER, bufferPtr->rbo);
+            glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, newSize.x, newSize.y);
+        }
     }
-
 }
 
 void Renderer::ResetToScreenBuffer()
@@ -1224,7 +1408,28 @@ void Renderer::SetActiveTexture(Texture_ID texture, unsigned int textureSlot)
 void Renderer::SetActiveTexture(Texture_ID textureID, std::string textureName)
 {
     OpenGLShader* shaderPtr = GetGLShaderFromShaderID(currentlyBoundShader);
-    SetActiveTexture(textureID, shaderPtr->m_SamplerLocations[textureName]);
+
+    GLint sampler = GetSamplerLocation(shaderPtr->m_SamplerLocations, textureName);
+
+    if (sampler >= 0)
+    {
+        SetActiveTexture(textureID, shaderPtr->m_SamplerLocations[textureName]);
+    }
+}
+
+void Renderer::ResizeTexture(Texture_ID textureID, Vec2i newSize)
+{
+    OpenGLTexture* texturePtr = GetGLTextureFromTextureID(textureID);
+
+    TextureCreateInfo CreateInfo = texturePtr->createInfo;
+
+    GLenum InternalFormat = ColourFormatToGLFormat(CreateInfo.InternalFormat);
+    GLenum ExternalFormat = ColourFormatToGLFormat(CreateInfo.ExternalFormat);
+    GLenum DataFormat = DataFormatToGLFormat(CreateInfo.DataFormat);
+
+    glBindTexture(GL_TEXTURE_2D, texturePtr->texture);
+    
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, newSize.x, newSize.y, 0, GL_RGBA, DataFormat, nullptr);
 }
 
 void Renderer::SetActiveFBufferTexture(Framebuffer_ID frameBufferID, unsigned int textureSlot)
@@ -1252,7 +1457,13 @@ void Renderer::SetActiveCubemap(Cubemap_ID cubemapID, unsigned int textureSlot)
 void Renderer::SetActiveCubemap(Cubemap_ID cubemapID, std::string textureName)
 {
     OpenGLShader* shaderPtr = GetGLShaderFromShaderID(currentlyBoundShader);
-    SetActiveCubemap(cubemapID, shaderPtr->m_SamplerLocations[textureName]);
+    
+    GLint sampler = GetSamplerLocation(shaderPtr->m_SamplerLocations, textureName);
+
+    if (sampler >= 0)
+    {
+        SetActiveCubemap(cubemapID, sampler);
+    }
 }
 
 void Renderer::SetActiveShader(Shader_ID shader)
@@ -1304,7 +1515,14 @@ void Renderer::SetShaderUniformVec2f(Shader_ID shaderID, std::string uniformName
     SetActiveShader(shaderID);
 
     OpenGLShader shader = *GetGLShaderFromShaderID(shaderID);
-    glUniform2fv(shader.m_UniformLocations[uniformName], 1, (GLfloat*)&vec);
+    GLfloat arr[] = { vec.x, vec.y };
+
+    GLint uniform = GetUniformLocation(shader.m_UniformLocations, uniformName);
+
+    if (uniform >= 0)
+    {
+        glUniform2fv(uniform, 1, arr);
+    }
 }
 
 void Renderer::SetShaderUniformVec3f(Shader_ID shaderID, std::string uniformName, Vec3f vec)
@@ -1312,7 +1530,14 @@ void Renderer::SetShaderUniformVec3f(Shader_ID shaderID, std::string uniformName
     SetActiveShader(shaderID);
 
     OpenGLShader shader = *GetGLShaderFromShaderID(shaderID);
-    glUniform3fv(shader.m_UniformLocations[uniformName], 1, (GLfloat*)&vec);
+    GLfloat arr[] = { vec.x, vec.y, vec.z };
+
+    GLint uniform = GetUniformLocation(shader.m_UniformLocations, uniformName);
+
+    if (uniform >= 0)
+    {
+        glUniform3fv(uniform, 1, arr);
+    }
 }
 
 void Renderer::SetShaderUniformMat4x4f(Shader_ID shaderID, std::string uniformName, Mat4x4f mat)
@@ -1320,7 +1545,13 @@ void Renderer::SetShaderUniformMat4x4f(Shader_ID shaderID, std::string uniformNa
     SetActiveShader(shaderID);
 
     OpenGLShader shader = *GetGLShaderFromShaderID(shaderID);
-    glUniformMatrix4fv(shader.m_UniformLocations[uniformName], 1, GL_FALSE, &mat[0][0]);
+    
+    GLint uniform = GetUniformLocation(shader.m_UniformLocations, uniformName);
+
+    if (uniform >= 0)
+    {
+        glUniformMatrix4fv(uniform, 1, GL_FALSE, &mat[0][0]);
+    }
 }
 
 void Renderer::SetShaderUniformFloat(Shader_ID shaderID, std::string uniformName, float f)
@@ -1328,7 +1559,13 @@ void Renderer::SetShaderUniformFloat(Shader_ID shaderID, std::string uniformName
     SetActiveShader(shaderID);
 
     OpenGLShader shader = *GetGLShaderFromShaderID(shaderID);
-    glUniform1f(shader.m_UniformLocations[uniformName], f);
+    
+    GLint uniform = GetUniformLocation(shader.m_UniformLocations, uniformName);
+    
+    if (uniform >= 0)
+    {
+        glUniform1f(uniform, f);
+    }
 }
 
 void Renderer::SetShaderUniformInt(Shader_ID shaderID, std::string uniformName, int i)
@@ -1336,7 +1573,13 @@ void Renderer::SetShaderUniformInt(Shader_ID shaderID, std::string uniformName, 
     SetActiveShader(shaderID);
 
     OpenGLShader shader = *GetGLShaderFromShaderID(shaderID);
-    glUniform1i(shader.m_UniformLocations[uniformName], i);
+    
+    GLint uniform = GetUniformLocation(shader.m_UniformLocations, uniformName);
+
+    if (uniform >= 0)
+    {
+        glUniform1i(uniform, i);
+    }
 }
 
 void Renderer::SetShaderUniformBool(Shader_ID shaderID, std::string uniformName, bool b)
@@ -1344,7 +1587,13 @@ void Renderer::SetShaderUniformBool(Shader_ID shaderID, std::string uniformName,
     SetActiveShader(shaderID);
 
     OpenGLShader shader = *GetGLShaderFromShaderID(shaderID);
-    glUniform1i(shader.m_UniformLocations[uniformName], b);
+    
+    GLint uniform = GetUniformLocation(shader.m_UniformLocations, uniformName);
+
+    if (uniform >= 0)
+    {
+        glUniform1i(uniform, b);
+    }
 }
 
 void Renderer::SetMeshDrawType(StaticMesh_ID meshID, DrawType type)
@@ -1413,6 +1662,11 @@ void Renderer::SwapBuffer()
     SwapBuffers(deviceContext);
 }
 
+void Renderer::ClearColourBuffer()
+{
+    glClear(GL_COLOR_BUFFER_BIT);
+}
+
 void Renderer::ClearDepthBuffer()
 {
     glClear(GL_DEPTH_BUFFER_BIT);
@@ -1426,6 +1680,42 @@ void Renderer::EnableDepthTesting()
 void Renderer::DisableDepthTesting()
 {
     glDisable(GL_DEPTH_TEST);
+}
+
+void Renderer::SetDepthFunction(DepthFunc func)
+{
+    GLenum glDepth = GL_LEQUAL;
+    switch (func)
+    {
+    case DepthFunc::LESS:
+        glDepth = GL_LEQUAL;
+        break;
+    case DepthFunc::GREATER:
+        glDepth = GL_GREATER;
+        break;
+    }
+
+    glDepthFunc(glDepth);
+}
+
+void Renderer::SetBlendFunction(BlendFunc func)
+{
+    GLenum glBlendSource = GL_SRC_ALPHA;
+    GLenum glBlendDest = GL_ONE_MINUS_SRC_ALPHA;
+
+    switch (func)
+    {
+    case BlendFunc::TRANS:
+        glBlendSource = GL_SRC_ALPHA;
+        glBlendDest = GL_ONE_MINUS_SRC_ALPHA;
+        break;
+    case BlendFunc::ADDITIVE:
+        glBlendSource = GL_ONE;
+        glBlendDest = GL_ONE;
+        break;
+    }
+
+    glBlendFunc(glBlendSource, glBlendDest);
 }
 
 void Renderer::SetCulling(Cull c)

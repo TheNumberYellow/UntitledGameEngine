@@ -14,6 +14,9 @@ typedef GUID Texture_ID;
 typedef GUID Cubemap_ID;
 typedef GUID Shader_ID;
 typedef GUID StaticMesh_ID;
+typedef GUID GBuffer_ID;
+
+typedef unsigned int ElementIndex;
 
 enum class ColourFormat
 {
@@ -23,10 +26,17 @@ enum class ColourFormat
     DEPTH
 };
 
+enum class DataFormat
+{
+    FLOAT,
+    UNSIGNED_BYTE
+};
+
 enum class FBufferFormat
 {
     COLOUR,
-    DEPTH
+    DEPTH,
+    EMPTY
 };
 
 enum class TextureMode
@@ -34,8 +44,6 @@ enum class TextureMode
     NEAREST,
     LINEAR
 };
-
-typedef unsigned int ElementIndex;
 
 enum class VertAttribute
 {
@@ -47,6 +55,21 @@ enum class VertAttribute
     Vec3f,
     Vec4f,
 };
+
+struct TextureCreateInfo
+{
+    TextureCreateInfo(Vec2i Size, ColourFormat InternalFormat, ColourFormat ExternalFormat, DataFormat DataFormat) 
+        : Size(Size), InternalFormat(InternalFormat), ExternalFormat(ExternalFormat), DataFormat(DataFormat)
+    {}
+
+    TextureCreateInfo() {}
+
+    Vec2i Size;
+    ColourFormat InternalFormat = ColourFormat::RGBA;
+    ColourFormat ExternalFormat = ColourFormat::RGBA;
+    DataFormat DataFormat = DataFormat::FLOAT;
+};
+
 
 class VertexBufferFormat
 {
@@ -115,6 +138,18 @@ enum class DrawType
     Triangle, Line
 };
 
+enum class DepthFunc
+{
+    LESS,
+    GREATER
+};
+
+enum class BlendFunc
+{
+    TRANS,
+    ADDITIVE
+};
+
 class Renderer
 {
 public:
@@ -123,7 +158,12 @@ public:
 
     // These functions are defined in renderer-specific renderer code
     Framebuffer_ID CreateFrameBuffer(Vec2i size, FBufferFormat format = FBufferFormat::COLOUR);
+    
+    // Create a new FBuffer with the same depth test buffer as an existing FBuffer
+    Framebuffer_ID CreateFBufferWithExistingDepthBuffer(Framebuffer_ID existingFBuffer, Vec2i size, FBufferFormat format = FBufferFormat::COLOUR);
     void AttachTextureToFramebuffer(Texture_ID textureID, Framebuffer_ID fBufferID);
+    
+    Texture_ID AttachColourAttachmentToFrameBuffer(Framebuffer_ID buffer, TextureCreateInfo createInfo, int attachmentIndex);
 
     Texture_ID LoadTexture(Vec2i size, std::vector<unsigned char> textureData, ColourFormat format, TextureMode minTexMode = TextureMode::LINEAR, TextureMode magTexMode = TextureMode::LINEAR);
     Texture_ID LoadTexture(std::string filePath, TextureMode minTexMode = TextureMode::LINEAR, TextureMode magTexMode = TextureMode::LINEAR);
@@ -157,7 +197,8 @@ public:
 
     void SetActiveTexture(Texture_ID textureID, unsigned int textureSlot = 0);
     void SetActiveTexture(Texture_ID textureID, std::string textureName);
-    
+    void ResizeTexture(Texture_ID textureID, Vec2i newSize);
+
     void SetActiveFBufferTexture(Framebuffer_ID frameBufferID, unsigned int textureSlot = 0);
     void SetActiveFBufferTexture(Framebuffer_ID frameBufferID, std::string textureName);
     
@@ -187,10 +228,14 @@ public:
     void ClearScreenAndDepthBuffer();
     void SwapBuffer();
 
+    void ClearColourBuffer();
     void ClearDepthBuffer();
 
     void EnableDepthTesting();
     void DisableDepthTesting();
+
+    void SetDepthFunction(DepthFunc func);
+    void SetBlendFunction(BlendFunc func);
 
     void SetCulling(Cull c);
 

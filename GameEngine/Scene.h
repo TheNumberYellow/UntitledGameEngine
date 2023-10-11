@@ -18,6 +18,22 @@ enum FileReaderState
     NONE
 };
 
+struct SceneObject
+{
+    AABB m_Bounds;
+    Transform m_Transform;
+};
+
+struct ModelObject : public SceneObject
+{
+
+};
+
+struct PointLightObject : public SceneObject
+{
+
+};
+
 struct SceneRayCastHit
 {
     RayCastHit rayCastHit;
@@ -47,6 +63,8 @@ public:
     Model* GetModelByTag(std::string tag);
     std::vector<Model*> GetModelsByTag(std::string tag);
 
+    void AddPointLight(PointLight newLight);
+
     void AddCamera(Camera* camera);
 
     Camera* GetCamera();
@@ -54,7 +72,7 @@ public:
 
     void UpdateBehaviours(ModuleManager& Modules, float DeltaTime);
 
-    void Draw(GraphicsModule& graphics, Framebuffer_ID buffer);
+    void Draw(GraphicsModule& graphics, Framebuffer_ID buffer, GBuffer gBuffer);
     void EditorDraw(GraphicsModule& graphics, Framebuffer_ID buffer);
 
     void SetDirectionalLight(DirectionalLight light);
@@ -73,13 +91,15 @@ private:
     std::vector<Model*> m_UntrackedModels;
     DirectionalLight m_DirLight;
 
+    std::vector<PointLight> m_PointLights;
+
     std::vector<Camera*> m_Cameras;
 
     bool m_Paused = false;
 
     // TEMP member variables start
-    Camera m_ShadowCamera;
-    Framebuffer_ID m_ShadowBuffer;
+    //Camera m_ShadowCamera;
+    //Framebuffer_ID m_ShadowBuffer;
 
     //GBuffer GBuf;
 
