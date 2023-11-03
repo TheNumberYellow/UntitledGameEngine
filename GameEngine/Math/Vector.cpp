@@ -98,6 +98,36 @@ float& Vec3f::operator[](int index)
     }
 }
 
+Vec3f Vec3f::XOnly()
+{
+    return Vec3f(x, 0.0f, 0.0f);
+}
+
+Vec3f Vec3f::YOnly()
+{
+    return Vec3f(0.0f, y, 0.0f);
+}
+
+Vec3f Vec3f::ZOnly()
+{
+    return Vec3f(0.0f, 0.0f, z);
+}
+
+Vec3f Vec3f::XYOnly()
+{
+    return Vec3f(x, y, 0.0f);
+}
+
+Vec3f Vec3f::XZOnly()
+{
+    return Vec3f(x, 0.0f, y);
+}
+
+Vec3f Vec3f::YZOnly()
+{
+    return Vec3f(0.0f, y, z);
+}
+
 Vec3f Vec3f::operator+(Vec3f rhs)
 {
     return Vec3f(this->x + rhs.x, this->y + rhs.y, this->z + rhs.z);
@@ -176,6 +206,26 @@ Vec3f Vec3f::operator*(float rhs)
 Vec3f Vec3f::operator/(float rhs)
 {
     return Vec3f(this->x / rhs, this->y / rhs, this->z / rhs);
+}
+
+bool Vec3f::operator<(const Vec3f& rhs)
+{
+    return x < rhs.x && y < rhs.y && z < rhs.z;
+}
+
+bool Vec3f::operator>(const Vec3f& rhs)
+{
+    return x > rhs.x && y > rhs.y && z > rhs.z;
+}
+
+bool Vec3f::operator<=(const Vec3f& rhs)
+{
+    return x <= rhs.x && y <= rhs.y && z <= rhs.z;
+}
+
+bool Vec3f::operator>=(const Vec3f& rhs)
+{
+    return x >= rhs.x && y >= rhs.y && z >= rhs.z;
 }
 
 std::string Vec3f::toString()

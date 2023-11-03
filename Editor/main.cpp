@@ -11,6 +11,33 @@
 #include <iostream>
 #include <filesystem>
 
+void DrawOctreeNode(OctreeNode* Node, Transform& Trans, GraphicsModule* Graphics)
+{
+    AABB NodeBounds = Node->Bounds;
+    //Graphics->DebugDrawAABB(NodeBounds, Vec3f(1.0f, 1.0f, 0.23f), Trans.GetTransformMatrix());
+
+    //if (Node->IsLeaf)
+    //{
+    //    for (auto& Tri : Node->Triangles)
+    //    {
+    //        Triangle TransformedTri = Tri;
+    //        TransformedTri.a = TransformedTri.a * Trans.GetTransformMatrix();
+    //        TransformedTri.b = TransformedTri.b * Trans.GetTransformMatrix();
+    //        TransformedTri.c = TransformedTri.c * Trans.GetTransformMatrix();
+
+    //        Graphics->DebugDrawLine(TransformedTri.a, TransformedTri.b, Vec3f(0.5f, 0.5f, 0.9f));
+    //        Graphics->DebugDrawLine(TransformedTri.b, TransformedTri.c, Vec3f(0.5f, 0.5f, 0.9f));
+    //        Graphics->DebugDrawLine(TransformedTri.c, TransformedTri.a, Vec3f(0.5f, 0.5f, 0.9f));
+    //    }
+    //    return;
+    //}
+
+    //for (int i = 0; i < 8; i++)
+    //{
+    //    DrawOctreeNode(Node->SubNodes[i], Trans, Graphics);
+    //}
+}
+
 static bool FirstPersonPlayerEnabled = false;
 
 float TransSnap = 1.0f;
@@ -117,8 +144,9 @@ std::string draggingBehaviourName;
 
 bool draggingNewPointLight = false;
 
-//static Model* selectedModelPtr = nullptr;
+static Model* selectedModelPtr = nullptr;
 static Transform* selectedTransformPtr = nullptr;
+//static CollisionMesh* selectedColMeshPtr = nullptr;
 
 Model xAxisArrow;
 Model yAxisArrow;
@@ -511,7 +539,7 @@ void UpdateSelectTool(InputModule& input, CollisionModule& collisions)
     if (input.GetMouseState().IsButtonDown(Mouse::LMB))
     {
         Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
-        if (viewportRect.contains(Engine::GetMousePosition()))
+        if (viewportRect.Contains(Engine::GetMousePosition()))
         {
             Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
 
@@ -520,6 +548,7 @@ void UpdateSelectTool(InputModule& input, CollisionModule& collisions)
             if (finalHit.rayCastHit.hit)
             {
                 selectedTransformPtr = &finalHit.hitModel->GetTransform();
+                selectedModelPtr = finalHit.hitModel;
             }
         }
     }
@@ -555,7 +584,7 @@ void UpdateBoxCreate(InputModule& input, CollisionModule& collisions, GraphicsMo
     Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
     Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
     
-    if (!viewportRect.contains(Engine::GetMousePosition()))
+    if (!viewportRect.Contains(Engine::GetMousePosition()))
     {
         return;
     }
@@ -625,6 +654,7 @@ void UpdateBoxCreate(InputModule& input, CollisionModule& collisions, GraphicsMo
             draggingNewBox = false;
 
             selectedTransformPtr = nullptr;
+            selectedModelPtr = nullptr;
         }
     }
 
@@ -661,7 +691,7 @@ void UpdatePlaneCreate(InputModule& input, CollisionModule& collisions, Graphics
     Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
     Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
 
-    if (!viewportRect.contains(Engine::GetMousePosition()))
+    if (!viewportRect.Contains(Engine::GetMousePosition()))
     {
         return;
     }
@@ -759,6 +789,7 @@ void UpdatePlaneCreate(InputModule& input, CollisionModule& collisions, Graphics
             draggingNewPlane = false;
 
             selectedTransformPtr = nullptr;
+            selectedModelPtr = nullptr;
         }
     }
 }
@@ -969,6 +1000,7 @@ void UpdateModelTranslate(InputModule& input, CollisionModule& collisions, Graph
         if (finalHit.rayCastHit.hit)
         {
             selectedTransformPtr = &finalHit.hitModel->GetTransform();
+            selectedModelPtr = finalHit.hitModel;
         }
     }
 }
@@ -1127,6 +1159,7 @@ void UpdateModelRotate(InputModule& input, CollisionModule& collisions, Graphics
         if (finalHit.rayCastHit.hit)
         {
             selectedTransformPtr = &finalHit.hitModel->GetTransform();
+            selectedModelPtr = finalHit.hitModel;
         }
     }
 }
@@ -1261,6 +1294,7 @@ void UpdateModelScale(InputModule& input, CollisionModule& collisions, GraphicsM
         if (finalHit.rayCastHit.hit)
         {
             selectedTransformPtr = &finalHit.hitModel->GetTransform();
+            selectedModelPtr = finalHit.hitModel;
         }
     }
 }
@@ -1570,6 +1604,12 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
 
         if (selectedTransformPtr)
         {
+            CollisionMesh& ColMesh = collisions.GetCollisionMeshFromMesh(selectedModelPtr->m_TexturedMeshes[0].m_Mesh);
+
+            OctreeNode* CurNode = ColMesh.OctreeHead;
+
+            DrawOctreeNode(CurNode, selectedModelPtr->GetTransform(), &graphics);
+
             //AABB aabb = collisions.GetCollisionMeshFromMesh(selectedModelPtr->m_TexturedMeshes[0].m_Mesh).boundingBox;
             //graphics.DebugDrawAABB(aabb, Vec3f(0.6f, 0.95f, 0.65f), selectedModelPtr->GetTransform().GetTransformMatrix());
             //graphics.DebugDrawModelMesh(*selectedModelPtr, Vec3f(0.9f, 0.8f, 0.4f));
@@ -1807,6 +1847,7 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
                 draggingNewBehaviour = true;
 
                 selectedTransformPtr = nullptr;
+                selectedModelPtr = nullptr;
 
                 draggingBehaviourName = Behaviour.first;
             }
@@ -2009,6 +2050,7 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
     if (input.IsKeyDown(Key::Escape))
     {
         selectedTransformPtr = nullptr;
+        selectedModelPtr = nullptr;
     }
 
     if (input.GetKeyState(Key::Delete))

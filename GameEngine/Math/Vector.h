@@ -54,6 +54,14 @@ struct Vec3f
 
     float& operator[] (int index);
 
+    Vec3f XOnly();
+    Vec3f YOnly();
+    Vec3f ZOnly();
+
+    Vec3f XYOnly();
+    Vec3f XZOnly();
+    Vec3f YZOnly();
+
     Vec3f operator+(Vec3f rhs);
     Vec3f& operator+=(const Vec3f& rhs);
 
@@ -71,6 +79,11 @@ struct Vec3f
     Vec3f operator/(float rhs);
 
     friend bool operator==(const Vec3f& lhs, const Vec3f& rhs);
+
+    bool operator<(const Vec3f& rhs);
+    bool operator>(const Vec3f& rhs);
+    bool operator<=(const Vec3f& rhs);
+    bool operator>=(const Vec3f& rhs);
 
     std::string toString();
 

@@ -104,6 +104,7 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
     , m_DebugVertFormat({ VertAttribute::Vec3f })
     , m_RenderMode(RenderMode::DEFAULT)
 {
+
     // ~~~~~~~~~~~~~~~~~~~~~Unlit shader code~~~~~~~~~~~~~~~~~~~~~ //
 
     std::string unlitVertShader = R"(
@@ -1266,16 +1267,16 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
     m_OrthoProjection = Math::GenerateOrthoMatrix(0.0f, sizeX, 0.0f, sizeY, 0.1f, 100.0f);
     m_Renderer.SetShaderUniformMat4x4f(m_UIShader, "Projection", m_OrthoProjection);
 
-    AssetRegistry* Registry = AssetRegistry::Get();
+    //AssetRegistry* Registry = AssetRegistry::Get();
 
-    m_DefaultNormalMap = *Registry->LoadTexture("textures/default_norm.png");
-    m_DefaultMetallicMap = *Registry->LoadTexture("textures/default_metallic.png");
-    m_DefaultRoughnessMap = *Registry->LoadTexture("textures/default_roughness.png");
-    m_DefaultAOMap = *Registry->LoadTexture("textures/default_ao.png");
-    m_DefaultHeightMap = *Registry->LoadTexture("textures/default_height.png");
+    m_DefaultNormalMap = LoadTexture("textures/default_norm.png");
+    m_DefaultMetallicMap = LoadTexture("textures/default_metallic.png");
+    m_DefaultRoughnessMap = LoadTexture("textures/default_roughness.png");
+    m_DefaultAOMap = LoadTexture("textures/default_ao.png");
+    m_DefaultHeightMap = LoadTexture("textures/default_height.png");
 
-    m_DebugMaterial = CreateMaterial(*Registry->LoadTexture("textures/debugTexture0.png"),
-        *Registry->LoadTexture("textures/debugTexture0.norm.png"));
+    m_DebugMaterial = CreateMaterial(LoadTexture("textures/debugTexture0.png"),
+        LoadTexture("textures/debugTexture0.norm.png"));
 
     // TEMP
     std::vector<float> skyboxVertices = {

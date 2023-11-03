@@ -30,6 +30,11 @@ struct ElementState
     Click m_Click;
 };
 
+struct ElementInfo
+{
+    Rect m_Rect;
+};
+
 struct FrameInfo
 {
     Rect m_Rect;

@@ -2,32 +2,99 @@
 
 CollisionModule* CollisionModule::s_Instance = nullptr;
 
-void OctreeNode::AddTriangle(Triangle t)
+static bool OctreeEnabled = true;
+static bool OctreeDebugDrawEnabled = false;
+
+OctreeNode::~OctreeNode()
+{
+    if (IsLeaf)
+    {
+        return;
+    }
+
+    for (int i = 0; i < 8; i++)
+    {
+        delete SubNodes[i];
+    }
+}
+
+void OctreeNode::AddTriangle(Triangle t, int tempDepth)
 {
     if (IsLeaf)
     {
         Triangles.push_back(t);
 
-        if (Triangles.size() > MaxTriangles)
+        //Engine::DEBUGPrint("Adding triangle at depth: " + std::to_string(tempDepth));
+
+        bool ShouldNotAddLevel = false;
+
+        if (Bounds.max.x - Bounds.min.x < 0.001f)
         {
-            AddLevel();
+            ShouldNotAddLevel = true;
+        }
+
+        if (Triangles.size() > MaxTriangles && !ShouldNotAddLevel)
+        {
+            tempDepth++;
+            
+            AddLevel(tempDepth);
         }
     }
     else
     {
         for (int i = 0; i < 8; ++i)
         {
-
+            if (Intersects(t, SubNodes[i]->Bounds))
+            {
+                SubNodes[i]->AddTriangle(t, tempDepth);
+            }
         }
     }
 }
 
-void OctreeNode::AddLevel()
+void OctreeNode::AddLevel(int tempDepth)
 {
     IsLeaf = false;
 
+    // Create child nodes
+    for (int i = 0; i < 8; ++i)
+    {
+        SubNodes[i] = new OctreeNode();
+        SubNodes[i]->IsLeaf = true;
+    }
 
+    Vec3f HalfDim = (Bounds.max - Bounds.min) / 2.0f;
 
+    SubNodes[0]->Bounds = AABB( Bounds.min, 
+                                Bounds.min + HalfDim);
+    SubNodes[1]->Bounds = AABB( Bounds.min + HalfDim.XOnly(), 
+                                Bounds.min + HalfDim + HalfDim.XOnly());
+    SubNodes[2]->Bounds = AABB( Bounds.min + HalfDim.YOnly(),
+                                Bounds.min + HalfDim + HalfDim.YOnly());
+    SubNodes[3]->Bounds = AABB( Bounds.min + HalfDim.XYOnly(),
+                                Bounds.min + HalfDim + HalfDim.XYOnly());
+
+    SubNodes[4]->Bounds = AABB( Bounds.min + HalfDim.ZOnly(),
+                                Bounds.min + HalfDim + HalfDim.ZOnly());
+    SubNodes[5]->Bounds = AABB( Bounds.min + HalfDim.XOnly() + HalfDim.ZOnly(),
+                                Bounds.min + HalfDim + HalfDim.XOnly() + HalfDim.ZOnly());
+    SubNodes[6]->Bounds = AABB( Bounds.min + HalfDim.YOnly() + HalfDim.ZOnly(),
+                                Bounds.min + HalfDim + HalfDim.YOnly() + HalfDim.ZOnly());
+    SubNodes[7]->Bounds = AABB( Bounds.min + HalfDim.XYOnly() + HalfDim.ZOnly(),
+                                Bounds.min + HalfDim + HalfDim.XYOnly() + HalfDim.ZOnly());
+
+    // Add triangles to subnodes
+    for (Triangle& Tri : Triangles)
+    {
+        for (int i = 0; i < 8; ++i)
+        {
+            if (Intersects(Tri, SubNodes[i]->Bounds))
+            {
+                SubNodes[i]->AddTriangle(Tri, tempDepth);
+            }
+        }
+    }
+    Triangles.clear();
 }
 
 CollisionModule::CollisionModule(Renderer& renderer)
@@ -94,6 +161,18 @@ CollisionMesh& CollisionModule::GenerateCollisionMeshFromMesh(StaticMesh mesh)
     m_Renderer.UnmapMeshVertices(mesh.Id);
     m_Renderer.UnmapMeshElements(mesh.Id);
 
+    collMesh.OctreeHead = new OctreeNode(boundingBox);
+    
+    for (int i = 0; i < collMesh.indices.size(); i += 3)
+    {
+        Triangle tri;
+        tri.a = collMesh.points[collMesh.indices[i]];
+        tri.b = collMesh.points[collMesh.indices[i + 1]];
+        tri.c = collMesh.points[collMesh.indices[i + 2]];
+
+        collMesh.OctreeHead->AddTriangle(tri, 0);
+    }
+
     StaticMesh_ID Id = mesh.Id;
 
     m_CollisionMeshMap[Id] = collMesh;
@@ -132,20 +211,30 @@ RayCastHit CollisionModule::RayCast(Ray ray, const CollisionMesh& mesh, const Ma
     {
         return resultHit;
     }
-
-    for (int i = 0; i < mesh.indices.size(); i += 3)
+    
+    if (OctreeEnabled)
     {
-        Vec3f a = mesh.points[mesh.indices[i]];
-        Vec3f b = mesh.points[mesh.indices[(size_t)i + 1]];
-        Vec3f c = mesh.points[mesh.indices[(size_t)i + 2]];
-
-        RayCastHit newHit = RayCastTri(transformedRay, a, b, c);
-
-        if (newHit.hit && newHit.hitDistance < resultHit.hitDistance)
+        resultHit = RayCast(transformedRay, mesh.OctreeHead, meshTransform);
+    }
+    else
+    {
+        for (int i = 0; i < mesh.indices.size(); i += 3)
         {
-            resultHit = newHit;
+            Vec3f a = mesh.points[mesh.indices[i]];
+            Vec3f b = mesh.points[mesh.indices[(size_t)i + 1]];
+            Vec3f c = mesh.points[mesh.indices[(size_t)i + 2]];
+
+            RayCastHit newHit = RayCastTri(transformedRay, a, b, c);
+
+            if (newHit.hit && newHit.hitDistance < resultHit.hitDistance)
+            {
+                resultHit = newHit;
+            }
         }
     }
+
+
+   
 
     resultHit.hitPoint = resultHit.hitPoint * meshTransform;
 
@@ -229,6 +318,69 @@ RayCastHit CollisionModule::RayCast(Ray ray, Plane plane)
     return result;
 }
 
+RayCastHit CollisionModule::RayCast(Ray ray, Triangle tri)
+{
+    return RayCastTri(ray, tri.a, tri.b, tri.c);
+}
+
+RayCastHit CollisionModule::RayCast(Ray ray, OctreeNode* node, const Mat4x4f& tempTrans)
+{
+    if (!RayCast(ray, node->Bounds).hit)
+    {
+        return RayCastHit();
+    }
+    if (OctreeDebugDrawEnabled)
+    {
+        if (node->IsLeaf)
+        {
+            GraphicsModule::Get()->DebugDrawAABB(node->Bounds, Vec3f(0.95f, 0.35f, 0.25f), tempTrans);
+        }
+        else
+        {
+            GraphicsModule::Get()->DebugDrawAABB(node->Bounds, Vec3f(0.2f, 0.9f, 0.1f), tempTrans);
+        }
+    }
+
+    RayCastHit ClosestHit;
+    if (node->IsLeaf)
+    {
+        for (auto& Tri : node->Triangles)
+        {
+            RayCastHit TriHit = RayCast(ray, Tri);
+
+            if (OctreeDebugDrawEnabled)
+            {
+                Triangle TransformedTri = Tri;
+                TransformedTri.a = TransformedTri.a * tempTrans;
+                TransformedTri.b = TransformedTri.b * tempTrans;
+                TransformedTri.c = TransformedTri.c * tempTrans;
+
+                GraphicsModule::Get()->DebugDrawLine(TransformedTri.a, TransformedTri.b, Vec3f(0.5f, 0.5f, 0.9f));
+                GraphicsModule::Get()->DebugDrawLine(TransformedTri.b, TransformedTri.c, Vec3f(0.5f, 0.5f, 0.9f));
+                GraphicsModule::Get()->DebugDrawLine(TransformedTri.c, TransformedTri.a, Vec3f(0.5f, 0.5f, 0.9f));
+
+            }
+
+            if (TriHit.hit && TriHit.hitDistance < ClosestHit.hitDistance)
+            {
+                ClosestHit = TriHit;
+            }
+        }
+    }
+    else
+    {
+        for (int i = 0; i < 8; i++)
+        {
+            RayCastHit SubHit = RayCast(ray, node->SubNodes[i], tempTrans);
+            if (SubHit.hit && SubHit.hitDistance < ClosestHit.hitDistance)
+            {
+                ClosestHit = SubHit;
+            }
+        }
+    }
+    return ClosestHit;
+}
+
 const RayCastHit* CollisionModule::Closest(std::initializer_list<RayCastHit> hitList)
 {
     const RayCastHit* closestHit = hitList.begin();
@@ -284,4 +436,10 @@ inline RayCastHit CollisionModule::RayCastTri(Ray ray, Vec3f a, Vec3f b, Vec3f c
     }
 
     return result;
+}
+
+bool Intersects(Triangle t, AABB aabb)
+{
+    // TODO: Implement correctly
+    return aabb.Contains(t.a) || aabb.Contains(t.b) || aabb.Contains(t.c) || aabb.Contains((t.a + t.b + t.c) / 3.0f);
 }

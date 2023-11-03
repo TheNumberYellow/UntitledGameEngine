@@ -13,7 +13,7 @@ void Click::Update(Rect bounds)
 
     if (clicking)
     {
-        if (!bounds.contains(mousePos))
+        if (!bounds.Contains(mousePos))
         {
             // Mouse moved out of bounds while clicking, element not clicked
             clicking = false;
@@ -32,11 +32,11 @@ void Click::Update(Rect bounds)
         {
             clicking = true;
         }
-        if (!Engine::GetMouseDown() && bounds.contains(mousePos))
+        if (!Engine::GetMouseDown() && bounds.Contains(mousePos))
         {
             hovering = true;
         }
-        if (!bounds.contains(mousePos))
+        if (!bounds.Contains(mousePos))
         {
             hovering = false;
         }
@@ -408,7 +408,7 @@ Click UIModule::Button(unsigned int img, Rect rect, float borderWidth, bool hasI
 
     if (buttonState->clicking)
     {
-        if (!rect.contains(mousePos))
+        if (!rect.Contains(mousePos))
         {
             // Mouse moved out of button while clicking, button not clicked
             buttonState->clicking = false;
@@ -427,11 +427,11 @@ Click UIModule::Button(unsigned int img, Rect rect, float borderWidth, bool hasI
         {
             buttonState->clicking = true;
         }
-        if (!Engine::GetMouseDown() && rect.contains(mousePos))
+        if (!Engine::GetMouseDown() && rect.Contains(mousePos))
         {
             buttonState->hovering = true;
         }
-        if (!rect.contains(mousePos))
+        if (!rect.Contains(mousePos))
         {
             buttonState->hovering = false;
         }

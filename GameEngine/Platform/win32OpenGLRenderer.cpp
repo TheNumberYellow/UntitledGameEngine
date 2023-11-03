@@ -758,15 +758,22 @@ namespace
 
                     glGetActiveUniform(m_ProgramId, i, MAX_SHADER_VARIABLE_NAME_SIZE, nullptr, &size, &typeEnum, name);
 
-                    std::string nameStr = name;
-                    m_UniformLocations[name] = i;
+                    GLint uniformLoc = glGetUniformLocation(m_ProgramId, name);
+
+                    m_UniformLocations[name] = uniformLoc;
+
+
+                    //if (i != testLoc)
+                    //{ 
+                    //    Engine::Error("What");
+                    //}
 
                     // ASSUMPTION: the order that textures are defined in shader code is the same as the order they're gotten in glGetActiveUniform
                     // This might not be true, so I look forward to a fun bug
                     if (typeEnum == GL_SAMPLER_2D || typeEnum == GL_SAMPLER_CUBE)
                     {
-                        m_SamplerLocations[nameStr] = texIndex;
-                        glUniform1i(i, texIndex++);
+                        m_SamplerLocations[name] = texIndex;
+                        glUniform1i(uniformLoc, texIndex++);
                     }
                 }
             }
@@ -1075,6 +1082,14 @@ Renderer::Renderer()
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glDepthFunc(GL_LEQUAL);
 
+
+    // Print out opengl version
+    GLint major;
+    GLint minor;
+    glGetIntegerv(GL_MAJOR_VERSION, &major);
+    glGetIntegerv(GL_MINOR_VERSION, &minor);
+    std::string debugStr = "OpenGL version: " + std::to_string(major) + "." + std::to_string(minor);
+    //Engine::Alert(debugStr);
 }
 
 Renderer::~Renderer()

@@ -92,6 +92,14 @@ void Engine::DEBUGPrint(std::string string)
     OutputDebugStringA((LPCSTR)((string + "\n").c_str()));
 }
 
+void Engine::Alert(std::string message)
+{
+    Engine::UnlockCursor();
+    Engine::ShowCursor();
+
+    MessageBoxA(NULL, message.c_str(), "Alert", MB_OK | MB_ICONINFORMATION | MB_TASKMODAL);
+}
+
 void Engine::Error(std::string errorMessage)
 {
     Engine::UnlockCursor();

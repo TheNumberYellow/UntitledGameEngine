@@ -22,14 +22,16 @@ struct Triangle
     Vec3f a, b, c;
 };
 
-//bool TriIntersectsAABB(Triangle t, AABB aabb)
-//{
-//
-//}
+bool Intersects(Triangle t, AABB aabb);
 
 struct OctreeNode
 {
-    const int MaxTriangles = 10;
+    OctreeNode() {}
+    OctreeNode(AABB InBounds) : Bounds(InBounds) {}
+    ~OctreeNode();
+
+    const int MaxTriangles = 25;
+    const int MaxDepth = 5;
 
     AABB Bounds;
     std::vector<Triangle> Triangles;
@@ -37,8 +39,8 @@ struct OctreeNode
     bool IsLeaf = true;
     OctreeNode* SubNodes[8];
 
-    void AddTriangle(Triangle t);
-    void AddLevel();
+    void AddTriangle(Triangle t, int tempDepth);
+    void AddLevel(int tempDepth);
 };
 
 struct RayCastHit
@@ -60,6 +62,8 @@ struct CollisionMesh
     std::vector<Vec3f> points;
     std::vector<ElementIndex> indices;
     AABB boundingBox;
+
+    OctreeNode* OctreeHead;
 };
 
 class CollisionModule
@@ -77,6 +81,8 @@ public:
     RayCastHit RayCast(Ray ray, const CollisionMesh& mesh, const Mat4x4f& meshTransform = Mat4x4f());
     RayCastHit RayCast(Ray ray, AABB aabb);
     RayCastHit RayCast(Ray ray, Plane plane);
+    RayCastHit RayCast(Ray ray, Triangle tri);
+    RayCastHit RayCast(Ray ray, OctreeNode* node, const Mat4x4f& tempTrans);
 
     static const RayCastHit* Closest(std::initializer_list<RayCastHit> hitList);
 
@@ -85,6 +91,8 @@ public:
 private:
     inline RayCastHit RayCastTri(Ray ray, Vec3f a, Vec3f b, Vec3f c);
 
+    // TODO: At this point the renderer is really just implementation details of the Graphics module;
+    // other modules shouldn't be interacting with it, move mesh mapping to Graphics module
     Renderer& m_Renderer;
 
     std::unordered_map<StaticMesh_ID, CollisionMesh> m_CollisionMeshMap;

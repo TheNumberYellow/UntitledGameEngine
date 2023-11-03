@@ -18,6 +18,7 @@ namespace Engine
     extern bool GetMouseDown(int button = 0);
 
     extern void DEBUGPrint(std::string string);
+    extern void Alert(std::string message);
     extern void Error(std::string errorMessage);
     extern void FatalError(std::string errorMessage);
 

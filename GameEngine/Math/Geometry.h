@@ -45,10 +45,20 @@ struct Rect
         this->size = size;
     }
 
-    bool contains(Vec2f point)
+    bool Contains(Vec2f point)
     {
         return point.x > location.x && point.y > location.y &&
             point.x < (location + size).x && point.y < (location + size).y;
+    }
+
+    bool Contains(Rect other)
+    {
+        return (Contains(other.location) && Contains(other.location + other.size));
+    }
+
+    bool Overlaps(Rect other)
+    {
+        return (Contains(other.location) || Contains(other.location + other.size));
     }
 
     // Expand the rect to include this point
@@ -96,6 +106,11 @@ struct AABB
 {
     AABB() {}
     AABB(Vec3f min, Vec3f max) { this->min = min; this->max = max; }
+
+    bool Contains(Vec3f p)
+    {
+        return p >= min && p <= max;
+    }
 
     Vec3f min;
     Vec3f max;
