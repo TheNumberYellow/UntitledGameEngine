@@ -164,7 +164,7 @@
     <Lib>
       <AdditionalLibraryDirectories>$(ProjectDir)lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <SubSystem>Windows</SubSystem>
-      <AdditionalDependencies>opengl32.lib;glew32sd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opengl32.lib;winmm.lib;glew32sd.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
     </Lib>
     <ProjectReference>
@@ -187,7 +187,7 @@
     <Lib>
       <AdditionalLibraryDirectories>$(ProjectDir)lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <SubSystem>Windows</SubSystem>
-      <AdditionalDependencies>opengl32.lib;glew32sd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opengl32.lib;winmm.lib;glew32sd.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
     </Lib>
     <ProjectReference>
@@ -211,7 +211,7 @@
     <Lib>
       <AdditionalLibraryDirectories>$(ProjectDir)lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <SubSystem>Windows</SubSystem>
-      <AdditionalDependencies>opengl32.lib;Ws2_32.lib;XInput9_1_0.lib;glew32sd.lib;freetype.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opengl32.lib;winmm.lib;Ws2_32.lib;XInput9_1_0.lib;glew32sd.lib;freetype.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
     </Lib>
     <ProjectReference>
@@ -235,7 +235,7 @@
     <Lib>
       <AdditionalLibraryDirectories>$(ProjectDir)lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <SubSystem>Windows</SubSystem>
-      <AdditionalDependencies>opengl32.lib;Ws2_32.lib;XInput9_1_0.lib;glew32sd.lib;freetype.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opengl32.lib;winmm.lib;Ws2_32.lib;XInput9_1_0.lib;glew32sd.lib;freetype.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
     </Lib>
     <ProjectReference>
@@ -262,7 +262,7 @@
     <Lib>
       <AdditionalLibraryDirectories>$(ProjectDir)lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <SubSystem>Windows</SubSystem>
-      <AdditionalDependencies>opengl32.lib;glew32s.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opengl32.lib;winmm.lib;glew32s.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
     </Lib>
     <ProjectReference>
@@ -289,7 +289,7 @@
     <Lib>
       <AdditionalLibraryDirectories>$(ProjectDir)lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <SubSystem>Windows</SubSystem>
-      <AdditionalDependencies>opengl32.lib;glew32s.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opengl32.lib;winmm.lib;glew32s.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
     </Lib>
     <ProjectReference>
@@ -317,7 +317,7 @@
     <Lib>
       <AdditionalLibraryDirectories>$(ProjectDir)lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <SubSystem>Windows</SubSystem>
-      <AdditionalDependencies>opengl32.lib;Ws2_32.lib;XInput9_1_0.lib;glew32s.lib;freetype.lib;Ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opengl32.lib;winmm.lib;Ws2_32.lib;XInput9_1_0.lib;glew32s.lib;freetype.lib;Ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
     </Lib>
     <ProjectReference>
@@ -345,7 +345,7 @@
     <Lib>
       <AdditionalLibraryDirectories>$(ProjectDir)lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <SubSystem>Windows</SubSystem>
-      <AdditionalDependencies>opengl32.lib;Ws2_32.lib;XInput9_1_0.lib;glew32s.lib;freetype.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opengl32.lib;winmm.lib;Ws2_32.lib;XInput9_1_0.lib;glew32s.lib;freetype.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
     </Lib>
     <ProjectReference>
@@ -354,6 +354,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Asset\AssetRegistry.cpp" />
+    <ClCompile Include="Modules\AudioModule.cpp" />
     <ClCompile Include="State\BaseState.cpp" />
     <ClCompile Include="Behaviour\Behaviour.cpp" />
     <ClCompile Include="Camera.cpp" />
@@ -385,12 +386,14 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='OpenGLRelease|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="Scene.cpp" />
+    <ClCompile Include="State\StateMachine.cpp" />
     <ClCompile Include="StringUtils.cpp" />
     <ClCompile Include="Platform\win32Engine.cpp" />
     <ClCompile Include="Modules\TextModule.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Asset\AssetRegistry.h" />
+    <ClInclude Include="Modules\AudioModule.h" />
     <ClInclude Include="State\BaseState.h" />
     <ClInclude Include="Behaviour\Behaviour.h" />
     <ClInclude Include="Camera.h" />
@@ -419,6 +422,7 @@
     <ClInclude Include="Platform\NetworkPlatform.h" />
     <ClInclude Include="Platform\RendererPlatform.h" />
     <ClInclude Include="Scene.h" />
+    <ClInclude Include="State\StateMachine.h" />
     <ClInclude Include="StringUtils.h" />
     <ClInclude Include="Modules\TextModule.h" />
     <ClInclude Include="Utils\FilePath.h" />

@@ -17,25 +17,27 @@ void RCCar::Update(ModuleManager& Modules, Scene* Scene, float DeltaTime)
     InputModule* Input = Modules.GetInput();
     CollisionModule* Collisions = Modules.GetCollision();
 
+    const float RotSpeed = 4.0f;
+
     if (Input->GetKeyState(Key::Left))
     {
-        AimingDirection = Math::rotate(AimingDirection, 0.02f, Vec3f(0.0f, 0.0f, 1.0f));
+        AimingDirection = Math::rotate(AimingDirection, RotSpeed * DeltaTime, Vec3f(0.0f, 0.0f, 1.0f));
         //m_Model->GetTransform().Rotate(Quaternion(Vec3f(0.0f, 0.0f, 1.0f), 0.02f));
     }
     if (Input->GetKeyState(Key::Right))
     {
-        AimingDirection = Math::rotate(AimingDirection, -0.02f, Vec3f(0.0f, 0.0f, 1.0f));
+        AimingDirection = Math::rotate(AimingDirection, -RotSpeed * DeltaTime, Vec3f(0.0f, 0.0f, 1.0f));
         //m_Model->GetTransform().Rotate(Quaternion(Vec3f(0.0f, 0.0f, 1.0f), -0.02f));
     }
 
     AimingDirection = Math::normalize(AimingDirection);
-    const float Speed = 0.1f;
+    const float Speed = 10.0f;
 
     Vec3f Displacement = Vec3f(0.0f, 0.0f, 0.0f);
 
     if (Input->GetKeyState(Key::Up))
     {
-        Displacement += AimingDirection * Speed;
+        Displacement += AimingDirection * Speed * DeltaTime;
     }
 
     GraphicsModule* Graphics = Modules.GetGraphics();
@@ -57,6 +59,12 @@ void RCCar::Update(ModuleManager& Modules, Scene* Scene, float DeltaTime)
     SceneRayCastHit FrontRightTireHit = Scene->RayCast(Ray(FrontRightTire + Vec3f(0.0f, 0.0f, 5.0f), Vec3f(0.0f, 0.0f, -1.0f)), *Collisions, IgnoredModels);
     SceneRayCastHit BackLeftTireHit = Scene->RayCast(Ray(BackLeftTire + Vec3f(0.0f, 0.0f, 5.0f), Vec3f(0.0f, 0.0f, -1.0f)), *Collisions, IgnoredModels);
     SceneRayCastHit BackRightTireHit = Scene->RayCast(Ray(BackRightTire + Vec3f(0.0f, 0.0f, 5.0f), Vec3f(0.0f, 0.0f, -1.0f)), *Collisions, IgnoredModels);
+
+    //for (int i = 0; i < 100; i++)
+    //{
+    //    SceneRayCastHit TestHit = Scene->RayCast(Ray(m_Model->GetTransform().GetPosition() + Vec3f(0.0f, 0.0f, 5.0f), Vec3f(0.0f, 0.0f, -1.0f)), *Collisions, IgnoredModels);
+    //    Engine::DEBUGPrint(std::to_string(TestHit.rayCastHit.hitPoint.x));
+    //}
 
     Vec3f NewFrontLeftTirePos = FrontLeftTire;
     Vec3f NewFrontRightTirePos = FrontRightTire;

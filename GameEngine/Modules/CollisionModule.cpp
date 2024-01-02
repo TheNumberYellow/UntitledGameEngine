@@ -2,9 +2,6 @@
 
 CollisionModule* CollisionModule::s_Instance = nullptr;
 
-static bool OctreeEnabled = true;
-static bool OctreeDebugDrawEnabled = false;
-
 OctreeNode::~OctreeNode()
 {
     if (IsLeaf)
@@ -15,6 +12,14 @@ OctreeNode::~OctreeNode()
     for (int i = 0; i < 8; i++)
     {
         delete SubNodes[i];
+    }
+}
+
+CollisionMesh::~CollisionMesh()
+{
+    if (OctreeHead)
+    {
+        delete OctreeHead;
     }
 }
 
@@ -108,7 +113,7 @@ CollisionModule::~CollisionModule()
 
 }
 
-CollisionMesh& CollisionModule::GetCollisionMeshFromMesh(StaticMesh mesh)
+CollisionMesh* CollisionModule::GetCollisionMeshFromMesh(StaticMesh mesh)
 {
     StaticMesh_ID Id = mesh.Id;
 
@@ -119,9 +124,9 @@ CollisionMesh& CollisionModule::GetCollisionMeshFromMesh(StaticMesh mesh)
     return m_CollisionMeshMap[Id];
 }
 
-CollisionMesh& CollisionModule::GenerateCollisionMeshFromMesh(StaticMesh mesh)
+CollisionMesh* CollisionModule::GenerateCollisionMeshFromMesh(StaticMesh mesh)
 {
-    CollisionMesh collMesh;
+    CollisionMesh* collMesh = new CollisionMesh();
 
     std::vector<Vertex*> verts = m_Renderer.MapMeshVertices(mesh.Id);
     std::vector<ElementIndex*> indices = m_Renderer.MapMeshElements(mesh.Id);
@@ -149,28 +154,28 @@ CollisionMesh& CollisionModule::GenerateCollisionMeshFromMesh(StaticMesh mesh)
         if (verts[i]->position.y > boundingBox.max.y) boundingBox.max.y = verts[i]->position.y;
         if (verts[i]->position.z > boundingBox.max.z) boundingBox.max.z = verts[i]->position.z;
 
-        collMesh.points.push_back(verts[i]->position);
+        collMesh->points.push_back(verts[i]->position);
     }
     for (int i = 0; i < indices.size(); ++i)
     {
-        collMesh.indices.push_back(*indices[i]);
+        collMesh->indices.push_back(*indices[i]);
     }
 
-    collMesh.boundingBox = boundingBox;
+    collMesh->boundingBox = boundingBox;
 
     m_Renderer.UnmapMeshVertices(mesh.Id);
     m_Renderer.UnmapMeshElements(mesh.Id);
 
-    collMesh.OctreeHead = new OctreeNode(boundingBox);
+    collMesh->OctreeHead = new OctreeNode(boundingBox);
     
-    for (int i = 0; i < collMesh.indices.size(); i += 3)
+    for (int i = 0; i < collMesh->indices.size(); i += 3)
     {
         Triangle tri;
-        tri.a = collMesh.points[collMesh.indices[i]];
-        tri.b = collMesh.points[collMesh.indices[i + 1]];
-        tri.c = collMesh.points[collMesh.indices[i + 2]];
+        tri.a = collMesh->points[collMesh->indices[i]];
+        tri.b = collMesh->points[collMesh->indices[i + 1]];
+        tri.c = collMesh->points[collMesh->indices[i + 2]];
 
-        collMesh.OctreeHead->AddTriangle(tri, 0);
+        collMesh->OctreeHead->AddTriangle(tri, 0);
     }
 
     StaticMesh_ID Id = mesh.Id;
@@ -182,6 +187,12 @@ CollisionMesh& CollisionModule::GenerateCollisionMeshFromMesh(StaticMesh mesh)
 
 void CollisionModule::InvalidateMeshCollisionData(StaticMesh_ID mesh)
 {
+    //CollisionMesh* colMesh = GetCollisionMeshFromMesh(mesh);
+    if (m_CollisionMeshMap.find(mesh) != m_CollisionMeshMap.end())
+    {
+        CollisionMesh* colMesh = m_CollisionMeshMap[mesh];
+        delete colMesh;
+    }
     m_CollisionMeshMap.erase(mesh);
 }
 

@@ -514,6 +514,7 @@ int WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ L
     InputModule Input;
     UIModule UI(Graphics, Text, Input, renderer);
     NetworkModule Network(networkInterface);
+    AudioModule Audio;
 
     Modules.SetGraphics(&Graphics);
     Modules.SetCollision(&Collisions);

@@ -6,6 +6,7 @@
 #include "UIModule.h"
 #include "InputModule.h"
 #include "NetworkModule.h"
+#include "AudioModule.h"
 
 class ModuleManager
 {

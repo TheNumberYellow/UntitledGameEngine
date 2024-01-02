@@ -59,6 +59,9 @@ struct RayCastHit
 
 struct CollisionMesh
 {
+    CollisionMesh() : OctreeHead(nullptr) {}
+    ~CollisionMesh();
+
     std::vector<Vec3f> points;
     std::vector<ElementIndex> indices;
     AABB boundingBox;
@@ -72,8 +75,8 @@ public:
     CollisionModule(Renderer& renderer);
     ~CollisionModule();
 
-    CollisionMesh& GetCollisionMeshFromMesh(StaticMesh mesh);
-    CollisionMesh& GenerateCollisionMeshFromMesh(StaticMesh mesh);
+    CollisionMesh* GetCollisionMeshFromMesh(StaticMesh mesh);
+    CollisionMesh* GenerateCollisionMeshFromMesh(StaticMesh mesh);
 
     void InvalidateMeshCollisionData(StaticMesh_ID mesh);
 
@@ -95,7 +98,10 @@ private:
     // other modules shouldn't be interacting with it, move mesh mapping to Graphics module
     Renderer& m_Renderer;
 
-    std::unordered_map<StaticMesh_ID, CollisionMesh> m_CollisionMeshMap;
+    std::unordered_map<StaticMesh_ID, CollisionMesh*> m_CollisionMeshMap;
+
+    bool OctreeEnabled = true;
+    bool OctreeDebugDrawEnabled = false;
 
     static CollisionModule* s_Instance;
 };

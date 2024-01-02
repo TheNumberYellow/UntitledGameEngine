@@ -84,6 +84,8 @@ public:
     void Save(std::string FileName);
 
     void Load(std::string FileName);
+
+    void Clear();
 private:
     bool IsIgnored(Model* model, std::vector<Model*> ignoredModels);
 

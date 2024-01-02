@@ -11,31 +11,35 @@
 #include <iostream>
 #include <filesystem>
 
-void DrawOctreeNode(OctreeNode* Node, Transform& Trans, GraphicsModule* Graphics)
+struct BrushEdge;
+
+struct BrushVert
 {
-    AABB NodeBounds = Node->Bounds;
-    //Graphics->DebugDrawAABB(NodeBounds, Vec3f(1.0f, 1.0f, 0.23f), Trans.GetTransformMatrix());
+    Transform m_Transform;
+    BrushEdge* m_Edge;
+};
 
-    //if (Node->IsLeaf)
-    //{
-    //    for (auto& Tri : Node->Triangles)
-    //    {
-    //        Triangle TransformedTri = Tri;
-    //        TransformedTri.a = TransformedTri.a * Trans.GetTransformMatrix();
-    //        TransformedTri.b = TransformedTri.b * Trans.GetTransformMatrix();
-    //        TransformedTri.c = TransformedTri.c * Trans.GetTransformMatrix();
+struct BrushEdge
+{
+};
 
-    //        Graphics->DebugDrawLine(TransformedTri.a, TransformedTri.b, Vec3f(0.5f, 0.5f, 0.9f));
-    //        Graphics->DebugDrawLine(TransformedTri.b, TransformedTri.c, Vec3f(0.5f, 0.5f, 0.9f));
-    //        Graphics->DebugDrawLine(TransformedTri.c, TransformedTri.a, Vec3f(0.5f, 0.5f, 0.9f));
-    //    }
-    //    return;
-    //}
+struct BrushFace
+{
+    BrushEdge* m_Edge;
+};
 
-    //for (int i = 0; i < 8; i++)
-    //{
-    //    DrawOctreeNode(Node->SubNodes[i], Trans, Graphics);
-    //}
+struct Brush
+{
+    std::vector<BrushFace> m_Faces;
+
+};
+
+void DebugDrawBrush(Brush& brush, GraphicsModule& graphics)
+{
+    for (BrushFace& face : brush.m_Faces)
+    {
+
+    }
 }
 
 static bool FirstPersonPlayerEnabled = false;
@@ -116,8 +120,6 @@ Framebuffer_ID viewportBuffer;
 Framebuffer_ID widgetViewportBuffer;
 
 GBuffer gBuffer;
-
-StaticMesh quadMesh;
 
 bool holdingAlt = false;
 bool cursorLocked = false;
@@ -955,7 +957,7 @@ void UpdateModelTranslate(InputModule& input, CollisionModule& collisions, Graph
     {
         if (input.GetMouseState().IsButtonDown(Mouse::LMB))
         {
-            CollisionMesh& arrowToolCollMesh = collisions.GetCollisionMeshFromMesh(xAxisArrow.m_TexturedMeshes[0].m_Mesh);
+            CollisionMesh& arrowToolCollMesh = *collisions.GetCollisionMeshFromMesh(xAxisArrow.m_TexturedMeshes[0].m_Mesh);
 
             Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
             Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
@@ -1098,7 +1100,7 @@ void UpdateModelRotate(InputModule& input, CollisionModule& collisions, Graphics
     {
         if (input.GetMouseState().IsButtonDown(Mouse::LMB))
         {
-            CollisionMesh& arrowToolCollMesh = collisions.GetCollisionMeshFromMesh(xAxisRing.m_TexturedMeshes[0].m_Mesh);
+            CollisionMesh& arrowToolCollMesh = *collisions.GetCollisionMeshFromMesh(xAxisRing.m_TexturedMeshes[0].m_Mesh);
 
             Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
             Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
@@ -1259,7 +1261,7 @@ void UpdateModelScale(InputModule& input, CollisionModule& collisions, GraphicsM
     {
         if (input.GetMouseState().IsButtonDown(Mouse::LMB))
         {
-            CollisionMesh& scaleToolCollMesh = collisions.GetCollisionMeshFromMesh(xScaleWidget.m_TexturedMeshes[0].m_Mesh);
+            CollisionMesh& scaleToolCollMesh = *collisions.GetCollisionMeshFromMesh(xScaleWidget.m_TexturedMeshes[0].m_Mesh);
             
             Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
             Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
@@ -1297,6 +1299,11 @@ void UpdateModelScale(InputModule& input, CollisionModule& collisions, GraphicsM
             selectedModelPtr = finalHit.hitModel;
         }
     }
+}
+
+void UpdateVertexEdit(InputModule& input, CollisionModule& collisions, GraphicsModule& graphics)
+{
+
 }
 
 void UpdateSculptTool(InputModule& input, CollisionModule& collisions, GraphicsModule& graphics, double deltaTime)
@@ -1556,6 +1563,7 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
         UpdateModelTranslate(input, collisions, graphics);
         UpdateModelRotate(input, collisions, graphics);
         UpdateModelScale(input, collisions, graphics);
+        UpdateVertexEdit(input, collisions, graphics);
         UpdateSculptTool(input, collisions, graphics, deltaTime);
         UpdateTexturePlace(input, collisions, graphics);
         UpdateBehaviourPlace(input, collisions);
@@ -1604,11 +1612,11 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
 
         if (selectedTransformPtr)
         {
-            CollisionMesh& ColMesh = collisions.GetCollisionMeshFromMesh(selectedModelPtr->m_TexturedMeshes[0].m_Mesh);
+            CollisionMesh& ColMesh = *collisions.GetCollisionMeshFromMesh(selectedModelPtr->m_TexturedMeshes[0].m_Mesh);
 
             OctreeNode* CurNode = ColMesh.OctreeHead;
 
-            DrawOctreeNode(CurNode, selectedModelPtr->GetTransform(), &graphics);
+            //DrawOctreeNode(CurNode, selectedModelPtr->GetTransform(), &graphics);
 
             //AABB aabb = collisions.GetCollisionMeshFromMesh(selectedModelPtr->m_TexturedMeshes[0].m_Mesh).boundingBox;
             //graphics.DebugDrawAABB(aabb, Vec3f(0.6f, 0.95f, 0.65f), selectedModelPtr->GetTransform().GetTransformMatrix());
@@ -1730,13 +1738,19 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
             player.velocity = Vec3f(0.0f, 0.0f, 0.0f);
             player.position = cam.GetPosition();
             runtimeScene = Scene(scene);
+            
+            Resize(modules, Engine::GetClientAreaSize());
         }
 
         if (ui.ImgButton(cameraButtonTexture, Rect(Vec2f(40.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f))
         {
             
         }
-        if (ui.TextButton("Open", Rect(Vec2f(80.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f))
+        if (ui.TextButton("New", Rect(Vec2f(80.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f))
+        {
+            scene.Clear();
+        }
+        if (ui.TextButton("Open", Rect(Vec2f(120.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f))
         {
             std::string FileName;
             if (Engine::FileOpenDialog(FileName))
@@ -1745,7 +1759,7 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
                 scene.Load(FileName);
             }
         }
-        if (ui.TextButton("Save", Rect(Vec2f(120.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f))
+        if (ui.TextButton("Save", Rect(Vec2f(160.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f))
         {
             std::string FileName;
             if (Engine::FileSaveDialog(FileName))
@@ -1755,7 +1769,7 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
             }
         }
 
-        if (ui.TextButton("Grid", Rect(Vec2f(160.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f))
+        if (ui.TextButton("Grid", Rect(Vec2f(200.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f))
         {
             gridEnabled = !gridEnabled;
         }
@@ -2141,6 +2155,12 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
         break;
     }
 
+    if (input.GetKeyState(Key::Space).justReleased)
+    {
+        //AudioModule* Audio = AudioModule::Get();
+        //Audio->PlayAsyncSound("");
+    }
+
     text.DrawText(modeString, &testFont, Vec2f(100.0f, 40.0f), Vec3f(0.0f, 0.0f, 0.0f));
 
     // END DRAW
@@ -2157,7 +2177,10 @@ void UpdateGame(ModuleManager& modules, double deltaTime)
 
     if (input.IsKeyDown(Key::Escape))
     {
+        // TODO(Fraser): This is where I might do something with the runtime scene (right now I'm doing nothing and recreating it whenever I enter game mode)
+
         state = State::EDITOR;
+        Resize(modules, Engine::GetClientAreaSize());
     }
 
     if (input.IsKeyDown(Key::Alt))
@@ -2320,15 +2343,6 @@ void UpdateGame(ModuleManager& modules, double deltaTime)
 
     static Vec3f modelSpeed = Vec3f(0.0f, 0.0f, 0.0f);
 
-    //if (input.GetMouseState().IsButtonDown(Mouse::LMB))
-    //{
-    //    SceneRayCastHit modelHit = scene.RayCast(Ray(cam.GetPosition(), cam.GetDirection()), collisions);
-    //    if (modelHit.rayCastHit.hit)
-    //    {
-    //        droppingModel = modelHit.hitModel;
-    //        modelSpeed = Vec3f(0.0f, 0.0f, 0.0f);
-    //    }
-    //}
     if (droppingModel)
     {
         modelSpeed.z += -0.005f;
@@ -2429,7 +2443,7 @@ void Initialize(ModuleManager& modules)
     scaleToolTexture = *Registry->LoadTexture("images/scaleTool.png");
 
     vertexToolTexture = *Registry->LoadTexture("images/vertexTool.png");
-    sculptToolTexture = *Registry->LoadTexture("images/vertexTool.png");
+    sculptToolTexture = *Registry->LoadTexture("images/sculptTool.png");
     lightToolTexture = *Registry->LoadTexture("images/lightTool.png");
 
     Vec2i screenSizeI = Engine::GetClientAreaSize();
@@ -2451,23 +2465,6 @@ void Initialize(ModuleManager& modules)
     widgetViewportBuffer = graphics.CreateFBuffer(Vec2i(viewportRect.size), FBufferFormat::COLOUR);
 
     gBuffer = graphics.CreateGBuffer(Vec2i(viewportRect.size));
-
-    std::vector<float> quadVertices =
-    {
-        -1.0f, -1.0f,       0.0f, 0.0f,
-        -1.0f, -0.6f,       0.0f, 1.0f,
-        -0.6f, -0.6f,       1.0f, 1.0f,
-        -0.6f, -1.0f,       1.0f, 0.0f,
-    };
-
-    std::vector<ElementIndex> quadIndices =
-    {
-        0, 1, 2, 0, 2, 3
-    };
-
-    StaticMesh_ID quadMeshId = graphics.m_Renderer.LoadMesh(VertexBufferFormat({ VertAttribute::Vec2f, VertAttribute::Vec2f }), quadVertices, quadIndices);
-    quadMesh.Id = quadMeshId;
-    quadMesh.LoadedFromFile = false;
 
     graphics.InitializeDebugDraw(viewportBuffer);
 

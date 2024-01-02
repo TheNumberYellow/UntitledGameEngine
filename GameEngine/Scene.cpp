@@ -300,7 +300,7 @@ SceneRayCastHit Scene::RayCast(Ray ray, CollisionModule& collision, std::vector<
         {
             continue;
         }
-        CollisionMesh& colMesh = collision.GetCollisionMeshFromMesh(it.second->m_TexturedMeshes[0].m_Mesh);
+        CollisionMesh& colMesh = *collision.GetCollisionMeshFromMesh(it.second->m_TexturedMeshes[0].m_Mesh);
 
         finalHit = Closer(finalHit, SceneRayCastHit{ collision.RayCast(ray, colMesh, it.second->GetTransform()), it.second });
     }
@@ -311,7 +311,7 @@ SceneRayCastHit Scene::RayCast(Ray ray, CollisionModule& collision, std::vector<
         {
             continue;
         }
-        CollisionMesh& colMesh = collision.GetCollisionMeshFromMesh(it->m_TexturedMeshes[0].m_Mesh);
+        CollisionMesh& colMesh = *collision.GetCollisionMeshFromMesh(it->m_TexturedMeshes[0].m_Mesh);
         
         finalHit = Closer(finalHit, SceneRayCastHit{ collision.RayCast(ray, colMesh, it->GetTransform()), it });
     }
@@ -402,69 +402,69 @@ void Scene::Save(std::string FileName)
 
     File << "Entities:" << std::endl;
 
-for (auto& it : m_UntrackedModels)
-{
-    int64_t StaticMeshIndex = 0;
-    int64_t TextureIndex = 0;
-
-    bool GeneratedMesh = false;
-
-    auto MeshIt = std::find(StaticMeshVec.begin(), StaticMeshVec.end(), it->m_TexturedMeshes[0].m_Mesh);
-    if (MeshIt != StaticMeshVec.end())
+    for (auto& it : m_UntrackedModels)
     {
-        StaticMeshIndex = MeshIt - StaticMeshVec.begin();
+        int64_t StaticMeshIndex = 0;
+        int64_t TextureIndex = 0;
+
+        bool GeneratedMesh = false;
+
+        auto MeshIt = std::find(StaticMeshVec.begin(), StaticMeshVec.end(), it->m_TexturedMeshes[0].m_Mesh);
+        if (MeshIt != StaticMeshVec.end())
+        {
+            StaticMeshIndex = MeshIt - StaticMeshVec.begin();
+        }
+        else
+        {
+            GeneratedMesh = true;
+            //Engine::FatalError("Could not find mesh while saving scene (this should never happen)");
+        }
+
+        auto MaterialIt = std::find(MaterialVec.begin(), MaterialVec.end(), it->m_TexturedMeshes[0].m_Material);
+        if (MaterialIt != MaterialVec.end())
+        {
+            TextureIndex = MaterialIt - MaterialVec.begin();
+        }
+        else
+        {
+            Engine::FatalError("Could not find texture while saving scene (this should never happen)");
+        }
+
+        File << TextureIndex << Separator;
+
+        if (!GeneratedMesh)
+        {
+            File << StaticMeshIndex << Separator;
+        }
+        else
+        {
+            File << "B" << Separator;
+            // For now, all generated meshes are boxes, so store the AABB
+            AABB BoxAABB = m_Collisions->GetCollisionMeshFromMesh(it->m_TexturedMeshes[0].m_Mesh)->boundingBox;
+
+            File << BoxAABB.min.x << Separator << BoxAABB.min.y << Separator << BoxAABB.min.z << Separator;
+            File << BoxAABB.max.x << Separator << BoxAABB.max.y << Separator << BoxAABB.max.z << Separator;
+        }
+
+        Mat4x4f TransMat = it->GetTransform().GetTransformMatrix();
+
+        for (int i = 0; i < 4; ++i)
+        {
+            File << TransMat[i].x << Separator << TransMat[i].y << Separator << TransMat[i].z << Separator << TransMat[i].w << Separator;
+        }
+
+        std::vector<std::string> BehaviourNames = BehaviourRegistry::Get()->GetBehavioursAttachedToEntity(it);
+
+        for (std::string BehaviourName : BehaviourNames)
+        {
+            File << BehaviourName << Separator;
+        }
+
+        File << std::endl;
+
     }
-    else
-    {
-        GeneratedMesh = true;
-        //Engine::FatalError("Could not find mesh while saving scene (this should never happen)");
-    }
 
-    auto MaterialIt = std::find(MaterialVec.begin(), MaterialVec.end(), it->m_TexturedMeshes[0].m_Material);
-    if (MaterialIt != MaterialVec.end())
-    {
-        TextureIndex = MaterialIt - MaterialVec.begin();
-    }
-    else
-    {
-        Engine::FatalError("Could not find texture while saving scene (this should never happen)");
-    }
-
-    File << TextureIndex << Separator;
-
-    if (!GeneratedMesh)
-    {
-        File << StaticMeshIndex << Separator;
-    }
-    else
-    {
-        File << "B" << Separator;
-        // For now, all generated meshes are boxes, so store the AABB
-        AABB BoxAABB = m_Collisions->GetCollisionMeshFromMesh(it->m_TexturedMeshes[0].m_Mesh).boundingBox;
-
-        File << BoxAABB.min.x << Separator << BoxAABB.min.y << Separator << BoxAABB.min.z << Separator;
-        File << BoxAABB.max.x << Separator << BoxAABB.max.y << Separator << BoxAABB.max.z << Separator;
-    }
-
-    Mat4x4f TransMat = it->GetTransform().GetTransformMatrix();
-
-    for (int i = 0; i < 4; ++i)
-    {
-        File << TransMat[i].x << Separator << TransMat[i].y << Separator << TransMat[i].z << Separator << TransMat[i].w << Separator;
-    }
-
-    std::vector<std::string> BehaviourNames = BehaviourRegistry::Get()->GetBehavioursAttachedToEntity(it);
-
-    for (std::string BehaviourName : BehaviourNames)
-    {
-        File << BehaviourName << Separator;
-    }
-
-    File << std::endl;
-
-}
-
-File.close();
+    File.close();
 
 }
 
@@ -479,11 +479,7 @@ void Scene::Load(std::string FileName)
         return;
     }
 
-    m_Models.clear();
-    m_UntrackedModels.clear();
-    m_PointLights.clear();
-
-    BehaviourRegistry::Get()->ClearAllAttachedBehaviours();
+    Clear();
 
     std::vector<Material> SceneMaterials;
     std::vector<StaticMesh> SceneStaticMeshes;
@@ -593,6 +589,15 @@ void Scene::Load(std::string FileName)
         }
     }
 
+}
+
+void Scene::Clear()
+{
+    m_Models.clear();
+    m_UntrackedModels.clear();
+    m_PointLights.clear();
+
+    BehaviourRegistry::Get()->ClearAllAttachedBehaviours();
 }
 
 bool Scene::IsIgnored(Model* model, std::vector<Model*> ignoredModels)
