@@ -341,3 +341,4 @@ healthchecksdb
 
 # Ignore model files
 !Editor/models/*
+/TestOut
