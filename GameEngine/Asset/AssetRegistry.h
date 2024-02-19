@@ -10,7 +10,7 @@ class Asset
 {
 public:
     FilePath Path;
-    bool LoadedFromFile;
+    bool LoadedFromFile = false;
 };
 
 class Texture : public Asset

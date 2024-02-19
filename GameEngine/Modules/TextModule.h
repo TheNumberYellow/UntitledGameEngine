@@ -23,7 +23,6 @@ enum class Anchor
     BOTTOM_RIGHT
 };
 
-
 struct CharacterInfo {
     Vec2i Advance;          // Offset to advance to next glyph
     Vec2i Size;             // Size of glyph

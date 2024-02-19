@@ -48,14 +48,14 @@ Behaviour* BehaviourRegistry::AttachNewBehaviour(std::string BehaviourName, Mode
     return nullptr;
 }
 
-void BehaviourRegistry::UpdateModelBehaviours(Model* Model, ModuleManager& Modules, Scene* Scene, float DeltaTime)
+void BehaviourRegistry::UpdateModelBehaviours(Model* Model, Scene* Scene, float DeltaTime)
 {
     auto it = m_AttachedBehaviours.find(Model);
     if (it != m_AttachedBehaviours.end())
     {
         for (auto& Behaviour : it->second)
         {
-            Behaviour->Update(Modules, Scene, DeltaTime);
+            Behaviour->Update(Scene, DeltaTime);
         }
     }
 }

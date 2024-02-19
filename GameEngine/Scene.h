@@ -70,9 +70,9 @@ public:
     Camera* GetCamera();
     void SetCamera(Camera* camera);
 
-    void UpdateBehaviours(ModuleManager& Modules, float DeltaTime);
+    void UpdateBehaviours(float DeltaTime);
 
-    void Draw(GraphicsModule& graphics, Framebuffer_ID buffer, GBuffer gBuffer);
+    void Draw(GraphicsModule& graphics, GBuffer gBuffer);
     void EditorDraw(GraphicsModule& graphics, Framebuffer_ID buffer);
 
     void SetDirectionalLight(DirectionalLight light);

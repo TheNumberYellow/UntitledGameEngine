@@ -2,7 +2,7 @@
 
 REGISTER_BEHAVIOUR(TopDownBullet);
 
-void TopDownBullet::Update(ModuleManager& Modules, Scene* Scene, float DeltaTime)
+void TopDownBullet::Update(Scene* Scene, float DeltaTime)
 {
     m_Model->GetTransform().Move(DeltaTime * BulletSpeed * Direction);
 

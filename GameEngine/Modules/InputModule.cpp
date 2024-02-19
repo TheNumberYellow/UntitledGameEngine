@@ -55,6 +55,7 @@ void InputModule::SetMouseLocked(bool locked)
 
 void InputModule::SetMouseCenter(Vec2i newCenter)
 {
+	Engine::SetCursorCenter(newCenter);
 	m_MouseCenter = newCenter;
 }
 

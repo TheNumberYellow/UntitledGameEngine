@@ -2,7 +2,7 @@
 
 REGISTER_BEHAVIOUR(RCCar);
 
-void RCCar::Update(ModuleManager& Modules, Scene* Scene, float DeltaTime)
+void RCCar::Update(Scene* Scene, float DeltaTime)
 {
     if (!Started)
     {
@@ -14,8 +14,8 @@ void RCCar::Update(ModuleManager& Modules, Scene* Scene, float DeltaTime)
         BackRightTire =     m_Model->GetTransform().GetPosition() + (Vec3f(-1.15f, -1.07f, 0.0f) * AimRot);
     }
 
-    InputModule* Input = Modules.GetInput();
-    CollisionModule* Collisions = Modules.GetCollision();
+    InputModule* Input = InputModule::Get();
+    CollisionModule* Collisions = CollisionModule::Get();
 
     const float RotSpeed = 4.0f;
 
@@ -40,7 +40,7 @@ void RCCar::Update(ModuleManager& Modules, Scene* Scene, float DeltaTime)
         Displacement += AimingDirection * Speed * DeltaTime;
     }
 
-    GraphicsModule* Graphics = Modules.GetGraphics();
+    GraphicsModule* Graphics = GraphicsModule::Get();
 
     m_Model->GetTransform().Move(Displacement);
 

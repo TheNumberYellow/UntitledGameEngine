@@ -209,16 +209,16 @@ void Scene::SetCamera(Camera* camera)
     m_Cameras[0] = camera;
 }
 
-void Scene::UpdateBehaviours(ModuleManager& Modules, float DeltaTime)
+void Scene::UpdateBehaviours(float DeltaTime)
 {
     BehaviourRegistry* Registry = BehaviourRegistry::Get();
     for (auto& it : m_UntrackedModels)
     {
-        Registry->UpdateModelBehaviours(it, Modules, this, DeltaTime);
+        Registry->UpdateModelBehaviours(it, this, DeltaTime);
     }
 }
 
-void Scene::Draw(GraphicsModule& graphics, Framebuffer_ID buffer, GBuffer gBuffer)
+void Scene::Draw(GraphicsModule& graphics, GBuffer gBuffer)
 {
 
     for (auto& it : m_Models)
@@ -277,7 +277,6 @@ void Scene::Draw(GraphicsModule& graphics, Framebuffer_ID buffer, GBuffer gBuffe
 
     graphics.Render(gBuffer, *(m_Cameras[0]), m_DirLight);
 
-    //graphics.Render(buffer, *(m_Cameras[0]), m_DirLight);
 }
 
 void Scene::EditorDraw(GraphicsModule& graphics, Framebuffer_ID buffer)
@@ -335,7 +334,7 @@ Model* Scene::MenuListEntities(UIModule& ui, Font& font)
         rect.location = cursor;
         rect.size = Vec2f(160.0f, 20.0f);
 
-        if (ui.TextButton(modelDesc, rect, 5.0f))
+        if (ui.TextButton(modelDesc, rect.size, 5.0f))
         {
             result = m_UntrackedModels[i];
         }

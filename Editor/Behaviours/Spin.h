@@ -8,6 +8,6 @@ public:
 
     Spin();
 
-    virtual void Update(ModuleManager& Modules, Scene* Scene, float DeltaTime);
+    virtual void Update(Scene* Scene, float DeltaTime);
 };
 

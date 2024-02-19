@@ -1,37 +1,36 @@
 Textures:
-textures/debugTexture.png textures/debugTexture.norm.png textures/default_roughness.png textures/default_metallic.png textures/default_ao.png
-images/white.png textures/default_norm.png textures/default_roughness.png textures/default_metallic.png textures/default_ao.png
 textures/AK_103.png textures/AK_103.norm.png textures/AK_103.rough.png textures/AK_103.metal.png textures/default_ao.png
-textures/debugTexture.png textures/debugTexture.norm.png textures/default_roughness.png textures/default_metallic.png textures/default_ao.png
+textures/bamboo-wood-semigloss.png textures/bamboo-wood-semigloss.norm.png textures/bamboo-wood-semigloss.rough.png textures/bamboo-wood-semigloss.metal.png textures/bamboo-wood-semigloss.ao.png
+images/white.png textures/default_norm.png textures/default_roughness.png textures/default_metallic.png textures/default_ao.png
 textures/rusted-grate.png textures/rusted-grate.norm.png textures/rusted-grate.rough.png textures/rusted-grate.metal.png textures/rusted-grate.ao.png
 textures/rusted-steel.png textures/rusted-steel.norm.png textures/rusted-steel.rough.png textures/rusted-steel.metal.png textures/rusted-steel.ao.png
 StaticMeshes:
-models/Fire.obj
 models/AK47.obj
 models/Curvy.obj
+models/Fire.obj
 models/ToyCar.obj
 Entities:
-3 B -11 -3 -1 11 3 1 1 0 0 0 0 1 0 0 0 0 1 0 9 -5 1 1 
-3 B -3 -4 -1 3 4 1 1 0 0 0 0 1 0 0 0 0 1 0 17 -12 1 1 
-3 B -9 -3 -1 9 3 1 1 0 0 0 0 1 0 0 0 0 1 0 23 -19 1 1 
-5 2 1 0 0 0 0 1 0 0 0 0 1 0 28.9669 -18.9607 2.03392 1 
-5 2 1 0 0 0 0 1 0 0 0 0 1 0 16.9521 -5.01105 2 1 
-3 B -3 -10 -1 3 10 1 1 0 0 0 0 1 0 0 0 0 1 0 -5 -12 1 1 
-3 B -8 -3 -1 8 3 1 1 0 0 0 0 1 0 0 0 0 1 0 0 -25 1 1 
-3 B -3 -7 -1 3 7 1 1 0 0 0 0 1 0 0 0 0 1 0 5 -35 1 1 
-3 B -7 -3 -1 7 3 1 1 0 0 0 0 1 0 0 0 0 1 0 15 -39 1 1 
-3 B -3 -5 -1 3 5 1 1 0 0 0 0 1 0 0 0 0 1 0 19 -47 1 1 
-3 B -5 -2 -1 5 2 1 1 0 0 0 0 1 0 0 0 0 1 0 27 -50 1 1 
-3 B -3 -13 -1 3 13 1 1 0 0 0 0 1 0 0 0 0 1 0 29 -35 1 1 
-5 2 -0.0188276 -0.999823 0 0 0.999823 -0.0188276 0 0 0 0 1 0 29.0502 -48.7857 2 1 
-5 2 1 0 0 0 0 1 0 0 0 0 1 0 18.9149 -39.0386 2 1 
-4 3 -0.0156941 0.999877 0 0 -0.999877 -0.0156941 0 0 0 0 1 0 -4.61869 -15.0445 2 1 RCCar 
-2 1 1 0 0 0 0 1 0 0 0 0 1 0 4.97059 -25.036 2.86766 1 Spin 
-3 B -12 -3 -1 12 3 1 0.998396 0 0.291946 0 0 1 0 0 -0.280662 0 0.959807 0 43.7926 -33 4.58637 1 
-3 B -14.5 -15.5 -1 14.5 15.5 1 1 0 0 0 0 1 0 0 0 0 1 0 69.5 -45.5 8 1 
-0 B -13 -7 -1 13 7 1 1 0 0 0 0 1 0 0 0 0 1 0 -21 -15 1 1 
-1 0 1 0 0 0 0 1 0 0 0 0 1 0 -30.2973 -12.9907 2 1 
-1 0 1 0 0 0 0 1 0 0 0 0 1 0 -24.4428 -12.3837 2 1 
-1 0 1 0 0 0 0 1 0 0 0 0 1 0 -28.0208 -18.4434 2 1 
-1 0 1 0 0 0 0 1 0 0 0 0 1 0 -21.7087 -18.1131 2 1 
-1 0 1 0 0 0 0 1 0 0 0 0 1 0 -15.2279 -13.6304 2 1 
+1 B -11 -3 -1 11 3 1 1 0 0 0 0 1 0 0 0 0 1 0 9 -5 1 1 
+1 B -3 -4 -1 3 4 1 1 0 0 0 0 1 0 0 0 0 1 0 17 -12 1 1 
+1 B -9 -3 -1 9 3 1 1 0 0 0 0 1 0 0 0 0 1 0 23 -19 1 1 
+4 1 1 0 0 0 0 1 0 0 0 0 1 0 28.9669 -18.9607 2.03392 1 
+4 1 1 0 0 0 0 1 0 0 0 0 1 0 16.9521 -5.01105 2 1 
+1 B -3 -10 -1 3 10 1 1 0 0 0 0 1 0 0 0 0 1 0 -5 -12 1 1 
+1 B -8 -3 -1 8 3 1 1 0 0 0 0 1 0 0 0 0 1 0 0 -25 1 1 
+1 B -3 -7 -1 3 7 1 1 0 0 0 0 1 0 0 0 0 1 0 5 -35 1 1 
+1 B -7 -3 -1 7 3 1 1 0 0 0 0 1 0 0 0 0 1 0 15 -39 1 1 
+1 B -3 -5 -1 3 5 1 1 0 0 0 0 1 0 0 0 0 1 0 19 -47 1 1 
+1 B -5 -2 -1 5 2 1 1 0 0 0 0 1 0 0 0 0 1 0 27 -50 1 1 
+1 B -3 -13 -1 3 13 1 1 0 0 0 0 1 0 0 0 0 1 0 29 -35 1 1 
+4 1 -0.0188276 -0.999823 0 0 0.999823 -0.0188276 0 0 0 0 1 0 29.0502 -48.7857 2 1 
+4 1 1 0 0 0 0 1 0 0 0 0 1 0 18.9149 -39.0386 2 1 
+3 3 -0.0156941 0.999877 0 0 -0.999877 -0.0156941 0 0 0 0 1 0 -4.61869 -15.0445 2 1 RCCar 
+0 0 1 0 0 0 0 1 0 0 0 0 1 0 4.97059 -25.036 2.86766 1 Spin 
+1 B -12 -3 -1 12 3 1 0.998396 0 0.291946 0 0 1 0 0 -0.280662 0 0.959807 0 43.7926 -33 4.58637 1 
+1 B -14.5 -15.5 -1 14.5 15.5 1 1 0 0 0 0 1 0 0 0 0 1 0 69.5 -45.5 8 1 
+1 B -13 -7 -1 13 7 1 1 0 0 0 0 1 0 0 0 0 1 0 -21 -15 1 1 
+2 2 1 0 0 0 0 1 0 0 0 0 1 0 -30.2973 -12.9907 2 1 
+2 2 1 0 0 0 0 1 0 0 0 0 1 0 -24.4428 -12.3837 2 1 
+2 2 1 0 0 0 0 1 0 0 0 0 1 0 -28.0208 -18.4434 2 1 
+2 2 1 0 0 0 0 1 0 0 0 0 1 0 -21.7087 -18.1131 2 1 
+2 2 1 0 0 0 0 1 0 0 0 0 1 0 -15.2279 -13.6304 2 1 

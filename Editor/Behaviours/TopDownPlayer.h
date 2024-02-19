@@ -7,7 +7,7 @@ public:
 
     DEFINE_BEHAVIOUR(TopDownPlayer);
 
-    void Update(ModuleManager& Modules, Scene* Scene, float DeltaTime) override;
+    void Update(Scene* Scene, float DeltaTime) override;
 
     void Hurt();
 

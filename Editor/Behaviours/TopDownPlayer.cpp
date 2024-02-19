@@ -5,7 +5,7 @@
 
 REGISTER_BEHAVIOUR(TopDownPlayer);
 
-void TopDownPlayer::Update(ModuleManager& Modules, Scene* Scene, float DeltaTime)
+void TopDownPlayer::Update(Scene* Scene, float DeltaTime)
 {
     if (Health <= 0)
     {
@@ -13,9 +13,9 @@ void TopDownPlayer::Update(ModuleManager& Modules, Scene* Scene, float DeltaTime
         return;
     }
 
-    InputModule& Input = *Modules.GetInput();
-    GraphicsModule& Graphics = *Modules.GetGraphics();
-    CollisionModule& Collisions = *Modules.GetCollision();
+    InputModule& Input = *InputModule::Get();
+    GraphicsModule& Graphics = *GraphicsModule::Get();
+    CollisionModule& Collisions = *CollisionModule::Get();
     //UIModule& UI = *Modules.GetUI();
 
     //TimeAlive += DeltaTime;

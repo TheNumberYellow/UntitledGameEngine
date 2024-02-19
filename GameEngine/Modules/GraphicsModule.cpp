@@ -1372,7 +1372,6 @@ GBuffer GraphicsModule::CreateGBuffer(Vec2i Size)
     newGBuffer.DebugBuffer = m_Renderer.CreateFBufferWithExistingDepthBuffer(newGBuffer.Buffer, Size, FBufferFormat::EMPTY);
     newGBuffer.DebugTex = m_Renderer.AttachColourAttachmentToFrameBuffer(newGBuffer.DebugBuffer, TextureCreateInfo(Size, ColourFormat::RGBA, ColourFormat::RGBA, DataFormat::FLOAT), 0);
 
-    newGBuffer.TestFinalOutput = m_Renderer.CreateFrameBuffer(Size, FBufferFormat::COLOUR);
     newGBuffer.FinalOutput = m_Renderer.CreateFrameBuffer(Size, FBufferFormat::COLOUR);
 
     VertexBufferFormat quadMeshFormat = VertexBufferFormat({ VertAttribute::Vec2f, VertAttribute::Vec2f });
@@ -1397,71 +1396,6 @@ void GraphicsModule::AddRenderCommand(PointLightRenderCommand Command)
 {
     m_PointLightRenderCommands.push_back(Command);
 }
-
-//void GraphicsModule::Render(Framebuffer_ID OutBuffer, Camera Cam, DirectionalLight DirLight)
-//{
-//    // Create directional light shadow map
-//    m_ShadowCamera.SetPosition(Cam.GetPosition() + (-m_ShadowCamera.GetDirection() * 40.0f));
-//    m_ShadowCamera.SetDirection(DirLight.direction);
-//
-//    m_Renderer.SetActiveShader(m_ShadowShader);
-//    SetActiveFrameBuffer(m_ShadowBuffer);
-//    m_Renderer.ClearScreenAndDepthBuffer();
-//    {
-//        m_Renderer.SetShaderUniformMat4x4f(m_ShadowShader, "LightSpaceMatrix", m_ShadowCamera.GetCamMatrix());
-//
-//        for (StaticMeshRenderCommand& Command : m_StaticMeshRenderCommands)
-//        {
-//            // Set mesh-specific transform uniform
-//            m_Renderer.SetShaderUniformMat4x4f(m_ShadowShader, "Transformation", Command.m_Transform.GetTransformMatrix());
-//
-//            // Draw mesh to shadow map
-//            m_Renderer.DrawMesh(Command.m_Mesh);
-//        }
-//    }
-//
-//    m_Renderer.SetActiveFBuffer(OutBuffer);
-//
-//    // Begin actual draw
-//    m_Renderer.SetActiveFBuffer(OutBuffer);
-//    m_Renderer.ClearScreenAndDepthBuffer();
-//
-//    m_Renderer.SetActiveShader(m_TexturedMeshShader);
-//
-//    m_Renderer.SetActiveFBufferTexture(m_ShadowBuffer, "ShadowMap");
-//    m_Renderer.SetShaderUniformMat4x4f(m_TexturedMeshShader, "LightSpaceMatrix", m_ShadowCamera.GetCamMatrix());
-//
-//    m_Renderer.SetShaderUniformVec3f(m_TexturedMeshShader, "SunDirection", DirLight.direction);
-//    m_Renderer.SetShaderUniformVec3f(m_TexturedMeshShader, "SunColour", DirLight.colour);
-//
-//    // Set Camera uniforms
-//    m_Renderer.SetShaderUniformMat4x4f(m_TexturedMeshShader, "Camera", Cam.GetCamMatrix());
-//    m_Renderer.SetShaderUniformVec3f(m_TexturedMeshShader, "CameraPos", Cam.GetPosition());
-//
-//    // Set skybox
-//    m_Renderer.SetActiveCubemap(m_SkyboxCubemap, "SkyBox");
-//
-//    for (StaticMeshRenderCommand& Command : m_StaticMeshRenderCommands)
-//    {
-//        // Set mesh-specific transform uniform
-//        m_Renderer.SetShaderUniformMat4x4f(m_TexturedMeshShader, "Transformation", Command.m_Transform.GetTransformMatrix());
-//
-//        // Set material
-//        m_Renderer.SetActiveTexture(Command.m_Material.m_Albedo.Id, "AlbedoMap");
-//        m_Renderer.SetActiveTexture(Command.m_Material.m_Normal.Id, "NormalMap");
-//        m_Renderer.SetActiveTexture(Command.m_Material.m_Metallic.Id, "MetallicMap");
-//        m_Renderer.SetActiveTexture(Command.m_Material.m_Roughness.Id, "RoughnessMap");
-//        m_Renderer.SetActiveTexture(Command.m_Material.m_AO.Id, "AOMap");
-//
-//        // Draw mesh
-//        m_Renderer.DrawMesh(Command.m_Mesh);
-//    }
-//
-//    DrawDebugDrawMesh();
-//
-//
-//    m_StaticMeshRenderCommands.clear();
-//}
 
 void GraphicsModule::Render(GBuffer Buffer, Camera Cam, DirectionalLight DirLight)
 {
@@ -1642,7 +1576,7 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam, DirectionalLight DirLigh
     m_Renderer.SetBlendFunction(BlendFunc::TRANS);
 
     // Combine everything
-    m_Renderer.SetActiveFBuffer(Buffer.TestFinalOutput);
+    m_Renderer.SetActiveFBuffer(Buffer.FinalOutput);
     {
         m_Renderer.SetActiveShader(m_GBufferCombinerShader);
         m_Renderer.ClearScreenAndDepthBuffer();
@@ -1676,37 +1610,6 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam, DirectionalLight DirLigh
         m_Renderer.EnableDepthTesting();
 
     }
-
-    //m_Renderer.SetActiveFBuffer(Buffer.FinalOutput);
-    //{
-    //    m_Renderer.SetActiveShader(m_GBufferOldLightingShader);
-    //    m_Renderer.ClearScreenAndDepthBuffer();
-
-    //    m_Renderer.SetActiveCubemap(m_SkyboxCubemap, "SkyBox");
-
-    //    m_Renderer.SetShaderUniformVec3f(m_GBufferOldLightingShader, "CameraPos", Cam.GetPosition());
-
-    //    m_Renderer.SetShaderUniformVec3f(m_GBufferOldLightingShader, "SunDirection", DirLight.direction);
-    //    m_Renderer.SetShaderUniformVec3f(m_GBufferOldLightingShader, "SunColour", DirLight.colour);
-
-    //    m_Renderer.SetActiveTexture(Buffer.PositionTex, "gPosition");
-    //    m_Renderer.SetActiveTexture(Buffer.NormalTex, "gNormal");
-    //    m_Renderer.SetActiveTexture(Buffer.AlbedoTex, "gAlbedo");
-    //    m_Renderer.SetActiveTexture(Buffer.MetallicTex, "gMetallic");
-    //    m_Renderer.SetActiveTexture(Buffer.RoughnessTex, "gRoughness");
-    //    m_Renderer.SetActiveTexture(Buffer.AOTex, "gAO");
-
-    //    m_Renderer.DrawMesh(Buffer.QuadMesh);
-    //    
-    //    // Skybox stuff
-    //    m_Renderer.SetActiveShader(m_GBufferSkyShader);
-    //    m_Renderer.DisableDepthTesting();
-
-    //    m_Renderer.SetActiveTexture(Buffer.SkyTex, "gSky");
-    //    m_Renderer.DrawMesh(Buffer.QuadMesh);
-    //    m_Renderer.EnableDepthTesting();
-    //}
-    
 
     m_StaticMeshRenderCommands.clear();
     m_BillboardRenderCommands.clear();
@@ -1812,7 +1715,6 @@ void GraphicsModule::ResizeGBuffer(GBuffer Buffer, Vec2i Size)
     m_Renderer.ResizeFBuffer(Buffer.Buffer, Size);
     m_Renderer.ResizeFBuffer(Buffer.FinalOutput, Size);
     m_Renderer.ResizeFBuffer(Buffer.SkyBuffer, Size);
-    m_Renderer.ResizeFBuffer(Buffer.TestFinalOutput, Size);
     m_Renderer.ResizeFBuffer(Buffer.LightBuffer, Size);
     m_Renderer.ResizeFBuffer(Buffer.DebugBuffer, Size);
 

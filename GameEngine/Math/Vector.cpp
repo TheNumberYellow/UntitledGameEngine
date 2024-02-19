@@ -62,6 +62,11 @@ Vec2f& Vec2f::operator-=(const Vec2f& rhs)
     return *this;
 }
 
+Vec2f Vec2f::operator*(float rhs)
+{
+    return Vec2f(this->x * rhs, this->y * rhs);
+}
+
 Vec2f Vec2f::operator/(float rhs)
 {
     return Vec2f(this->x / rhs, this->y / rhs);

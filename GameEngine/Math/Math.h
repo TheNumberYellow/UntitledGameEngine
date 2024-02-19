@@ -16,7 +16,7 @@
 
 // Forward declares
 struct Quaternion;
-
+struct Ray;
 
 struct Range
 {

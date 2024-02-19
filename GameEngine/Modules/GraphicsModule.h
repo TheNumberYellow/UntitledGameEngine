@@ -16,6 +16,7 @@ class GraphicsModule;
 struct GBuffer
 {
     Framebuffer_ID Buffer;
+
     Texture_ID PositionTex;
     Texture_ID NormalTex;
     Texture_ID AlbedoTex;
@@ -34,7 +35,6 @@ struct GBuffer
 
     StaticMesh_ID QuadMesh;
 
-    Framebuffer_ID TestFinalOutput;
     Framebuffer_ID FinalOutput;
 };
 

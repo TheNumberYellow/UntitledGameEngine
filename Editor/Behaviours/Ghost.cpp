@@ -4,7 +4,7 @@
 
 REGISTER_BEHAVIOUR(Ghost);
 
-void Ghost::Update(ModuleManager& Modules, Scene* Scene, float DeltaTime)
+void Ghost::Update(Scene* Scene, float DeltaTime)
 {
     if (!Started)
     {

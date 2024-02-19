@@ -1,4 +1,4 @@
-#include "..\GameEngine\GameEngine.h"
+#if 1
 #include "GameEngine.h"
 
 #include "EditorScene.h"
@@ -54,7 +54,7 @@ struct Player
     bool grounded = false;
     Vec3f position;
     Vec3f velocity;
-    Camera* cam;
+    Camera* cam = nullptr;
 };
 
 enum class State
@@ -175,6 +175,10 @@ bool m_IsClient = false;
 
 Model OtherPlayerModel;
 
+int PrevFrameTimeCount = 0;
+float PrevFrameTimeSum = 0.0f;
+int PrevAveFPS = 0;
+
 void CycleMoveMode()
 {
     if (moveMode == MoveMode::TRANSLATE)
@@ -203,10 +207,10 @@ void CycleGeometryMode()
     }
 }
 
-void DrawToolWidgets(ModuleManager& modules)
+void DrawToolWidgets()
 {
-    GraphicsModule& graphics = *modules.GetGraphics();
-    CollisionModule& collisions = *modules.GetCollision();
+    GraphicsModule& graphics = *GraphicsModule::Get();
+    CollisionModule& collisions = *CollisionModule::Get();
 
     // Draw tools on separate buffer so they're in front
     graphics.SetActiveFrameBuffer(widgetViewportBuffer);
@@ -1537,13 +1541,13 @@ void UpdatePointLightPlace(InputModule& input, CollisionModule& collisions, Grap
     }
 }
 
-void UpdateEditor(ModuleManager& modules, double deltaTime)
+void UpdateEditor(double deltaTime)
 {
-    GraphicsModule& graphics = *modules.GetGraphics();
-    CollisionModule& collisions = *modules.GetCollision();
-    TextModule& text = *modules.GetText();
-    UIModule& ui = *modules.GetUI();
-    InputModule& input = *modules.GetInput();
+    GraphicsModule& graphics = *GraphicsModule::Get();
+    CollisionModule& collisions = *CollisionModule::Get();
+    TextModule& text = *TextModule::Get();
+    UIModule& ui = *UIModule::Get();
+    InputModule& input = *InputModule::Get();
 
     if (cursorLocked)
     {
@@ -1633,9 +1637,9 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
             //graphics.Draw(*draggingModel);
         }
         
-        scene.Draw(graphics, viewportBuffer, gBuffer);
+        scene.Draw(graphics, gBuffer);
 
-        NetworkModule& Network = *modules.GetNetwork();
+        NetworkModule& Network = *NetworkModule::Get();
 
         Vec3f OtherPlayerPosition;
 
@@ -1707,7 +1711,7 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
 
     graphics.ResetFrameBuffer();
     
-    DrawToolWidgets(modules);
+    DrawToolWidgets();
 
     Vec2i screen = Engine::GetClientAreaSize();
 
@@ -1715,7 +1719,7 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
 
 
 
-    ui.BufferPanel(gBuffer.TestFinalOutput, newViewport);
+    ui.BufferPanel(gBuffer.FinalOutput, newViewport);
     ui.BufferPanel(widgetViewportBuffer, newViewport);
     
     //ui.ImgPanel(gBuffer.PositionTex, Rect(Vec2f(100.0f, 40.0f), Vec2f(200.0f, 200.0f)));
@@ -1729,28 +1733,28 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
     //ui.ImgPanel(gBuffer.LightTex, Rect(Vec2f(300.0f, 240.0f), Vec2f(200.0f, 200.0f)));
 
 
-    ui.StartFrame(Rect(Vec2f(0.0f, 0.0f), Vec2f(screen.x - 200.0f, 40.0f)), 0.0f, "MEMES");
+    ui.StartFrame("Memes", Rect(Vec2f(0.0f, 0.0f), Vec2f(screen.x - 200.0f, 40.0f)), 0.0f);
 
     {
-        if (ui.ImgButton(playButtonTexture, Rect(Vec2f(0.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f))
+        if (ui.ImgButton("PlayButton", playButtonTexture, Vec2f(40.0f, 40.0f), 4.0f))
         {
             state = State::GAME;
             player.velocity = Vec3f(0.0f, 0.0f, 0.0f);
             player.position = cam.GetPosition();
             runtimeScene = Scene(scene);
             
-            Resize(modules, Engine::GetClientAreaSize());
+            Resize(Engine::GetClientAreaSize());
         }
 
-        if (ui.ImgButton(cameraButtonTexture, Rect(Vec2f(40.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f))
+        if (ui.ImgButton("CameraButton", cameraButtonTexture, Vec2f(40.0f, 40.0f), 4.0f))
         {
             
         }
-        if (ui.TextButton("New", Rect(Vec2f(80.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f))
+        if (ui.TextButton("New", Vec2f(40.0f, 40.0f), 4.0f))
         {
             scene.Clear();
         }
-        if (ui.TextButton("Open", Rect(Vec2f(120.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f))
+        if (ui.TextButton("Open", Vec2f(40.0f, 40.0f), 4.0f))
         {
             std::string FileName;
             if (Engine::FileOpenDialog(FileName))
@@ -1759,7 +1763,7 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
                 scene.Load(FileName);
             }
         }
-        if (ui.TextButton("Save", Rect(Vec2f(160.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f))
+        if (ui.TextButton("Save", Vec2f(40.0f, 40.0f), 4.0f))
         {
             std::string FileName;
             if (Engine::FileSaveDialog(FileName))
@@ -1769,28 +1773,28 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
             }
         }
 
-        if (ui.TextButton("Grid", Rect(Vec2f(200.0f, 0.0f), Vec2f(40.0f, 40.0f)), 4.0f))
+        if (ui.TextButton("Grid", Vec2f(40.0f, 40.0f), 4.0f))
         {
             gridEnabled = !gridEnabled;
         }
 
-        NetworkModule& Network = *modules.GetNetwork();
+        NetworkModule& Network = *NetworkModule::Get();
 
-        if (ui.TextButton("Host", Rect(Vec2f(screen.x - 600.0f, 0.0f), Vec2f(40, 40)), 4.0f) && !m_IsClient)
+        if (ui.TextButton("Host", Vec2f(40, 40), 4.0f) && !m_IsClient)
         {
             Network.StartServer();
             m_IsServer = true;
         }
 
-        ui.TextEntry(ipString, Rect(Vec2f(screen.x - 560.0f, 0.0f), Vec2f(200.0f, 40.0f)));
+        ui.TextEntry("IpEntry", ipString, Rect(Vec2f(screen.x - 560.0f, 0.0f), Vec2f(200.0f, 40.0f)));
 
-        if (ui.TextButton("Join", Rect(Vec2f(screen.x - 360.0f, 0.0f), Vec2f(40, 40)), 4.0f) && !m_IsServer)
+        if (ui.TextButton("Join", Vec2f(40, 40), 4.0f) && !m_IsServer)
         {
             Network.StartClient(ipString);
             m_IsClient = true;
         }
 
-        if (ui.TextButton("Ping", Rect(Vec2f(screen.x - 320.0f, 0.0f), Vec2f(40, 40)), 4.0f))
+        if (ui.TextButton("Ping", Vec2f(40, 40), 4.0f))
         {
             if (m_IsServer)
             {
@@ -1802,7 +1806,7 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
             }
         }
 
-        if (ui.TextButton("Disconnect", Rect(Vec2f(screen.x - 280.0f, 0.0f), Vec2f(80, 40)), 4.0f))
+        if (ui.TextButton("Disconnect", Vec2f(80, 40), 4.0f))
         {
             Network.DisconnectAll();
         }
@@ -1810,13 +1814,13 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
 
     ui.EndFrame();
     
-    ui.StartFrame(Rect(Vec2f(100.0f, screen.y - 200.0f), Vec2f(screen.x - 300.0f, 200.0f)), 20.0f, "Resources");
+    ui.StartFrame("Resources", Rect(Vec2f(100.0f, screen.y - 200.0f), Vec2f(screen.x - 300.0f, 200.0f)), 20.0f);
 
     ui.StartTab("Models");
     for (int i = 0; i < loadedModels.size(); ++i)
     {
         
-        if (ui.BufferButton(modelFBuffers[i], Rect(Vec2f(i * 100.0f, 0.0f), Vec2f(100, 100)), 10).clicking)
+        if (ui.BufferButton(loadedModels[i].m_TexturedMeshes[0].m_Mesh.Path.GetFileName(), modelFBuffers[i], Vec2f(100, 100), 10).clicking)
         {
             if (!draggingNewModel)
             {
@@ -1833,7 +1837,7 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
     ui.StartTab("Textures");
     for (int i = 0; i < loadedMaterials.size(); ++i)
     {
-        if (ui.ImgButton(loadedMaterials[i].m_Albedo, Rect(Vec2f(i * 40.0f, 0.0f), Vec2f(40, 80)), 2.5f).clicking)
+        if (ui.ImgButton(loadedMaterials[i].m_Albedo.Path.GetFileName(), loadedMaterials[i].m_Albedo, Vec2f(40, 80), 2.5f).clicking)
         {
             if (!draggingNewTexture)
             {
@@ -1854,7 +1858,7 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
     int i = 0;
     for (auto Behaviour : BehaviourMap)
     {
-        if (ui.TextButton(Behaviour.first, Rect(Vec2f(i * 80.0f, 0.0f), Vec2f(80, 80)), 2.0f).clicking)
+        if (ui.TextButton(Behaviour.first, Vec2f(80, 80), 2.0f).clicking)
         {
             if (!draggingNewBehaviour)
             {
@@ -1873,7 +1877,7 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
 
     ui.EndFrame();
 
-    ui.StartFrame(Rect(Vec2f(screen.x - 200.0f, 0.0f), Vec2f(200.0f, screen.y / 2.0f)), 20.0f, "Inspector");
+    ui.StartFrame("Inspector", Rect(Vec2f(screen.x - 200.0f, 0.0f), Vec2f(200.0f, screen.y / 2.0f)), 20.0f);
 
     std::string posText;
 
@@ -1892,17 +1896,17 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
         std::string xString = std::to_string(Position.x);
         xString.erase(xString.find_last_not_of('0') + 1, std::string::npos);
         //xString.erase(xString.find_last_not_of('.') + 1, std::string::npos);
-        ui.TextEntry(xString, Rect(Cursor, Vec2f(160.0f, 15.0f)));
+        ui.TextEntry("X", xString, Rect(Cursor, Vec2f(160.0f, 15.0f)));
         NewPos.x = std::stof(xString);
         Cursor.y += 15.0f;
         
         std::string yString = std::to_string(Position.y);
-        ui.TextEntry(yString, Rect(Cursor, Vec2f(160.0f, 15.0f)));
+        ui.TextEntry("Y", yString, Rect(Cursor, Vec2f(160.0f, 15.0f)));
         NewPos.y = std::stof(yString);
         Cursor.y += 15.0f;
 
         std::string zString = std::to_string(Position.z);
-        ui.TextEntry(zString, Rect(Cursor, Vec2f(160.0f, 15.0f)));
+        ui.TextEntry("Z", zString, Rect(Cursor, Vec2f(160.0f, 15.0f)));
         NewPos.z = std::stof(zString);
         Cursor.y += 25.0f;
 
@@ -1932,7 +1936,7 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
 
     ui.EndFrame();
 
-    ui.StartFrame(Rect(Vec2f(screen.x - 200.0f, screen.y / 2.0f), Vec2f(200.0f, screen.y / 2.0f)), 20.0f, "Entities");
+    ui.StartFrame("Entities", Rect(Vec2f(screen.x - 200.0f, screen.y / 2.0f), Vec2f(200.0f, screen.y / 2.0f)), 20.0f);
 
     if (Model* modelPtr = scene.MenuListEntities(ui, inspectorFont))
     {
@@ -1951,115 +1955,119 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
         ui.Text(draggingBehaviourName, Engine::GetMousePosition(), Vec3f(1.0f, 1.0f, 1.0f));
     }
 
-    if (ui.ImgButton(cursorToolTexture, Rect(Vec2f(0.0f, 40.0f), Vec2f(100.0f, 100.0f)), 20.0f))
+    ui.StartFrame("Tools", Rect(Vec2f(0.0f, 40.0f), Vec2f(100.0f, screen.y - 40.0f)), 0.0f);
     {
-        toolMode = ToolMode::SELECT;
-    }
-
-    if (geometryMode == GeometryMode::BOX)
-    {
-        if (ui.ImgButton(boxToolTexture, Rect(Vec2f(0.0f, 140.0f), Vec2f(100.0f, 100.0f)), 20.0f))
+        if (ui.ImgButton("SelectTool", cursorToolTexture, Vec2f(100.0f, 100.0f), 20.0f))
         {
-            if (toolMode == ToolMode::GEOMETRY)
+            toolMode = ToolMode::SELECT;
+        }
+
+        if (geometryMode == GeometryMode::BOX)
+        {
+            if (ui.ImgButton("BoxTool", boxToolTexture, Vec2f(100.0f, 100.0f), 20.0f))
             {
-                CycleGeometryMode();
+                if (toolMode == ToolMode::GEOMETRY)
+                {
+                    CycleGeometryMode();
+                }
+                else
+                {
+                    toolMode = ToolMode::GEOMETRY;
+                }
+            }
+        }
+        else if (geometryMode == GeometryMode::PLANE)
+        {
+            if (ui.ImgButton("GeometryMode", planeToolTexture, Vec2f(100.0f, 100.0f), 20.0f))
+            {
+                if (toolMode == ToolMode::GEOMETRY)
+                {
+                    CycleGeometryMode();
+                }
+                else
+                {
+                    toolMode = ToolMode::GEOMETRY;
+                }
+            }
+        }
+
+
+        if (moveMode == MoveMode::TRANSLATE)
+        {
+            if (ui.ImgButton("TranslateTool", translateToolTexture, Vec2f(100.0f, 100.0f), 20.0f))
+            {
+                if (toolMode == ToolMode::MOVE)
+                {
+                    CycleMoveMode();
+                }
+                else
+                {
+                    toolMode = ToolMode::MOVE;
+                }
+            }
+        }
+        else if (moveMode == MoveMode::ROTATE)
+        {
+            if (ui.ImgButton("RotateTool", rotateToolTexture, Vec2f(100.0f, 100.0f), 20.0f))
+            {
+                if (toolMode == ToolMode::MOVE)
+                {
+                    CycleMoveMode();
+                }
+                else
+                {
+                    toolMode = ToolMode::MOVE;
+                }
+            }
+        }
+        else if (moveMode == MoveMode::SCALE)
+        {
+            if (ui.ImgButton("ScaleTool", scaleToolTexture, Vec2f(100.0f, 100.0f), 20.0f))
+            {
+                if (toolMode == ToolMode::MOVE)
+                {
+                    CycleMoveMode();
+                }
+                else
+                {
+                    toolMode = ToolMode::MOVE;
+                }
+            }
+        }
+
+        if (ui.ImgButton("VertexTool", vertexToolTexture, Vec2f(100, 100.0f), 20.0f))
+        {
+            toolMode = ToolMode::VERTEX;
+        }
+
+        if (ui.ImgButton("CameraTool", cameraButtonTexture, Vec2f(100.0f, 100.0f), 20.0f))
+        {
+            if (renderMode == RenderMode::DEFAULT)
+            {
+                renderMode = RenderMode::FULLBRIGHT;
             }
             else
             {
-                toolMode = ToolMode::GEOMETRY;
+                renderMode = RenderMode::DEFAULT;
             }
+            graphics.SetRenderMode(renderMode);
         }
-    }
-    else if (geometryMode == GeometryMode::PLANE)
-    {
-        if (ui.ImgButton(planeToolTexture, Rect(Vec2f(0.0f, 140.0f), Vec2f(100.0f, 100.0f)), 20.0f))
-        {
-            if (toolMode == ToolMode::GEOMETRY)
-            {
-                CycleGeometryMode();
-            }
-            else
-            {
-                toolMode = ToolMode::GEOMETRY;
-            }
-        }
-    }
 
-
-    if (moveMode == MoveMode::TRANSLATE)
-    {
-        if (ui.ImgButton(translateToolTexture, Rect(Vec2f(0.0f, 240.0f), Vec2f(100.0f, 100.0f)), 20.0f))
+        if (ui.ImgButton("SculptTool", sculptToolTexture, Vec2f(100.0f, 100.0f), 20.0f))
         {
-            if (toolMode == ToolMode::MOVE)
-            {
-                CycleMoveMode();
-            }
-            else
-            {
-                toolMode = ToolMode::MOVE;
-            }
+            toolMode = ToolMode::SCULPT;
         }
-    }
-    else if (moveMode == MoveMode::ROTATE)
-    {
-        if (ui.ImgButton(rotateToolTexture, Rect(Vec2f(0.0f, 240.0f), Vec2f(100.0f, 100.0f)), 20.0f))
+
+        if (ui.ImgButton("LightTool", lightToolTexture, Vec2f(100.0f, 100.0f), 20.0f).clicking)
         {
-            if (toolMode == ToolMode::MOVE)
+            if (!draggingNewPointLight)
             {
-                CycleMoveMode();
-            }
-            else
-            {
-                toolMode = ToolMode::MOVE;
+                draggingNewPointLight = true;
+
             }
         }
     }
-    else if (moveMode == MoveMode::SCALE)
-    {
-        if (ui.ImgButton(scaleToolTexture, Rect(Vec2f(0.0f, 240.0f), Vec2f(100.0f, 100.0f)), 20.0f))
-        {
-            if (toolMode == ToolMode::MOVE)
-            {
-                CycleMoveMode();
-            }
-            else
-            {
-                toolMode = ToolMode::MOVE;
-            }
-        }
-    }
-
-    if (ui.ImgButton(vertexToolTexture, Rect(Vec2f(0.0f, 340.0f), Vec2f(100, 100.0f)), 20.0f))
-    {
-        toolMode = ToolMode::VERTEX;
-    }
-
-    if (ui.ImgButton(cameraButtonTexture, Rect(Vec2f(0.0f, 440.0f), Vec2f(100.0f, 100.0f)), 20.0f))
-    {
-        if (renderMode == RenderMode::DEFAULT)
-        {
-            renderMode = RenderMode::FULLBRIGHT;
-        }
-        else
-        {
-            renderMode = RenderMode::DEFAULT;
-        }
-        graphics.SetRenderMode(renderMode);
-    }
-
-    if (ui.ImgButton(sculptToolTexture, Rect(Vec2f(0.0f, 540.0f), Vec2f(100.0f, 100.0f)), 20.0f))
-    {
-        toolMode = ToolMode::SCULPT;
-    }
-
-    if (ui.ImgButton(lightToolTexture, Rect(Vec2f(0.0f, 640.0f), Vec2f(100.0f, 100.0f)), 20.0f).clicking)
-    {
-        if (!draggingNewPointLight)
-        {
-            draggingNewPointLight = true;
-
-        }
-    }
+    ui.EndFrame();
 
     if (input.IsKeyDown(Key::Escape))
     {
@@ -2167,20 +2175,20 @@ void UpdateEditor(ModuleManager& modules, double deltaTime)
 
 }
 
-void UpdateGame(ModuleManager& modules, double deltaTime)
+void UpdateGame(double deltaTime)
 {
-    GraphicsModule& graphics = *modules.GetGraphics();
-    CollisionModule& collisions = *modules.GetCollision();
-    TextModule& text = *modules.GetText();
-    InputModule& input = *modules.GetInput();
-    UIModule& ui = *modules.GetUI();
+    GraphicsModule& graphics = *GraphicsModule::Get();
+    CollisionModule& collisions = *CollisionModule::Get();
+    TextModule& text = *TextModule::Get();
+    InputModule& input = *InputModule::Get();
+    UIModule& ui = *UIModule::Get();
 
     if (input.IsKeyDown(Key::Escape))
     {
         // TODO(Fraser): This is where I might do something with the runtime scene (right now I'm doing nothing and recreating it whenever I enter game mode)
 
         state = State::EDITOR;
-        Resize(modules, Engine::GetClientAreaSize());
+        Resize(Engine::GetClientAreaSize());
     }
 
     if (input.IsKeyDown(Key::Alt))
@@ -2333,7 +2341,7 @@ void UpdateGame(ModuleManager& modules, double deltaTime)
 
 
     // Update behaviours
-    runtimeScene.UpdateBehaviours(modules, (float)deltaTime);
+    runtimeScene.UpdateBehaviours((float)deltaTime);
     //BehaviourRegistry::Get()->UpdateAllBehaviours(modules, &runtimeScene, deltaTime);
 
 
@@ -2352,7 +2360,7 @@ void UpdateGame(ModuleManager& modules, double deltaTime)
     graphics.SetActiveFrameBuffer(viewportBuffer);
     {
         runtimeScene.SetCamera(&cam);
-        runtimeScene.Draw(graphics, viewportBuffer, gBuffer);
+        runtimeScene.Draw(graphics, gBuffer);
 
     }
     graphics.ResetFrameBuffer();
@@ -2363,22 +2371,30 @@ void UpdateGame(ModuleManager& modules, double deltaTime)
     screenRect.size = Engine::GetClientAreaSize();
 
     //ui.BufferPanel(viewportBuffer, screenRect);
-    ui.BufferPanel(gBuffer.TestFinalOutput, screenRect);
+    ui.BufferPanel(gBuffer.FinalOutput, screenRect);
 
     text.DrawText("Frame Time: " + std::to_string(deltaTime), &testFont, Vec2f(0.0f, 0.0f));
 
-    int FPS = (int)round(1.0f / deltaTime);
+    PrevFrameTimeCount++;
+    PrevFrameTimeSum += deltaTime;
 
-    text.DrawText("FPS: " + std::to_string(FPS), &testFont, Vec2f(0.0f, 30.0f));
+    if (PrevFrameTimeSum > 0.5f)
+    {
+        PrevAveFPS = (int)round(1.0f / (PrevFrameTimeSum / PrevFrameTimeCount));
+        PrevFrameTimeCount = 0;
+        PrevFrameTimeSum -= 0.5f;
+    }
+
+    text.DrawText("FPS: " + std::to_string(PrevAveFPS), &testFont, Vec2f(0.0f, 30.0f));
     text.DrawText("Player grounded: " + std::to_string(player.grounded), &testFont, Vec2f(0.0f, 60.0f));
 }
 
-void Initialize(ModuleManager& modules)
+void Initialize()
 {
-    GraphicsModule& graphics = *modules.GetGraphics();
-    CollisionModule& collisions = *modules.GetCollision();
-    TextModule& text = *modules.GetText();
-    InputModule& input = *modules.GetInput();
+    GraphicsModule& graphics = *GraphicsModule::Get();
+    CollisionModule& collisions = *CollisionModule::Get();
+    TextModule& text = *TextModule::Get();
+    InputModule& input = *InputModule::Get();
 
     AssetRegistry* Registry = AssetRegistry::Get();
 
@@ -2466,7 +2482,7 @@ void Initialize(ModuleManager& modules)
 
     gBuffer = graphics.CreateGBuffer(Vec2i(viewportRect.size));
 
-    graphics.InitializeDebugDraw(viewportBuffer);
+    graphics.InitializeDebugDraw(gBuffer.FinalOutput);
 
     graphics.SetCamera(&cam);
     
@@ -2498,26 +2514,26 @@ void Initialize(ModuleManager& modules)
     OtherPlayerModel = graphics.CloneModel(xAxisArrow);
 }
 
-void Update(ModuleManager& modules, double deltaTime)
+void Update(double deltaTime)
 {
     if (state == State::EDITOR)
     {
-        UpdateEditor(modules, deltaTime);
+        UpdateEditor(deltaTime);
     }
     else if (state == State::GAME)
     {
-        UpdateGame(modules, deltaTime);
+        UpdateGame(deltaTime);
     }
 }
 
-void Resize(ModuleManager& modules, Vec2i newSize)
+void Resize(Vec2i newSize)
 {
     if (state == State::EDITOR)
     {
         Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
         cam.SetScreenSize(viewportRect.size);
-        GraphicsModule* graphics = modules.GetGraphics();
-        InputModule* input = modules.GetInput();
+        GraphicsModule* graphics = GraphicsModule::Get();
+        InputModule* input = InputModule::Get();
 
         graphics->ResizeFrameBuffer(viewportBuffer, viewportRect.size);
         graphics->ResizeGBuffer(gBuffer, viewportRect.size);
@@ -2530,8 +2546,8 @@ void Resize(ModuleManager& modules, Vec2i newSize)
     }
     else if (state == State::GAME)
     {
-        GraphicsModule* graphics = modules.GetGraphics();
-        InputModule* input = modules.GetInput();
+        GraphicsModule* graphics = GraphicsModule::Get();
+        InputModule* input = InputModule::Get();
 
         cam.SetScreenSize(Engine::GetClientAreaSize());
         graphics->ResizeFrameBuffer(viewportBuffer, Engine::GetClientAreaSize());
@@ -2543,3 +2559,27 @@ void Resize(ModuleManager& modules, Vec2i newSize)
         Engine::SetCursorCenter(newCenter);
     }
 }
+#else 
+
+#include "GameEngine.h"
+
+#include "States/EditorState.h"
+
+EditorState State;
+
+void Initialize()
+{
+    State.OnInitialized();
+}
+
+void Update(double deltaTime)
+{
+    State.Update(deltaTime);
+}
+
+void Resize(Vec2i newSize)
+{
+    State.OnResize();
+}
+
+#endif

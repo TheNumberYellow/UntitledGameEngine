@@ -26,8 +26,15 @@ bool Intersects(Triangle t, AABB aabb);
 
 struct OctreeNode
 {
-    OctreeNode() {}
-    OctreeNode(AABB InBounds) : Bounds(InBounds) {}
+    OctreeNode() 
+        : SubNodes{}
+    {}
+
+    OctreeNode(AABB InBounds) 
+        : SubNodes{}
+        , Bounds(InBounds) 
+    {}
+
     ~OctreeNode();
 
     const int MaxTriangles = 25;

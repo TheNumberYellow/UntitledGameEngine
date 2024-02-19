@@ -49,8 +49,9 @@ UIModule::UIModule(GraphicsModule& graphics, TextModule& text, InputModule& inpu
     , m_Input(input)
     , m_Renderer(renderer)
 {
-    m_DefaultBorderTexture = m_Renderer.LoadTexture("images/button_border.png");
+    m_DefaultButtonTexture = m_Renderer.LoadTexture("images/button_border.png");
     m_DefaultFrameTexture = m_Renderer.LoadTexture("images/frame_border.png");
+    m_DefaultTabTexture = m_Renderer.LoadTexture("images/tab_border.png");
 
     // ~~~~~~~~~~~~~~~~~~~~~UI shader code~~~~~~~~~~~~~~~~~~~~~ //
     std::string vertShaderSource = R"(
@@ -215,19 +216,19 @@ void UIModule::BufferPanel(Framebuffer_ID fBuffer, Rect rect)
     m_Renderer.EnableDepthTesting();
 }
 
-Click UIModule::TextButton(std::string text, Rect rect, float borderWidth)
+Click UIModule::TextButton(std::string text, Vec2f size, float borderWidth, bool isTab)
 {
-    return Button(0, rect, borderWidth, false, false, true, text);
+    return Button(text, 0, size, borderWidth, false, false, true, isTab);
 }
 
-Click UIModule::ImgButton(Texture texture, Rect rect, float borderWidth)
+Click UIModule::ImgButton(std::string name, Texture texture, Vec2f size, float borderWidth)
 {
-    return Button(texture.Id, rect, borderWidth, true, false, false);
+    return Button(name, texture.Id, size, borderWidth, true, false, false, false);
 }
 
-Click UIModule::BufferButton(Framebuffer_ID fBuffer, Rect rect, float borderWidth)
+Click UIModule::BufferButton(std::string name, Framebuffer_ID fBuffer, Vec2f size, float borderWidth)
 {
-    return Button(fBuffer, rect, borderWidth, true, true, false);
+    return Button(name, fBuffer, size, borderWidth, true, true, false, false);
 }
 
 void UIModule::Text(std::string text, Vec2f position, Vec3f colour)
@@ -236,16 +237,16 @@ void UIModule::Text(std::string text, Vec2f position, Vec3f colour)
     m_Text.DrawText(text, &m_FrameFont, position, colour);
 }
 
-void UIModule::TextEntry(std::string& stringRef, Rect rect)
+void UIModule::TextEntry(std::string name, std::string& stringRef, Rect rect)
 {
     if (!ShouldDisplay())
         return;
 
-    //rect.location += GetFrame().location;
+    rect.location += GetFrame().location;
 
-    Click click = TextButton(stringRef, rect, 4.0f);
+    //Click click = TextButton(stringRef, rect, 4.0f);
     
-    TextEntryState* State = GetTextEntryState(rect);
+    TextEntryState* State = GetTextEntryState(name);
     
     //Click click = TextButton(stringRef, rect, m_ActiveElement == State ? 0.0f : 4.0f);
 
@@ -289,34 +290,41 @@ void UIModule::TextEntry(std::string& stringRef, Rect rect)
     }
 }
 
-void UIModule::StartFrame(Rect rect, float borderWidth, std::string text)
+void UIModule::StartFrame(std::string name, Rect rect, float borderWidth)
 {
     if (!ShouldDisplay())
         return;
 
+
+    FrameState* State = GetFrameState(name);
+
+    m_FrameStateStack.push(State);
+
+    m_SubRectStack.push(Rect(rect.location + Vec2f(borderWidth, borderWidth), rect.size - Vec2f(borderWidth * 2, borderWidth * 2)));
+
+    CursorStack.push(CursorInfo(rect.location + Vec2f(borderWidth, borderWidth), rect.location + Vec2f(borderWidth, borderWidth)));
+
+    // Render
     m_Renderer.DisableDepthTesting();
-
-    m_SubFrameStack.push(FrameInfo(Rect(rect.location + Vec2f(borderWidth, borderWidth), rect.size - Vec2f(borderWidth, borderWidth)), borderWidth, text));
-
-    GetFrameState(m_SubFrameStack.top());
 
     VertexBufferFormat vertFormat = VertexBufferFormat({ VertAttribute::Vec2f, VertAttribute::Vec2f });
     MeshData verts = GetVertexDataForBorderMesh(rect, borderWidth);
     
+    m_Renderer.SetActiveShader(m_UIShader);
+    
     m_Renderer.UpdateMeshData(m_BorderMesh, vertFormat, verts.first, verts.second);
     m_Renderer.SetActiveTexture(m_DefaultFrameTexture, "Texture");
-    m_Renderer.SetActiveShader(m_UIShader);
 
     m_Renderer.SetShaderUniformBool(m_UIShader, "Hovering", false);
     m_Renderer.SetShaderUniformBool(m_UIShader, "Clicking", false);
 
     m_Renderer.DrawMesh(m_BorderMesh);
 
-    if (text != "")
+    if (name != "")
     {
         Rect r = rect;
         //TODO: hard coded text colour
-        m_Text.DrawText(text, &m_FrameFont, r.location, Vec3f(1.0f, 1.0f, 1.0f));
+        m_Text.DrawText(name, &m_FrameFont, r.location, Vec3f(1.0f, 1.0f, 1.0f));
     }
 
     m_Renderer.EnableDepthTesting();
@@ -324,30 +332,36 @@ void UIModule::StartFrame(Rect rect, float borderWidth, std::string text)
 
 void UIModule::EndFrame()
 {
-    m_SubFrameStack.pop();
+    m_SubRectStack.pop();
+    m_FrameStateStack.pop();
+    CursorStack.pop();
     m_TabIndexOnCurrentFrame = 0;
-    //m_SubFrame = Rect(Vec2f(0.0f, 0.0f), m_WindowSize);
 }
 
 void UIModule::StartTab(std::string text)
 {
-    if (m_SubFrameStack.empty())
+    if (m_SubRectStack.empty())
     {
         Engine::FatalError("Tabs must be inside frames.");
         return;
     }
     else
     {
-        float borderWidth = m_SubFrameStack.top().m_BorderWidth;
+        float borderWidth = 20.0f;
 
-        Rect buttonRect = Rect(Vec2f(c_TabButtonWidth * m_TabIndexOnCurrentFrame, -borderWidth), Vec2f(c_TabButtonWidth, borderWidth));
+        Vec2f buttonSize = Vec2f(c_TabButtonWidth, borderWidth);
         
-        if (TextButton(text, buttonRect, 5.0f))
+        if (TextButton(text, buttonSize, 5.0f, true))
         {
-            FrameState* frameState = GetFrameState(m_SubFrameStack.top());
+            FrameState* frameState = m_FrameStateStack.top();
             frameState->activeTab = m_TabIndexOnCurrentFrame;
         }
-    
+
+        Rect CurrentFrame = GetFrame();
+        Vec2f NewCursorPos = CurrentFrame.location + Vec2f(0.0f, borderWidth);
+
+        CursorStack.push(CursorInfo(NewCursorPos, NewCursorPos));
+
         m_TabIndexOnCurrentFrame++;
     }
     m_InTab = true;
@@ -356,11 +370,14 @@ void UIModule::StartTab(std::string text)
 void UIModule::EndTab()
 {
     m_InTab = false;
+    CursorStack.pop();
 }
 
 void UIModule::OnFrameStart()
 {
     ResetAllElementAliveFlags();
+
+    CursorStack.push(CursorInfo());
 
     m_HashCount = 0;
 }
@@ -369,90 +386,79 @@ void UIModule::OnFrameEnd()
 {
     RemoveInactiveElements();
 
-    if (!m_SubFrameStack.empty())
+    if (!m_FrameStateStack.empty() || !m_SubRectStack.empty())
     {
-        std::vector<std::string> frameNames;
-
-        std::string errorString = "Not all UI frames have been closed!\nOpen frames:\n";
-
-        // Note: Destroys frame stack. Since it's a fatal error that shouldn't matter.
-        while (!m_SubFrameStack.empty())
-        {
-            std::string frameName = m_SubFrameStack.top().m_Name;
-            if (frameName == "")
-            {
-                errorString += "<Unnamed Frame>\n";
-            }
-            else
-            {
-                errorString += frameName + "\n";
-            }
-            m_SubFrameStack.pop();
-        }
+        std::string errorString = "Not all UI frames have been closed!";
 
         Engine::FatalError(errorString);
     }
+
+    while (!CursorStack.empty())
+    {
+        CursorStack.pop();
+    }
 }
 
-Click UIModule::Button(unsigned int img, Rect rect, float borderWidth, bool hasImage, bool isBuffer, bool hasText, std::string text)
+Click UIModule::Button(std::string name, unsigned int img, Vec2f size, float borderWidth, bool hasImage, bool isBuffer, bool hasText, bool isTab)
 {
     if (!ShouldDisplay())
         return Click();
     
-    rect.location += GetFrame().location;
-    ButtonState* buttonState = GetButtonState(rect, borderWidth);
+    ButtonState* buttonState = GetButtonState(name);
+    
+    
+    Rect CurrentFrame = GetFrame();
+    CursorInfo& CurrentCursor = CursorStack.top();
 
-    Click result;
+    Rect ButtonRect;
+    ButtonRect.size = size;
 
-    Vec2i mousePos = Engine::GetMousePosition();
+    float FrameTop = CurrentFrame.location.y;
 
-    if (buttonState->clicking)
+
+    if (CurrentCursor.Top.x + ButtonRect.size.x > CurrentFrame.location.x + CurrentFrame.size.x)
     {
-        if (!rect.Contains(mousePos))
-        {
-            // Mouse moved out of button while clicking, button not clicked
-            buttonState->clicking = false;
-            result.clicked = false;
-        }
-        if (!Engine::GetMouseDown())
-        {
-            // Mouse stopped clicking while on button, button was clicked
-            buttonState->clicking = false;
-            result.clicked = true;
-        }
-    }
-    else
-    {
-        if (Engine::GetMouseDown() && buttonState->hovering)
-        {
-            buttonState->clicking = true;
-        }
-        if (!Engine::GetMouseDown() && rect.Contains(mousePos))
-        {
-            buttonState->hovering = true;
-        }
-        if (!rect.Contains(mousePos))
-        {
-            buttonState->hovering = false;
-        }
+        // New horizontal line
+        CurrentCursor.Top.x = CurrentFrame.location.x;
+        CurrentCursor.Top.y = CurrentCursor.Bottom.y;
+
+        CurrentCursor.Bottom = CurrentCursor.Top + Vec2f(0.0f, ButtonRect.size.y);
     }
 
+    if (CurrentCursor.Top.y + ButtonRect.size.y > CurrentCursor.Bottom.y)
+    {
+        CurrentCursor.Bottom.y = CurrentCursor.Top.y + ButtonRect.size.y;
+    }
+    
+    ButtonRect.location = CurrentCursor.Top;
+    CurrentCursor.Top.x += ButtonRect.size.x;
+
+    buttonState->m_Click.Update(ButtonRect);
+
+    // Render
     m_Renderer.DisableDepthTesting();
-    MeshData vertexData = GetVertexDataForBorderMesh(rect, borderWidth);
+    MeshData vertexData = GetVertexDataForBorderMesh(ButtonRect, borderWidth);
 
     VertexBufferFormat vertFormat = VertexBufferFormat({ VertAttribute::Vec2f, VertAttribute::Vec2f });
 
     m_Renderer.UpdateMeshData(m_BorderMesh, vertFormat, vertexData.first, vertexData.second);
 
-    m_Renderer.SetActiveTexture(m_DefaultBorderTexture, "Texture");
+    if (isTab)
+    {
+        m_Renderer.SetActiveTexture(m_DefaultTabTexture, "Texture");
+    }
+    else
+    {
+        m_Renderer.SetActiveTexture(m_DefaultButtonTexture, "Texture");
+    }
     m_Renderer.SetActiveShader(m_UIShader);
 
-    m_Renderer.SetShaderUniformBool(m_UIShader, "Hovering", buttonState->hovering);
-    m_Renderer.SetShaderUniformBool(m_UIShader, "Clicking", buttonState->clicking);
+    m_Renderer.SetShaderUniformBool(m_UIShader, "Hovering", buttonState->m_Click.hovering);
+    m_Renderer.SetShaderUniformBool(m_UIShader, "Clicking", buttonState->m_Click.clicking);
 
     m_Renderer.DrawMesh(m_BorderMesh);
 
-    Rect innerRect = rect;
+    Rect innerRect = ButtonRect;
     innerRect.location.x += borderWidth;
     innerRect.location.y += borderWidth;
     innerRect.size.x -= borderWidth * 2;
@@ -478,17 +484,12 @@ Click UIModule::Button(unsigned int img, Rect rect, float borderWidth, bool hasI
     if (hasText)
     {
         //TODO: hard coded text colour
-        m_Text.DrawText(text, &m_FrameFont, rect.location + (rect.size / 2), Vec3f(1.0f, 1.0f, 1.0f), Anchor::CENTER);
+        m_Text.DrawText(name, &m_FrameFont, ButtonRect.location + (ButtonRect.size / 2), Vec3f(1.0f, 1.0f, 1.0f), Anchor::CENTER);
     }
-
-    
 
     m_Renderer.EnableDepthTesting();
 
-    result.clicking = buttonState->clicking;
-    result.hovering = buttonState->hovering;
-
-    return result;
+    return buttonState->m_Click;
 }
 
 MeshData UIModule::GetVertexDataForRect(Rect rect)
@@ -583,104 +584,155 @@ std::pair<std::vector<float>, std::vector<ElementIndex>> UIModule::GetVertexData
     return MeshData(vertices, indices);
 }
 
-ButtonState* UIModule::GetButtonState(Rect rect, float borderWidth)
+ElementID UIModule::GetElementID(std::string name)
 {
-    ButtonInfo bi = ButtonInfo{ rect, borderWidth };
-    
-    auto got = m_Buttons.find(bi);
-
-    if (got == m_Buttons.end())
-    {
-        ButtonState newState;
-        m_Buttons[bi] = newState;
-    }
-
-    m_Buttons[bi].m_Alive = true;
-
-    rect.location += GetFrame().location;
-    m_Buttons[bi].m_Click.Update(rect);
-
-    if (m_Buttons[bi].m_Click)
-    {
-        m_ActiveElement = &m_Buttons[bi];
-        Engine::DEBUGPrint("Changed active element, clicked button");
-    }
-
-    return &m_Buttons[bi];
+    // Combine name with per-frame unique number
+    return Hash::Combine(Hash::Hash_Value(name), Hash::Hash_Value(m_HashCount++));
 }
 
-TextEntryState* UIModule::GetTextEntryState(Rect rect)
+FrameState* UIModule::GetFrameState(std::string name)
 {
-    TextEntryInfo ti = TextEntryInfo(rect);
+    ElementID ID = GetElementID(name);
 
-    auto got = m_TextEntries.find(ti);
-
-    if (got == m_TextEntries.end())
+    auto got = m_FrameStates.find(ID);
+    if (got == m_FrameStates.end())
     {
-        TextEntryState newState;
-        m_TextEntries[ti] = newState;
+        m_FrameStates.emplace(ID, FrameState());
     }
 
-    m_TextEntries[ti].m_Alive = true;
+    m_FrameStates[ID].m_Alive = true;
 
-    rect.location += GetFrame().location;
-    m_TextEntries[ti].m_Click.Update(rect);
-
-    if (m_TextEntries[ti].m_Click)
-    {
-        m_ActiveElement = &m_TextEntries[ti];
-        Engine::DEBUGPrint("Changed active element, clicked text entry");
-    }
-
-    return &m_TextEntries[ti];
+    return &m_FrameStates[ID];
 }
 
-FrameState* UIModule::GetFrameState(FrameInfo& fInfo)
+ButtonState* UIModule::GetButtonState(std::string name)
 {
-    return GetFrameState(fInfo.m_Rect, fInfo.m_BorderWidth, fInfo.m_Name);
-}
+    ElementID ID = GetElementID(name);
 
-FrameState* UIModule::GetFrameState(Rect rect, float borderWidth, std::string name)
-{
-    FrameInfo fi = FrameInfo(rect, borderWidth, name);
-
-    auto got = m_Frames.find(fi);
-
-    if (got == m_Frames.end())
+    auto got = m_ButtonStates.find(ID);
+    if (got == m_ButtonStates.end())
     {
-        FrameState newState;
-        m_Frames[fi] = newState;
+        m_ButtonStates.emplace(ID, ButtonState());
     }
 
-    m_Frames[fi].m_Alive = true;
+    m_ButtonStates[ID].m_Alive = true;
 
-    //rect.location += GetFrame().location;
-    m_Frames[fi].m_Click.Update(rect);
+    return &m_ButtonStates[ID];
+}
 
-    if (m_Frames[fi].m_Click)
+TextEntryState* UIModule::GetTextEntryState(std::string name)
+{
+    ElementID ID = GetElementID(name);
+
+    auto got = m_TextEntryStates.find(ID);
+    if (got == m_TextEntryStates.end())
     {
-        m_ActiveElement = &m_Frames[fi];
-        Engine::DEBUGPrint("Changed active element, clicked frame " + name);
+        m_TextEntryStates.emplace(ID, TextEntryState());
     }
 
-    return &m_Frames[fi];
+    m_TextEntryStates[ID].m_Alive = true;
+
+    return &m_TextEntryStates[ID];
 }
+
+//ButtonState* UIModule::GetButtonState(Rect rect, float borderWidth)
+//{
+//    ButtonInfo bi = ButtonInfo{ rect, borderWidth };
+//    
+//    auto got = m_Buttons.find(bi);
+//
+//    if (got == m_Buttons.end())
+//    {
+//        ButtonState newState;
+//        m_Buttons[bi] = newState;
+//    }
+//
+//    m_Buttons[bi].m_Alive = true;
+//
+//    rect.location += GetFrame().location;
+//    m_Buttons[bi].m_Click.Update(rect);
+//
+//    if (m_Buttons[bi].m_Click)
+//    {
+//        m_ActiveElement = &m_Buttons[bi];
+//        Engine::DEBUGPrint("Changed active element, clicked button");
+//    }
+//
+//    return &m_Buttons[bi];
+//}
+//
+//TextEntryState* UIModule::GetTextEntryState(Rect rect)
+//{
+//    TextEntryInfo ti = TextEntryInfo(rect);
+//
+//    auto got = m_TextEntries.find(ti);
+//
+//    if (got == m_TextEntries.end())
+//    {
+//        TextEntryState newState;
+//        m_TextEntries[ti] = newState;
+//    }
+//
+//    m_TextEntries[ti].m_Alive = true;
+//
+//    rect.location += GetFrame().location;
+//    m_TextEntries[ti].m_Click.Update(rect);
+//
+//    if (m_TextEntries[ti].m_Click)
+//    {
+//        m_ActiveElement = &m_TextEntries[ti];
+//        Engine::DEBUGPrint("Changed active element, clicked text entry");
+//    }
+//
+//    return &m_TextEntries[ti];
+//}
+//
+//FrameState* UIModule::GetFrameState(FrameInfo& fInfo)
+//{
+//    return GetFrameState(fInfo.m_Rect, fInfo.m_BorderWidth, fInfo.m_Name);
+//}
+//
+//FrameState* UIModule::GetFrameState(Rect rect, float borderWidth, std::string name)
+//{
+//    FrameInfo fi = FrameInfo(rect, borderWidth, name);
+//
+//    auto got = m_Frames.find(fi);
+//
+//    if (got == m_Frames.end())
+//    {
+//        FrameState newState;
+//        m_Frames[fi] = newState;
+//    }
+//
+//    m_Frames[fi].m_Alive = true;
+//
+//    //rect.location += GetFrame().location;
+//    m_Frames[fi].m_Click.Update(rect);
+//
+//    if (m_Frames[fi].m_Click)
+//    {
+//        m_ActiveElement = &m_Frames[fi];
+//        Engine::DEBUGPrint("Changed active element, clicked frame " + name);
+//    }
+//
+//    return &m_Frames[fi];
+//}
 
 Rect UIModule::GetFrame()
 {
-    if (m_SubFrameStack.empty())
+    if (m_SubRectStack.empty())
     {
         return Rect(Vec2f(0.0f, 0.0f), m_WindowSize);
     }
     else
     {
-        return m_SubFrameStack.top().m_Rect;
+        return m_SubRectStack.top();
     }
 }
 
 bool UIModule::ShouldDisplay()
 {
-    if (m_SubFrameStack.empty())
+    if (m_FrameStateStack.empty())
     {
         // We're not inside a frame element, so always display
         return true;
@@ -693,7 +745,7 @@ bool UIModule::ShouldDisplay()
     else
     {
         // Get the state of the frame element we're in now
-        FrameState* frameState = GetFrameState(m_SubFrameStack.top());
+        FrameState* frameState = m_FrameStateStack.top();
 
         if (frameState->activeTab == m_TabIndexOnCurrentFrame - 1)
         {
@@ -708,15 +760,15 @@ bool UIModule::ShouldDisplay()
 
 void UIModule::ResetAllElementAliveFlags()
 {
-    for (auto& Button : m_Buttons)
-    {
-        Button.second.m_Alive = false;
-    }
-    for (auto& Frame : m_Frames)
+    for (auto& Frame : m_FrameStates)
     {
         Frame.second.m_Alive = false;
     }
-    for (auto& TextEntry : m_TextEntries)
+    for (auto& Button : m_ButtonStates)
+    {
+        Button.second.m_Alive = false;
+    }
+    for (auto& TextEntry : m_TextEntryStates)
     {
         TextEntry.second.m_Alive = false;
     }
@@ -724,24 +776,24 @@ void UIModule::ResetAllElementAliveFlags()
 
 void UIModule::RemoveInactiveElements()
 {
-    for (auto it = m_Buttons.begin(); it != m_Buttons.end();)
+    for (auto it = m_FrameStates.begin(); it != m_FrameStates.end();)
     {
         if (!it->second.m_Alive)
-            it = m_Buttons.erase(it);
+            it = m_FrameStates.erase(it);
         else
             ++it;
     }
-    for (auto it = m_Frames.begin(); it != m_Frames.end();)
+    for (auto it = m_ButtonStates.begin(); it != m_ButtonStates.end();)
     {
         if (!it->second.m_Alive)
-            it = m_Frames.erase(it);
+            it = m_ButtonStates.erase(it);
         else
             ++it;
     }
-    for (auto it = m_TextEntries.begin(); it != m_TextEntries.end();)
+    for (auto it = m_TextEntryStates.begin(); it != m_TextEntryStates.end();)
     {
         if (!it->second.m_Alive)
-            it = m_TextEntries.erase(it);
+            it = m_TextEntryStates.erase(it);
         else
             ++it;
     }

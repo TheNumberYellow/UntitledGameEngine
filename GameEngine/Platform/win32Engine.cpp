@@ -412,11 +412,11 @@ LRESULT CALLBACK WindowProc(_In_ HWND WindowHandle, _In_ UINT Message, _In_ WPAR
 
             modules->GetText()->Resize(newSize);
 
-            Resize(*modules, newSize);
+            Resize(newSize);
         
             graphics->OnFrameStart();
             ui->OnFrameStart();
-            Update(*modules, 0.0);
+            Update(0.0);
             graphics->OnFrameEnd();
             ui->OnFrameEnd();
         }
@@ -527,8 +527,8 @@ int WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ L
     cursorCenter.x = screenSize.x / 2;
     cursorCenter.y = screenSize.y / 2;
 
-    Initialize(Modules);
-    Resize(Modules, screenSize);
+    Initialize();
+    Resize(screenSize);
 
     while (running)
     {
@@ -565,7 +565,7 @@ int WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ L
 
         double DeltaSeconds = (double)DELTA_TICKS / (double)TICKS_PER_SECOND;
 
-        Update(Modules, DeltaSeconds);
+        Update(DeltaSeconds);
         Graphics.OnFrameEnd();
         UI.OnFrameEnd();
         Input.OnFrameEnd();

@@ -18,7 +18,7 @@ public:
     Behaviour(Model* transform);
 
     virtual Behaviour* Clone() const = 0;
-    virtual void Update(ModuleManager& Modules, Scene* Scene, float DeltaTime) {}
+    virtual void Update(Scene* Scene, float DeltaTime) {}
     
     std::string BehaviourName;
     Model* m_Model = nullptr;
@@ -37,7 +37,7 @@ public:
 
     Behaviour* AttachNewBehaviour(std::string BehaviourName, Model* Model);
 
-    void UpdateModelBehaviours(Model* Model, ModuleManager& Modules, Scene* Scene, float DeltaTime);
+    void UpdateModelBehaviours(Model* Model, Scene* Scene, float DeltaTime);
     //void UpdateAllBehaviours(ModuleManager& Modules, Scene* Scene, float DeltaTime);
 
     Behaviour* GetBehaviourAttachedToEntity(Model* Model);

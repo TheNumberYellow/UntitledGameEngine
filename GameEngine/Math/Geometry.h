@@ -45,6 +45,12 @@ struct Rect
         this->size = size;
     }
 
+    Rect(Vec2f size)
+    {
+        this->location = Vec2f(0.0f, 0.0f);
+        this->size = size;
+    }
+
     bool Contains(Vec2f point)
     {
         return point.x > location.x && point.y > location.y &&
@@ -59,6 +65,11 @@ struct Rect
     bool Overlaps(Rect other)
     {
         return (Contains(other.location) || Contains(other.location + other.size));
+    }
+
+    Vec2f Center()
+    {
+        return this->location + (this->size * 0.5f);
     }
 
     // Expand the rect to include this point

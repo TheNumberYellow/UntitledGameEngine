@@ -77,5 +77,5 @@ private:
 
     // TODO: Make sure this isn't loaded when loading the standalone (when I make that)
     // Will also be the case for any other editor-only concepts
-    Model* m_EditorModel;
+    Model* m_EditorModel = nullptr;
 };

@@ -21,7 +21,7 @@
     <ClCompile Include="EditorScene.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="EditorState.cpp">
+    <ClCompile Include="States\EditorState.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Behaviours\Wobble.cpp">
@@ -47,7 +47,7 @@
     <ClInclude Include="EditorScene.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="EditorState.h">
+    <ClInclude Include="States\EditorState.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Behaviours\Wobble.h">
