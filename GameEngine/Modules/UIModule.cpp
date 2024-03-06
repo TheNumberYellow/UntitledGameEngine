@@ -48,6 +48,7 @@ UIModule::UIModule(GraphicsModule& graphics, TextModule& text, InputModule& inpu
     , m_Text(text)
     , m_Input(input)
     , m_Renderer(renderer)
+    , UIElementFormat(VertexBufferFormat({ VertAttribute::Vec2f, VertAttribute::Vec2f }))
 {
     m_DefaultButtonTexture = m_Renderer.LoadTexture("images/button_border.png");
     m_DefaultFrameTexture = m_Renderer.LoadTexture("images/frame_border.png");
@@ -104,9 +105,8 @@ UIModule::UIModule(GraphicsModule& graphics, TextModule& text, InputModule& inpu
 
     Resize(m_Renderer.GetViewportSize());
 
-    VertexBufferFormat vertFormat = VertexBufferFormat({ VertAttribute::Vec2f, VertAttribute::Vec2f });
-    m_BorderMesh = m_Renderer.CreateEmptyMesh(vertFormat, true);
-    m_RectMesh = m_Renderer.CreateEmptyMesh(vertFormat, true);
+    m_BorderMesh = m_Renderer.CreateEmptyMesh(UIElementFormat, true);
+    m_RectMesh = m_Renderer.CreateEmptyMesh(UIElementFormat, true);
 
     m_FrameFont = m_Text.LoadFont("fonts/ARLRDBD.TTF", 12);
 
@@ -148,9 +148,7 @@ void UIModule::ImgPanel(Texture texture, Rect rect)
 
     MeshData vertexData = GetVertexDataForRect(rect);
 
-    VertexBufferFormat vertFormat = VertexBufferFormat({ VertAttribute::Vec2f, VertAttribute::Vec2f });
-
-    m_Renderer.UpdateMeshData(m_RectMesh, vertFormat, vertexData.first, vertexData.second);
+    m_Renderer.UpdateMeshData(m_RectMesh, UIElementFormat, vertexData.first, vertexData.second);
 
     m_Renderer.SetActiveTexture(texture.Id, "Texture");
     m_Renderer.SetActiveShader(m_UIShader);
@@ -174,9 +172,7 @@ void UIModule::ImgPanel(Texture_ID texture, Rect rect)
 
     MeshData vertexData = GetVertexDataForRect(rect);
 
-    VertexBufferFormat vertFormat = VertexBufferFormat({ VertAttribute::Vec2f, VertAttribute::Vec2f });
-
-    m_Renderer.UpdateMeshData(m_RectMesh, vertFormat, vertexData.first, vertexData.second);
+    m_Renderer.UpdateMeshData(m_RectMesh, UIElementFormat, vertexData.first, vertexData.second);
 
     m_Renderer.SetActiveTexture(texture, "Texture");
     m_Renderer.SetActiveShader(m_UIShader);
@@ -200,9 +196,7 @@ void UIModule::BufferPanel(Framebuffer_ID fBuffer, Rect rect)
 
     MeshData vertexData = GetVertexDataForRect(rect);
 
-    VertexBufferFormat vertFormat = VertexBufferFormat({ VertAttribute::Vec2f, VertAttribute::Vec2f });
-
-    m_Renderer.UpdateMeshData(m_RectMesh, vertFormat, vertexData.first, vertexData.second);
+    m_Renderer.UpdateMeshData(m_RectMesh, UIElementFormat, vertexData.first, vertexData.second);
 
     m_Renderer.SetActiveFBufferTexture(fBuffer, "Texture");
 
@@ -218,17 +212,62 @@ void UIModule::BufferPanel(Framebuffer_ID fBuffer, Rect rect)
 
 Click UIModule::TextButton(std::string text, Vec2f size, float borderWidth, bool isTab)
 {
-    return Button(text, 0, size, borderWidth, false, false, true, isTab);
+    if (!ShouldDisplay())
+    {
+        return Click();
+    }
+
+    Rect BRect = SizeElement(size);
+
+    Click Result = ButtonInternal(text, size, borderWidth);
+
+    //TODO: hard coded text colour
+    if (text != "")
+    {
+        //TODO: come up with better depth testing solution for rendering UI
+        m_Renderer.DisableDepthTesting();
+        m_Text.DrawText(text, &m_FrameFont, BRect.location + (BRect.size / 2), Vec3f(1.0f, 1.0f, 1.0f), Anchor::CENTER);
+        m_Renderer.EnableDepthTesting();
+    }
+
+    return Result;
 }
 
 Click UIModule::ImgButton(std::string name, Texture texture, Vec2f size, float borderWidth)
 {
-    return Button(name, texture.Id, size, borderWidth, true, false, false, false);
+    if (!ShouldDisplay())
+    {
+        return Click();
+    }
+
+    Rect BRect = SizeElement(size);
+
+    Click Result = ButtonInternal(name, size, borderWidth);
+
+    Rect innerRect = BRect;
+    innerRect.location.x += borderWidth;
+    innerRect.location.y += borderWidth;
+    innerRect.size.x -= borderWidth * 2;
+    innerRect.size.y -= borderWidth * 2;
+
+    MeshData VertexData = GetVertexDataForRect(innerRect);
+
+    m_Renderer.UpdateMeshData(m_RectMesh, UIElementFormat, VertexData.first, VertexData.second);
+
+    //m_Renderer.SetShaderUniformBool(m_UIShader, "Hovering", Result.hovering);
+    //m_Renderer.SetShaderUniformBool(m_UIShader, "Clicking", Result.clicking);
+
+    m_Renderer.SetActiveTexture(texture.Id, "Texture");
+
+    //TODO: come up with better depth testing solution for rendering UI
+    m_Renderer.DrawMesh(m_RectMesh);
+
+    return Result;
 }
 
 Click UIModule::BufferButton(std::string name, Framebuffer_ID fBuffer, Vec2f size, float borderWidth)
 {
-    return Button(name, fBuffer, size, borderWidth, true, true, false, false);
+    return ButtonInternal(name, size, borderWidth); // Button(name, fBuffer, size, borderWidth, true, true, false, false);
 }
 
 void UIModule::Text(std::string text, Vec2f position, Vec3f colour)
@@ -307,12 +346,11 @@ void UIModule::StartFrame(std::string name, Rect rect, float borderWidth)
     // Render
     m_Renderer.DisableDepthTesting();
 
-    VertexBufferFormat vertFormat = VertexBufferFormat({ VertAttribute::Vec2f, VertAttribute::Vec2f });
     MeshData verts = GetVertexDataForBorderMesh(rect, borderWidth);
     
     m_Renderer.SetActiveShader(m_UIShader);
     
-    m_Renderer.UpdateMeshData(m_BorderMesh, vertFormat, verts.first, verts.second);
+    m_Renderer.UpdateMeshData(m_BorderMesh, UIElementFormat, verts.first, verts.second);
     m_Renderer.SetActiveTexture(m_DefaultFrameTexture, "Texture");
 
     m_Renderer.SetShaderUniformBool(m_UIShader, "Hovering", false);
@@ -399,97 +437,97 @@ void UIModule::OnFrameEnd()
     }
 }
 
-Click UIModule::Button(std::string name, unsigned int img, Vec2f size, float borderWidth, bool hasImage, bool isBuffer, bool hasText, bool isTab)
+Click UIModule::ButtonInternal(std::string name, Vec2f size, float borderWidth)
 {
     if (!ShouldDisplay())
+    {
         return Click();
+    }
+
+    ButtonState* BState = GetButtonState(name);
+
+    Rect BRect = PlaceElement(size);
+
+    BState->m_Click.Update(BRect);
+
+    // Render
+    m_Renderer.DisableDepthTesting();
+    MeshData vertexData = GetVertexDataForBorderMesh(BRect, borderWidth);
+
+    m_Renderer.UpdateMeshData(m_BorderMesh, UIElementFormat, vertexData.first, vertexData.second);
+
+    m_Renderer.SetActiveShader(m_UIShader);
     
-    ButtonState* buttonState = GetButtonState(name);
-    
+    m_Renderer.SetActiveTexture(m_DefaultButtonTexture, "Texture");
+
+    m_Renderer.SetShaderUniformBool(m_UIShader, "Hovering", BState->m_Click.hovering);
+    m_Renderer.SetShaderUniformBool(m_UIShader, "Clicking", BState->m_Click.clicking);
+
+    m_Renderer.DrawMesh(m_BorderMesh);
+
+    m_Renderer.EnableDepthTesting();
+
+    return BState->m_Click;
+}
+
+Rect UIModule::SizeElement(Vec2f size)
+{
+    Rect ElementBounds;
     
     Rect CurrentFrame = GetFrame();
     CursorInfo& CurrentCursor = CursorStack.top();
 
-    Rect ButtonRect;
-    ButtonRect.size = size;
+    CursorInfo NewCursor = CurrentCursor;
 
-    float FrameTop = CurrentFrame.location.y;
+    ElementBounds.size = size;
 
+    if (CurrentCursor.Top.x + ElementBounds.size.x > CurrentFrame.location.x + CurrentFrame.size.x)
+    {
+        // New horizontal line
+        NewCursor.Top.x = CurrentFrame.location.x;
+        NewCursor.Top.y = NewCursor.Bottom.y;
 
-    if (CurrentCursor.Top.x + ButtonRect.size.x > CurrentFrame.location.x + CurrentFrame.size.x)
+        NewCursor.Bottom = NewCursor.Top + Vec2f(0.0f, ElementBounds.size.y);
+    }
+
+    if (NewCursor.Top.y + ElementBounds.size.y > NewCursor.Bottom.y)
+    {
+        NewCursor.Bottom.y = NewCursor.Top.y + ElementBounds.size.y;
+    }
+
+    ElementBounds.location = NewCursor.Top;
+    NewCursor.Top.x += ElementBounds.size.x;
+
+    return ElementBounds;
+}
+
+Rect UIModule::PlaceElement(Vec2f size)
+{
+    Rect ElementBounds;
+
+    Rect CurrentFrame = GetFrame();
+    CursorInfo& CurrentCursor = CursorStack.top();
+
+    ElementBounds.size = size;
+
+    if (CurrentCursor.Top.x + ElementBounds.size.x > CurrentFrame.location.x + CurrentFrame.size.x)
     {
         // New horizontal line
         CurrentCursor.Top.x = CurrentFrame.location.x;
         CurrentCursor.Top.y = CurrentCursor.Bottom.y;
 
-        CurrentCursor.Bottom = CurrentCursor.Top + Vec2f(0.0f, ButtonRect.size.y);
+        CurrentCursor.Bottom = CurrentCursor.Top + Vec2f(0.0f, ElementBounds.size.y);
     }
 
-    if (CurrentCursor.Top.y + ButtonRect.size.y > CurrentCursor.Bottom.y)
+    if (CurrentCursor.Top.y + ElementBounds.size.y > CurrentCursor.Bottom.y)
     {
-        CurrentCursor.Bottom.y = CurrentCursor.Top.y + ButtonRect.size.y;
-    }
-    
-    ButtonRect.location = CurrentCursor.Top;
-    CurrentCursor.Top.x += ButtonRect.size.x;
-
-    buttonState->m_Click.Update(ButtonRect);
-
-    // Render
-    m_Renderer.DisableDepthTesting();
-    MeshData vertexData = GetVertexDataForBorderMesh(ButtonRect, borderWidth);
-
-    VertexBufferFormat vertFormat = VertexBufferFormat({ VertAttribute::Vec2f, VertAttribute::Vec2f });
-
-    m_Renderer.UpdateMeshData(m_BorderMesh, vertFormat, vertexData.first, vertexData.second);
-
-    if (isTab)
-    {
-        m_Renderer.SetActiveTexture(m_DefaultTabTexture, "Texture");
-    }
-    else
-    {
-        m_Renderer.SetActiveTexture(m_DefaultButtonTexture, "Texture");
-    }
-    m_Renderer.SetActiveShader(m_UIShader);
-
-    m_Renderer.SetShaderUniformBool(m_UIShader, "Hovering", buttonState->m_Click.hovering);
-    m_Renderer.SetShaderUniformBool(m_UIShader, "Clicking", buttonState->m_Click.clicking);
-
-    m_Renderer.DrawMesh(m_BorderMesh);
-
-    Rect innerRect = ButtonRect;
-    innerRect.location.x += borderWidth;
-    innerRect.location.y += borderWidth;
-    innerRect.size.x -= borderWidth * 2;
-    innerRect.size.y -= borderWidth * 2;
-
-    vertexData = GetVertexDataForRect(innerRect);
-
-    m_Renderer.UpdateMeshData(m_RectMesh, vertFormat, vertexData.first, vertexData.second);
-
-    if (hasImage)
-    {
-        if (isBuffer)
-        {
-            m_Renderer.SetActiveFBufferTexture(img, "Texture");
-        }
-        else
-        {
-            m_Renderer.SetActiveTexture(img, "Texture");
-        }
-        m_Renderer.DrawMesh(m_RectMesh);
+        CurrentCursor.Bottom.y = CurrentCursor.Top.y + ElementBounds.size.y;
     }
 
-    if (hasText)
-    {
-        //TODO: hard coded text colour
-        m_Text.DrawText(name, &m_FrameFont, ButtonRect.location + (ButtonRect.size / 2), Vec3f(1.0f, 1.0f, 1.0f), Anchor::CENTER);
-    }
+    ElementBounds.location = CurrentCursor.Top;
+    CurrentCursor.Top.x += ElementBounds.size.x;
 
-    m_Renderer.EnableDepthTesting();
-
-    return buttonState->m_Click;
+    return ElementBounds;
 }
 
 MeshData UIModule::GetVertexDataForRect(Rect rect)
@@ -634,89 +672,6 @@ TextEntryState* UIModule::GetTextEntryState(std::string name)
 
     return &m_TextEntryStates[ID];
 }
-
-//ButtonState* UIModule::GetButtonState(Rect rect, float borderWidth)
-//{
-//    ButtonInfo bi = ButtonInfo{ rect, borderWidth };
-//    
-//    auto got = m_Buttons.find(bi);
-//
-//    if (got == m_Buttons.end())
-//    {
-//        ButtonState newState;
-//        m_Buttons[bi] = newState;
-//    }
-//
-//    m_Buttons[bi].m_Alive = true;
-//
-//    rect.location += GetFrame().location;
-//    m_Buttons[bi].m_Click.Update(rect);
-//
-//    if (m_Buttons[bi].m_Click)
-//    {
-//        m_ActiveElement = &m_Buttons[bi];
-//        Engine::DEBUGPrint("Changed active element, clicked button");
-//    }
-//
-//    return &m_Buttons[bi];
-//}
-//
-//TextEntryState* UIModule::GetTextEntryState(Rect rect)
-//{
-//    TextEntryInfo ti = TextEntryInfo(rect);
-//
-//    auto got = m_TextEntries.find(ti);
-//
-//    if (got == m_TextEntries.end())
-//    {
-//        TextEntryState newState;
-//        m_TextEntries[ti] = newState;
-//    }
-//
-//    m_TextEntries[ti].m_Alive = true;
-//
-//    rect.location += GetFrame().location;
-//    m_TextEntries[ti].m_Click.Update(rect);
-//
-//    if (m_TextEntries[ti].m_Click)
-//    {
-//        m_ActiveElement = &m_TextEntries[ti];
-//        Engine::DEBUGPrint("Changed active element, clicked text entry");
-//    }
-//
-//    return &m_TextEntries[ti];
-//}
-//
-//FrameState* UIModule::GetFrameState(FrameInfo& fInfo)
-//{
-//    return GetFrameState(fInfo.m_Rect, fInfo.m_BorderWidth, fInfo.m_Name);
-//}
-//
-//FrameState* UIModule::GetFrameState(Rect rect, float borderWidth, std::string name)
-//{
-//    FrameInfo fi = FrameInfo(rect, borderWidth, name);
-//
-//    auto got = m_Frames.find(fi);
-//
-//    if (got == m_Frames.end())
-//    {
-//        FrameState newState;
-//        m_Frames[fi] = newState;
-//    }
-//
-//    m_Frames[fi].m_Alive = true;
-//
-//    //rect.location += GetFrame().location;
-//    m_Frames[fi].m_Click.Update(rect);
-//
-//    if (m_Frames[fi].m_Click)
-//    {
-//        m_ActiveElement = &m_Frames[fi];
-//        Engine::DEBUGPrint("Changed active element, clicked frame " + name);
-//    }
-//
-//    return &m_Frames[fi];
-//}
 
 Rect UIModule::GetFrame()
 {

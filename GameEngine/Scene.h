@@ -18,22 +18,6 @@ enum FileReaderState
     NONE
 };
 
-struct SceneObject
-{
-    AABB m_Bounds;
-    Transform m_Transform;
-};
-
-struct ModelObject : public SceneObject
-{
-
-};
-
-struct PointLightObject : public SceneObject
-{
-
-};
-
 struct SceneRayCastHit
 {
     RayCastHit rayCastHit;
@@ -77,7 +61,7 @@ public:
 
     void SetDirectionalLight(DirectionalLight light);
 
-    SceneRayCastHit RayCast(Ray ray, CollisionModule& collision, std::vector<Model*> IgnoredModels = std::vector<Model*>());
+    SceneRayCastHit RayCast(Ray ray, std::vector<Model*> IgnoredModels = std::vector<Model*>());
 
     Model* MenuListEntities(UIModule& ui, Font& font);
 

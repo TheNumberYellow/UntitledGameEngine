@@ -1,4 +1,4 @@
-#if 1
+#if 0
 #include "GameEngine.h"
 
 #include "EditorScene.h"
@@ -549,7 +549,7 @@ void UpdateSelectTool(InputModule& input, CollisionModule& collisions)
         {
             Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
 
-            SceneRayCastHit finalHit = scene.RayCast(mouseRay, collisions);
+            SceneRayCastHit finalHit = scene.RayCast(mouseRay);
 
             if (finalHit.rayCastHit.hit)
             {
@@ -603,7 +603,7 @@ void UpdateBoxCreate(InputModule& input, CollisionModule& collisions, GraphicsMo
             RayCastHit finalHit = collisions.RayCast(mouseRay, Plane{ Vec3f(0.0f, 0.0f, 0.0f), Vec3f(0.0f, 0.0f, 1.0f) });
 
             // Test against existing level geometry
-            SceneRayCastHit levelHit = scene.RayCast(mouseRay, collisions);
+            SceneRayCastHit levelHit = scene.RayCast(mouseRay);
 
             if (levelHit.rayCastHit.hitDistance < finalHit.hitDistance) finalHit = levelHit.rayCastHit;
 
@@ -710,7 +710,7 @@ void UpdatePlaneCreate(InputModule& input, CollisionModule& collisions, Graphics
             RayCastHit finalHit = collisions.RayCast(mouseRay, Plane{ Vec3f(0.0f, 0.0f, 0.0f), Vec3f(0.0f, 0.0f, 1.0f) });
 
             // Test against existing level geometry
-            SceneRayCastHit levelHit = scene.RayCast(mouseRay, collisions);
+            SceneRayCastHit levelHit = scene.RayCast(mouseRay);
 
             if (levelHit.rayCastHit.hitDistance < finalHit.hitDistance) finalHit = levelHit.rayCastHit;
 
@@ -809,7 +809,7 @@ void UpdateModelPlace(InputModule& input, CollisionModule& collisions, GraphicsM
             Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
             Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
 
-            SceneRayCastHit finalHit = scene.RayCast(mouseRay, collisions);
+            SceneRayCastHit finalHit = scene.RayCast(mouseRay);
 
             if (input.GetMouseState().GetDeltaMouseWheel() > 0)
             {
@@ -1001,7 +1001,7 @@ void UpdateModelTranslate(InputModule& input, CollisionModule& collisions, Graph
         Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
         Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
 
-        SceneRayCastHit finalHit = scene.RayCast(mouseRay, collisions);
+        SceneRayCastHit finalHit = scene.RayCast(mouseRay);
 
         if (finalHit.rayCastHit.hit)
         {
@@ -1160,7 +1160,7 @@ void UpdateModelRotate(InputModule& input, CollisionModule& collisions, Graphics
         Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
         Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
 
-        SceneRayCastHit finalHit = scene.RayCast(mouseRay, collisions);
+        SceneRayCastHit finalHit = scene.RayCast(mouseRay);
 
         if (finalHit.rayCastHit.hit)
         {
@@ -1295,7 +1295,7 @@ void UpdateModelScale(InputModule& input, CollisionModule& collisions, GraphicsM
         Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
         Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
 
-        SceneRayCastHit finalHit = scene.RayCast(mouseRay, collisions);
+        SceneRayCastHit finalHit = scene.RayCast(mouseRay);
 
         if (finalHit.rayCastHit.hit)
         {
@@ -1345,7 +1345,7 @@ void UpdateSculptTool(InputModule& input, CollisionModule& collisions, GraphicsM
     Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
     Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
 
-    SceneRayCastHit finalHit = scene.RayCast(mouseRay, collisions);
+    SceneRayCastHit finalHit = scene.RayCast(mouseRay);
 
     if (finalHit.rayCastHit.hit)
     {
@@ -1435,7 +1435,7 @@ void UpdateTexturePlace(InputModule& input, CollisionModule& collisions, Graphic
             Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
             Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
 
-            SceneRayCastHit finalHit = scene.RayCast(mouseRay, collisions);
+            SceneRayCastHit finalHit = scene.RayCast(mouseRay);
 
             if (finalHit.rayCastHit.hit)
             {
@@ -1457,7 +1457,7 @@ void UpdateBehaviourPlace(InputModule& input, CollisionModule& collisions)
             Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
             Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
 
-            SceneRayCastHit finalHit = scene.RayCast(mouseRay, collisions);
+            SceneRayCastHit finalHit = scene.RayCast(mouseRay);
 
             if (finalHit.rayCastHit.hit)
             {
@@ -1478,7 +1478,7 @@ void UpdatePointLightPlace(InputModule& input, CollisionModule& collisions, Grap
             Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
             Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
 
-            SceneRayCastHit finalHit = scene.RayCast(mouseRay, collisions);
+            SceneRayCastHit finalHit = scene.RayCast(mouseRay);
 
             
 
@@ -2267,7 +2267,7 @@ void UpdateGame(double deltaTime)
 
         if (player.grounded)
         {
-            SceneRayCastHit groundCheck = runtimeScene.RayCast(Ray(player.position, Vec3f(0.0f, 0.0f, -1.0f)), collisions);
+            SceneRayCastHit groundCheck = runtimeScene.RayCast(Ray(player.position, Vec3f(0.0f, 0.0f, -1.0f)));
             
             if (!groundCheck.rayCastHit.hit)
             {
@@ -2295,7 +2295,7 @@ void UpdateGame(double deltaTime)
 
         //player.grounded = false;
 
-        SceneRayCastHit movement = runtimeScene.RayCast(Ray(player.position, Math::normalize(player.velocity)), collisions);
+        SceneRayCastHit movement = runtimeScene.RayCast(Ray(player.position, Math::normalize(player.velocity)));
 
         float hitDist = 0.0f;
         float testHitDist = 0.0f;

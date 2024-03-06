@@ -2,7 +2,53 @@
 
 #include <filesystem>
 
-void EditorState::CursorState::Update(Scene& EditorScene)
+SelectedModel::SelectedModel(Model* InModel, Scene* InScene)
+{
+    ModelPtr = InModel;
+    ScenePtr = InScene;
+}
+
+void SelectedModel::Draw()
+{
+    GraphicsModule* Graphics = GraphicsModule::Get();
+    CollisionModule* Collision = CollisionModule::Get();
+
+    Graphics->DebugDrawAABB(Collision->GetCollisionMeshFromMesh(ModelPtr->m_TexturedMeshes[0].m_Mesh)->boundingBox);
+}
+
+void SelectedModel::DrawInspectorPanel()
+{
+}
+
+Transform* SelectedModel::GetTransform()
+{
+    return nullptr;
+}
+
+void SelectedModel::DeleteObject()
+{
+    ScenePtr->DeleteModel(ModelPtr);
+}
+
+SelectedLight::SelectedLight(Vec3f InPos)
+{
+}
+
+void SelectedLight::DrawInspectorPanel()
+{
+}
+
+Transform* SelectedLight::GetTransform()
+{
+    return nullptr;
+}
+
+void SelectedLight::DeleteObject()
+{
+}
+
+
+void CursorState::Update()
 {
     InputModule* Input = InputModule::Get();
 
@@ -10,30 +56,77 @@ void EditorState::CursorState::Update(Scene& EditorScene)
     {
         if (Input->GetMouseState().IsButtonDown(Mouse::LMB))
         {
+            Vec2i MousePos = Input->GetMouseState().GetMousePos();
+            Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+
+            DraggingModelPtr->GetTransform().SetPosition(MouseRay.point + MouseRay.direction * 8.0f);
+
+            int DeltaMouseWheel = Input->GetMouseState().GetDeltaMouseWheel();
+
+            Vec3f ScalingIncrement = Vec3f(0.1f, 0.1f, 0.1f);
+
+            Vec3f PrevScale = DraggingModelPtr->GetTransform().GetScale();
+            if (DeltaMouseWheel > 0)
+            {
+                DraggingModelPtr->GetTransform().SetScale(PrevScale + ScalingIncrement);
+            }
+            else if (DeltaMouseWheel < 0)
+            {
+                DraggingModelPtr->GetTransform().SetScale(PrevScale - ScalingIncrement);
+            }
         }
         else
         {
-            // Mouse button released, place model in scene
-            EditorScene.AddModel(*DraggingModelPtr);
-
             DraggingModelPtr = nullptr;
 
             Dragging = DraggingMode::None;
         }
     }
+
+    switch (Tool)
+    {
+    case ToolMode::Select:
+    {
+        UpdateSelectTool();
+        break;
+    }
+    default:
+    {
+        break;
+    }
+    }
+
+
+
+    if (SelectedObject)
+    {
+        SelectedObject->Draw();
+
+        if (Input->GetKeyState(Key::Delete))
+        {
+            SelectedObject->DeleteObject();
+            delete SelectedObject;
+            SelectedObject = nullptr;
+        }
+        else if (Input->GetKeyState(Key::Escape))
+        {
+            delete SelectedObject;
+            SelectedObject = nullptr;
+        }
+    }
 }
 
-void EditorState::CursorState::CycleToolMode()
+void CursorState::CycleToolMode()
 {
     switch (Tool)
     {
     case ToolMode::Select:
+        Tool = ToolMode::Transform;
+        break;
+    case ToolMode::Transform:
         Tool = ToolMode::Geometry;
         break;
     case ToolMode::Geometry:
-        Tool = ToolMode::Move;
-        break;
-    case ToolMode::Move:
         Tool = ToolMode::Vertex;
         break;
     case ToolMode::Vertex:
@@ -48,15 +141,15 @@ void EditorState::CursorState::CycleToolMode()
     }
 }
 
-void EditorState::CursorState::CycleGeometryMode()
+void CursorState::CycleGeometryMode()
 {
-    switch (Geometry)
+    switch (GeoMode)
     {
     case GeometryMode::Box:
-        Geometry = GeometryMode::Plane;
+        GeoMode = GeometryMode::Plane;
         break;
     case GeometryMode::Plane:
-        Geometry = GeometryMode::Box;
+        GeoMode = GeometryMode::Box;
         break;
     default:
         Engine::FatalError("Invalid editor cursor geometry mode.");
@@ -64,18 +157,18 @@ void EditorState::CursorState::CycleGeometryMode()
     }
 }
 
-void EditorState::CursorState::CycleMoveMode()
+void CursorState::CycleMoveMode()
 {
-    switch (Move)
+    switch (TransMode)
     {
-    case MoveMode::Translate:
-        Move = MoveMode::Rotate;
+    case TransformMode::Translate:
+        TransMode = TransformMode::Rotate;
         break;
-    case MoveMode::Rotate:
-        Move = MoveMode::Scale;
+    case TransformMode::Rotate:
+        TransMode = TransformMode::Scale;
         break;
-    case MoveMode::Scale:
-        Move = MoveMode::Translate;
+    case TransformMode::Scale:
+        TransMode = TransformMode::Translate;
         break;
     default:
         Engine::FatalError("Invalid editor cursor move mode.");
@@ -83,12 +176,12 @@ void EditorState::CursorState::CycleMoveMode()
     }
 }
 
-void EditorState::CursorState::SetToolMode(ToolMode InToolMode)
+void CursorState::SetToolMode(ToolMode InToolMode)
 {
     Tool = InToolMode;
 }
 
-void EditorState::CursorState::StartDraggingNewModel(Model NewModel)
+void CursorState::StartDraggingNewModel(Model* NewModel)
 {
     if (Dragging != DraggingMode::None)
     {
@@ -97,32 +190,53 @@ void EditorState::CursorState::StartDraggingNewModel(Model NewModel)
 
     Dragging = DraggingMode::NewModel;
 
-    DraggingModelPtr = new Model(NewModel);
+    DraggingModelPtr = NewModel;
 }
 
-void EditorState::CursorState::DrawTransientModels()
+void CursorState::DrawTransientModels()
 {
 
 }
 
-void EditorState::CursorState::UpdateSelectTool()
+bool CursorState::IsDraggingSomething()
 {
-
+    return Dragging != DraggingMode::None;
 }
 
-void EditorState::CursorState::UpdateGeometryTool()
+void CursorState::UpdateSelectTool()
+{
+    InputModule* Input = InputModule::Get();
+    
+    if (Input->GetMouseState().IsButtonDown(Mouse::LMB))
+    {
+        Vec2i MousePos = Input->GetMouseState().GetMousePos();
+        Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+
+        auto Hit = EditorScenePtr->RayCast(MouseRay);
+
+        if (Hit.rayCastHit.hit)
+        {
+            SelectedModel* EdModel = new SelectedModel(Hit.hitModel, EditorScenePtr);
+
+            SelectedObject = EdModel;
+        }
+
+    }
+}
+
+void CursorState::UpdateGeometryTool()
 {
 }
 
-void EditorState::CursorState::UpdateMoveTool()
+void CursorState::UpdateMoveTool()
 {
 }
 
-void EditorState::CursorState::UpdateVertexTool()
+void CursorState::UpdateVertexTool()
 {
 }
 
-void EditorState::CursorState::UpdateSculptTool()
+void CursorState::UpdateSculptTool()
 {
 }
 
@@ -153,8 +267,10 @@ void EditorState::OnInitialized()
     
     // Set up empty editor scene
     EditorScene.Init(*Graphics, *Collisions);
-    EditorScene.SetDirectionalLight(DirectionalLight{ Vec3f(0.0f, 0.0f, -1.0f), Vec3f(1.0f, 1.0f, 1.0f) });
+    EditorScene.SetDirectionalLight(DirectionalLight{ Math::normalize(Vec3f(0.0f, 1.0f, -1.0f)), Vec3f(1.0f, 1.0f, 1.0f) });
     EditorScene.SetCamera(&ViewportCamera);
+
+    Cursor = CursorState(this, &EditorScene);
 
     // Set up framebuffers the editor uses
     Rect ViewportRect = GetEditorSceneViewportRect();
@@ -167,11 +283,13 @@ void EditorState::OnInitialized()
 
     Graphics->InitializeDebugDraw(ViewportBuffer.FinalOutput);
 
+    Graphics->SetRenderMode(RenderMode::DEFAULT);
+
     CurrentResourceDirectoryPath = std::filesystem::current_path();
 
     for (int i = 0; i < 100; i++)
     {
-        RandomSizes.push_back(Vec2f(Math::RandomFloat(40.0f, 100.0f), Math::RandomFloat(40.0f, 100.0f)));
+        RandomSizes.push_back(Math::RandomFloat(120.0f, 200.0f));
     }
 }
 
@@ -217,10 +335,17 @@ void EditorState::UpdateEditor(float DeltaTime)
         MoveCamera(&ViewportCamera, 0.001f, DeltaTime);
     }
 
+    if (Input->IsKeyDown(Key::Q))
+    {
+
+        EditorScene.SetDirectionalLight(DirectionalLight{ ViewportCamera.GetDirection(), Vec3f(1.0f, 1.0f, 1.0f) });
+
+    }
+
     if (Engine::IsWindowFocused())
     {
         // Update tools
-        Cursor.Update(EditorScene);
+        Cursor.Update();
 
         if (Input->GetKeyState(Key::Alt).justPressed)
         {
@@ -246,7 +371,7 @@ void EditorState::UpdateEditor(float DeltaTime)
     Graphics->ResetFrameBuffer();
     UI->BufferPanel(ViewportBuffer.FinalOutput, GetEditorSceneViewportRect());
 
-    DrawResourcesPanel();
+    DrawEditorUI();
 }
 
 void EditorState::UpdateGame(float DeltaTime)
@@ -257,8 +382,8 @@ Rect EditorState::GetEditorSceneViewportRect()
 {
     Vec2f ViewportSize = Engine::GetClientAreaSize();
 
-    Rect SceneViewportRect = Rect(  Vec2f(ViewportSize.x * 0.1f, ViewportSize.y * 0.0f), 
-                                    Vec2f(ViewportSize.x * 0.8f, ViewportSize.y * 0.7f));
+    Rect SceneViewportRect = Rect(  Vec2f(80.0f, 40.0f), 
+                                    Vec2f(ViewportSize.x - 320.0f, ViewportSize.y * 0.7f - 40.0f));
     return SceneViewportRect;
 }
 
@@ -523,6 +648,41 @@ void EditorState::MoveCamera(Camera* Camera, float PixelToRadians, double DeltaT
     Camera->RotateCamBasedOnDeltaMouse(Input->GetMouseState().GetDeltaMousePos(), PixelToRadians);
 }
 
+void EditorState::DrawEditorUI()
+{
+    GraphicsModule* Graphics = GraphicsModule::Get();
+    UIModule* UI = UIModule::Get();
+
+    Vec2i ScreenSize = Engine::GetClientAreaSize();
+    Rect ViewportRect = GetEditorSceneViewportRect();
+
+    // Left toolbar buttons
+    Rect ToolbarButtonRect = Rect(Vec2f(0.0f, 40.0f), Vec2f(ViewportRect.location.x, ViewportRect.size.y));
+
+    UI->StartFrame("Tools", ToolbarButtonRect, 0.0f);
+
+
+    if (UI->ImgButton("CursorTool", cursorToolTexture, Vec2f(80.0f, 80.0f), 10.0f))
+    {
+        Cursor.SetToolMode(ToolMode::Select);
+    }
+
+    if (UI->ImgButton("TransformTool", translateToolTexture, Vec2f(80.0f, 80.0f), 10.0f))
+    {
+        Cursor.SetToolMode(ToolMode::Transform);
+    }
+
+    if (UI->ImgButton("BoxTool", boxToolTexture, Vec2f(80.0f, 80.0f), 10.0f))
+    {
+        Cursor.SetToolMode(ToolMode::Geometry);
+    }
+    
+    UI->EndFrame();
+
+
+    DrawResourcesPanel();
+}
+
 void EditorState::DrawResourcesPanel()
 {
     GraphicsModule* Graphics = GraphicsModule::Get();
@@ -532,19 +692,26 @@ void EditorState::DrawResourcesPanel()
     Graphics->SetCamera(&ModelCamera);
 
     Vec2i ScreenSize = Engine::GetClientAreaSize();
+    Rect ViewportRect = GetEditorSceneViewportRect();
 
-    Rect ResourcePanelRect = Rect(Vec2f(ScreenSize.x * 0.1f, ScreenSize.y * 0.7f), Vec2f(ScreenSize.x * 0.8f, ScreenSize.y * 0.3f));
+    Rect ResourcePanelRect = Rect(Vec2f(ViewportRect.location.x, ViewportRect.location.y + ViewportRect.size.y), Vec2f(ViewportRect.size.x, ScreenSize.y - (ViewportRect.location.y + ViewportRect.size.y)));
 
     UI->StartFrame("Resources", ResourcePanelRect, 16.0f);
     {
         UI->StartTab("Models");
         {
+            int index = 0;
             for (auto& AModel : LoadedModels)
             {
-                if (UI->TextButton(AModel.m_TexturedMeshes[0].m_Mesh.Path.GetFileNameNoExt(), Vec2f(160.0f, 40.0f), 8.0f).clicking)
+                if (UI->TextButton(AModel.m_TexturedMeshes[0].m_Mesh.Path.GetFileNameNoExt(), Vec2f(RandomSizes[index], 40.0f), 8.0f).clicking)
                 {
-                    Cursor.StartDraggingNewModel(AModel);
+                    if (!Cursor.IsDraggingSomething())
+                    {
+                        Model* AddedModel = EditorScene.AddModel(AModel);
+                        Cursor.StartDraggingNewModel(AddedModel);
+                    }
                 }
+                index++;
             }
         }
         UI->EndTab();
@@ -553,26 +720,22 @@ void EditorState::DrawResourcesPanel()
         {
             for (auto& Material : LoadedMaterials)
             {
-                UI->TextButton(Material.m_Albedo.Path.GetFileNameNoExt(), Vec2f(160.0f, 40.0f), 8.0f);
+                UI->ImgButton(Material.m_Albedo.Path.GetFileNameNoExt(), Material.m_Albedo, Vec2f(80, 80), 5.0f);
             }
         }
         UI->EndTab();
 
         UI->StartTab("Other other");
         {
-            for (int i = 0; i < 100; ++i)
+            for (int i = 0; i < 1000; ++i)
             {
-                UI->TextButton("Button #" + std::to_string(i), RandomSizes[i], 10.0f);
+                UI->TextButton("", Vec2f(20.0f, 20.0f), 4.0f);
             }
         }
         UI->EndTab();
-
-        //for (int i = 0; i < 10; ++i)
-        //{
-        //    UI->TextButton("Button #" + std::to_string(i), Rect(Vec2f(0.0f, 0.0f), Vec2f(80.0f, 80.0f)), 4.0f);
-        //}
     }
     UI->EndFrame();
 
 
 }
+

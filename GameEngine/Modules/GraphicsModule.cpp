@@ -2204,6 +2204,25 @@ void GraphicsModule::DebugDrawSphere(Vec3f p, float radius /*= 1.0f*/, Vec3f col
     Vec3f Back = p + Vec3f(0.0f, -1.0f, 0.0f) * radius;
     Vec3f Front = p + Vec3f(0.0f, 1.0f, 0.0f) * radius;
 
+    Vec3f CenterPoints[10];
+
+    for (int i = 0; i < 10; ++i)
+    {
+        CenterPoints[i] = p + Math::rotate(Vec3f(radius, 0.0f, 0.0f), i * (3.1415f * 2.0f / 10.0f), Vec3f(0.0f, 0.0f, 1.0f));
+    }
+
+    for (int i = 0; i < 10; ++i)
+    {
+        if (i == 9)
+        {
+            DebugDrawLine(CenterPoints[i], CenterPoints[0], colour);
+        }
+        else
+        {
+            DebugDrawLine(CenterPoints[i], CenterPoints[i + 1], colour);
+        }
+    }
+
     //DebugDrawPoint(Top, colour);
     //DebugDrawPoint(Bot, colour);
     //DebugDrawPoint(Left, colour);
@@ -2211,20 +2230,20 @@ void GraphicsModule::DebugDrawSphere(Vec3f p, float radius /*= 1.0f*/, Vec3f col
     //DebugDrawPoint(Back, colour);
     //DebugDrawPoint(Front, colour);
 
-    DebugDrawLine(Top, Left, colour);
-    DebugDrawLine(Top, Right, colour);
-    DebugDrawLine(Top, Back, colour);
-    DebugDrawLine(Top, Front, colour);
+    //DebugDrawLine(Top, Left, colour);
+    //DebugDrawLine(Top, Right, colour);
+    //DebugDrawLine(Top, Back, colour);
+    //DebugDrawLine(Top, Front, colour);
 
-    DebugDrawLine(Bot, Left, colour);
-    DebugDrawLine(Bot, Right, colour);
-    DebugDrawLine(Bot, Back, colour);
-    DebugDrawLine(Bot, Front, colour);
+    //DebugDrawLine(Bot, Left, colour);
+    //DebugDrawLine(Bot, Right, colour);
+    //DebugDrawLine(Bot, Back, colour);
+    //DebugDrawLine(Bot, Front, colour);
 
-    DebugDrawLine(Back, Left, colour);
-    DebugDrawLine(Left, Front, colour);
-    DebugDrawLine(Front, Right, colour);
-    DebugDrawLine(Right, Back, colour);
+    //DebugDrawLine(Back, Left, colour);
+    //DebugDrawLine(Left, Front, colour);
+    //DebugDrawLine(Front, Right, colour);
+    //DebugDrawLine(Right, Back, colour);
 
 }
 

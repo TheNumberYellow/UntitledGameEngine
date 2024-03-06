@@ -55,10 +55,10 @@ void RCCar::Update(Scene* Scene, float DeltaTime)
     std::vector<Model*> IgnoredModels;
     IgnoredModels.push_back(m_Model);
 
-    SceneRayCastHit FrontLeftTireHit = Scene->RayCast(Ray(FrontLeftTire + Vec3f(0.0f, 0.0f, 5.0f), Vec3f(0.0f, 0.0f, -1.0f)), *Collisions, IgnoredModels);
-    SceneRayCastHit FrontRightTireHit = Scene->RayCast(Ray(FrontRightTire + Vec3f(0.0f, 0.0f, 5.0f), Vec3f(0.0f, 0.0f, -1.0f)), *Collisions, IgnoredModels);
-    SceneRayCastHit BackLeftTireHit = Scene->RayCast(Ray(BackLeftTire + Vec3f(0.0f, 0.0f, 5.0f), Vec3f(0.0f, 0.0f, -1.0f)), *Collisions, IgnoredModels);
-    SceneRayCastHit BackRightTireHit = Scene->RayCast(Ray(BackRightTire + Vec3f(0.0f, 0.0f, 5.0f), Vec3f(0.0f, 0.0f, -1.0f)), *Collisions, IgnoredModels);
+    SceneRayCastHit FrontLeftTireHit = Scene->RayCast(Ray(FrontLeftTire + Vec3f(0.0f, 0.0f, 5.0f), Vec3f(0.0f, 0.0f, -1.0f)), IgnoredModels);
+    SceneRayCastHit FrontRightTireHit = Scene->RayCast(Ray(FrontRightTire + Vec3f(0.0f, 0.0f, 5.0f), Vec3f(0.0f, 0.0f, -1.0f)), IgnoredModels);
+    SceneRayCastHit BackLeftTireHit = Scene->RayCast(Ray(BackLeftTire + Vec3f(0.0f, 0.0f, 5.0f), Vec3f(0.0f, 0.0f, -1.0f)), IgnoredModels);
+    SceneRayCastHit BackRightTireHit = Scene->RayCast(Ray(BackRightTire + Vec3f(0.0f, 0.0f, 5.0f), Vec3f(0.0f, 0.0f, -1.0f)), IgnoredModels);
 
     //for (int i = 0; i < 100; i++)
     //{

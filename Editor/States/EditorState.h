@@ -5,16 +5,25 @@
 
 #include <filesystem>
 
+class EditorState;
+
 //--------------------
 // Enums
 //--------------------
 enum class ToolMode : uint8_t
 {
     Select,
+    Transform,
     Geometry,
-    Move,
     Vertex,
     Sculpt,
+};
+
+enum class TransformMode : uint8_t
+{
+    Translate,
+    Rotate,
+    Scale
 };
 
 enum class GeometryMode : uint8_t
@@ -23,12 +32,6 @@ enum class GeometryMode : uint8_t
     Plane
 };
 
-enum class MoveMode : uint8_t
-{
-    Translate,
-    Rotate,
-    Scale
-};
 
 enum class DraggingMode : uint8_t
 {
@@ -39,40 +42,107 @@ enum class DraggingMode : uint8_t
     NewPointLight,
 };
 
+class ISelectedObject
+{
+public:
+
+    // Any editor specific drawing that needs to be done for this selected object
+    virtual void Draw() {};
+
+    // Any per-frame update that needs to be done while this object is selected
+    virtual void Update() {};
+
+    // Fill the UI panel with object-specific data
+    virtual void DrawInspectorPanel() = 0;
+
+    virtual Transform* GetTransform() = 0;
+    virtual void DeleteObject() = 0;
+};
+
+class SelectedModel : public ISelectedObject
+{
+public:
+    SelectedModel(Model* InModel, Scene* InScene);
+
+    virtual void Draw() override;
+
+    virtual void DrawInspectorPanel() override;
+
+    virtual Transform* GetTransform() override;
+    virtual void DeleteObject() override;
+
+private:
+
+    Model* ModelPtr;
+    Scene* ScenePtr;
+};
+
+class SelectedLight : public ISelectedObject
+{
+public:
+    SelectedLight(Vec3f InPos);
+
+    virtual void DrawInspectorPanel() override;
+
+    virtual Transform* GetTransform() override;
+    virtual void DeleteObject() override;
+
+private:
+
+    PointLight* PointLightPtr;
+    Transform Trans;
+};
+
+class CursorState
+{
+public:
+
+    CursorState() {}
+
+    CursorState(EditorState* InEditorState, Scene* InEditorScene)
+        : EditorStatePtr(InEditorState)
+        , EditorScenePtr(InEditorScene)
+    {
+    }
+
+    void Update();
+
+    void CycleToolMode();
+    void CycleGeometryMode();
+    void CycleMoveMode();
+
+    void SetToolMode(ToolMode InToolMode);
+
+    void StartDraggingNewModel(Model* NewModel);
+
+    void DrawTransientModels();
+
+    bool IsDraggingSomething();
+
+private:
+    void UpdateSelectTool();
+    void UpdateGeometryTool();
+    void UpdateMoveTool();
+    void UpdateVertexTool();
+    void UpdateSculptTool();
+
+    ToolMode Tool = ToolMode::Select;
+    DraggingMode Dragging = DraggingMode::None;
+
+    TransformMode TransMode = TransformMode::Translate;
+    GeometryMode GeoMode = GeometryMode::Box;
+
+    Model* DraggingModelPtr = nullptr;
+    
+    ISelectedObject* SelectedObject = nullptr;
+
+    EditorState* EditorStatePtr;
+    Scene* EditorScenePtr;
+};
 
 
 class EditorState : public BaseState
 {
-    class CursorState
-    {
-    public:
-        void Update(Scene& EditorScene);
-
-        void CycleToolMode();
-        void CycleGeometryMode();
-        void CycleMoveMode();
-
-        void SetToolMode(ToolMode InToolMode);
-
-        void StartDraggingNewModel(Model NewModel);
-
-        void DrawTransientModels();
-
-    private:
-        void UpdateSelectTool();
-        void UpdateGeometryTool();
-        void UpdateMoveTool();
-        void UpdateVertexTool();
-        void UpdateSculptTool();
-
-        ToolMode Tool = ToolMode::Select;
-        DraggingMode Dragging = DraggingMode::None;
-
-        GeometryMode Geometry = GeometryMode::Box;
-        MoveMode Move = MoveMode::Translate;
-
-        Model* DraggingModelPtr = nullptr;
-    };
 
 public:
 
@@ -101,12 +171,14 @@ private:
 
     void MoveCamera(Camera* Camera, float PixelToRadians, double DeltaTime);
 
+    void DrawEditorUI();
     void DrawResourcesPanel();
 
 private:
     //--------------------
     // Private member variables
     //--------------------
+    friend class CursorState;
     CursorState Cursor;
 
     Scene EditorScene;
@@ -117,7 +189,7 @@ private:
 
     std::filesystem::path CurrentResourceDirectoryPath;
 
-    std::vector<Vec2f> RandomSizes;
+    std::vector<float> RandomSizes;
 
     //--------------------
     // Editor Textures

@@ -49,6 +49,8 @@ struct ElementState
 struct FrameState : public ElementState
 {
     uint32_t activeTab = 0;
+
+    float verticalOffset = 0.0f;
 };
 
 struct ButtonState : public ElementState
@@ -100,7 +102,13 @@ public:
     static UIModule* Get() { return s_Instance; }
 private:
 
-    Click Button(std::string name, unsigned int img, Vec2f size, float borderWidth, bool hasImage, bool isBuffer, bool hasText, bool isTab);
+    Click ButtonInternal(std::string name, Vec2f size, float borderWidth);
+
+    // Returns the bounds of an element given a size, without advancing the cursor
+    Rect SizeElement(Vec2f size);
+
+    // Returns bounds of an element given a size, and advances the cursor
+    Rect PlaceElement(Vec2f size);
 
     MeshData GetVertexDataForRect(Rect rect);
     MeshData GetVertexDataForBorderMesh(Rect rect, float borderWidth);   
@@ -119,6 +127,8 @@ private:
 
     void ResetAllElementAliveFlags();
     void RemoveInactiveElements();
+
+    VertexBufferFormat UIElementFormat;
 
     std::unordered_map<ElementID, FrameState> m_FrameStates;
     std::unordered_map<ElementID, ButtonState> m_ButtonStates;

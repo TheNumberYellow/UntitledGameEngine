@@ -143,7 +143,7 @@ void TopDownPlayer::Update(Scene* Scene, float DeltaTime)
 
         std::vector<Model*> IgnoredModels;
         IgnoredModels.push_back(m_Model);
-        SceneRayCastHit MoveHit = Scene->RayCast(Ray(Pos + Skin, Math::normalize(Movement)), Collisions, IgnoredModels);
+        SceneRayCastHit MoveHit = Scene->RayCast(Ray(Pos + Skin, Math::normalize(Movement)), IgnoredModels);
 
         if (!MoveHit.rayCastHit.hit || MoveHit.rayCastHit.hitDistance > Math::magnitude(Movement))
         {

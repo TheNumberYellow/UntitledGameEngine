@@ -220,7 +220,6 @@ void Scene::UpdateBehaviours(float DeltaTime)
 
 void Scene::Draw(GraphicsModule& graphics, GBuffer gBuffer)
 {
-
     for (auto& it : m_Models)
     {
         StaticMeshRenderCommand command;
@@ -289,8 +288,10 @@ void Scene::SetDirectionalLight(DirectionalLight light)
     m_DirLight = light;
 }
 
-SceneRayCastHit Scene::RayCast(Ray ray, CollisionModule& collision, std::vector<Model*> IgnoredModels)
+SceneRayCastHit Scene::RayCast(Ray ray, std::vector<Model*> IgnoredModels)
 {
+    CollisionModule& Collision = *CollisionModule::Get();
+
     SceneRayCastHit finalHit;
 
     for (auto& it : m_Models)
@@ -299,9 +300,9 @@ SceneRayCastHit Scene::RayCast(Ray ray, CollisionModule& collision, std::vector<
         {
             continue;
         }
-        CollisionMesh& colMesh = *collision.GetCollisionMeshFromMesh(it.second->m_TexturedMeshes[0].m_Mesh);
+        CollisionMesh& colMesh = *Collision.GetCollisionMeshFromMesh(it.second->m_TexturedMeshes[0].m_Mesh);
 
-        finalHit = Closer(finalHit, SceneRayCastHit{ collision.RayCast(ray, colMesh, it.second->GetTransform()), it.second });
+        finalHit = Closer(finalHit, SceneRayCastHit{ Collision.RayCast(ray, colMesh, it.second->GetTransform()), it.second });
     }
 
     for (auto& it : m_UntrackedModels)
@@ -310,9 +311,9 @@ SceneRayCastHit Scene::RayCast(Ray ray, CollisionModule& collision, std::vector<
         {
             continue;
         }
-        CollisionMesh& colMesh = *collision.GetCollisionMeshFromMesh(it->m_TexturedMeshes[0].m_Mesh);
+        CollisionMesh& colMesh = *Collision.GetCollisionMeshFromMesh(it->m_TexturedMeshes[0].m_Mesh);
         
-        finalHit = Closer(finalHit, SceneRayCastHit{ collision.RayCast(ray, colMesh, it->GetTransform()), it });
+        finalHit = Closer(finalHit, SceneRayCastHit{ Collision.RayCast(ray, colMesh, it->GetTransform()), it });
     }
 
     return finalHit;
