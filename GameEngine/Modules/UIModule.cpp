@@ -391,7 +391,7 @@ void UIModule::StartFrame(std::string name, Rect rect, float borderWidth, Vec3f 
     {
         Rect r = rect;
         //TODO: hard coded text colour
-        m_Text.DrawText(name, &m_FrameFont, r.location, Vec3f(1.0f, 1.0f, 1.0f));
+        m_Text.DrawText(name, &m_FrameFont, r.location, Vec3f(0.0f, 0.0f, 0.0f));
     }
 
     m_Renderer.EnableDepthTesting();

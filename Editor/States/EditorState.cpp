@@ -661,7 +661,7 @@ void EditorState::DrawEditorUI()
     // Left toolbar buttons
     Rect ToolbarButtonRect = Rect(Vec2f(0.0f, 40.0f), Vec2f(ViewportRect.location.x, ViewportRect.size.y));
 
-    UI->StartFrame("Tools", ToolbarButtonRect, 0.0f, c_NiceBlue);
+    UI->StartFrame("Tools", ToolbarButtonRect, 0.0f, c_NicePink);
     {
         if (UI->ImgButton("CursorTool", cursorToolTexture, Vec2f(80.0f, 80.0f), 12.0f, c_NiceLighterBlue))
         {
@@ -678,12 +678,29 @@ void EditorState::DrawEditorUI()
             Cursor.SetToolMode(ToolMode::Geometry);
         }
     }
-
-    
     UI->EndFrame();
 
-
+    DrawTopPanel();
     DrawResourcesPanel();
+    DrawInspectorPanel();
+}
+
+void EditorState::DrawTopPanel()
+{
+    GraphicsModule* Graphics = GraphicsModule::Get();
+    UIModule* UI = UIModule::Get();
+
+    Vec2i ScreenSize = Engine::GetClientAreaSize();
+    Rect ViewportRect = GetEditorSceneViewportRect();
+
+    Rect TopPanelRect = Rect(Vec2f(0.0f, 0.0f),
+        Vec2f(ScreenSize.x, ViewportRect.location.y));
+
+    UI->StartFrame("Top", TopPanelRect, 8.0f, c_NiceRed);
+    {
+
+    }
+    UI->EndFrame();
 }
 
 void EditorState::DrawResourcesPanel()
@@ -739,6 +756,25 @@ void EditorState::DrawResourcesPanel()
     }
     UI->EndFrame();
 
+
+}
+
+void EditorState::DrawInspectorPanel()
+{
+    GraphicsModule* Graphics = GraphicsModule::Get();
+    UIModule* UI = UIModule::Get();
+
+    Vec2i ScreenSize = Engine::GetClientAreaSize();
+    Rect ViewportRect = GetEditorSceneViewportRect();
+
+    Rect InspectorPanelRect = Rect( Vec2f(ViewportRect.location.x + ViewportRect.size.x, ViewportRect.location.y), 
+                                    Vec2f(ScreenSize.x - (ViewportRect.location.x + ViewportRect.size.x), ScreenSize.y - ViewportRect.location.y));
+
+    UI->StartFrame("Inspector", InspectorPanelRect, 16.0f, c_NicePink);
+    {
+
+    }
+    UI->EndFrame();
 
 }
 

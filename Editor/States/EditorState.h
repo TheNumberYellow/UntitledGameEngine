@@ -172,7 +172,10 @@ private:
     void MoveCamera(Camera* Camera, float PixelToRadians, double DeltaTime);
 
     void DrawEditorUI();
+
+    void DrawTopPanel();
     void DrawResourcesPanel();
+    void DrawInspectorPanel();
 
 private:
     //--------------------
@@ -253,5 +256,6 @@ private:
     const Vec3f c_NiceBlue = Vec3f(0.0f, 150.f / 255.f, 255.f / 255.f);
     const Vec3f c_NiceLighterBlue = Vec3f(40.f / 255.f, 190.f / 255.f, 255.f / 255.f);
     const Vec3f c_NicePurple = Vec3f(207.f / 255.f, 159.f / 255.f, 255.f / 255.f);
-
+    const Vec3f c_NicePink = Vec3f(248.f / 255.f, 131.f / 255.f, 121.f / 255.f);
+    const Vec3f c_NiceRed = Vec3f(238.f / 255.f, 75.f / 255.f, 43.f / 255.f);
 };
