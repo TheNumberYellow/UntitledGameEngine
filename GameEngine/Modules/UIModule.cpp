@@ -50,9 +50,9 @@ UIModule::UIModule(GraphicsModule& graphics, TextModule& text, InputModule& inpu
     , m_Renderer(renderer)
     , UIElementFormat(VertexBufferFormat({ VertAttribute::Vec2f, VertAttribute::Vec2f }))
 {
-    m_DefaultButtonTexture = m_Renderer.LoadTexture("images/button_border.png");
-    m_DefaultFrameTexture = m_Renderer.LoadTexture("images/frame_border.png");
-    m_DefaultTabTexture = m_Renderer.LoadTexture("images/tab_border.png");
+    m_DefaultButtonTexture = m_Renderer.LoadTexture("images/nine_cut_bw.png");
+    m_DefaultFrameTexture = m_Renderer.LoadTexture("images/nine_cut_bw.png");
+    m_DefaultTabTexture = m_Renderer.LoadTexture("images/nine_cut_bw.png");
 
     // ~~~~~~~~~~~~~~~~~~~~~UI shader code~~~~~~~~~~~~~~~~~~~~~ //
     std::string vertShaderSource = R"(
@@ -78,7 +78,8 @@ UIModule::UIModule(GraphicsModule& graphics, TextModule& text, InputModule& inpu
     uniform sampler2D Texture;
     uniform bool Hovering;
     uniform bool Clicking;
-    
+    uniform vec3 Colour;    
+
     smooth in vec2 FragUV;	
 
     out vec4 OutColour;
@@ -86,8 +87,7 @@ UIModule::UIModule(GraphicsModule& graphics, TextModule& text, InputModule& inpu
     void main()
     {
         vec4 textureAt = texture(Texture, FragUV);
-        OutColour = textureAt;
-
+        OutColour = textureAt * vec4(Colour, 1.0);
 
         if (Clicking)
         {
@@ -155,6 +155,7 @@ void UIModule::ImgPanel(Texture texture, Rect rect)
 
     m_Renderer.SetShaderUniformBool(m_UIShader, "Hovering", false);
     m_Renderer.SetShaderUniformBool(m_UIShader, "Clicking", false);
+    m_Renderer.SetShaderUniformVec3f(m_UIShader, "Colour", c_White);
 
     m_Renderer.DrawMesh(m_RectMesh);
 
@@ -179,6 +180,7 @@ void UIModule::ImgPanel(Texture_ID texture, Rect rect)
 
     m_Renderer.SetShaderUniformBool(m_UIShader, "Hovering", false);
     m_Renderer.SetShaderUniformBool(m_UIShader, "Clicking", false);
+    m_Renderer.SetShaderUniformVec3f(m_UIShader, "Colour", c_White);
 
     m_Renderer.DrawMesh(m_RectMesh);
 
@@ -204,13 +206,14 @@ void UIModule::BufferPanel(Framebuffer_ID fBuffer, Rect rect)
 
     m_Renderer.SetShaderUniformBool(m_UIShader, "Hovering", false);
     m_Renderer.SetShaderUniformBool(m_UIShader, "Clicking", false);
+    m_Renderer.SetShaderUniformVec3f(m_UIShader, "Colour", c_White);
 
     m_Renderer.DrawMesh(m_RectMesh);
 
     m_Renderer.EnableDepthTesting();
 }
 
-Click UIModule::TextButton(std::string text, Vec2f size, float borderWidth, bool isTab)
+Click UIModule::TextButton(std::string text, Vec2f size, float borderWidth, Vec3f colour, Vec3f textColour)
 {
     if (!ShouldDisplay())
     {
@@ -219,21 +222,21 @@ Click UIModule::TextButton(std::string text, Vec2f size, float borderWidth, bool
 
     Rect BRect = SizeElement(size);
 
-    Click Result = ButtonInternal(text, size, borderWidth);
+    Click Result = ButtonInternal(text, size, borderWidth, colour);
 
     //TODO: hard coded text colour
     if (text != "")
     {
         //TODO: come up with better depth testing solution for rendering UI
         m_Renderer.DisableDepthTesting();
-        m_Text.DrawText(text, &m_FrameFont, BRect.location + (BRect.size / 2), Vec3f(1.0f, 1.0f, 1.0f), Anchor::CENTER);
+        m_Text.DrawText(text, &m_FrameFont, BRect.location + (BRect.size / 2), textColour, Anchor::CENTER);
         m_Renderer.EnableDepthTesting();
     }
 
     return Result;
 }
 
-Click UIModule::ImgButton(std::string name, Texture texture, Vec2f size, float borderWidth)
+Click UIModule::ImgButton(std::string name, Texture texture, Vec2f size, float borderWidth, Vec3f colour)
 {
     if (!ShouldDisplay())
     {
@@ -242,7 +245,7 @@ Click UIModule::ImgButton(std::string name, Texture texture, Vec2f size, float b
 
     Rect BRect = SizeElement(size);
 
-    Click Result = ButtonInternal(name, size, borderWidth);
+    Click Result = ButtonInternal(name, size, borderWidth, colour);
 
     Rect innerRect = BRect;
     innerRect.location.x += borderWidth;
@@ -254,8 +257,7 @@ Click UIModule::ImgButton(std::string name, Texture texture, Vec2f size, float b
 
     m_Renderer.UpdateMeshData(m_RectMesh, UIElementFormat, VertexData.first, VertexData.second);
 
-    //m_Renderer.SetShaderUniformBool(m_UIShader, "Hovering", Result.hovering);
-    //m_Renderer.SetShaderUniformBool(m_UIShader, "Clicking", Result.clicking);
+    m_Renderer.SetShaderUniformVec3f(m_UIShader, "Colour", c_White);
 
     m_Renderer.SetActiveTexture(texture.Id, "Texture");
 
@@ -265,9 +267,35 @@ Click UIModule::ImgButton(std::string name, Texture texture, Vec2f size, float b
     return Result;
 }
 
-Click UIModule::BufferButton(std::string name, Framebuffer_ID fBuffer, Vec2f size, float borderWidth)
+Click UIModule::BufferButton(std::string name, Framebuffer_ID fBuffer, Vec2f size, float borderWidth, Vec3f colour)
 {
-    return ButtonInternal(name, size, borderWidth); // Button(name, fBuffer, size, borderWidth, true, true, false, false);
+    if (!ShouldDisplay())
+    {
+        return Click();
+    }
+
+    Rect BRect = SizeElement(size);
+
+    Click Result = ButtonInternal(name, size, borderWidth, colour);
+
+    Rect innerRect = BRect;
+    innerRect.location.x += borderWidth;
+    innerRect.location.y += borderWidth;
+    innerRect.size.x -= borderWidth * 2;
+    innerRect.size.y -= borderWidth * 2;
+
+    MeshData VertexData = GetVertexDataForRect(innerRect);
+
+    m_Renderer.UpdateMeshData(m_RectMesh, UIElementFormat, VertexData.first, VertexData.second);
+
+    m_Renderer.SetShaderUniformVec3f(m_UIShader, "Colour", c_White);
+
+    m_Renderer.SetActiveFBufferTexture(fBuffer, "Texture");
+
+    //TODO: come up with better depth testing solution for rendering UI
+    m_Renderer.DrawMesh(m_RectMesh);
+
+    return Result;
 }
 
 void UIModule::Text(std::string text, Vec2f position, Vec3f colour)
@@ -329,7 +357,7 @@ void UIModule::TextEntry(std::string name, std::string& stringRef, Rect rect)
     }
 }
 
-void UIModule::StartFrame(std::string name, Rect rect, float borderWidth)
+void UIModule::StartFrame(std::string name, Rect rect, float borderWidth, Vec3f colour)
 {
     if (!ShouldDisplay())
         return;
@@ -355,6 +383,7 @@ void UIModule::StartFrame(std::string name, Rect rect, float borderWidth)
 
     m_Renderer.SetShaderUniformBool(m_UIShader, "Hovering", false);
     m_Renderer.SetShaderUniformBool(m_UIShader, "Clicking", false);
+    m_Renderer.SetShaderUniformVec3f(m_UIShader, "Colour", colour);
 
     m_Renderer.DrawMesh(m_BorderMesh);
 
@@ -376,7 +405,7 @@ void UIModule::EndFrame()
     m_TabIndexOnCurrentFrame = 0;
 }
 
-void UIModule::StartTab(std::string text)
+void UIModule::StartTab(std::string text, Vec3f colour)
 {
     if (m_SubRectStack.empty())
     {
@@ -389,7 +418,7 @@ void UIModule::StartTab(std::string text)
 
         Vec2f buttonSize = Vec2f(c_TabButtonWidth, borderWidth);
         
-        if (TextButton(text, buttonSize, 5.0f, true))
+        if (TextButton(text, buttonSize, 5.0f, colour))
         {
             FrameState* frameState = m_FrameStateStack.top();
             frameState->activeTab = m_TabIndexOnCurrentFrame;
@@ -437,7 +466,7 @@ void UIModule::OnFrameEnd()
     }
 }
 
-Click UIModule::ButtonInternal(std::string name, Vec2f size, float borderWidth)
+Click UIModule::ButtonInternal(std::string name, Vec2f size, float borderWidth, Vec3f colour)
 {
     if (!ShouldDisplay())
     {
@@ -462,6 +491,7 @@ Click UIModule::ButtonInternal(std::string name, Vec2f size, float borderWidth)
 
     m_Renderer.SetShaderUniformBool(m_UIShader, "Hovering", BState->m_Click.hovering);
     m_Renderer.SetShaderUniformBool(m_UIShader, "Clicking", BState->m_Click.clicking);
+    m_Renderer.SetShaderUniformVec3f(m_UIShader, "Colour", colour);
 
     m_Renderer.DrawMesh(m_BorderMesh);
 

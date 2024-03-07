@@ -143,14 +143,14 @@ int MouseState::GetDeltaMouseWheel() const
 	return m_DeltaMouseWheel;
 }
 
-bool MouseState::IsButtonDown(Mouse button) const
+KeyState MouseState::GetMouseButtonState(MouseButton button) const
 {
 	return m_Buttons[static_cast<size_t>(button)];
 }
 
-void MouseState::SetButtonDown(Mouse button, bool pressed)
+void MouseState::SetMouseButtonDown(MouseButton button, bool pressed)
 {
-	m_Buttons[static_cast<size_t>(button)] = pressed;
+	m_Buttons[static_cast<size_t>(button)].UpdateState(pressed);
 }
 
 void GamepadState::SetEnabled(bool enabled)

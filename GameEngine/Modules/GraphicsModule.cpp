@@ -1450,7 +1450,7 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam, DirectionalLight DirLigh
     // Debug draw
     m_Renderer.SetActiveFBuffer(Buffer.DebugBuffer);
     m_Renderer.ClearColourBuffer();
-    DrawDebugDrawMesh();
+    DrawDebugDrawMesh(Cam);
 
     // Billboards draw (also to debug buffer)
 
@@ -1734,7 +1734,7 @@ void GraphicsModule::ResetFrameBuffer()
 {
     if (m_IsDebugDrawAttachedToFBuffer && m_ActiveFrameBuffer == m_DebugFBuffer)
     {
-        DrawDebugDrawMesh();
+        DrawDebugDrawMesh(*m_Camera);
     }
     m_Renderer.ResetToScreenBuffer();
 }
@@ -2081,7 +2081,7 @@ void GraphicsModule::OnFrameEnd()
 {
     if (m_IsDebugDrawInitialized && !m_IsDebugDrawAttachedToFBuffer)
     {
-        DrawDebugDrawMesh();
+        DrawDebugDrawMesh(*m_Camera);
     }
 
     m_Renderer.SwapBuffer();
@@ -2257,13 +2257,13 @@ void GraphicsModule::SetRenderMode(RenderMode mode)
     m_RenderMode = mode;
 }
 
-void GraphicsModule::DrawDebugDrawMesh()
+void GraphicsModule::DrawDebugDrawMesh(Camera cam)
 {
     m_Renderer.ClearMesh(m_DebugDrawMesh);
     m_Renderer.SetActiveShader(m_DebugLineShader);
     if (m_DebugLineMap.size() > 0)
     {
-        m_Renderer.SetShaderUniformMat4x4f(m_DebugLineShader, "Camera", m_Camera->GetCamMatrix());
+        m_Renderer.SetShaderUniformMat4x4f(m_DebugLineShader, "Camera", cam.GetCamMatrix());
         for (auto& it : m_DebugLineMap)
         {
             m_Renderer.UpdateMeshData(m_DebugDrawMesh, m_DebugVertFormat, it.second);

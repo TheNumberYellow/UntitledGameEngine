@@ -247,4 +247,11 @@ private:
     //--------------------
     GBuffer ViewportBuffer;
 
+    //--------------------
+    // Constants
+    //--------------------
+    const Vec3f c_NiceBlue = Vec3f(0.0f, 150.f / 255.f, 255.f / 255.f);
+    const Vec3f c_NiceLighterBlue = Vec3f(40.f / 255.f, 190.f / 255.f, 255.f / 255.f);
+    const Vec3f c_NicePurple = Vec3f(207.f / 255.f, 159.f / 255.f, 255.f / 255.f);
+
 };

@@ -13,7 +13,7 @@ void SelectedModel::Draw()
     GraphicsModule* Graphics = GraphicsModule::Get();
     CollisionModule* Collision = CollisionModule::Get();
 
-    Graphics->DebugDrawAABB(Collision->GetCollisionMeshFromMesh(ModelPtr->m_TexturedMeshes[0].m_Mesh)->boundingBox);
+    Graphics->DebugDrawAABB(Collision->GetCollisionMeshFromMesh(ModelPtr->m_TexturedMeshes[0].m_Mesh)->boundingBox, Vec3f(48.f / 255.f, 213.f / 255.f, 200.f / 255.f), ModelPtr->GetTransform().GetTransformMatrix());
 }
 
 void SelectedModel::DrawInspectorPanel()
@@ -54,7 +54,7 @@ void CursorState::Update()
 
     if (Dragging == DraggingMode::NewModel)
     {
-        if (Input->GetMouseState().IsButtonDown(Mouse::LMB))
+        if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).pressed)
         {
             Vec2i MousePos = Input->GetMouseState().GetMousePos();
             Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
@@ -207,7 +207,7 @@ void CursorState::UpdateSelectTool()
 {
     InputModule* Input = InputModule::Get();
     
-    if (Input->GetMouseState().IsButtonDown(Mouse::LMB))
+    if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).justPressed)
     {
         Vec2i MousePos = Input->GetMouseState().GetMousePos();
         Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
@@ -216,11 +216,13 @@ void CursorState::UpdateSelectTool()
 
         if (Hit.rayCastHit.hit)
         {
-            SelectedModel* EdModel = new SelectedModel(Hit.hitModel, EditorScenePtr);
+            if (Hit.hitModel != DraggingModelPtr)
+            {
+                SelectedModel* EdModel = new SelectedModel(Hit.hitModel, EditorScenePtr);
 
-            SelectedObject = EdModel;
+                SelectedObject = EdModel;
+            }
         }
-
     }
 }
 
@@ -659,23 +661,24 @@ void EditorState::DrawEditorUI()
     // Left toolbar buttons
     Rect ToolbarButtonRect = Rect(Vec2f(0.0f, 40.0f), Vec2f(ViewportRect.location.x, ViewportRect.size.y));
 
-    UI->StartFrame("Tools", ToolbarButtonRect, 0.0f);
-
-
-    if (UI->ImgButton("CursorTool", cursorToolTexture, Vec2f(80.0f, 80.0f), 10.0f))
+    UI->StartFrame("Tools", ToolbarButtonRect, 0.0f, c_NiceBlue);
     {
-        Cursor.SetToolMode(ToolMode::Select);
+        if (UI->ImgButton("CursorTool", cursorToolTexture, Vec2f(80.0f, 80.0f), 12.0f, c_NiceLighterBlue))
+        {
+            Cursor.SetToolMode(ToolMode::Select);
+        }
+
+        if (UI->ImgButton("TransformTool", translateToolTexture, Vec2f(80.0f, 80.0f), 12.0f, c_NiceLighterBlue))
+        {
+            Cursor.SetToolMode(ToolMode::Transform);
+        }
+
+        if (UI->ImgButton("BoxTool", boxToolTexture, Vec2f(80.0f, 80.0f), 12.0f, c_NiceLighterBlue))
+        {
+            Cursor.SetToolMode(ToolMode::Geometry);
+        }
     }
 
-    if (UI->ImgButton("TransformTool", translateToolTexture, Vec2f(80.0f, 80.0f), 10.0f))
-    {
-        Cursor.SetToolMode(ToolMode::Transform);
-    }
-
-    if (UI->ImgButton("BoxTool", boxToolTexture, Vec2f(80.0f, 80.0f), 10.0f))
-    {
-        Cursor.SetToolMode(ToolMode::Geometry);
-    }
     
     UI->EndFrame();
 
@@ -696,14 +699,14 @@ void EditorState::DrawResourcesPanel()
 
     Rect ResourcePanelRect = Rect(Vec2f(ViewportRect.location.x, ViewportRect.location.y + ViewportRect.size.y), Vec2f(ViewportRect.size.x, ScreenSize.y - (ViewportRect.location.y + ViewportRect.size.y)));
 
-    UI->StartFrame("Resources", ResourcePanelRect, 16.0f);
+    UI->StartFrame("Resources", ResourcePanelRect, 16.0f, c_NiceBlue);
     {
-        UI->StartTab("Models");
+        UI->StartTab("Models", c_NicePurple);
         {
             int index = 0;
             for (auto& AModel : LoadedModels)
             {
-                if (UI->TextButton(AModel.m_TexturedMeshes[0].m_Mesh.Path.GetFileNameNoExt(), Vec2f(RandomSizes[index], 40.0f), 8.0f).clicking)
+                if (UI->TextButton(AModel.m_TexturedMeshes[0].m_Mesh.Path.GetFileNameNoExt(), Vec2f(RandomSizes[index], 40.0f), 10.0f, c_NiceLighterBlue).clicking)
                 {
                     if (!Cursor.IsDraggingSomething())
                     {
@@ -716,20 +719,20 @@ void EditorState::DrawResourcesPanel()
         }
         UI->EndTab();
 
-        UI->StartTab("Materials");
+        UI->StartTab("Materials", c_NicePurple);
         {
             for (auto& Material : LoadedMaterials)
             {
-                UI->ImgButton(Material.m_Albedo.Path.GetFileNameNoExt(), Material.m_Albedo, Vec2f(80, 80), 5.0f);
+                UI->ImgButton(Material.m_Albedo.Path.GetFileNameNoExt(), Material.m_Albedo, Vec2f(80, 80), 5.0f, c_NiceLighterBlue);
             }
         }
         UI->EndTab();
 
-        UI->StartTab("Other other");
+        UI->StartTab("Other other", c_NicePurple);
         {
             for (int i = 0; i < 1000; ++i)
             {
-                UI->TextButton("", Vec2f(20.0f, 20.0f), 4.0f);
+                UI->TextButton("", Vec2f(20.0f, 20.0f), 4.0f, c_NiceLighterBlue);
             }
         }
         UI->EndTab();

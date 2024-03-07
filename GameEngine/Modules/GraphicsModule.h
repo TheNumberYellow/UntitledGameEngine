@@ -323,7 +323,7 @@ private:
     bool m_IsDebugDrawAttachedToFBuffer;
     Framebuffer_ID m_DebugFBuffer;
 
-    void DrawDebugDrawMesh();
+    void DrawDebugDrawMesh(Camera cam);
 
     MeshData GetVertexDataForQuad();
     MeshData GetVertexDataFor3DQuad();

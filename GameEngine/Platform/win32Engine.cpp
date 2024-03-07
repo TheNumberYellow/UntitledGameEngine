@@ -276,9 +276,9 @@ void GetKeyboardState(InputModule& inputs)
 
     inputs.SetKeyDown(Key::Escape, GetAsyncKeyState(VK_ESCAPE));
 
-    inputs.GetMouseState().SetButtonDown(Mouse::LMB, GetAsyncKeyState(VK_LBUTTON));
-    inputs.GetMouseState().SetButtonDown(Mouse::RMB, GetAsyncKeyState(VK_RBUTTON));
-    inputs.GetMouseState().SetButtonDown(Mouse::MIDDLE, GetAsyncKeyState(VK_MBUTTON));
+    inputs.GetMouseState().SetMouseButtonDown(MouseButton::LMB, GetAsyncKeyState(VK_LBUTTON));
+    inputs.GetMouseState().SetMouseButtonDown(MouseButton::RMB, GetAsyncKeyState(VK_RBUTTON));
+    inputs.GetMouseState().SetMouseButtonDown(MouseButton::MIDDLE, GetAsyncKeyState(VK_MBUTTON));
 }
 
 void GetControllerState(InputModule& inputs)

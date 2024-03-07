@@ -79,18 +79,18 @@ public:
     void ImgPanel(Texture_ID texture, Rect rect);
     void BufferPanel(Framebuffer_ID fBuffer, Rect rect);
 
-    Click TextButton(std::string text, Vec2f size, float borderWidth, bool isTab = false);
-    Click ImgButton(std::string name, Texture texture, Vec2f size, float borderWidth);
-    Click BufferButton(std::string name, Framebuffer_ID fBuffer, Vec2f size, float borderWidth);
+    Click TextButton(std::string text, Vec2f size, float borderWidth, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f), Vec3f textColour = Vec3f(0.0f, 0.0f, 0.0f));
+    Click ImgButton(std::string name, Texture texture, Vec2f size, float borderWidth, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
+    Click BufferButton(std::string name, Framebuffer_ID fBuffer, Vec2f size, float borderWidth, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
 
     void Text(std::string text, Vec2f position, Vec3f colour = Vec3f(0.1f, 0.1f, 0.4f));
 
     void TextEntry(std::string name, std::string& stringRef, Rect rect);
 
-    void StartFrame(std::string name, Rect rect, float borderWidth);
+    void StartFrame(std::string name, Rect rect, float borderWidth, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
     void EndFrame();
 
-    void StartTab(std::string text = "");
+    void StartTab(std::string text = "", Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
     void EndTab();
 
     void OnFrameStart();
@@ -102,7 +102,7 @@ public:
     static UIModule* Get() { return s_Instance; }
 private:
 
-    Click ButtonInternal(std::string name, Vec2f size, float borderWidth);
+    Click ButtonInternal(std::string name, Vec2f size, float borderWidth, Vec3f colour);
 
     // Returns the bounds of an element given a size, without advancing the cursor
     Rect SizeElement(Vec2f size);
@@ -171,5 +171,7 @@ private:
 
     const float c_TabButtonWidth = 75.0f;
 
+    const Vec3f c_White = Vec3f(1.0f, 1.0f, 1.0f);
+    const Vec3f c_NiceBlue = Vec3f(0.0f, 150.f / 255.f, 255.f / 255.f);
     static UIModule* s_Instance;
 };

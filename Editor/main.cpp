@@ -49,6 +49,8 @@ float RotSnap = Math::Pi() / 18.0f;
 
 static Vec3f SunLight = Vec3f(1.0f, 1.0f, 1.0f);
 
+static Vec3f Black = Vec3f(0.5f, 0.5f, 0.5f);
+
 struct Player
 {
     bool grounded = false;
@@ -542,7 +544,7 @@ void UpdateSelectTool(InputModule& input, CollisionModule& collisions)
     if (draggingNewPointLight)
         return;
 
-    if (input.GetMouseState().IsButtonDown(Mouse::LMB))
+    if (input.GetMouseState().GetMouseButtonState(MouseButton::LMB))
     {
         Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
         if (viewportRect.Contains(Engine::GetMousePosition()))
@@ -595,7 +597,7 @@ void UpdateBoxCreate(InputModule& input, CollisionModule& collisions, GraphicsMo
         return;
     }
 
-    if (input.GetMouseState().IsButtonDown(Mouse::LMB))
+    if (input.GetMouseState().GetMouseButtonState(MouseButton::LMB))
     {
         if (!draggingNewBox)
         {
@@ -702,7 +704,7 @@ void UpdatePlaneCreate(InputModule& input, CollisionModule& collisions, Graphics
         return;
     }
 
-    if (input.GetMouseState().IsButtonDown(Mouse::LMB))
+    if (input.GetMouseState().GetMouseButtonState(MouseButton::LMB))
     {
         if (!draggingNewPlane)
         {
@@ -804,7 +806,7 @@ void UpdateModelPlace(InputModule& input, CollisionModule& collisions, GraphicsM
 {
     if (draggingNewModel)
     {
-        if (input.GetMouseState().IsButtonDown(Mouse::LMB))
+        if (input.GetMouseState().GetMouseButtonState(MouseButton::LMB))
         {
             Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
             Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
@@ -908,7 +910,7 @@ void UpdateModelTranslate(InputModule& input, CollisionModule& collisions, Graph
 
     if (slidingX || slidingY || slidingZ)
     {
-        if (!input.GetMouseState().IsButtonDown(Mouse::LMB))
+        if (!input.GetMouseState().GetMouseButtonState(MouseButton::LMB))
         {
             slidingX = false;
             slidingY = false;
@@ -959,7 +961,7 @@ void UpdateModelTranslate(InputModule& input, CollisionModule& collisions, Graph
 
     if (selectedTransformPtr)
     {
-        if (input.GetMouseState().IsButtonDown(Mouse::LMB))
+        if (input.GetMouseState().GetMouseButtonState(MouseButton::LMB))
         {
             CollisionMesh& arrowToolCollMesh = *collisions.GetCollisionMeshFromMesh(xAxisArrow.m_TexturedMeshes[0].m_Mesh);
 
@@ -996,7 +998,7 @@ void UpdateModelTranslate(InputModule& input, CollisionModule& collisions, Graph
         }
     }
     
-    if (input.GetMouseState().IsButtonDown(Mouse::LMB))
+    if (input.GetMouseState().GetMouseButtonState(MouseButton::LMB))
     {
         Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
         Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
@@ -1052,7 +1054,7 @@ void UpdateModelRotate(InputModule& input, CollisionModule& collisions, Graphics
 
     if (rotatingX || rotatingY || rotatingZ)
     {
-        if (!input.GetMouseState().IsButtonDown(Mouse::LMB))
+        if (!input.GetMouseState().GetMouseButtonState(MouseButton::LMB))
         {
             rotatingX = false;
             rotatingY = false;
@@ -1102,7 +1104,7 @@ void UpdateModelRotate(InputModule& input, CollisionModule& collisions, Graphics
     }
     else if (selectedTransformPtr)
     {
-        if (input.GetMouseState().IsButtonDown(Mouse::LMB))
+        if (input.GetMouseState().GetMouseButtonState(MouseButton::LMB))
         {
             CollisionMesh& arrowToolCollMesh = *collisions.GetCollisionMeshFromMesh(xAxisRing.m_TexturedMeshes[0].m_Mesh);
 
@@ -1155,7 +1157,7 @@ void UpdateModelRotate(InputModule& input, CollisionModule& collisions, Graphics
             }
         }
     }
-    if (input.GetMouseState().IsButtonDown(Mouse::LMB) && (!rotatingX && !rotatingY && !rotatingZ))
+    if (input.GetMouseState().GetMouseButtonState(MouseButton::LMB) && (!rotatingX && !rotatingY && !rotatingZ))
     {
         Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
         Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
@@ -1210,7 +1212,7 @@ void UpdateModelScale(InputModule& input, CollisionModule& collisions, GraphicsM
 
     if (scalingX || scalingY || scalingZ)
     {
-        if (!input.GetMouseState().IsButtonDown(Mouse::LMB))
+        if (!input.GetMouseState().GetMouseButtonState(MouseButton::LMB))
         {
             scalingX = false;
             scalingY = false;
@@ -1263,7 +1265,7 @@ void UpdateModelScale(InputModule& input, CollisionModule& collisions, GraphicsM
     }
     else if (selectedTransformPtr)
     {
-        if (input.GetMouseState().IsButtonDown(Mouse::LMB))
+        if (input.GetMouseState().GetMouseButtonState(MouseButton::LMB))
         {
             CollisionMesh& scaleToolCollMesh = *collisions.GetCollisionMeshFromMesh(xScaleWidget.m_TexturedMeshes[0].m_Mesh);
             
@@ -1290,7 +1292,7 @@ void UpdateModelScale(InputModule& input, CollisionModule& collisions, GraphicsM
         }
     }
 
-    if (input.GetMouseState().IsButtonDown(Mouse::LMB) && (!scalingX && !scalingY && !scalingZ))
+    if (input.GetMouseState().GetMouseButtonState(MouseButton::LMB) && (!scalingX && !scalingY && !scalingZ))
     {
         Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
         Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
@@ -1353,14 +1355,14 @@ void UpdateSculptTool(InputModule& input, CollisionModule& collisions, GraphicsM
 
         graphics.DebugDrawSphere(HitPoint, radius, Vec3f(0.6f, 0.3f, 0.9f));
 
-        if (input.GetMouseState().IsButtonDown(Mouse::LMB) || input.GetMouseState().IsButtonDown(Mouse::RMB))
+        if (input.GetMouseState().GetMouseButtonState(MouseButton::LMB) || input.GetMouseState().GetMouseButtonState(MouseButton::RMB))
         {
             if (finalHit.hitModel->Type == ModelType::PLANE)
             {
                 Model* PlaneModel = finalHit.hitModel;
                 Vec3f ModelSpaceVertPos = HitPoint * Math::inv(PlaneModel->GetTransform().GetTransformMatrix());
 
-                float VerticalDir = input.GetMouseState().IsButtonDown(Mouse::RMB) ? -SculptSpeed : SculptSpeed;
+                float VerticalDir = input.GetMouseState().GetMouseButtonState(MouseButton::RMB) ? -SculptSpeed : SculptSpeed;
 
                 StaticMesh_ID Mesh =  PlaneModel->m_TexturedMeshes[0].m_Mesh.Id;
 
@@ -1381,7 +1383,7 @@ void UpdateSculptTool(InputModule& input, CollisionModule& collisions, GraphicsM
                 graphics.RecalculateTerrainModelNormals(*PlaneModel);
             }
         }
-        else if (input.GetMouseState().IsButtonDown(Mouse::MIDDLE))
+        else if (input.GetMouseState().GetMouseButtonState(MouseButton::MIDDLE))
         {
             if (finalHit.hitModel->Type == ModelType::PLANE)
             {
@@ -1428,7 +1430,7 @@ void UpdateTexturePlace(InputModule& input, CollisionModule& collisions, Graphic
 {
     if (draggingNewTexture)
     {
-        if (!input.GetMouseState().IsButtonDown(Mouse::LMB))
+        if (!input.GetMouseState().GetMouseButtonState(MouseButton::LMB))
         {
             draggingNewTexture = false;
 
@@ -1450,7 +1452,7 @@ void UpdateBehaviourPlace(InputModule& input, CollisionModule& collisions)
 {
     if (draggingNewBehaviour)
     {
-        if (!input.GetMouseState().IsButtonDown(Mouse::LMB))
+        if (!input.GetMouseState().GetMouseButtonState(MouseButton::LMB))
         {
             draggingNewBehaviour = false;
             
@@ -1473,7 +1475,7 @@ void UpdatePointLightPlace(InputModule& input, CollisionModule& collisions, Grap
     static Vec3f LightPos;
     if (draggingNewPointLight)
     {
-        if (input.GetMouseState().IsButtonDown(Mouse::LMB))
+        if (input.GetMouseState().GetMouseButtonState(MouseButton::LMB))
         {
             Rect viewportRect = GetViewportSizeFromScreenSize(Engine::GetClientAreaSize());
             Ray mouseRay = GetMouseRay(cam, Engine::GetMousePosition(), viewportRect);
@@ -1820,7 +1822,7 @@ void UpdateEditor(double deltaTime)
     for (int i = 0; i < loadedModels.size(); ++i)
     {
         
-        if (ui.BufferButton(loadedModels[i].m_TexturedMeshes[0].m_Mesh.Path.GetFileName(), modelFBuffers[i], Vec2f(100, 100), 10).clicking)
+        if (ui.BufferButton(loadedModels[i].m_TexturedMeshes[0].m_Mesh.Path.GetFileName(), modelFBuffers[i], Vec2f(100, 100), 10, Black).clicking)
         {
             if (!draggingNewModel)
             {
@@ -1837,7 +1839,7 @@ void UpdateEditor(double deltaTime)
     ui.StartTab("Textures");
     for (int i = 0; i < loadedMaterials.size(); ++i)
     {
-        if (ui.ImgButton(loadedMaterials[i].m_Albedo.Path.GetFileName(), loadedMaterials[i].m_Albedo, Vec2f(40, 80), 2.5f).clicking)
+        if (ui.ImgButton(loadedMaterials[i].m_Albedo.Path.GetFileName(), loadedMaterials[i].m_Albedo, Vec2f(40, 80), 2.5f, Black).clicking)
         {
             if (!draggingNewTexture)
             {

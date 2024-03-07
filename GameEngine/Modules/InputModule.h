@@ -5,7 +5,7 @@
 
 #include <queue>
 
-enum class Mouse
+enum class MouseButton
 {
 	LMB,
 	RMB,
@@ -134,12 +134,12 @@ public:
 	Vec2i GetDeltaMousePos() const;
 	int GetDeltaMouseWheel() const;
 
-	bool IsButtonDown(Mouse button) const;
-	void SetButtonDown(Mouse button, bool pressed);
+	KeyState GetMouseButtonState(MouseButton button) const;
+	void SetMouseButtonDown(MouseButton button, bool pressed);
 
 private:
-	bool m_LeftMouseButtonDown = false;
-	bool m_RightMouseButtonDown = false;
+	//bool m_LeftMouseButtonDown = false;
+	//bool m_RightMouseButtonDown = false;
 
 	int m_DeltaMouseWheel = 0;
 
@@ -147,7 +147,7 @@ private:
 	Vec2i m_CurrentPos = Vec2i(0, 0);
 	Vec2i m_DeltaMouse = Vec2i(0, 0);
 
-	bool m_Buttons[static_cast<size_t>(Mouse::Count)];
+	KeyState m_Buttons[static_cast<size_t>(MouseButton::Count)];
 };
 
 class GamepadState
