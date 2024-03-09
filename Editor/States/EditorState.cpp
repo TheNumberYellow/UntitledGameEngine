@@ -51,6 +51,7 @@ void SelectedLight::DeleteObject()
 void CursorState::Update()
 {
     InputModule* Input = InputModule::Get();
+    UIModule* UI = UIModule::Get();
 
     if (Dragging == DraggingMode::NewModel)
     {
@@ -82,6 +83,29 @@ void CursorState::Update()
             Dragging = DraggingMode::None;
         }
     }
+    else if (Dragging == DraggingMode::NewTexture)
+    {
+        Vec2i MousePos = Input->GetMouseState().GetMousePos();
+        if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).pressed)
+        {
+            UI->ImgPanel(DraggingMaterialPtr->m_Albedo, Rect(Vec2f(MousePos), Vec2f(40.0f, 40.0f)));
+        }
+        else
+        {
+            Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+
+            auto SceneHit = EditorScenePtr->RayCast(MouseRay);
+
+            if (SceneHit.rayCastHit.hit)
+            {
+                SceneHit.hitModel->SetMaterial(*DraggingMaterialPtr);
+            }
+
+            DraggingMaterialPtr = nullptr;
+
+            Dragging = DraggingMode::None;
+        }
+    }
 
     switch (Tool)
     {
@@ -95,8 +119,6 @@ void CursorState::Update()
         break;
     }
     }
-
-
 
     if (SelectedObject)
     {
@@ -181,6 +203,11 @@ void CursorState::SetToolMode(ToolMode InToolMode)
     Tool = InToolMode;
 }
 
+ToolMode CursorState::GetToolMode()
+{
+    return Tool;
+}
+
 void CursorState::StartDraggingNewModel(Model* NewModel)
 {
     if (Dragging != DraggingMode::None)
@@ -191,6 +218,18 @@ void CursorState::StartDraggingNewModel(Model* NewModel)
     Dragging = DraggingMode::NewModel;
 
     DraggingModelPtr = NewModel;
+}
+
+void CursorState::StartDraggingNewMaterial(Material* NewMaterial)
+{
+    if (Dragging != DraggingMode::None)
+    {
+        return;
+    }
+
+    Dragging = DraggingMode::NewTexture;
+
+    DraggingMaterialPtr = NewMaterial;
 }
 
 void CursorState::DrawTransientModels()
@@ -289,9 +328,11 @@ void EditorState::OnInitialized()
 
     CurrentResourceDirectoryPath = std::filesystem::current_path();
 
-    for (int i = 0; i < 100; i++)
+    for (int i = 0; i < 1000; i++)
     {
         RandomSizes.push_back(Math::RandomFloat(120.0f, 200.0f));
+        Vec3f Colour = Vec3f(Math::RandomFloat(0.0f, 1.0f), Math::RandomFloat(0.0f, 1.0f), Math::RandomFloat(0.0f, 1.0f));
+        RandomColours.push_back(Colour);
     }
 }
 
@@ -347,8 +388,8 @@ void EditorState::UpdateEditor(float DeltaTime)
     if (Engine::IsWindowFocused())
     {
         // Update tools
+        // TODO(Fraser): This is heavily reliant on order since Update() calls UI functions - another reason to make the UI module use render commands
         Cursor.Update();
-
         if (Input->GetKeyState(Key::Alt).justPressed)
         {
             if (CursorLocked)
@@ -374,6 +415,8 @@ void EditorState::UpdateEditor(float DeltaTime)
     UI->BufferPanel(ViewportBuffer.FinalOutput, GetEditorSceneViewportRect());
 
     DrawEditorUI();
+
+
 }
 
 void EditorState::UpdateGame(float DeltaTime)
@@ -473,7 +516,6 @@ void EditorState::LoadEditorResources()
 
     // Load editor UI textures
     playButtonTexture = *Registry->LoadTexture("images/playButton.png");
-    cameraButtonTexture = *Registry->LoadTexture("images/cameraButton.png");
 
     cursorToolTexture = *Registry->LoadTexture("images/cursorTool.png");
     boxToolTexture = *Registry->LoadTexture("images/boxTool.png");
@@ -485,7 +527,9 @@ void EditorState::LoadEditorResources()
 
     vertexToolTexture = *Registry->LoadTexture("images/vertexTool.png");
     sculptToolTexture = *Registry->LoadTexture("images/sculptTool.png");
-    lightToolTexture = *Registry->LoadTexture("images/lightTool.png");
+    
+    lightEntityTexture = *Registry->LoadTexture("images/lightTool.png");
+    cameraEntityTexture = *Registry->LoadTexture("images/cameraButton.png");
 
     // Load editor fonts
     DefaultFont = Text->LoadFont("fonts/ARLRDBD.TTF", 30);
@@ -663,17 +707,23 @@ void EditorState::DrawEditorUI()
 
     UI->StartFrame("Tools", ToolbarButtonRect, 0.0f, c_NicePink);
     {
-        if (UI->ImgButton("CursorTool", cursorToolTexture, Vec2f(80.0f, 80.0f), 12.0f, c_NiceLighterBlue))
+        Vec3f SelectedColour = c_NiceGreen;
+        Vec3f UnSelectedColour = c_NiceLighterBlue;
+
+        if (UI->ImgButton("CursorTool", cursorToolTexture, Vec2f(80.0f, 80.0f), 12.0f, 
+            Cursor.GetToolMode() == ToolMode::Select ? SelectedColour : UnSelectedColour))
         {
             Cursor.SetToolMode(ToolMode::Select);
         }
 
-        if (UI->ImgButton("TransformTool", translateToolTexture, Vec2f(80.0f, 80.0f), 12.0f, c_NiceLighterBlue))
+        if (UI->ImgButton("TransformTool", translateToolTexture, Vec2f(80.0f, 80.0f), 12.0f, 
+            Cursor.GetToolMode() == ToolMode::Transform ? SelectedColour : UnSelectedColour))
         {
             Cursor.SetToolMode(ToolMode::Transform);
         }
 
-        if (UI->ImgButton("BoxTool", boxToolTexture, Vec2f(80.0f, 80.0f), 12.0f, c_NiceLighterBlue))
+        if (UI->ImgButton("BoxTool", boxToolTexture, Vec2f(80.0f, 80.0f), 12.0f, 
+            Cursor.GetToolMode() == ToolMode::Geometry ? SelectedColour : UnSelectedColour))
         {
             Cursor.SetToolMode(ToolMode::Geometry);
         }
@@ -723,7 +773,7 @@ void EditorState::DrawResourcesPanel()
             int index = 0;
             for (auto& AModel : LoadedModels)
             {
-                if (UI->TextButton(AModel.m_TexturedMeshes[0].m_Mesh.Path.GetFileNameNoExt(), Vec2f(RandomSizes[index], 40.0f), 10.0f, c_NiceLighterBlue).clicking)
+                if (UI->TextButton(AModel.m_TexturedMeshes[0].m_Mesh.Path.GetFileNameNoExt(), Vec2f(120.0f, 40.0f), 10.0f, c_NiceYellow).clicking)
                 {
                     if (!Cursor.IsDraggingSomething())
                     {
@@ -738,18 +788,42 @@ void EditorState::DrawResourcesPanel()
 
         UI->StartTab("Materials", c_NicePurple);
         {
-            for (auto& Material : LoadedMaterials)
+            for (auto& Mat : LoadedMaterials)
             {
-                UI->ImgButton(Material.m_Albedo.Path.GetFileNameNoExt(), Material.m_Albedo, Vec2f(80, 80), 5.0f, c_NiceLighterBlue);
+                if (UI->ImgButton(Mat.m_Albedo.Path.GetFileNameNoExt(), Mat.m_Albedo, Vec2f(80, 80), 5.0f, c_NiceYellow).clicking)
+                {
+                    if (!Cursor.IsDraggingSomething())
+                    {
+                        Material* MatPtr = &Mat;
+                        Cursor.StartDraggingNewMaterial(MatPtr);
+                    }
+
+                }
             }
         }
         UI->EndTab();
 
-        UI->StartTab("Other other", c_NicePurple);
+        UI->StartTab("Entities", c_NicePurple);
+        {
+            if (UI->ImgButton("LightEntity", lightEntityTexture, Vec2f(80.0f, 80.0f), 12.0f))
+            {
+            }
+            if (UI->ImgButton("LightEntity", cameraEntityTexture, Vec2f(80.0f, 80.0f), 12.0f))
+            {
+            }
+        }
+        UI->EndTab();
+
+        UI->StartTab("Behaviours", c_NicePurple);
+        {
+        }
+        UI->EndTab();
+
+        UI->StartTab("1000 Buttons", c_NicePurple);
         {
             for (int i = 0; i < 1000; ++i)
             {
-                UI->TextButton("", Vec2f(20.0f, 20.0f), 4.0f, c_NiceLighterBlue);
+                UI->TextButton("", Vec2f(20.0f, 20.0f), 4.0f, RandomColours[i]);
             }
         }
         UI->EndTab();

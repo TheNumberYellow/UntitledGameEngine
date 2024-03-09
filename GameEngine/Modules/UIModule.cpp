@@ -418,9 +418,11 @@ void UIModule::StartTab(std::string text, Vec3f colour)
 
         Vec2f buttonSize = Vec2f(c_TabButtonWidth, borderWidth);
         
-        if (TextButton(text, buttonSize, 5.0f, colour))
+        FrameState* frameState = m_FrameStateStack.top();
+        bool IsActiveTab = frameState->activeTab == m_TabIndexOnCurrentFrame;
+
+        if (TextButton(text, buttonSize, 5.0f, IsActiveTab ? colour * 0.75f : colour))
         {
-            FrameState* frameState = m_FrameStateStack.top();
             frameState->activeTab = m_TabIndexOnCurrentFrame;
         }
 

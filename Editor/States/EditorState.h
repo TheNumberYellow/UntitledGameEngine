@@ -23,13 +23,13 @@ enum class TransformMode : uint8_t
 {
     Translate,
     Rotate,
-    Scale
+    Scale,
 };
 
 enum class GeometryMode : uint8_t
 {
     Box,
-    Plane
+    Plane,
 };
 
 
@@ -113,7 +113,10 @@ public:
 
     void SetToolMode(ToolMode InToolMode);
 
+    ToolMode GetToolMode();
+
     void StartDraggingNewModel(Model* NewModel);
+    void StartDraggingNewMaterial(Material* NewMaterial);
 
     void DrawTransientModels();
 
@@ -133,7 +136,8 @@ private:
     GeometryMode GeoMode = GeometryMode::Box;
 
     Model* DraggingModelPtr = nullptr;
-    
+    Material* DraggingMaterialPtr = nullptr;
+
     ISelectedObject* SelectedObject = nullptr;
 
     EditorState* EditorStatePtr;
@@ -193,12 +197,12 @@ private:
     std::filesystem::path CurrentResourceDirectoryPath;
 
     std::vector<float> RandomSizes;
+    std::vector<Vec3f> RandomColours;
 
     //--------------------
     // Editor Textures
     //--------------------
     Texture playButtonTexture;
-    Texture cameraButtonTexture;
 
     Texture cursorToolTexture;
 
@@ -212,10 +216,12 @@ private:
     Texture vertexToolTexture;
 
     Texture sculptToolTexture;
-    Texture lightToolTexture;
 
     Texture gridTexture;
     
+    Texture lightEntityTexture;
+    Texture cameraEntityTexture;
+
     Material WhiteMaterial;
 
     //--------------------
@@ -258,4 +264,7 @@ private:
     const Vec3f c_NicePurple = Vec3f(207.f / 255.f, 159.f / 255.f, 255.f / 255.f);
     const Vec3f c_NicePink = Vec3f(248.f / 255.f, 131.f / 255.f, 121.f / 255.f);
     const Vec3f c_NiceRed = Vec3f(238.f / 255.f, 75.f / 255.f, 43.f / 255.f);
+    const Vec3f c_NiceBrightBlue = Vec3f(125.f / 255.f, 249.f / 255.f, 255.f / 255.f);
+    const Vec3f c_NiceGreen = Vec3f(11.f / 255.f, 218.f / 255.f, 81.f / 255.f);
+    const Vec3f c_NiceYellow = Vec3f(255.f / 255.f, 191.5 / 255.f, 0.f / 255.f);
 };
