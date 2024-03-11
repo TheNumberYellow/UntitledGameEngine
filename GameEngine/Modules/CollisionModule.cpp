@@ -270,43 +270,82 @@ RayCastHit CollisionModule::RayCast(Ray ray, AABB aabb)
 {
     RayCastHit result;
 
-    float tmin = (aabb.min.x - ray.point.x) / ray.direction.x;
-    float tmax = (aabb.max.x - ray.point.x) / ray.direction.x;
+    // Real Time Collision Detection page 181
+    float tmin = 0.0f;
 
-    if (tmin > tmax) swap(tmin, tmax);
+    float tmax = FLT_MAX;
 
-    float tymin = (aabb.min.y - ray.point.y) / ray.direction.y;
-    float tymax = (aabb.max.y - ray.point.y) / ray.direction.y;
-
-    if (tymin > tymax) swap(tymin, tymax);
-
-    if ((tmin > tymax) || (tymin > tmax))
+    for (int i = 0; i < 3; i++)
     {
-        return result;
+        if (abs(ray.direction[i]) < FLT_EPSILON)
+        {
+            if (ray.point[i] < aabb.min[i] || ray.point[i] > aabb.max[i])
+            {
+                return result;
+            }
+        }
+        else
+        {
+            float ood = 1.0f / ray.direction[i];
+            float t1 = (aabb.min[i] - ray.point[i]) * ood;
+            float t2 = (aabb.max[i] - ray.point[i]) * ood;
+
+            if (t1 > t2) swap(t1, t2);
+
+            tmin = Math::Max(tmin, t1);
+            tmax = Math::Min(tmax, t2);
+
+            if (tmin > tmax) return result;
+        }
     }
 
-    if (tymin > tmin)
-        tmin = tymin;
-
-    if (tymax < tmax)
-        tmax = tymax;
-
-    float tzmin = (aabb.min.z - ray.point.z) / ray.direction.z;
-    float tzmax = (aabb.max.z - ray.point.z) / ray.direction.z;
-
-    if (tzmin > tzmax) swap(tzmin, tzmax);
-
-    if ((tmin > tzmax) || (tzmin > tmax))
-        return result;
-
-    if (tzmin > tmin)
-        tmin = tzmin;
-
-    if (tzmax < tmax)
-        tmax = tzmax;
-
     result.hit = true;
+    result.hitDistance = tmin;
+    result.hitPoint = ray.point + (ray.direction * tmin);
+
     return result;
+    //RayCastHit result;
+
+    //float tmin = (aabb.min.x - ray.point.x) / ray.direction.x;
+    //float tmax = (aabb.max.x - ray.point.x) / ray.direction.x;
+
+    //if (tmin > tmax) swap(tmin, tmax);
+
+    //float tymin = (aabb.min.y - ray.point.y) / ray.direction.y;
+    //float tymax = (aabb.max.y - ray.point.y) / ray.direction.y;
+
+    //if (tymin > tymax) swap(tymin, tymax);
+
+    //if ((tmin > tymax) || (tymin > tmax))
+    //{
+    //    return result;
+    //}
+
+    //if (tymin > tmin)
+    //    tmin = tymin;
+
+    //if (tymax < tmax)
+    //    tmax = tymax;
+
+    //float tzmin = (aabb.min.z - ray.point.z) / ray.direction.z;
+    //float tzmax = (aabb.max.z - ray.point.z) / ray.direction.z;
+
+    //if (tzmin > tzmax) swap(tzmin, tzmax);
+
+    //if ((tmin > tzmax) || (tzmin > tmax))
+    //    return result;
+
+    //if (tzmin > tmin)
+    //    tmin = tzmin;
+
+    //if (tzmax < tmax)
+    //    tmax = tzmax;
+
+    //// TODO: Not returning hit distance/hit normal
+
+
+    //result.hit = true;
+    //return result;
 }
 
 RayCastHit CollisionModule::RayCast(Ray ray, Plane plane)

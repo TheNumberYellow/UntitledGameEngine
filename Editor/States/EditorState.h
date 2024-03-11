@@ -80,7 +80,9 @@ private:
 class SelectedLight : public ISelectedObject
 {
 public:
-    SelectedLight(Vec3f InPos);
+    SelectedLight(PointLight* InPointLight, Scene* InScene);
+
+    virtual void Draw() override;
 
     virtual void DrawInspectorPanel() override;
 
@@ -90,6 +92,7 @@ public:
 private:
 
     PointLight* PointLightPtr;
+    Scene* ScenePtr;
     Transform Trans;
 };
 
@@ -116,6 +119,8 @@ public:
     ToolMode GetToolMode();
 
     void StartDraggingNewModel(Model* NewModel);
+    void StartDraggingNewPointLight(PointLight* NewPointLight);
+    
     void StartDraggingNewMaterial(Material* NewMaterial);
 
     void DrawTransientModels();
@@ -124,10 +129,14 @@ public:
 
 private:
     void UpdateSelectTool();
-    void UpdateGeometryTool();
     void UpdateMoveTool();
+    void UpdateGeometryTool();
     void UpdateVertexTool();
     void UpdateSculptTool();
+
+    void UpdateTranslateTool();
+    void UpdateRotateTool();
+    void UpdateScaleTool();
 
     ToolMode Tool = ToolMode::Select;
     DraggingMode Dragging = DraggingMode::None;
@@ -136,6 +145,8 @@ private:
     GeometryMode GeoMode = GeometryMode::Box;
 
     Model* DraggingModelPtr = nullptr;
+    PointLight* DraggingPointLightPtr = nullptr;
+
     Material* DraggingMaterialPtr = nullptr;
 
     ISelectedObject* SelectedObject = nullptr;

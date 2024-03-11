@@ -169,9 +169,24 @@ std::vector<Model*> Scene::GetModelsByTag(std::string tag)
     return result;
 }
 
-void Scene::AddPointLight(PointLight newLight)
+PointLight* Scene::AddPointLight(PointLight newLight)
 {
-    m_PointLights.push_back(newLight);
+    m_PointLights.push_back(new PointLight(newLight));
+    return m_PointLights.back();
+}
+
+void Scene::DeletePointLight(PointLight* light)
+{
+    auto it = std::find(m_PointLights.begin(), m_PointLights.end(), light);
+    if (it != m_PointLights.end())
+    {
+        m_PointLights.erase(it);
+    }
+}
+
+std::vector<PointLight*>& Scene::GetPointLights()
+{
+    return m_PointLights;
 }
 
 void Scene::DeleteModel(Model* model)
@@ -258,15 +273,15 @@ void Scene::Draw(GraphicsModule& graphics, GBuffer gBuffer)
         graphics.AddRenderCommand(command);
 
     }
-    for (PointLight& Light : m_PointLights)
+    for (PointLight* Light : m_PointLights)
     {
         PointLightRenderCommand LightRC;
-        LightRC.m_Colour = Light.colour;
-        LightRC.m_Position = Light.position;
+        LightRC.m_Colour = Light->colour;
+        LightRC.m_Position = Light->position;
 
         BillboardRenderCommand BillboardRC;
-        BillboardRC.m_Colour = Light.colour;
-        BillboardRC.m_Position = Light.position;
+        BillboardRC.m_Colour = Light->colour;
+        BillboardRC.m_Position = Light->position;
         BillboardRC.m_Texture = graphics.GetLightTexture();
         BillboardRC.m_Size = 0.5f;
 

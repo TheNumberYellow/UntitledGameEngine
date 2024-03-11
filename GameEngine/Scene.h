@@ -47,7 +47,10 @@ public:
     Model* GetModelByTag(std::string tag);
     std::vector<Model*> GetModelsByTag(std::string tag);
 
-    void AddPointLight(PointLight newLight);
+    PointLight* AddPointLight(PointLight newLight);
+    void DeletePointLight(PointLight* light);
+    
+    std::vector<PointLight*>& GetPointLights();
 
     void AddCamera(Camera* camera);
 
@@ -75,9 +78,10 @@ private:
 
     std::unordered_map<std::string, Model*> m_Models;
     std::vector<Model*> m_UntrackedModels;
+    
+    std::vector<PointLight*> m_PointLights;
+    
     DirectionalLight m_DirLight;
-
-    std::vector<PointLight> m_PointLights;
 
     std::vector<Camera*> m_Cameras;
 

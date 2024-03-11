@@ -30,8 +30,19 @@ void SelectedModel::DeleteObject()
     ScenePtr->DeleteModel(ModelPtr);
 }
 
-SelectedLight::SelectedLight(Vec3f InPos)
+SelectedLight::SelectedLight(PointLight* InPointLight, Scene* InScene)
 {
+    PointLightPtr = InPointLight;
+    ScenePtr = InScene;
+}
+
+void SelectedLight::Draw()
+{
+    GraphicsModule* Graphics = GraphicsModule::Get();
+
+    AABB LightAABB = AABB(PointLightPtr->position - Vec3f(0.35f, 0.35f, 0.35f), PointLightPtr->position + Vec3f(0.35f, 0.35f, 0.35f));
+
+    Graphics->DebugDrawAABB(LightAABB);
 }
 
 void SelectedLight::DrawInspectorPanel()
@@ -45,6 +56,7 @@ Transform* SelectedLight::GetTransform()
 
 void SelectedLight::DeleteObject()
 {
+    ScenePtr->DeletePointLight(PointLightPtr);
 }
 
 
@@ -83,6 +95,35 @@ void CursorState::Update()
             Dragging = DraggingMode::None;
         }
     }
+    else if (Dragging == DraggingMode::NewPointLight)
+    {
+        if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).pressed)
+        {
+            Vec2i MousePos = Input->GetMouseState().GetMousePos();
+            Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+
+            DraggingPointLightPtr->position = MouseRay.point + MouseRay.direction * 8.0f;
+        
+            Vec3f LightScalingIncrement = Vec3f(0.1f, 0.1f, 0.1f);
+            
+            int DeltaMouseWheel = Input->GetMouseState().GetDeltaMouseWheel();
+            if (DeltaMouseWheel > 0)
+            {
+                DraggingPointLightPtr->colour += LightScalingIncrement;
+            }
+            else if (DeltaMouseWheel < 0)
+            {
+                DraggingPointLightPtr->colour -= LightScalingIncrement;
+            }
+        }
+        else
+        {
+            DraggingPointLightPtr = nullptr;
+
+            Dragging = DraggingMode::None;
+        }
+    }
+
     else if (Dragging == DraggingMode::NewTexture)
     {
         Vec2i MousePos = Input->GetMouseState().GetMousePos();
@@ -122,6 +163,7 @@ void CursorState::Update()
 
     if (SelectedObject)
     {
+        SelectedObject->Update();
         SelectedObject->Draw();
 
         if (Input->GetKeyState(Key::Delete))
@@ -220,6 +262,18 @@ void CursorState::StartDraggingNewModel(Model* NewModel)
     DraggingModelPtr = NewModel;
 }
 
+void CursorState::StartDraggingNewPointLight(PointLight* NewPointLight)
+{
+    if (Dragging != DraggingMode::None)
+    {
+        return;
+    }
+
+    Dragging = DraggingMode::NewPointLight;
+
+    DraggingPointLightPtr = NewPointLight;
+}
+
 void CursorState::StartDraggingNewMaterial(Material* NewMaterial)
 {
     if (Dragging != DraggingMode::None)
@@ -234,7 +288,26 @@ void CursorState::StartDraggingNewMaterial(Material* NewMaterial)
 
 void CursorState::DrawTransientModels()
 {
+    if (SelectedObject == nullptr)
+    {
+        return;
+    }
 
+    if (Tool == ToolMode::Transform)
+    {
+        if (TransMode == TransformMode::Translate)
+        {
+
+        }
+        else if (TransMode == TransformMode::Rotate)
+        {
+
+        }
+        else if (TransMode == TransformMode::Scale)
+        {
+
+        }
+    }
 }
 
 bool CursorState::IsDraggingSomething()
@@ -251,33 +324,107 @@ void CursorState::UpdateSelectTool()
         Vec2i MousePos = Input->GetMouseState().GetMousePos();
         Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
 
-        auto Hit = EditorScenePtr->RayCast(MouseRay);
+        CollisionModule* Collisions = CollisionModule::Get();
+        GraphicsModule* Graphics = GraphicsModule::Get();
 
-        if (Hit.rayCastHit.hit)
+        RayCastHit PointLightHit;
+
+        PointLight* HitLight = nullptr;
+
+        auto& Lights = EditorScenePtr->GetPointLights();
+
+        for (PointLight* Light : Lights)
         {
-            if (Hit.hitModel != DraggingModelPtr)
-            {
-                SelectedModel* EdModel = new SelectedModel(Hit.hitModel, EditorScenePtr);
+            AABB LightAABB = AABB(Light->position - Vec3f(0.35f, 0.35f, 0.35f), Light->position + Vec3f(0.35f, 0.35f, 0.35f));
+            RayCastHit NewPointLightHit = Collisions->RayCast(MouseRay, LightAABB);
 
-                SelectedObject = EdModel;
+            if (NewPointLightHit.hit && NewPointLightHit.hitDistance < PointLightHit.hitDistance)
+            {
+                PointLightHit = NewPointLightHit;
+                HitLight = Light;
             }
         }
+
+        auto ModelHit = EditorScenePtr->RayCast(MouseRay);
+
+        if (ModelHit.rayCastHit.hit || PointLightHit.hit)
+        {
+            if (ModelHit.rayCastHit.hitDistance < PointLightHit.hitDistance)
+            {
+                if (ModelHit.hitModel != DraggingModelPtr)
+                {
+                    SelectedModel* EdModel = new SelectedModel(ModelHit.hitModel, EditorScenePtr);
+
+                    SelectedObject = EdModel;
+                }
+            }
+            else
+            {
+                if (HitLight != DraggingPointLightPtr)
+                {
+                    SelectedLight* EdLight = new SelectedLight(HitLight, EditorScenePtr);
+
+                    SelectedObject = EdLight;
+                }
+            }
+        }
+
+        if (ModelHit.rayCastHit.hit)
+        {
+
+        }
+    }
+}
+
+void CursorState::UpdateMoveTool()
+{
+    switch (TransMode)
+    {
+    case TransformMode::Translate:
+        UpdateTranslateTool();
+        break;
+    case TransformMode::Rotate:
+        UpdateRotateTool();
+        break;
+    case TransformMode::Scale:
+        UpdateScaleTool();
+        break;
+    default:
+        break;
     }
 }
 
 void CursorState::UpdateGeometryTool()
 {
+    if (SelectedObject == nullptr)
+    {
+        return;
+    }
+
+    Transform* ObjTransform = SelectedObject->GetTransform();
+
+
+
 }
 
-void CursorState::UpdateMoveTool()
-{
-}
 
 void CursorState::UpdateVertexTool()
 {
 }
 
 void CursorState::UpdateSculptTool()
+{
+}
+
+void CursorState::UpdateTranslateTool()
+{
+}
+
+void CursorState::UpdateRotateTool()
+{
+}
+
+void CursorState::UpdateScaleTool()
 {
 }
 
@@ -805,10 +952,15 @@ void EditorState::DrawResourcesPanel()
 
         UI->StartTab("Entities", c_NicePurple);
         {
-            if (UI->ImgButton("LightEntity", lightEntityTexture, Vec2f(80.0f, 80.0f), 12.0f))
+            if (UI->ImgButton("LightEntity", lightEntityTexture, Vec2f(80.0f, 80.0f), 12.0f).clicking)
             {
+                if (!Cursor.IsDraggingSomething())
+                {
+                    PointLight* PointLightPtr = EditorScene.AddPointLight(PointLight());
+                    Cursor.StartDraggingNewPointLight(PointLightPtr);
+                }
             }
-            if (UI->ImgButton("LightEntity", cameraEntityTexture, Vec2f(80.0f, 80.0f), 12.0f))
+            if (UI->ImgButton("CameraEntity", cameraEntityTexture, Vec2f(80.0f, 80.0f), 12.0f))
             {
             }
         }
@@ -827,6 +979,13 @@ void EditorState::DrawResourcesPanel()
             }
         }
         UI->EndTab();
+
+        UI->StartTab("Experiment", c_NicePurple);
+        {
+            
+        }
+        UI->EndTab();
+
     }
     UI->EndFrame();
 
