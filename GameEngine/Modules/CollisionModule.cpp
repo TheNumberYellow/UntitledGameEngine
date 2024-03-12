@@ -196,6 +196,11 @@ void CollisionModule::InvalidateMeshCollisionData(StaticMesh_ID mesh)
     m_CollisionMeshMap.erase(mesh);
 }
 
+RayCastHit CollisionModule::RayCast(Ray ray, Model& model)
+{
+    return RayCast(ray, *GetCollisionMeshFromMesh(model.m_TexturedMeshes[0].m_Mesh), model.GetTransform().GetTransformMatrix());
+}
+
 RayCastHit CollisionModule::RayCast(Ray ray, const CollisionMesh& mesh, Transform& transform)
 {
     return RayCast(ray, mesh, transform.GetTransformMatrix());
@@ -303,49 +308,9 @@ RayCastHit CollisionModule::RayCast(Ray ray, AABB aabb)
     result.hitDistance = tmin;
     result.hitPoint = ray.point + (ray.direction * tmin);
 
+    //TODO: not returning hit normal
+
     return result;
-    //RayCastHit result;
-
-    //float tmin = (aabb.min.x - ray.point.x) / ray.direction.x;
-    //float tmax = (aabb.max.x - ray.point.x) / ray.direction.x;
-
-    //if (tmin > tmax) swap(tmin, tmax);
-
-    //float tymin = (aabb.min.y - ray.point.y) / ray.direction.y;
-    //float tymax = (aabb.max.y - ray.point.y) / ray.direction.y;
-
-    //if (tymin > tymax) swap(tymin, tymax);
-
-    //if ((tmin > tymax) || (tymin > tmax))
-    //{
-    //    return result;
-    //}
-
-    //if (tymin > tmin)
-    //    tmin = tymin;
-
-    //if (tymax < tmax)
-    //    tmax = tymax;
-
-    //float tzmin = (aabb.min.z - ray.point.z) / ray.direction.z;
-    //float tzmax = (aabb.max.z - ray.point.z) / ray.direction.z;
-
-    //if (tzmin > tzmax) swap(tzmin, tzmax);
-
-    //if ((tmin > tzmax) || (tzmin > tmax))
-    //    return result;
-
-    //if (tzmin > tmin)
-    //    tmin = tzmin;
-
-    //if (tzmax < tmax)
-    //    tmax = tzmax;
-
-    //// TODO: Not returning hit distance/hit normal
-
-
-    //result.hit = true;
-    //return result;
 }
 
 RayCastHit CollisionModule::RayCast(Ray ray, Plane plane)

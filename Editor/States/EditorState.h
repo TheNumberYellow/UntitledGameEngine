@@ -42,6 +42,15 @@ enum class DraggingMode : uint8_t
     NewPointLight,
 };
 
+enum class EditingAxis : uint8_t
+{
+    None,
+    X,
+    Y,
+    Z,
+    Omni,
+};
+
 class ISelectedObject
 {
 public:
@@ -84,6 +93,8 @@ public:
 
     virtual void Draw() override;
 
+    virtual void Update() override;
+
     virtual void DrawInspectorPanel() override;
 
     virtual Transform* GetTransform() override;
@@ -102,21 +113,18 @@ public:
 
     CursorState() {}
 
-    CursorState(EditorState* InEditorState, Scene* InEditorScene)
-        : EditorStatePtr(InEditorState)
-        , EditorScenePtr(InEditorScene)
-    {
-    }
+    CursorState(EditorState* InEditorState, Scene* InEditorScene);
 
     void Update();
 
     void CycleToolMode();
     void CycleGeometryMode();
-    void CycleMoveMode();
+    void CycleTransformMode();
 
     void SetToolMode(ToolMode InToolMode);
 
     ToolMode GetToolMode();
+    TransformMode GetTransMode();
 
     void StartDraggingNewModel(Model* NewModel);
     void StartDraggingNewPointLight(PointLight* NewPointLight);
@@ -150,6 +158,25 @@ private:
     Material* DraggingMaterialPtr = nullptr;
 
     ISelectedObject* SelectedObject = nullptr;
+
+    EditingAxis Axis = EditingAxis::None;
+    
+    Vec3f ObjectRelativeHitPoint;
+    float ObjectDistanceAtHit;
+
+    Model* XAxisTrans;
+    Model* YAxisTrans;
+    Model* ZAxisTrans;
+
+    Model* TransBall;
+
+    Model* XAxisRot;
+    Model* YAxisRot;
+    Model* ZAxisRot;
+
+    Model* XAxisScale;
+    Model* YAxisScale;
+    Model* ZAxisScale;
 
     EditorState* EditorStatePtr;
     Scene* EditorScenePtr;
@@ -248,6 +275,8 @@ private:
     Model yAxisArrow;
     Model zAxisArrow;
 
+    Model TranslateBall;
+
     Model xAxisRing;
     Model yAxisRing;
     Model zAxisRing;
@@ -266,6 +295,8 @@ private:
     // Editor Frame Buffers (Come back here when I change how framebuffers are used)
     //--------------------
     GBuffer ViewportBuffer;
+
+    Framebuffer_ID WidgetBuffer;
 
     //--------------------
     // Constants

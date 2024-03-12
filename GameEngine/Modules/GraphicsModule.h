@@ -91,6 +91,7 @@ class Transform
 public:
     void SetPosition(Vec3f newPos);
     void SetScale(Vec3f newScale);
+    void SetScale(float newScale);
     void SetRotation(Quaternion newRotation);
 
     Vec3f GetPosition() { return m_Position; }

@@ -6,6 +6,7 @@ SelectedModel::SelectedModel(Model* InModel, Scene* InScene)
 {
     ModelPtr = InModel;
     ScenePtr = InScene;
+
 }
 
 void SelectedModel::Draw()
@@ -22,7 +23,7 @@ void SelectedModel::DrawInspectorPanel()
 
 Transform* SelectedModel::GetTransform()
 {
-    return nullptr;
+    return &ModelPtr->GetTransform();
 }
 
 void SelectedModel::DeleteObject()
@@ -34,6 +35,8 @@ SelectedLight::SelectedLight(PointLight* InPointLight, Scene* InScene)
 {
     PointLightPtr = InPointLight;
     ScenePtr = InScene;
+
+    Trans.SetPosition(PointLightPtr->position);
 }
 
 void SelectedLight::Draw()
@@ -45,13 +48,18 @@ void SelectedLight::Draw()
     Graphics->DebugDrawAABB(LightAABB);
 }
 
+void SelectedLight::Update()
+{
+    PointLightPtr->position = Trans.GetPosition();
+}
+
 void SelectedLight::DrawInspectorPanel()
 {
 }
 
 Transform* SelectedLight::GetTransform()
 {
-    return nullptr;
+    return &Trans;
 }
 
 void SelectedLight::DeleteObject()
@@ -59,6 +67,25 @@ void SelectedLight::DeleteObject()
     ScenePtr->DeletePointLight(PointLightPtr);
 }
 
+
+inline CursorState::CursorState(EditorState* InEditorState, Scene* InEditorScene)
+    : EditorStatePtr(InEditorState)
+    , EditorScenePtr(InEditorScene)
+{
+    XAxisTrans = &EditorStatePtr->xAxisArrow;
+    YAxisTrans = &EditorStatePtr->yAxisArrow;
+    ZAxisTrans = &EditorStatePtr->zAxisArrow;
+
+    TransBall = &EditorStatePtr->TranslateBall;
+
+    XAxisRot = &EditorStatePtr->xAxisRing;
+    YAxisRot = &EditorStatePtr->yAxisRing;
+    ZAxisRot = &EditorStatePtr->zAxisRing;
+
+    XAxisScale = &EditorStatePtr->xScaleWidget;
+    YAxisScale = &EditorStatePtr->yScaleWidget;
+    ZAxisScale = &EditorStatePtr->zScaleWidget;
+}
 
 void CursorState::Update()
 {
@@ -148,21 +175,38 @@ void CursorState::Update()
         }
     }
 
-    switch (Tool)
-    {
-    case ToolMode::Select:
-    {
-        UpdateSelectTool();
-        break;
-    }
-    default:
-    {
-        break;
-    }
-    }
 
     if (SelectedObject)
     {
+        // Update widget positions
+        Transform ObjTrans = *SelectedObject->GetTransform();
+
+        float DistFromCam = Math::magnitude(ObjTrans.GetPosition() - EditorStatePtr->ViewportCamera.GetPosition());
+
+        //XAxisTrans->GetTransform().SetPosition(ObjTrans.GetPosition() + Vec3f(5.0f, 0.0f, 0.0f));
+        //YAxisTrans->GetTransform().SetPosition(ObjTrans.GetPosition() + Vec3f(0.0f, 5.0f, 0.0f));
+        //ZAxisTrans->GetTransform().SetPosition(ObjTrans.GetPosition() + Vec3f(0.0f, 0.0f, 5.0f));
+
+        XAxisTrans->GetTransform().SetPosition(ObjTrans.GetPosition() + Vec3f(DistFromCam / 20.0f * 5.0f, 0.0f, 0.0f));
+        YAxisTrans->GetTransform().SetPosition(ObjTrans.GetPosition() + Vec3f(0.0f, DistFromCam / 20.0f * 5.0f, 0.0f));
+        ZAxisTrans->GetTransform().SetPosition(ObjTrans.GetPosition() + Vec3f(0.0f, 0.0f, DistFromCam / 20.0f * 5.0f));
+
+        TransBall->GetTransform().SetPosition(ObjTrans.GetPosition());
+
+        XAxisTrans->GetTransform().SetScale(Vec3f(DistFromCam / 40.0f, DistFromCam / 16.0f, DistFromCam / 40.0f));
+        YAxisTrans->GetTransform().SetScale(Vec3f(DistFromCam / 40.0f, DistFromCam / 16.0f, DistFromCam / 40.0f));
+        ZAxisTrans->GetTransform().SetScale(Vec3f(DistFromCam / 40.0f, DistFromCam / 16.0f, DistFromCam / 40.0f));
+
+        TransBall->GetTransform().SetScale(DistFromCam / 16.0f);
+
+        XAxisRot->GetTransform().SetPosition(ObjTrans.GetPosition());
+        YAxisRot->GetTransform().SetPosition(ObjTrans.GetPosition());
+        ZAxisRot->GetTransform().SetPosition(ObjTrans.GetPosition());
+
+        XAxisScale->GetTransform().SetPosition(ObjTrans.GetPosition() + Vec3f(5.0f, 0.0f, 0.0f));
+        YAxisScale->GetTransform().SetPosition(ObjTrans.GetPosition() + Vec3f(0.0f, 5.0f, 0.0f));
+        ZAxisScale->GetTransform().SetPosition(ObjTrans.GetPosition() + Vec3f(0.0f, 0.0f, 5.0f));
+
         SelectedObject->Update();
         SelectedObject->Draw();
 
@@ -177,6 +221,22 @@ void CursorState::Update()
             delete SelectedObject;
             SelectedObject = nullptr;
         }
+    }
+
+    switch (Tool)
+    {
+    case ToolMode::Select:
+    {
+        UpdateSelectTool();
+        break;
+    }
+    case ToolMode::Transform:
+        UpdateTranslateTool();
+        break;
+    default:
+    {
+        break;
+    }
     }
 }
 
@@ -221,7 +281,7 @@ void CursorState::CycleGeometryMode()
     }
 }
 
-void CursorState::CycleMoveMode()
+void CursorState::CycleTransformMode()
 {
     switch (TransMode)
     {
@@ -248,6 +308,11 @@ void CursorState::SetToolMode(ToolMode InToolMode)
 ToolMode CursorState::GetToolMode()
 {
     return Tool;
+}
+
+TransformMode CursorState::GetTransMode()
+{
+    return TransMode;
 }
 
 void CursorState::StartDraggingNewModel(Model* NewModel)
@@ -293,19 +358,28 @@ void CursorState::DrawTransientModels()
         return;
     }
 
+    GraphicsModule* Graphics = GraphicsModule::Get();
+
     if (Tool == ToolMode::Transform)
     {
         if (TransMode == TransformMode::Translate)
         {
-
+            Graphics->Draw(*XAxisTrans);
+            Graphics->Draw(*YAxisTrans);
+            Graphics->Draw(*ZAxisTrans);
+            Graphics->Draw(*TransBall);
         }
         else if (TransMode == TransformMode::Rotate)
         {
-
+            Graphics->Draw(*XAxisRot);
+            Graphics->Draw(*YAxisRot);
+            Graphics->Draw(*ZAxisRot);
         }
         else if (TransMode == TransformMode::Scale)
         {
-
+            Graphics->Draw(*XAxisScale);
+            Graphics->Draw(*YAxisScale);
+            Graphics->Draw(*ZAxisScale);
         }
     }
 }
@@ -396,17 +470,7 @@ void CursorState::UpdateMoveTool()
 
 void CursorState::UpdateGeometryTool()
 {
-    if (SelectedObject == nullptr)
-    {
-        return;
-    }
-
-    Transform* ObjTransform = SelectedObject->GetTransform();
-
-
-
 }
-
 
 void CursorState::UpdateVertexTool()
 {
@@ -418,6 +482,96 @@ void CursorState::UpdateSculptTool()
 
 void CursorState::UpdateTranslateTool()
 {
+    if (Axis == EditingAxis::None)
+    {
+        UpdateSelectTool();
+    }
+
+    InputModule* Input = InputModule::Get();
+    if (!Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).pressed
+        || SelectedObject == nullptr)
+    {
+        Axis = EditingAxis::None;
+        return;
+    }
+
+    Vec2i MousePos = Input->GetMouseState().GetMousePos();
+    Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+
+    CollisionModule* Collisions = CollisionModule::Get();
+
+    Vec3f SelectedPos = SelectedObject->GetTransform()->GetPosition();
+
+    if (Axis == EditingAxis::None && Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).justPressed)
+    {
+        if (RayCastHit XHit = Collisions->RayCast(MouseRay, *XAxisTrans); XHit.hit)
+        {
+            Axis = EditingAxis::X;
+            ObjectRelativeHitPoint = XHit.hitPoint - SelectedPos;
+        }
+        else if (RayCastHit YHit = Collisions->RayCast(MouseRay, *YAxisTrans); YHit.hit)
+        {
+            Axis = EditingAxis::Y;
+            ObjectRelativeHitPoint = YHit.hitPoint - SelectedPos;
+        }
+        else if (RayCastHit ZHit = Collisions->RayCast(MouseRay, *ZAxisTrans); ZHit.hit)
+        {
+            Axis = EditingAxis::Z;
+            ObjectRelativeHitPoint = ZHit.hitPoint - SelectedPos;
+        }
+        else if (RayCastHit OmniHit = Collisions->RayCast(MouseRay, *TransBall); OmniHit.hit)
+        {
+            Axis = EditingAxis::Omni;
+            ObjectRelativeHitPoint = OmniHit.hitPoint - SelectedPos;
+            ObjectDistanceAtHit = Math::magnitude(OmniHit.hitPoint - EditorStatePtr->ViewportCamera.GetPosition());
+        }
+    }
+    else if (Axis == EditingAxis::Omni)
+    {
+        int DeltaMouseWheel = Input->GetMouseState().GetDeltaMouseWheel();
+        if (DeltaMouseWheel > 0)
+        {
+            ObjectDistanceAtHit += 0.5f;
+        }
+        else if (DeltaMouseWheel < 0)
+        {
+            ObjectDistanceAtHit -= 0.5f;
+        }
+
+        if (ObjectDistanceAtHit < 1.0f) ObjectDistanceAtHit = 1.0f;
+
+        Vec3f NewObjPos = (MouseRay.point - ObjectRelativeHitPoint) + 
+            (MouseRay.direction * ObjectDistanceAtHit);
+    
+        SelectedObject->GetTransform()->SetPosition(NewObjPos);
+    }
+    else if (Axis != EditingAxis::None)
+    {
+        Vec3f SlidingAxis;
+        switch (Axis)
+        {
+        case EditingAxis::X:
+            SlidingAxis = Vec3f(1.0f, 0.0f, 0.0f);
+            break;
+        case EditingAxis::Y:
+            SlidingAxis = Vec3f(0.0f, 1.0f, 0.0f);
+            break;
+        case EditingAxis::Z:
+            SlidingAxis = Vec3f(0.0f, 0.0f, 1.0f);
+            break;
+        default:
+            break;
+        }
+
+        //GraphicsModule::Get()->DebugDrawPoint(SelectedObject->GetTransform()->GetPosition() + ObjectRelativeHitPoint, Vec3f(1.0f, 0.0f, 0.0f));
+
+        Line MouseLine(MouseRay.point - ObjectRelativeHitPoint, MouseRay.direction);
+        Line AxisLine(SelectedPos, SlidingAxis);
+
+        Vec3f PointAlongAxis = Math::ClosestPointsOnLines(MouseLine, AxisLine).second;
+
+        SelectedObject->GetTransform()->SetPosition(PointAlongAxis);
+    }
 }
 
 void CursorState::UpdateRotateTool()
@@ -464,7 +618,9 @@ void EditorState::OnInitialized()
     Rect ViewportRect = GetEditorSceneViewportRect();
     
     ViewportBuffer = Graphics->CreateGBuffer(ViewportRect.size);
-        
+    
+    WidgetBuffer = Graphics->CreateFBuffer(ViewportRect.size);
+
     Vec2i NewCenter = Vec2i(ViewportRect.Center());
     //TODO(fraser): clean up mouse constrain/input code
     Input->SetMouseCenter(NewCenter);
@@ -553,17 +709,47 @@ void EditorState::UpdateEditor(float DeltaTime)
         }
     }
 
+    // Keyboard hotkeys for switching tools
+    if (Input->GetKeyState(Key::One).justPressed)
+    {
+        Cursor.SetToolMode(ToolMode::Select);
+    }
+    if (Input->GetKeyState(Key::Two).justPressed)
+    {
+        // If already in transform tool, cycle sub-tool
+        if (Cursor.GetToolMode() == ToolMode::Transform)
+        {
+            Cursor.CycleTransformMode();
+        }
+        else
+        {
+            Cursor.SetToolMode(ToolMode::Transform);
+        }
+    }
+    if (Input->GetKeyState(Key::Three).justPressed)
+    {
+        Cursor.SetToolMode(ToolMode::Geometry);
+    }
+
 
     Vec2i ViewportSize = Engine::GetClientAreaSize();
 
     EditorScene.Draw(*Graphics, ViewportBuffer);
 
+    Graphics->SetActiveFrameBuffer(WidgetBuffer);
+
+    Graphics->SetCamera(&ViewportCamera);
+
+    Graphics->SetRenderMode(RenderMode::FULLBRIGHT);
+
+    Cursor.DrawTransientModels();
+
     Graphics->ResetFrameBuffer();
     UI->BufferPanel(ViewportBuffer.FinalOutput, GetEditorSceneViewportRect());
 
+    UI->BufferPanel(WidgetBuffer, GetEditorSceneViewportRect());
+
     DrawEditorUI();
-
-
 }
 
 void EditorState::UpdateGame(float DeltaTime)
@@ -622,6 +808,7 @@ void EditorState::LoadEditorResources()
     Texture RedTexture = *Registry->LoadTexture("textures/red.png");
     Texture GreenTexture = *Registry->LoadTexture("textures/green.png");
     Texture BlueTexture = *Registry->LoadTexture("textures/blue.png");
+    Texture PurpleTexture = *Registry->LoadTexture("textures/purple.png");
 
     WhiteMaterial = Graphics->CreateMaterial(*Registry->LoadTexture("images/white.png"));
 
@@ -633,9 +820,21 @@ void EditorState::LoadEditorResources()
 
     yAxisArrow = Graphics->CloneModel(xAxisArrow);
     zAxisArrow = Graphics->CloneModel(xAxisArrow);
+    
+    xAxisArrow.GetTransform().SetScale(Vec3f(0.2f, 1.0f, 0.2f));
+    yAxisArrow.GetTransform().SetScale(Vec3f(0.2f, 1.0f, 0.2f));
+    zAxisArrow.GetTransform().SetScale(Vec3f(0.2f, 1.0f, 0.2f));
+
+    xAxisArrow.GetTransform().Rotate(Quaternion(Vec3f(0.0f, 0.0f, 1.0f), -M_PI_2));
+    zAxisArrow.GetTransform().Rotate(Quaternion(Vec3f(1.0f, 0.0f, 0.0f), M_PI_2));
 
     yAxisArrow.SetMaterial(Graphics->CreateMaterial(GreenTexture));
     zAxisArrow.SetMaterial(Graphics->CreateMaterial(BlueTexture));
+
+    TranslateBall = Graphics->CreateModel(TexturedMesh(
+        *Registry->LoadStaticMesh("models/Buckyball.obj"),
+        Graphics->CreateMaterial(PurpleTexture)
+    ));
 
     // Create rotation gizmo models
     xAxisRing = Graphics->CreateModel(TexturedMesh(
@@ -645,6 +844,9 @@ void EditorState::LoadEditorResources()
 
     yAxisRing = Graphics->CloneModel(xAxisRing);
     zAxisRing = Graphics->CloneModel(xAxisRing);
+
+    xAxisRing.GetTransform().Rotate(Quaternion(Vec3f(0.0f, 0.0f, 1.0f), -M_PI_2));
+    zAxisRing.GetTransform().Rotate(Quaternion(Vec3f(1.0f, 0.0f, 0.0f), M_PI_2));
 
     yAxisRing.SetMaterial(Graphics->CreateMaterial(GreenTexture));
     zAxisRing.SetMaterial(Graphics->CreateMaterial(BlueTexture));
@@ -657,6 +859,13 @@ void EditorState::LoadEditorResources()
 
     yScaleWidget = Graphics->CloneModel(xScaleWidget);
     zScaleWidget = Graphics->CloneModel(xScaleWidget);
+
+    xScaleWidget.GetTransform().Rotate(Quaternion(Vec3f(0.0f, 1.0f, 0.0f), M_PI_2));
+    yScaleWidget.GetTransform().Rotate(Quaternion(Vec3f(1.0f, 0.0f, 0.0f), -M_PI_2));
+
+    xScaleWidget.GetTransform().SetScale(Vec3f(0.4f, 0.4f, 0.8f));
+    yScaleWidget.GetTransform().SetScale(Vec3f(0.4f, 0.4f, 0.8f));
+    zScaleWidget.GetTransform().SetScale(Vec3f(0.4f, 0.4f, 0.8f));
 
     yScaleWidget.SetMaterial(Graphics->CreateMaterial(GreenTexture));
     zScaleWidget.SetMaterial(Graphics->CreateMaterial(BlueTexture));
@@ -863,9 +1072,29 @@ void EditorState::DrawEditorUI()
             Cursor.SetToolMode(ToolMode::Select);
         }
 
-        if (UI->ImgButton("TransformTool", translateToolTexture, Vec2f(80.0f, 80.0f), 12.0f, 
+        Texture TransModeTexture = translateToolTexture;
+        switch (Cursor.GetTransMode())
+        {
+        case TransformMode::Translate:
+            TransModeTexture = translateToolTexture;
+            break;
+        case TransformMode::Rotate:
+            TransModeTexture = rotateToolTexture;
+            break;
+        case TransformMode::Scale:
+            TransModeTexture = scaleToolTexture;
+            break;
+        default:
+            break;
+        }
+
+        if (UI->ImgButton("TransformTool", TransModeTexture, Vec2f(80.0f, 80.0f), 12.0f,
             Cursor.GetToolMode() == ToolMode::Transform ? SelectedColour : UnSelectedColour))
         {
+            if (Cursor.GetToolMode() == ToolMode::Transform)
+            {
+                Cursor.CycleTransformMode();
+            }
             Cursor.SetToolMode(ToolMode::Transform);
         }
 

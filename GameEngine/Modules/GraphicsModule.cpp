@@ -28,6 +28,12 @@ void Transform::SetScale(Vec3f newScale)
     m_TransformMatrixNeedsUpdate = true;
 }
 
+void Transform::SetScale(float newScale)
+{
+    m_Scale = Vec3f(newScale, newScale, newScale);
+    m_TransformMatrixNeedsUpdate = true;
+}
+
 void Transform::SetRotation(Quaternion newRotation)
 {
     m_Rotation = newRotation;
