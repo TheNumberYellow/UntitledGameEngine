@@ -14,7 +14,7 @@ void SelectedModel::Draw()
     GraphicsModule* Graphics = GraphicsModule::Get();
     CollisionModule* Collision = CollisionModule::Get();
 
-    Graphics->DebugDrawAABB(Collision->GetCollisionMeshFromMesh(ModelPtr->m_TexturedMeshes[0].m_Mesh)->boundingBox, Vec3f(48.f / 255.f, 213.f / 255.f, 200.f / 255.f), ModelPtr->GetTransform().GetTransformMatrix());
+    Graphics->DebugDrawAABB(Collision->GetCollisionMeshFromMesh(ModelPtr->m_TexturedMeshes[0].m_Mesh)->boundingBox, c_SelectedBoxColour, ModelPtr->GetTransform().GetTransformMatrix());
 }
 
 void SelectedModel::DrawInspectorPanel()
@@ -45,7 +45,7 @@ void SelectedLight::Draw()
 
     AABB LightAABB = AABB(PointLightPtr->position - Vec3f(0.35f, 0.35f, 0.35f), PointLightPtr->position + Vec3f(0.35f, 0.35f, 0.35f));
 
-    Graphics->DebugDrawAABB(LightAABB);
+    Graphics->DebugDrawAABB(LightAABB, c_SelectedBoxColour);
 }
 
 void SelectedLight::Update()
@@ -55,6 +55,16 @@ void SelectedLight::Update()
 
 void SelectedLight::DrawInspectorPanel()
 {
+    UIModule* UI = UIModule::Get();
+
+    Vec3f Pos = PointLightPtr->position;
+    Vec3f Col = PointLightPtr->position;
+
+
+    UI->TextButton("X: " + std::to_string(Pos.x), Vec2f(180.0f, 40.0f), 12.0f, c_InspectorColour);
+    UI->TextButton("Y: " + std::to_string(Pos.y), Vec2f(180.0f, 40.0f), 12.0f, c_InspectorColour);
+    UI->TextButton("Z: " + std::to_string(Pos.z), Vec2f(180.0f, 40.0f), 12.0f, c_InspectorColour);
+
 }
 
 Transform* SelectedLight::GetTransform()
@@ -384,6 +394,20 @@ void CursorState::DrawTransientModels()
     }
 }
 
+void CursorState::DrawInspectorPanel()
+{
+    UIModule* UI = UIModule::Get();
+
+    if (!SelectedObject)
+    {
+        UI->TextButton("No object selected.", Vec2f(120.0f, 60.0f), 4.0f);
+    }
+    else
+    {
+        SelectedObject->DrawInspectorPanel();
+    }
+}
+
 bool CursorState::IsDraggingSomething()
 {
     return Dragging != DraggingMode::None;
@@ -482,16 +506,12 @@ void CursorState::UpdateSculptTool()
 
 void CursorState::UpdateTranslateTool()
 {
-    if (Axis == EditingAxis::None)
-    {
-        UpdateSelectTool();
-    }
-
     InputModule* Input = InputModule::Get();
     if (!Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).pressed
         || SelectedObject == nullptr)
     {
         Axis = EditingAxis::None;
+        UpdateSelectTool();
         return;
     }
 
@@ -504,23 +524,28 @@ void CursorState::UpdateTranslateTool()
 
     if (Axis == EditingAxis::None && Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).justPressed)
     {
+        RayCastHit ClosestHit;
         if (RayCastHit XHit = Collisions->RayCast(MouseRay, *XAxisTrans); XHit.hit)
         {
+            ClosestHit = XHit;
             Axis = EditingAxis::X;
             ObjectRelativeHitPoint = XHit.hitPoint - SelectedPos;
         }
-        else if (RayCastHit YHit = Collisions->RayCast(MouseRay, *YAxisTrans); YHit.hit)
+        if (RayCastHit YHit = Collisions->RayCast(MouseRay, *YAxisTrans); YHit.hit && YHit.hitDistance < ClosestHit.hitDistance)
         {
+            ClosestHit = YHit;
             Axis = EditingAxis::Y;
             ObjectRelativeHitPoint = YHit.hitPoint - SelectedPos;
         }
-        else if (RayCastHit ZHit = Collisions->RayCast(MouseRay, *ZAxisTrans); ZHit.hit)
+        if (RayCastHit ZHit = Collisions->RayCast(MouseRay, *ZAxisTrans); ZHit.hit && ZHit.hitDistance < ClosestHit.hitDistance)
         {
+            ClosestHit = ZHit;
             Axis = EditingAxis::Z;
             ObjectRelativeHitPoint = ZHit.hitPoint - SelectedPos;
         }
-        else if (RayCastHit OmniHit = Collisions->RayCast(MouseRay, *TransBall); OmniHit.hit)
+        if (RayCastHit OmniHit = Collisions->RayCast(MouseRay, *TransBall); OmniHit.hit && OmniHit.hitDistance < ClosestHit.hitDistance)
         {
+            ClosestHit = OmniHit;
             Axis = EditingAxis::Omni;
             ObjectRelativeHitPoint = OmniHit.hitPoint - SelectedPos;
             ObjectDistanceAtHit = Math::magnitude(OmniHit.hitPoint - EditorStatePtr->ViewportCamera.GetPosition());
@@ -571,6 +596,11 @@ void CursorState::UpdateTranslateTool()
         Vec3f PointAlongAxis = Math::ClosestPointsOnLines(MouseLine, AxisLine).second;
 
         SelectedObject->GetTransform()->SetPosition(PointAlongAxis);
+    }
+
+    if (Axis == EditingAxis::None)
+    {
+        UpdateSelectTool();
     }
 }
 
@@ -1234,7 +1264,7 @@ void EditorState::DrawInspectorPanel()
 
     UI->StartFrame("Inspector", InspectorPanelRect, 16.0f, c_NicePink);
     {
-
+        Cursor.DrawInspectorPanel();
     }
     UI->EndFrame();
 
