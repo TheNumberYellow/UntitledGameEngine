@@ -67,6 +67,8 @@ public:
     virtual Transform* GetTransform() = 0;
     virtual void DeleteObject() = 0;
 
+    virtual bool operator==(const ISelectedObject& Other) = 0;
+
     const Vec3f c_SelectedBoxColour = Vec3f(0.f / 255.f, 255.f / 255.f, 255.f / 255.f);
     const Vec3f c_InspectorColour = Vec3f(175.f / 255.f, 225.f / 255.f, 175.f / 255.f);
 };
@@ -82,6 +84,8 @@ public:
 
     virtual Transform* GetTransform() override;
     virtual void DeleteObject() override;
+
+    virtual bool operator==(const ISelectedObject& Other) override;
 
 private:
 
@@ -102,6 +106,8 @@ public:
 
     virtual Transform* GetTransform() override;
     virtual void DeleteObject() override;
+
+    virtual bool operator==(const ISelectedObject& Other) override;
 
 private:
 
@@ -128,6 +134,7 @@ public:
 
     ToolMode GetToolMode();
     TransformMode GetTransMode();
+    GeometryMode GetGeoMode();
 
     void StartDraggingNewModel(Model* NewModel);
     void StartDraggingNewPointLight(PointLight* NewPointLight);
@@ -151,6 +158,17 @@ private:
     void UpdateRotateTool();
     void UpdateScaleTool();
 
+    void UpdateBoxTool();
+    void UpdatePlaneTool();
+
+    void UpdateSelectedObjects();
+    void DrawSelectedObjects();
+    void DrawSelectedInspectorPanels();
+    void DeleteSelectedObjects();
+    void UnselectSelectedObjects();
+
+    void AddToSelectedObjects(ISelectedObject* NewSelectedObject);
+
     ToolMode Tool = ToolMode::Select;
     DraggingMode Dragging = DraggingMode::None;
 
@@ -162,8 +180,11 @@ private:
 
     Material* DraggingMaterialPtr = nullptr;
 
-    ISelectedObject* SelectedObject = nullptr;
+    //ISelectedObject* SelectedObject = nullptr;
 
+    std::vector<ISelectedObject*> SelectedObjects;
+
+    // Transform mode state + models
     EditingAxis Axis = EditingAxis::None;
     
     Vec3f ObjectRelativeHitPoint;
@@ -182,6 +203,13 @@ private:
     Model* XAxisScale;
     Model* YAxisScale;
     Model* ZAxisScale;
+
+    // Geometry mode state
+    bool IsCreatingNewBox = false;
+    Vec3f NewBoxStartPoint;
+    float NewBoxHeight = 1.0f;
+    AABB BoxBeingCreated;
+    float GeoPlaceSnap = 1.0f;
 
     EditorState* EditorStatePtr;
     Scene* EditorScenePtr;
@@ -264,6 +292,7 @@ private:
     
     Texture lightEntityTexture;
     Texture cameraEntityTexture;
+    Texture brainEntityTexture;
 
     Material WhiteMaterial;
 

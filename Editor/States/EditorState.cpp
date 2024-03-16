@@ -31,6 +31,19 @@ void SelectedModel::DeleteObject()
     ScenePtr->DeleteModel(ModelPtr);
 }
 
+bool SelectedModel::operator==(const ISelectedObject& Other)
+{
+    const SelectedModel* OtherPtr = dynamic_cast<const SelectedModel*>(&Other);
+    if (!OtherPtr)
+    {
+        return false;
+    }
+    else
+    {
+        return ModelPtr == OtherPtr->ModelPtr;
+    }
+}
+
 SelectedLight::SelectedLight(PointLight* InPointLight, Scene* InScene)
 {
     PointLightPtr = InPointLight;
@@ -58,12 +71,19 @@ void SelectedLight::DrawInspectorPanel()
     UIModule* UI = UIModule::Get();
 
     Vec3f Pos = PointLightPtr->position;
-    Vec3f Col = PointLightPtr->position;
+    Vec3f Col = PointLightPtr->colour;
 
+    static std::string TestString = "Test";
+
+    UI->TextEntry("Test", TestString, Vec2f(100.0f, 20.0f), c_InspectorColour);
 
     UI->TextButton("X: " + std::to_string(Pos.x), Vec2f(180.0f, 40.0f), 12.0f, c_InspectorColour);
     UI->TextButton("Y: " + std::to_string(Pos.y), Vec2f(180.0f, 40.0f), 12.0f, c_InspectorColour);
     UI->TextButton("Z: " + std::to_string(Pos.z), Vec2f(180.0f, 40.0f), 12.0f, c_InspectorColour);
+
+    UI->TextButton("R: " + std::to_string(Col.x), Vec2f(180.0f, 40.0f), 12.0f, c_InspectorColour);
+    UI->TextButton("G: " + std::to_string(Col.y), Vec2f(180.0f, 40.0f), 12.0f, c_InspectorColour);
+    UI->TextButton("B: " + std::to_string(Col.z), Vec2f(180.0f, 40.0f), 12.0f, c_InspectorColour);
 
 }
 
@@ -75,6 +95,20 @@ Transform* SelectedLight::GetTransform()
 void SelectedLight::DeleteObject()
 {
     ScenePtr->DeletePointLight(PointLightPtr);
+}
+
+bool SelectedLight::operator==(const ISelectedObject& Other)
+{
+    const SelectedLight* OtherPtr = dynamic_cast<const SelectedLight*>(&Other);
+    if (!OtherPtr)
+    {
+        return false;
+    }
+    else
+    {
+        return PointLightPtr == OtherPtr->PointLightPtr;
+    }
+
 }
 
 
@@ -185,11 +219,29 @@ void CursorState::Update()
         }
     }
 
+    switch (Tool)
+    {
+    case ToolMode::Select:
+    {
+        UpdateSelectTool();
+        break;
+    }
+    case ToolMode::Transform:
+        UpdateTranslateTool();
+        break;
+    case ToolMode::Geometry:
+        UpdateGeometryTool();
+        break;
+    default:
+    {
+        break;
+    }
+    }
 
-    if (SelectedObject)
+    if (!SelectedObjects.empty())
     {
         // Update widget positions
-        Transform ObjTrans = *SelectedObject->GetTransform();
+        Transform ObjTrans = *SelectedObjects[0]->GetTransform();
 
         float DistFromCam = Math::magnitude(ObjTrans.GetPosition() - EditorStatePtr->ViewportCamera.GetPosition());
 
@@ -207,7 +259,7 @@ void CursorState::Update()
         YAxisTrans->GetTransform().SetScale(Vec3f(DistFromCam / 40.0f, DistFromCam / 16.0f, DistFromCam / 40.0f));
         ZAxisTrans->GetTransform().SetScale(Vec3f(DistFromCam / 40.0f, DistFromCam / 16.0f, DistFromCam / 40.0f));
 
-        TransBall->GetTransform().SetScale(DistFromCam / 16.0f);
+        TransBall->GetTransform().SetScale(DistFromCam / 32.0f);
 
         XAxisRot->GetTransform().SetPosition(ObjTrans.GetPosition());
         YAxisRot->GetTransform().SetPosition(ObjTrans.GetPosition());
@@ -217,37 +269,20 @@ void CursorState::Update()
         YAxisScale->GetTransform().SetPosition(ObjTrans.GetPosition() + Vec3f(0.0f, 5.0f, 0.0f));
         ZAxisScale->GetTransform().SetPosition(ObjTrans.GetPosition() + Vec3f(0.0f, 0.0f, 5.0f));
 
-        SelectedObject->Update();
-        SelectedObject->Draw();
+        UpdateSelectedObjects();
+        DrawSelectedObjects();
 
         if (Input->GetKeyState(Key::Delete))
         {
-            SelectedObject->DeleteObject();
-            delete SelectedObject;
-            SelectedObject = nullptr;
+            DeleteSelectedObjects();
         }
         else if (Input->GetKeyState(Key::Escape))
         {
-            delete SelectedObject;
-            SelectedObject = nullptr;
+            UnselectSelectedObjects();
         }
     }
 
-    switch (Tool)
-    {
-    case ToolMode::Select:
-    {
-        UpdateSelectTool();
-        break;
-    }
-    case ToolMode::Transform:
-        UpdateTranslateTool();
-        break;
-    default:
-    {
-        break;
-    }
-    }
+
 }
 
 void CursorState::CycleToolMode()
@@ -325,6 +360,11 @@ TransformMode CursorState::GetTransMode()
     return TransMode;
 }
 
+GeometryMode CursorState::GetGeoMode()
+{
+    return GeoMode;
+}
+
 void CursorState::StartDraggingNewModel(Model* NewModel)
 {
     if (Dragging != DraggingMode::None)
@@ -363,7 +403,7 @@ void CursorState::StartDraggingNewMaterial(Material* NewMaterial)
 
 void CursorState::DrawTransientModels()
 {
-    if (SelectedObject == nullptr)
+    if (SelectedObjects.empty())
     {
         return;
     }
@@ -398,13 +438,13 @@ void CursorState::DrawInspectorPanel()
 {
     UIModule* UI = UIModule::Get();
 
-    if (!SelectedObject)
+    if (SelectedObjects.empty())
     {
         UI->TextButton("No object selected.", Vec2f(120.0f, 60.0f), 4.0f);
     }
     else
     {
-        SelectedObject->DrawInspectorPanel();
+        DrawSelectedInspectorPanels();
     }
 }
 
@@ -445,15 +485,22 @@ void CursorState::UpdateSelectTool()
 
         auto ModelHit = EditorScenePtr->RayCast(MouseRay);
 
+        bool HoldingShift = Input->GetKeyState(Key::Shift).pressed;
+
         if (ModelHit.rayCastHit.hit || PointLightHit.hit)
         {
+            if (!HoldingShift)
+            {
+                UnselectSelectedObjects();
+            }
+
             if (ModelHit.rayCastHit.hitDistance < PointLightHit.hitDistance)
             {
                 if (ModelHit.hitModel != DraggingModelPtr)
                 {
                     SelectedModel* EdModel = new SelectedModel(ModelHit.hitModel, EditorScenePtr);
 
-                    SelectedObject = EdModel;
+                    AddToSelectedObjects(EdModel);
                 }
             }
             else
@@ -462,14 +509,9 @@ void CursorState::UpdateSelectTool()
                 {
                     SelectedLight* EdLight = new SelectedLight(HitLight, EditorScenePtr);
 
-                    SelectedObject = EdLight;
+                    AddToSelectedObjects(EdLight);
                 }
             }
-        }
-
-        if (ModelHit.rayCastHit.hit)
-        {
-
         }
     }
 }
@@ -494,6 +536,18 @@ void CursorState::UpdateMoveTool()
 
 void CursorState::UpdateGeometryTool()
 {
+    switch (GeoMode)
+    {
+    case GeometryMode::Box:
+        UpdateBoxTool();
+        break;
+    case GeometryMode::Plane:
+        UpdatePlaneTool();
+        break;
+
+    default:
+        break;
+    }
 }
 
 void CursorState::UpdateVertexTool()
@@ -508,7 +562,7 @@ void CursorState::UpdateTranslateTool()
 {
     InputModule* Input = InputModule::Get();
     if (!Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).pressed
-        || SelectedObject == nullptr)
+        || SelectedObjects.empty())
     {
         Axis = EditingAxis::None;
         UpdateSelectTool();
@@ -520,7 +574,7 @@ void CursorState::UpdateTranslateTool()
 
     CollisionModule* Collisions = CollisionModule::Get();
 
-    Vec3f SelectedPos = SelectedObject->GetTransform()->GetPosition();
+    Vec3f SelectedPos = SelectedObjects[0]->GetTransform()->GetPosition();
 
     if (Axis == EditingAxis::None && Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).justPressed)
     {
@@ -568,7 +622,7 @@ void CursorState::UpdateTranslateTool()
         Vec3f NewObjPos = (MouseRay.point - ObjectRelativeHitPoint) + 
             (MouseRay.direction * ObjectDistanceAtHit);
     
-        SelectedObject->GetTransform()->SetPosition(NewObjPos);
+        SelectedObjects[0]->GetTransform()->SetPosition(NewObjPos);
     }
     else if (Axis != EditingAxis::None)
     {
@@ -595,7 +649,7 @@ void CursorState::UpdateTranslateTool()
 
         Vec3f PointAlongAxis = Math::ClosestPointsOnLines(MouseLine, AxisLine).second;
 
-        SelectedObject->GetTransform()->SetPosition(PointAlongAxis);
+        SelectedObjects[0]->GetTransform()->SetPosition(PointAlongAxis);
     }
 
     if (Axis == EditingAxis::None)
@@ -610,6 +664,158 @@ void CursorState::UpdateRotateTool()
 
 void CursorState::UpdateScaleTool()
 {
+}
+
+void CursorState::UpdateBoxTool()
+{
+    InputModule* Input = InputModule::Get();
+    CollisionModule* Collisions = CollisionModule::Get();
+    GraphicsModule* Graphics = GraphicsModule::Get();
+
+    KeyState ClickState = Input->GetMouseState().GetMouseButtonState(MouseButton::LMB);
+
+    if (Dragging != DraggingMode::None)
+    {
+        IsCreatingNewBox = false;
+    }
+
+    if (IsCreatingNewBox)
+    {
+        if (ClickState.justReleased)
+        {
+            // Create the box model, add to scene
+            IsCreatingNewBox = false;
+
+            EditorScenePtr->AddModel(Graphics->CreateBoxModel(BoxBeingCreated));
+        }
+        else
+        {
+            Vec2i MousePos = Input->GetMouseState().GetMousePos();
+            Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+
+            RayCastHit PlaneHit = Collisions->RayCast(MouseRay, Plane(NewBoxStartPoint, Vec3f(0.0f, 0.0f, 1.0f)));
+
+            if (PlaneHit.hit)
+            {
+                int DeltaMouseWheel = Input->GetMouseState().GetDeltaMouseWheel();
+                if (DeltaMouseWheel > 0)
+                {
+                    NewBoxHeight += GeoPlaceSnap;
+                }
+                else if (DeltaMouseWheel < 0)
+                {
+                    NewBoxHeight -= GeoPlaceSnap;
+                }
+
+                if (NewBoxHeight < GeoPlaceSnap) NewBoxHeight = GeoPlaceSnap;
+
+                Vec3f HitPoint = PlaneHit.hitPoint;
+
+                HitPoint.x = Math::Round(HitPoint.x, GeoPlaceSnap);
+                HitPoint.y = Math::Round(HitPoint.y, GeoPlaceSnap);
+                HitPoint.z = Math::Round(HitPoint.z, GeoPlaceSnap);
+
+                float minX = std::min(HitPoint.x, NewBoxStartPoint.x);
+                float minY = std::min(HitPoint.y, NewBoxStartPoint.y);
+
+                float maxX = std::max(HitPoint.x, NewBoxStartPoint.x);
+                float maxY = std::max(HitPoint.y, NewBoxStartPoint.y);
+
+                BoxBeingCreated.min = Vec3f(minX, minY, HitPoint.z);
+                BoxBeingCreated.max = Vec3f(maxX, maxY, HitPoint.z + NewBoxHeight);
+
+
+                Graphics->DebugDrawAABB(BoxBeingCreated, Vec3f(0.1f, 1.0f, 0.3f));
+            }
+        }
+    }
+    else
+    {
+        if (ClickState.justPressed && Dragging == DraggingMode::None)
+        {
+            Vec2i MousePos = Input->GetMouseState().GetMousePos();
+            Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+
+            RayCastHit PlaneHit = Collisions->RayCast(MouseRay, Plane(Vec3f(0.0f, 0.0f, 0.0f), Vec3f(0.0f, 0.0f, 1.0f)));
+            RayCastHit SceneHit = EditorScenePtr->RayCast(MouseRay).rayCastHit;
+
+            RayCastHit FinalHit = PlaneHit.hitDistance < SceneHit.hitDistance ? PlaneHit : SceneHit;
+
+            if (FinalHit.hit)
+            {
+                Vec3f HitPoint = FinalHit.hitPoint;
+
+                HitPoint.x = Math::Round(HitPoint.x, GeoPlaceSnap);
+                HitPoint.y = Math::Round(HitPoint.y, GeoPlaceSnap);
+                HitPoint.z = Math::Round(HitPoint.z, GeoPlaceSnap);
+
+                IsCreatingNewBox = true;
+                NewBoxStartPoint = HitPoint;
+            }
+        }
+    }
+
+}
+
+void CursorState::UpdatePlaneTool()
+{
+}
+
+void CursorState::UpdateSelectedObjects()
+{
+    for (ISelectedObject* Object : SelectedObjects)
+    {
+        Object->Update();
+    }
+}
+
+void CursorState::DrawSelectedObjects()
+{
+    for (ISelectedObject* Object : SelectedObjects)
+    {
+        Object->Draw();
+    }
+}
+
+void CursorState::DrawSelectedInspectorPanels()
+{
+    for (ISelectedObject* Object : SelectedObjects)
+    {
+        Object->DrawInspectorPanel();
+    }
+}
+
+void CursorState::DeleteSelectedObjects()
+{
+    for (ISelectedObject* Object : SelectedObjects)
+    {
+        Object->DeleteObject();
+        delete Object;
+    }
+
+    SelectedObjects.clear();
+}
+
+void CursorState::UnselectSelectedObjects()
+{
+    for (ISelectedObject* Object : SelectedObjects)
+    {
+        delete Object;
+    }
+
+    SelectedObjects.clear();
+}
+
+void CursorState::AddToSelectedObjects(ISelectedObject* NewSelectedObject)
+{
+    for (ISelectedObject* Obj : SelectedObjects)
+    {
+        if (*Obj == *NewSelectedObject)
+        {
+            return;
+        }
+    }
+    SelectedObjects.push_back(NewSelectedObject);
 }
 
 void EditorState::OnInitialized()
@@ -758,7 +964,15 @@ void EditorState::UpdateEditor(float DeltaTime)
     }
     if (Input->GetKeyState(Key::Three).justPressed)
     {
-        Cursor.SetToolMode(ToolMode::Geometry);
+        // If already in geometry tool, cycle sub-tool
+        if (Cursor.GetToolMode() == ToolMode::Geometry)
+        {
+            Cursor.CycleGeometryMode();
+        }
+        else
+        {       
+            Cursor.SetToolMode(ToolMode::Geometry);
+        }
     }
 
 
@@ -916,6 +1130,7 @@ void EditorState::LoadEditorResources()
     
     lightEntityTexture = *Registry->LoadTexture("images/lightTool.png");
     cameraEntityTexture = *Registry->LoadTexture("images/cameraButton.png");
+    brainEntityTexture = *Registry->LoadTexture("images/brainTool.png");
 
     // Load editor fonts
     DefaultFont = Text->LoadFont("fonts/ARLRDBD.TTF", 30);
@@ -1125,13 +1340,36 @@ void EditorState::DrawEditorUI()
             {
                 Cursor.CycleTransformMode();
             }
-            Cursor.SetToolMode(ToolMode::Transform);
+            else
+            {
+                Cursor.SetToolMode(ToolMode::Transform);
+            }
         }
 
-        if (UI->ImgButton("BoxTool", boxToolTexture, Vec2f(80.0f, 80.0f), 12.0f, 
+        Texture GeoModeTexture = boxToolTexture;
+        switch (Cursor.GetGeoMode())
+        {
+        case GeometryMode::Box:
+            GeoModeTexture = boxToolTexture;
+            break;
+        case GeometryMode::Plane:
+            GeoModeTexture = planeToolTexture;
+            break;
+        default:
+            break;
+        }
+
+        if (UI->ImgButton("GeometryTool", GeoModeTexture, Vec2f(80.0f, 80.0f), 12.0f,
             Cursor.GetToolMode() == ToolMode::Geometry ? SelectedColour : UnSelectedColour))
         {
-            Cursor.SetToolMode(ToolMode::Geometry);
+            if (Cursor.GetToolMode() == ToolMode::Geometry)
+            {
+                Cursor.CycleGeometryMode();
+            }
+            else
+            {
+                Cursor.SetToolMode(ToolMode::Geometry);
+            }
         }
     }
     UI->EndFrame();
@@ -1152,9 +1390,12 @@ void EditorState::DrawTopPanel()
     Rect TopPanelRect = Rect(Vec2f(0.0f, 0.0f),
         Vec2f(ScreenSize.x, ViewportRect.location.y));
 
-    UI->StartFrame("Top", TopPanelRect, 8.0f, c_NiceRed);
-    {
+    Vec2f TopPanelButtonSize = Vec2f(ViewportRect.location.y, ViewportRect.location.y);
 
+    UI->StartFrame("Top", TopPanelRect, 0.0f, c_NiceRed);
+    {
+        UI->ImgButton("PlayButton", playButtonTexture, TopPanelButtonSize, 8.0f);
+        UI->TextButton("Open", TopPanelButtonSize, 8.0f);
     }
     UI->EndFrame();
 }
@@ -1222,11 +1463,24 @@ void EditorState::DrawResourcesPanel()
             if (UI->ImgButton("CameraEntity", cameraEntityTexture, Vec2f(80.0f, 80.0f), 12.0f))
             {
             }
+            if (UI->ImgButton("BrainEntity", brainEntityTexture, Vec2f(80.0f, 80.0f), 12.0f))
+            {
+            }
+
         }
         UI->EndTab();
 
         UI->StartTab("Behaviours", c_NicePurple);
         {
+            auto BehaviourMap = BehaviourRegistry::Get()->GetBehaviours();
+
+            for (auto Behaviour : BehaviourMap)
+            {
+                if (UI->TextButton(Behaviour.first, Vec2f(120, 40), 10.0f, c_NiceYellow))
+                {
+                    
+                }
+            }
         }
         UI->EndTab();
 

@@ -85,7 +85,7 @@ public:
 
     void Text(std::string text, Vec2f position, Vec3f colour = Vec3f(0.1f, 0.1f, 0.4f));
 
-    void TextEntry(std::string name, std::string& stringRef, Rect rect);
+    void TextEntry(std::string name, std::string& stringRef, Vec2f size, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
 
     void StartFrame(std::string name, Rect rect, float borderWidth, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
     void EndFrame();

@@ -1788,7 +1788,7 @@ void UpdateEditor(double deltaTime)
             m_IsServer = true;
         }
 
-        ui.TextEntry("IpEntry", ipString, Rect(Vec2f(screen.x - 560.0f, 0.0f), Vec2f(200.0f, 40.0f)));
+        ui.TextEntry("IpEntry", ipString, Vec2f(200.0f, 40.0f));
 
         if (ui.TextButton("Join", Vec2f(40, 40), 4.0f) && !m_IsServer)
         {
@@ -1898,17 +1898,17 @@ void UpdateEditor(double deltaTime)
         std::string xString = std::to_string(Position.x);
         xString.erase(xString.find_last_not_of('0') + 1, std::string::npos);
         //xString.erase(xString.find_last_not_of('.') + 1, std::string::npos);
-        ui.TextEntry("X", xString, Rect(Cursor, Vec2f(160.0f, 15.0f)));
+        ui.TextEntry("X", xString, Vec2f(160.0f, 15.0f));
         NewPos.x = std::stof(xString);
         Cursor.y += 15.0f;
         
         std::string yString = std::to_string(Position.y);
-        ui.TextEntry("Y", yString, Rect(Cursor, Vec2f(160.0f, 15.0f)));
+        ui.TextEntry("Y", yString, Vec2f(160.0f, 15.0f));
         NewPos.y = std::stof(yString);
         Cursor.y += 15.0f;
 
         std::string zString = std::to_string(Position.z);
-        ui.TextEntry("Z", zString, Rect(Cursor, Vec2f(160.0f, 15.0f)));
+        ui.TextEntry("Z", zString, Vec2f(160.0f, 15.0f));
         NewPos.z = std::stof(zString);
         Cursor.y += 25.0f;
 
@@ -2340,8 +2340,6 @@ void UpdateGame(double deltaTime)
 
     }
 
-
-
     // Update behaviours
     runtimeScene.UpdateBehaviours((float)deltaTime);
     //BehaviourRegistry::Get()->UpdateAllBehaviours(modules, &runtimeScene, deltaTime);
@@ -2563,6 +2561,8 @@ void Resize(Vec2i newSize)
 }
 #else 
 
+#ifdef USE_EDITOR
+
 #include "GameEngine.h"
 
 #include "States/EditorState.h"
@@ -2583,5 +2583,31 @@ void Resize(Vec2i newSize)
 {
     State.OnResize();
 }
+
+#else
+
+#include "GameEngine.h"
+
+#include "States/EditorState.h"
+
+EditorState State;
+
+void Initialize()
+{
+    State.OnInitialized();
+}
+
+void Update(double deltaTime)
+{
+    State.Update(deltaTime);
+}
+
+void Resize(Vec2i newSize)
+{
+    State.OnResize();
+}
+
+
+#endif
 
 #endif

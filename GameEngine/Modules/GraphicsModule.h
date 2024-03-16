@@ -192,6 +192,12 @@ struct BillboardRenderCommand
     float m_Size = 1.0f;
 };
 
+struct DirectionalLightRenderCommand
+{
+    Vec3f m_Direction;
+    Vec3f m_Colour;
+};
+
 struct PointLightRenderCommand
 {
     Vec3f m_Colour;

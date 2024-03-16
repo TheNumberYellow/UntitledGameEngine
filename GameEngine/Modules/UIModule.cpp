@@ -304,18 +304,21 @@ void UIModule::Text(std::string text, Vec2f position, Vec3f colour)
     m_Text.DrawText(text, &m_FrameFont, position, colour);
 }
 
-void UIModule::TextEntry(std::string name, std::string& stringRef, Rect rect)
+void UIModule::TextEntry(std::string name, std::string& stringRef, Vec2f size, Vec3f colour)
 {
     if (!ShouldDisplay())
         return;
-
-    rect.location += GetFrame().location;
 
     //Click click = TextButton(stringRef, rect, 4.0f);
     
     TextEntryState* State = GetTextEntryState(name);
     
-    //Click click = TextButton(stringRef, rect, m_ActiveElement == State ? 0.0f : 4.0f);
+    Click click = TextButton(stringRef, size, m_ActiveElement == State ? 0.0f : 4.0f, colour);
+
+    if (click)
+    {
+        m_ActiveElement = State;
+    }
 
     if (m_ActiveElement == State)
     {
@@ -445,6 +448,11 @@ void UIModule::EndTab()
 void UIModule::OnFrameStart()
 {
     ResetAllElementAliveFlags();
+
+    if (m_Input.IsKeyDown(Key::Escape))
+    {
+        m_ActiveElement = nullptr;
+    }
 
     CursorStack.push(CursorInfo());
 
