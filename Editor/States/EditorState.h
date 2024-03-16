@@ -138,8 +138,8 @@ public:
 
     void StartDraggingNewModel(Model* NewModel);
     void StartDraggingNewPointLight(PointLight* NewPointLight);
-    
     void StartDraggingNewMaterial(Material* NewMaterial);
+    void StartDraggingNewBehaviour(std::string NewBehaviourName);
 
     void DrawTransientModels();
 
@@ -179,8 +179,7 @@ private:
     PointLight* DraggingPointLightPtr = nullptr;
 
     Material* DraggingMaterialPtr = nullptr;
-
-    //ISelectedObject* SelectedObject = nullptr;
+    std::string DraggingBehaviourName;
 
     std::vector<ISelectedObject*> SelectedObjects;
 
@@ -218,9 +217,10 @@ private:
 
 class EditorState : public BaseState
 {
-
+    //--------------------
+    // BaseState Implementation
+    //--------------------
 public:
-
     void OnInitialized() override;
     void OnUninitialized() override;
     void OnEnter() override;
@@ -228,10 +228,10 @@ public:
     void Update(float DeltaTime) override;
     void OnResize() override;
 
-private:
     //--------------------
     // Private Member Functions
     //--------------------
+private:
     void UpdateEditor(float DeltaTime);
     void UpdateGame(float DeltaTime);
 
@@ -252,10 +252,10 @@ private:
     void DrawResourcesPanel();
     void DrawInspectorPanel();
 
-private:
     //--------------------
     // Private member variables
     //--------------------
+private:
     friend class CursorState;
     CursorState Cursor;
 

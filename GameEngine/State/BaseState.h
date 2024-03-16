@@ -1,4 +1,8 @@
 #pragma once
+
+#include "StateMachine.h"
+//class StateMachine;
+
 class BaseState
 {
 public:
@@ -9,7 +13,9 @@ public:
     virtual void Update(float DeltaTime);
     virtual void OnResize();
 
+    void SetOwningStateMachine(StateMachine* StateMachinePtr);
+
 protected:
-    void ChangeState(BaseState* NewState);
+    StateMachine* Machine = nullptr;
 };
 

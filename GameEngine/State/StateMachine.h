@@ -1,0 +1,32 @@
+#pragma once
+
+#include <stack> 
+
+class BaseState;
+
+class StateMachine
+{
+    //--------------------
+    // Public member functions
+    //--------------------
+public:
+    StateMachine();
+
+    void Update(float DeltaTime);
+
+    void PushState(BaseState* State);
+    void PopState();
+
+    void Resize();
+
+    //--------------------
+    // Private member functions
+    //--------------------
+private:
+
+    //--------------------
+    // Private member variables
+    //--------------------
+private:
+    std::stack<BaseState*> StateStack;
+};

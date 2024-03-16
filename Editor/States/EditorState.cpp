@@ -1,5 +1,7 @@
 #include "EditorState.h"
 
+#include "GameState.h"
+
 #include <filesystem>
 
 SelectedModel::SelectedModel(Model* InModel, Scene* InScene)
@@ -143,7 +145,26 @@ void CursorState::Update()
             Vec2i MousePos = Input->GetMouseState().GetMousePos();
             Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
 
-            DraggingModelPtr->GetTransform().SetPosition(MouseRay.point + MouseRay.direction * 8.0f);
+            Vec3f NewDraggingModelPos;
+            if (Input->GetKeyState(Key::Ctrl).pressed)
+            {
+                SceneRayCastHit SceneHit = EditorScenePtr->RayCast(MouseRay, { DraggingModelPtr });
+                
+                if (SceneHit.rayCastHit.hit)
+                {
+                    NewDraggingModelPos = SceneHit.rayCastHit.hitPoint;
+                    Quaternion q = Math::VecDiffToQuat(SceneHit.rayCastHit.hitNormal, Vec3f(0.0f, 0.0f, 1.0f));
+                    q = Math::normalize(q);
+
+                    DraggingModelPtr->GetTransform().SetRotation(q);
+                }
+            }
+            else
+            {
+                NewDraggingModelPos = MouseRay.point + MouseRay.direction * 8.0f;
+                DraggingModelPtr->GetTransform().SetRotation(Quaternion());
+            }
+            DraggingModelPtr->GetTransform().SetPosition(NewDraggingModelPos);
 
             int DeltaMouseWheel = Input->GetMouseState().GetDeltaMouseWheel();
 
@@ -194,7 +215,6 @@ void CursorState::Update()
             Dragging = DraggingMode::None;
         }
     }
-
     else if (Dragging == DraggingMode::NewTexture)
     {
         Vec2i MousePos = Input->GetMouseState().GetMousePos();
@@ -214,6 +234,26 @@ void CursorState::Update()
             }
 
             DraggingMaterialPtr = nullptr;
+
+            Dragging = DraggingMode::None;
+        }
+    }
+    else if (Dragging == DraggingMode::NewBehaviour)
+    {
+        Vec2i MousePos = Input->GetMouseState().GetMousePos();
+        Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+
+        if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).pressed)
+        {
+        }
+        else
+        {
+            auto SceneHit = EditorScenePtr->RayCast(MouseRay);
+
+            if (SceneHit.rayCastHit.hit)
+            {
+                BehaviourRegistry::Get()->AttachNewBehaviour(DraggingBehaviourName, SceneHit.hitModel);
+            }
 
             Dragging = DraggingMode::None;
         }
@@ -399,6 +439,18 @@ void CursorState::StartDraggingNewMaterial(Material* NewMaterial)
     Dragging = DraggingMode::NewTexture;
 
     DraggingMaterialPtr = NewMaterial;
+}
+
+void CursorState::StartDraggingNewBehaviour(std::string NewBehaviourName)
+{
+    if (Dragging != DraggingMode::None)
+    {
+        return;
+    }
+
+    Dragging = DraggingMode::NewBehaviour;
+
+    DraggingBehaviourName = NewBehaviourName;
 }
 
 void CursorState::DrawTransientModels()
@@ -812,6 +864,7 @@ void CursorState::AddToSelectedObjects(ISelectedObject* NewSelectedObject)
     {
         if (*Obj == *NewSelectedObject)
         {
+            delete NewSelectedObject;
             return;
         }
     }
@@ -1394,7 +1447,13 @@ void EditorState::DrawTopPanel()
 
     UI->StartFrame("Top", TopPanelRect, 0.0f, c_NiceRed);
     {
-        UI->ImgButton("PlayButton", playButtonTexture, TopPanelButtonSize, 8.0f);
+        if (UI->ImgButton("PlayButton", playButtonTexture, TopPanelButtonSize, 8.0f))
+        {
+            GameState* NewGameState = new GameState();
+            NewGameState->LoadScene(EditorScene);
+
+            Machine->PushState(NewGameState);
+        }
         UI->TextButton("Open", TopPanelButtonSize, 8.0f);
     }
     UI->EndFrame();
@@ -1476,9 +1535,12 @@ void EditorState::DrawResourcesPanel()
 
             for (auto Behaviour : BehaviourMap)
             {
-                if (UI->TextButton(Behaviour.first, Vec2f(120, 40), 10.0f, c_NiceYellow))
+                if (UI->TextButton(Behaviour.first, Vec2f(120, 40), 10.0f, c_NiceYellow).clicking)
                 {
-                    
+                    if (!Cursor.IsDraggingSomething())
+                    {
+                        Cursor.StartDraggingNewBehaviour(Behaviour.first);
+                    }
                 }
             }
         }

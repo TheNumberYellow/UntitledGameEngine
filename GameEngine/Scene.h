@@ -57,6 +57,7 @@ public:
     Camera* GetCamera();
     void SetCamera(Camera* camera);
 
+    void Update(float DeltaTime);
     void UpdateBehaviours(float DeltaTime);
 
     void Draw(GraphicsModule& graphics, GBuffer gBuffer);

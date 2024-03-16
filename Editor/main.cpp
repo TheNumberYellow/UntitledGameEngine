@@ -2566,22 +2566,29 @@ void Resize(Vec2i newSize)
 #include "GameEngine.h"
 
 #include "States/EditorState.h"
+#include "State/StateMachine.h"
 
-EditorState State;
+//EditorState State;
+
+StateMachine Machine;
 
 void Initialize()
 {
-    State.OnInitialized();
+    EditorState* EdState = new EditorState();
+    Machine.PushState(EdState);
+    //State.OnInitialized();
 }
 
 void Update(double deltaTime)
 {
-    State.Update(deltaTime);
+    Machine.Update(deltaTime);
+    //State.Update(deltaTime);
 }
 
 void Resize(Vec2i newSize)
 {
-    State.OnResize();
+    Machine.Resize();
+    //State.OnResize();
 }
 
 #else

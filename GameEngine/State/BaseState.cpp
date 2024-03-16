@@ -1,5 +1,7 @@
 #include "BaseState.h"
 
+//#include "StateMachine.h"
+
 void BaseState::OnInitialized()
 {
 
@@ -30,7 +32,7 @@ void BaseState::OnResize()
 
 }
 
-void BaseState::ChangeState(BaseState* NewState)
+void BaseState::SetOwningStateMachine(StateMachine* StateMachinePtr)
 {
-
+    Machine = StateMachinePtr;
 }

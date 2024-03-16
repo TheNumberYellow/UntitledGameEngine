@@ -224,6 +224,11 @@ void Scene::SetCamera(Camera* camera)
     m_Cameras[0] = camera;
 }
 
+void Scene::Update(float DeltaTime)
+{
+    UpdateBehaviours(DeltaTime);
+}
+
 void Scene::UpdateBehaviours(float DeltaTime)
 {
     BehaviourRegistry* Registry = BehaviourRegistry::Get();
