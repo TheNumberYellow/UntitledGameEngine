@@ -216,6 +216,11 @@ bool Engine::FileSaveDialog(std::string& OutFileString)
     return false;
 }
 
+void Engine::SetWindowTitleText(std::string Text)
+{
+    SetWindowTextA(WindowHandle, Text.c_str());
+}
+
 void WarpMouseToWindowCenter()
 {
     Engine::SetMousePosition(cursorCenter);

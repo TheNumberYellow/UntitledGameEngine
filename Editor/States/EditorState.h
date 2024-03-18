@@ -40,6 +40,7 @@ enum class DraggingMode : uint8_t
     NewTexture,
     NewBehaviour,
     NewPointLight,
+    NewDirectionalLight,
 };
 
 enum class EditingAxis : uint8_t
@@ -116,6 +117,29 @@ private:
     Transform Trans;
 };
 
+class SelectedDirectionalLight : public ISelectedObject
+{
+public:
+    SelectedDirectionalLight(DirectionalLight* InDirLight, Scene* InScene);
+
+    virtual void Draw() override;
+
+    virtual void Update() override;
+
+    virtual void DrawInspectorPanel() override;
+
+    virtual Transform* GetTransform() override;
+    virtual void DeleteObject() override;
+
+    virtual bool operator==(const ISelectedObject& Other) override;
+
+private:
+    
+    DirectionalLight* DirLightPtr;
+    Scene* ScenePtr;
+    Transform Trans;
+};
+
 class CursorState
 {
 public:
@@ -149,7 +173,7 @@ public:
 
 private:
     void UpdateSelectTool();
-    void UpdateMoveTool();
+    void UpdateTransformTool();
     void UpdateGeometryTool();
     void UpdateVertexTool();
     void UpdateSculptTool();
@@ -186,9 +210,15 @@ private:
     // Transform mode state + models
     EditingAxis Axis = EditingAxis::None;
     
+    // Translate
     Vec3f ObjectRelativeHitPoint;
     float ObjectDistanceAtHit;
 
+    // Rotate
+    Quaternion ObjectInitialRotation;
+    float InitialAngle;
+
+    // Models
     Model* XAxisTrans;
     Model* YAxisTrans;
     Model* ZAxisTrans;
@@ -291,6 +321,7 @@ private:
     Texture gridTexture;
     
     Texture lightEntityTexture;
+    Texture directionalLightEntityTexture;
     Texture cameraEntityTexture;
     Texture brainEntityTexture;
 
@@ -343,4 +374,12 @@ private:
     const Vec3f c_NiceBrightBlue = Vec3f(125.f / 255.f, 249.f / 255.f, 255.f / 255.f);
     const Vec3f c_NiceGreen = Vec3f(11.f / 255.f, 218.f / 255.f, 81.f / 255.f);
     const Vec3f c_NiceYellow = Vec3f(255.f / 255.f, 191.5 / 255.f, 0.f / 255.f);
+
+
+    // TEMP
+    int PrevFrameTimeCount = 0;
+    float PrevFrameTimeSum = 0.0f;
+    int PrevAveFPS = 0;
+
+    Font TestFont;
 };

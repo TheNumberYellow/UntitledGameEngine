@@ -113,6 +113,36 @@ bool SelectedLight::operator==(const ISelectedObject& Other)
 
 }
 
+SelectedDirectionalLight::SelectedDirectionalLight(DirectionalLight* InDirLight, Scene* InScene)
+{
+}
+
+void SelectedDirectionalLight::Draw()
+{
+}
+
+void SelectedDirectionalLight::Update()
+{
+}
+
+void SelectedDirectionalLight::DrawInspectorPanel()
+{
+}
+
+Transform* SelectedDirectionalLight::GetTransform()
+{
+    return nullptr;
+}
+
+void SelectedDirectionalLight::DeleteObject()
+{
+}
+
+bool SelectedDirectionalLight::operator==(const ISelectedObject& Other)
+{
+    return false;
+}
+
 
 inline CursorState::CursorState(EditorState* InEditorState, Scene* InEditorScene)
     : EditorStatePtr(InEditorState)
@@ -267,7 +297,7 @@ void CursorState::Update()
         break;
     }
     case ToolMode::Transform:
-        UpdateTranslateTool();
+        UpdateTransformTool();
         break;
     case ToolMode::Geometry:
         UpdateGeometryTool();
@@ -304,6 +334,10 @@ void CursorState::Update()
         XAxisRot->GetTransform().SetPosition(ObjTrans.GetPosition());
         YAxisRot->GetTransform().SetPosition(ObjTrans.GetPosition());
         ZAxisRot->GetTransform().SetPosition(ObjTrans.GetPosition());
+
+        XAxisRot->GetTransform().SetScale(DistFromCam / 6.0f);
+        YAxisRot->GetTransform().SetScale(DistFromCam / 6.0f);
+        ZAxisRot->GetTransform().SetScale(DistFromCam / 6.0f);
 
         XAxisScale->GetTransform().SetPosition(ObjTrans.GetPosition() + Vec3f(5.0f, 0.0f, 0.0f));
         YAxisScale->GetTransform().SetPosition(ObjTrans.GetPosition() + Vec3f(0.0f, 5.0f, 0.0f));
@@ -509,9 +543,10 @@ void CursorState::UpdateSelectTool()
 {
     InputModule* Input = InputModule::Get();
     
-    if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).justPressed)
-    {
-        Vec2i MousePos = Input->GetMouseState().GetMousePos();
+    Vec2i MousePos = Input->GetMouseState().GetMousePos();
+
+    if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).justPressed && EditorStatePtr->GetEditorSceneViewportRect().Contains(MousePos))
+    {   
         Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
 
         CollisionModule* Collisions = CollisionModule::Get();
@@ -568,7 +603,7 @@ void CursorState::UpdateSelectTool()
     }
 }
 
-void CursorState::UpdateMoveTool()
+void CursorState::UpdateTransformTool()
 {
     switch (TransMode)
     {
@@ -694,8 +729,6 @@ void CursorState::UpdateTranslateTool()
             break;
         }
 
-        //GraphicsModule::Get()->DebugDrawPoint(SelectedObject->GetTransform()->GetPosition() + ObjectRelativeHitPoint, Vec3f(1.0f, 0.0f, 0.0f));
-
         Line MouseLine(MouseRay.point - ObjectRelativeHitPoint, MouseRay.direction);
         Line AxisLine(SelectedPos, SlidingAxis);
 
@@ -712,6 +745,115 @@ void CursorState::UpdateTranslateTool()
 
 void CursorState::UpdateRotateTool()
 {
+    InputModule* Input = InputModule::Get();
+    if (!Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).pressed
+        || SelectedObjects.empty())
+    {
+        Axis = EditingAxis::None;
+        UpdateSelectTool();
+        return;
+    }
+
+    CollisionModule* Collisions = CollisionModule::Get();
+
+    Vec2i MousePos = Input->GetMouseState().GetMousePos();
+    Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+
+    if (Axis == EditingAxis::None && Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).justPressed)
+    {
+        Plane AxisPlane;
+        Vec3f PerpUnitVec;
+
+        AxisPlane.center = SelectedObjects[0]->GetTransform()->GetPosition();
+
+        RayCastHit ClosestHit;
+        if (RayCastHit XHit = Collisions->RayCast(MouseRay, *XAxisRot); XHit.hit)
+        {
+            ClosestHit = XHit;
+            Axis = EditingAxis::X;
+
+            AxisPlane.normal = Vec3f(1.0f, 0.0f, 0.0f);
+            PerpUnitVec = Vec3f(0.0f, 0.0f, 1.0f);
+        }
+        if (RayCastHit YHit = Collisions->RayCast(MouseRay, *YAxisRot); YHit.hit && YHit.hitDistance < ClosestHit.hitDistance)
+        {
+            ClosestHit = YHit;
+            Axis = EditingAxis::Y;
+
+            AxisPlane.normal = Vec3f(0.0f, 1.0f, 0.0f);
+            PerpUnitVec = Vec3f(1.0f, 0.0f, 0.0f);
+        }
+        if (RayCastHit ZHit = Collisions->RayCast(MouseRay, *ZAxisRot); ZHit.hit && ZHit.hitDistance < ClosestHit.hitDistance)
+        {
+            ClosestHit = ZHit;
+            Axis = EditingAxis::Z;
+
+            AxisPlane.normal = Vec3f(0.0f, 0.0f, 1.0f);
+            PerpUnitVec = Vec3f(0.0f, 1.0f, 0.0f);
+        }
+
+        if (ClosestHit.hit)
+        {
+            RayCastHit PlaneHit = Collisions->RayCast(MouseRay, AxisPlane);
+
+            Vec3f ObjectCenter = SelectedObjects[0]->GetTransform()->GetPosition();
+            Vec3f HitPoint = PlaneHit.hitPoint;
+            Vec3f AngleVec = HitPoint - ObjectCenter;
+            float Dot = Math::dot(AngleVec, PerpUnitVec);
+            float Det = Math::dot(AxisPlane.normal, (Math::cross(AngleVec, PerpUnitVec)));
+            
+            InitialAngle = atan2(Det, Dot);
+            ObjectInitialRotation = SelectedObjects[0]->GetTransform()->GetRotation();
+
+            Engine::DEBUGPrint("Initial Angle: " + std::to_string(InitialAngle));
+        }
+    }
+    else if (Axis != EditingAxis::None)
+    {
+        Plane AxisPlane;
+        Vec3f PerpUnitVec;
+
+        AxisPlane.center = SelectedObjects[0]->GetTransform()->GetPosition();
+        
+        if (Axis == EditingAxis::X)
+        {
+            AxisPlane.normal = Vec3f(1.0f, 0.0f, 0.0f);
+            PerpUnitVec = Vec3f(0.0f, 0.0f, 1.0f);
+        }
+        else if (Axis == EditingAxis::Y)
+        {
+            AxisPlane.normal = Vec3f(0.0f, 1.0f, 0.0f);
+            PerpUnitVec = Vec3f(1.0f, 0.0f, 0.0f);
+        }
+        else if (Axis == EditingAxis::Z)
+        {
+            AxisPlane.normal = Vec3f(0.0f, 0.0f, 1.0f);
+            PerpUnitVec = Vec3f(0.0f, 1.0f, 0.0f);
+        }
+
+        RayCastHit PlaneHit = Collisions->RayCast(MouseRay, AxisPlane);
+
+        Vec3f ObjectCenter = SelectedObjects[0]->GetTransform()->GetPosition();
+        Vec3f HitPoint = PlaneHit.hitPoint;
+        Vec3f AngleVec = HitPoint - ObjectCenter;
+        float Dot = Math::dot(AngleVec, PerpUnitVec);
+        float Det = Math::dot(AxisPlane.normal, (Math::cross(AngleVec, PerpUnitVec)));
+
+        float CurrentAngle = atan2(Det, Dot);
+
+        float DeltaAngle = InitialAngle - CurrentAngle;
+
+        //DeltaAngle = Math::Round(deltaAngle, RotSnap);
+
+        Quaternion axisQuat = Quaternion(AxisPlane.normal, DeltaAngle);
+
+        SelectedObjects[0]->GetTransform()->SetRotation(axisQuat * ObjectInitialRotation);
+    }
+
+    if (Axis == EditingAxis::None)
+    {
+        UpdateSelectTool();
+    }
 }
 
 void CursorState::UpdateScaleTool()
@@ -776,16 +918,15 @@ void CursorState::UpdateBoxTool()
                 BoxBeingCreated.min = Vec3f(minX, minY, HitPoint.z);
                 BoxBeingCreated.max = Vec3f(maxX, maxY, HitPoint.z + NewBoxHeight);
 
-
                 Graphics->DebugDrawAABB(BoxBeingCreated, Vec3f(0.1f, 1.0f, 0.3f));
             }
         }
     }
     else
     {
-        if (ClickState.justPressed && Dragging == DraggingMode::None)
+        Vec2i MousePos = Input->GetMouseState().GetMousePos();
+        if (ClickState.justPressed && Dragging == DraggingMode::None && EditorStatePtr->GetEditorSceneViewportRect().Contains(MousePos))
         {
-            Vec2i MousePos = Input->GetMouseState().GetMousePos();
             Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
 
             RayCastHit PlaneHit = Collisions->RayCast(MouseRay, Plane(Vec3f(0.0f, 0.0f, 0.0f), Vec3f(0.0f, 0.0f, 1.0f)));
@@ -920,6 +1061,8 @@ void EditorState::OnInitialized()
 
     CurrentResourceDirectoryPath = std::filesystem::current_path();
 
+    TestFont = TextModule::Get()->LoadFont("fonts/ARLRDBD.TTF", 30);
+
     for (int i = 0; i < 1000; i++)
     {
         RandomSizes.push_back(Math::RandomFloat(120.0f, 200.0f));
@@ -980,7 +1123,7 @@ void EditorState::UpdateEditor(float DeltaTime)
     if (Engine::IsWindowFocused())
     {
         // Update tools
-        // TODO(Fraser): This is heavily reliant on order since Update() calls UI functions - another reason to make the UI module use render commands
+        // TODO(Fraser): This is heavily reliant on order since Update() calls UI functions - another reason to make the UI module use deferred render commands
         Cursor.Update();
         if (Input->GetKeyState(Key::Alt).justPressed)
         {
@@ -1028,23 +1171,37 @@ void EditorState::UpdateEditor(float DeltaTime)
         }
     }
 
-
     Vec2i ViewportSize = Engine::GetClientAreaSize();
 
     EditorScene.Draw(*Graphics, ViewportBuffer);
 
     Graphics->SetActiveFrameBuffer(WidgetBuffer);
+    {
+        Graphics->SetCamera(&ViewportCamera);
 
-    Graphics->SetCamera(&ViewportCamera);
+        Graphics->SetRenderMode(RenderMode::FULLBRIGHT);
 
-    Graphics->SetRenderMode(RenderMode::FULLBRIGHT);
-
-    Cursor.DrawTransientModels();
+        Cursor.DrawTransientModels();
+    }
 
     Graphics->ResetFrameBuffer();
     UI->BufferPanel(ViewportBuffer.FinalOutput, GetEditorSceneViewportRect());
 
     UI->BufferPanel(WidgetBuffer, GetEditorSceneViewportRect());
+
+    TextModule::Get()->DrawText("Frame Time: " + std::to_string(DeltaTime), &TestFont, GetEditorSceneViewportRect().location);
+
+    PrevFrameTimeCount++;
+    PrevFrameTimeSum += DeltaTime;
+
+    if (PrevFrameTimeSum > 0.5f)
+    {
+        PrevAveFPS = (int)round(1.0f / (PrevFrameTimeSum / PrevFrameTimeCount));
+        PrevFrameTimeCount = 0;
+        PrevFrameTimeSum -= 0.5f;
+    }
+
+    TextModule::Get()->DrawText("FPS: " + std::to_string(PrevAveFPS), &TestFont, GetEditorSceneViewportRect().location + Vec2f(0.0f, 30.0f));
 
     DrawEditorUI();
 }
@@ -1182,6 +1339,7 @@ void EditorState::LoadEditorResources()
     sculptToolTexture = *Registry->LoadTexture("images/sculptTool.png");
     
     lightEntityTexture = *Registry->LoadTexture("images/lightTool.png");
+    directionalLightEntityTexture = *Registry->LoadTexture("images/dirLight.png");
     cameraEntityTexture = *Registry->LoadTexture("images/cameraButton.png");
     brainEntityTexture = *Registry->LoadTexture("images/brainTool.png");
 
@@ -1454,7 +1612,26 @@ void EditorState::DrawTopPanel()
 
             Machine->PushState(NewGameState);
         }
-        UI->TextButton("Open", TopPanelButtonSize, 8.0f);
+        if (UI->TextButton("New", Vec2f(40.0f, 40.0f), 8.0f))
+        {
+            EditorScene.Clear();
+        }
+        if (UI->TextButton("Open", Vec2f(40.0f, 40.0f), 8.0f))
+        {
+            std::string FileName;
+            if (Engine::FileOpenDialog(FileName))
+            {
+                EditorScene.Load(FileName);
+            }
+        }
+        if (UI->TextButton("Save", Vec2f(40.0f, 40.0f), 8.0f))
+        {
+            std::string FileName;
+            if (Engine::FileSaveDialog(FileName))
+            {
+                EditorScene.Save(FileName);
+            }
+        }
     }
     UI->EndFrame();
 }
@@ -1518,6 +1695,10 @@ void EditorState::DrawResourcesPanel()
                     PointLight* PointLightPtr = EditorScene.AddPointLight(PointLight());
                     Cursor.StartDraggingNewPointLight(PointLightPtr);
                 }
+            }
+            if (UI->ImgButton("DirectionalLightEntity", directionalLightEntityTexture, Vec2f(80.0f, 80.0f), 12.0f).clicking)
+            {
+
             }
             if (UI->ImgButton("CameraEntity", cameraEntityTexture, Vec2f(80.0f, 80.0f), 12.0f))
             {
@@ -1585,4 +1766,3 @@ void EditorState::DrawInspectorPanel()
     UI->EndFrame();
 
 }
-

@@ -49,3 +49,8 @@ void StateMachine::Resize()
         StateStack.top()->OnResize();
     }
 }
+
+bool StateMachine::HasState()
+{
+    return !StateStack.empty();
+}

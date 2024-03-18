@@ -7,6 +7,8 @@ void GameState::OnInitialized()
 
     ViewportBuffer = Graphics->CreateGBuffer(Engine::GetClientAreaSize());
 
+    Graphics->InitializeDebugDraw(ViewportBuffer.FinalOutput);
+
     ViewportCamera = Camera(Projection::Perspective);
     ViewportCamera.SetScreenSize(GetViewportRect().size);
 

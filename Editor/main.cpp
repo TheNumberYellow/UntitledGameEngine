@@ -2568,50 +2568,72 @@ void Resize(Vec2i newSize)
 #include "States/EditorState.h"
 #include "State/StateMachine.h"
 
-//EditorState State;
-
 StateMachine Machine;
 
 void Initialize()
 {
     EditorState* EdState = new EditorState();
     Machine.PushState(EdState);
-    //State.OnInitialized();
 }
 
 void Update(double deltaTime)
 {
     Machine.Update(deltaTime);
-    //State.Update(deltaTime);
 }
 
 void Resize(Vec2i newSize)
 {
     Machine.Resize();
-    //State.OnResize();
 }
 
 #else
 
 #include "GameEngine.h"
 
-#include "States/EditorState.h"
+#include "States/GameState.h"
+#include "State/StateMachine.h"
 
-EditorState State;
+StateMachine Machine;
+
+// CHANGE THIS TO SET INITIAL LEVEL
+const std::string InitialLevelName = "levels\\Survival.lvl";
+const std::string TitleBarText = "Survival";
+
+Scene GameScene;
 
 void Initialize()
 {
-    State.OnInitialized();
+    Engine::SetWindowTitleText(TitleBarText);
+
+    GraphicsModule* Graphics = GraphicsModule::Get();
+    CollisionModule* Collisions = CollisionModule::Get();
+
+    GameState* GState = new GameState();
+    
+    Graphics->SetRenderMode(RenderMode::DEFAULT);
+
+    GameScene = Scene();
+    GameScene.Init(*Graphics, *Collisions);
+
+    GameScene.SetDirectionalLight(DirectionalLight{ Math::normalize(Vec3f(0.0f, 1.0f, -1.0f)), Vec3f(1.0f, 1.0f, 1.0f) });
+
+    GameScene.Load(InitialLevelName);
+    GState->LoadScene(GameScene);
+    Machine.PushState(GState);
 }
 
 void Update(double deltaTime)
 {
-    State.Update(deltaTime);
+    Machine.Update(deltaTime);
+    if (!Machine.HasState())
+    {
+        Engine::StopGame();
+    }
 }
 
 void Resize(Vec2i newSize)
 {
-    State.OnResize();
+    Machine.Resize();
 }
 
 

@@ -19,6 +19,8 @@ public:
 
     void Resize();
 
+    bool HasState();
+
     //--------------------
     // Private member functions
     //--------------------
