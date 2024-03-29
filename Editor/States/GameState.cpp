@@ -9,15 +9,16 @@ void GameState::OnInitialized()
 
     Graphics->InitializeDebugDraw(ViewportBuffer.FinalOutput);
 
-    ViewportCamera = Camera(Projection::Perspective);
-    ViewportCamera.SetScreenSize(GetViewportRect().size);
-
     Rect ViewportRect = GetViewportRect();
     Input->SetMouseCenter(ViewportRect.Center());
 }
 
 void GameState::OnUninitialized()
 {
+    GraphicsModule* Graphics = GraphicsModule::Get();
+
+    RuntimeScene.Clear();
+    Graphics->DeleteGBuffer(ViewportBuffer);
 }
 
 void GameState::OnEnter()
@@ -55,7 +56,7 @@ void GameState::OnResize()
 
     Rect ViewportRect = GetViewportRect();
     
-    ViewportCamera.SetScreenSize(ViewportRect.size);
+    ViewportCamera->SetScreenSize(ViewportRect.size);
     Graphics->ResizeGBuffer(ViewportBuffer, ViewportRect.size);
     Input->SetMouseCenter(ViewportRect.Center());
 }
@@ -63,8 +64,10 @@ void GameState::OnResize()
 void GameState::LoadScene(Scene& InScene)
 {
     RuntimeScene = Scene(InScene);
+    RuntimeScene.Initialize();
 
-    RuntimeScene.SetCamera(&ViewportCamera);
+    ViewportCamera = RuntimeScene.GetCamera();
+    ViewportCamera->SetScreenSize(GetViewportRect().size);
 }
 
 Rect GameState::GetViewportRect()

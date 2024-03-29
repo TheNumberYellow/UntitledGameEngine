@@ -48,6 +48,18 @@ Behaviour* BehaviourRegistry::AttachNewBehaviour(std::string BehaviourName, Mode
     return nullptr;
 }
 
+void BehaviourRegistry::InitializeModelBehaviours(Model* Model, Scene* Scene)
+{
+    auto it = m_AttachedBehaviours.find(Model);
+    if (it != m_AttachedBehaviours.end())
+    {
+        for (auto& Behaviour : it->second)
+        {
+            Behaviour->Initialize(Scene);
+        }
+    }
+}
+
 void BehaviourRegistry::UpdateModelBehaviours(Model* Model, Scene* Scene, float DeltaTime)
 {
     auto it = m_AttachedBehaviours.find(Model);

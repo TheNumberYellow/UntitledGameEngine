@@ -1227,6 +1227,7 @@ void Renderer::DeleteFrameBuffer(Framebuffer_ID fBufferID)
     if (fBuffer)
     {
         glDeleteFramebuffers(1, &(fBuffer->fbo));
+        glDeleteRenderbuffers(1, &(fBuffer->rbo));
         glDeleteTextures(1, &(fBuffer->texture));
 
         fBufferMap.erase(fBufferID);

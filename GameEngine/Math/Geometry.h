@@ -123,6 +123,26 @@ struct AABB
         return p >= min && p <= max;
     }
 
+    Vec3f Center()
+    {
+        return min + (0.5f * (max - min));
+    }
+
+    float XSize()
+    {
+        return max.x - min.x;
+    }
+
+    float YSize()
+    {
+        return max.y - min.y;
+    }
+
+    float ZSize()
+    {
+        return max.z - min.z;
+    }
+
     Vec3f min;
     Vec3f max;
 };

@@ -175,6 +175,7 @@ struct PointLight
 {
     Vec3f position = Vec3f(0.0f, 0.0f, 0.0f);
     Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f);
+    float intensity = 1.0f;
 };
 
 struct StaticMeshRenderCommand
@@ -202,6 +203,7 @@ struct PointLightRenderCommand
 {
     Vec3f m_Colour;
     Vec3f m_Position;
+    float m_Intensity;
 };
 
 class GraphicsModule
@@ -211,7 +213,10 @@ public:
     GraphicsModule(Renderer& renderer);
     ~GraphicsModule();
 
+    void Initialize();
+
     GBuffer CreateGBuffer(Vec2i Size);
+    void DeleteGBuffer(GBuffer& GBuf);
 
     void AddRenderCommand(StaticMeshRenderCommand Command);
     void AddRenderCommand(BillboardRenderCommand Command);
@@ -225,7 +230,8 @@ public:
     Shader_ID CreateShader(std::string vertShaderSource, std::string fragShaderSource);
 
     Framebuffer_ID CreateFBuffer(Vec2i size, FBufferFormat format = FBufferFormat::COLOUR);
-    
+    void DeleteFBuffer(Framebuffer_ID Buffer);
+
     void AttachTextureToFBuffer(Texture texture, Framebuffer_ID fBufferID);
     
     Texture CreateTexture(Vec2i size);

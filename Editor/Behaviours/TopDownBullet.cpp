@@ -4,12 +4,25 @@ REGISTER_BEHAVIOUR(TopDownBullet);
 
 void TopDownBullet::Update(Scene* Scene, float DeltaTime)
 {
+    if (!Initialized)
+    {
+        PointLight NewLight;
+        NewLight.colour = Vec3f(191.f / 255.f, 64.f / 255.f, 191.f / 255.f);
+
+        Light = Scene->AddPointLight(NewLight);
+
+        Initialized = true;
+    }
+
     m_Model->GetTransform().Move(DeltaTime * BulletSpeed * Direction);
+
+    Light->position = m_Model->GetTransform().GetPosition();
 
     BulletLifeTime -= DeltaTime;
 
     if (BulletLifeTime <= 0.0f)
     {
+        Scene->DeletePointLight(Light);
         Scene->DeleteModel(m_Model);
     }
 

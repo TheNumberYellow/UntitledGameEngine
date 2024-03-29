@@ -34,7 +34,7 @@ private:
 private:
     Scene RuntimeScene;
 
-    Camera ViewportCamera;
+    Camera* ViewportCamera;
     GBuffer ViewportBuffer;
 };
 

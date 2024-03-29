@@ -10,7 +10,9 @@ public:
 
     Vec3f Direction = Vec3f(1.0f, 0.0f, 0.0f);
 private:
+    PointLight* Light = nullptr;
 
+    bool Initialized = false;
     const float BulletSpeed = 24.0f;
     float BulletLifeTime = 1.0f;
 };

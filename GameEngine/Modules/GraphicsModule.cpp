@@ -1273,17 +1273,6 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
     m_OrthoProjection = Math::GenerateOrthoMatrix(0.0f, sizeX, 0.0f, sizeY, 0.1f, 100.0f);
     m_Renderer.SetShaderUniformMat4x4f(m_UIShader, "Projection", m_OrthoProjection);
 
-    //AssetRegistry* Registry = AssetRegistry::Get();
-
-    m_DefaultNormalMap = LoadTexture("textures/default_norm.png");
-    m_DefaultMetallicMap = LoadTexture("textures/default_metallic.png");
-    m_DefaultRoughnessMap = LoadTexture("textures/default_roughness.png");
-    m_DefaultAOMap = LoadTexture("textures/default_ao.png");
-    m_DefaultHeightMap = LoadTexture("textures/default_height.png");
-
-    m_DebugMaterial = CreateMaterial(LoadTexture("textures/debugTexture0.png"),
-        LoadTexture("textures/debugTexture0.norm.png"));
-
     // TEMP
     std::vector<float> skyboxVertices = {
         // positions          
@@ -1342,7 +1331,6 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
     m_ShadowCamera.SetFarPlane(100.0f);
     m_ShadowCamera.SetPosition(Vec3f(0.0f, -30.0f, 6.0f));
 
-
     VertexBufferFormat quadMeshFormat = VertexBufferFormat({ VertAttribute::Vec3f, VertAttribute::Vec3f, VertAttribute::Vec4f, VertAttribute::Vec2f });
     MeshData quadMeshData = GetVertexDataFor3DQuad();
 
@@ -1355,6 +1343,20 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
 
 GraphicsModule::~GraphicsModule()
 {
+}
+
+void GraphicsModule::Initialize()
+{
+    AssetRegistry* Registry = AssetRegistry::Get();
+
+    m_DefaultNormalMap = *Registry->LoadTexture("textures/default_norm.png");
+    m_DefaultMetallicMap = *Registry->LoadTexture("textures/default_metallic.png");
+    m_DefaultRoughnessMap = *Registry->LoadTexture("textures/default_roughness.png");
+    m_DefaultAOMap = *Registry->LoadTexture("textures/default_ao.png");
+    m_DefaultHeightMap = *Registry->LoadTexture("textures/default_height.png");
+
+    m_DebugMaterial = CreateMaterial(*Registry->LoadTexture("textures/debugTexture0.png"),
+        *Registry->LoadTexture("textures/debugTexture0.norm.png"));
 }
 
 GBuffer GraphicsModule::CreateGBuffer(Vec2i Size)
@@ -1386,6 +1388,23 @@ GBuffer GraphicsModule::CreateGBuffer(Vec2i Size)
     newGBuffer.QuadMesh = m_Renderer.LoadMesh(quadMeshFormat, quadMeshData.first, quadMeshData.second);
 
     return newGBuffer;
+}
+
+void GraphicsModule::DeleteGBuffer(GBuffer& GBuf)
+{
+    DeleteFBuffer(GBuf.Buffer);
+
+
+    DeleteFBuffer(GBuf.SkyBuffer);
+
+
+    DeleteFBuffer(GBuf.LightBuffer);
+
+
+    DeleteFBuffer(GBuf.DebugBuffer);
+
+
+    DeleteFBuffer(GBuf.FinalOutput);
 }
 
 void GraphicsModule::AddRenderCommand(StaticMeshRenderCommand Command)
@@ -1573,7 +1592,7 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam, DirectionalLight DirLigh
         for (PointLightRenderCommand& Command : m_PointLightRenderCommands)
         {
             m_Renderer.SetShaderUniformVec3f(m_GBufferPointLightShader, "LightPosition", Command.m_Position);
-            m_Renderer.SetShaderUniformVec3f(m_GBufferPointLightShader, "LightColour", Command.m_Colour);
+            m_Renderer.SetShaderUniformVec3f(m_GBufferPointLightShader, "LightColour", Command.m_Colour * Command.m_Intensity);
 
             m_Renderer.DrawMesh(Buffer.QuadMesh);
         }
@@ -1630,6 +1649,13 @@ Shader_ID GraphicsModule::CreateShader(std::string vertShaderSource, std::string
 Framebuffer_ID GraphicsModule::CreateFBuffer(Vec2i size, FBufferFormat format)
 {
     return m_Renderer.CreateFrameBuffer(size, format);
+}
+
+void GraphicsModule::DeleteFBuffer(Framebuffer_ID Buffer)
+{
+    // TODO: MEMORY LEAK!!! Delete additional colour attachments
+    // I'm so lazy
+    m_Renderer.DeleteFrameBuffer(Buffer);
 }
 
 Texture GraphicsModule::CreateTexture(Vec2i size)

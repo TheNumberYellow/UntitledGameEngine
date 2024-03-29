@@ -99,6 +99,18 @@ Mat4x4f Camera::GetInvCamMatrix()
     return Math::inv(GetCamMatrix());
 }
 
+Mat4x4f Camera::GetCamTransMatrix()
+{
+    return Math::inv(GetViewMatrix());
+}
+
+void Camera::SetCamMatrix(Mat4x4f InMat)
+{
+    m_ViewProjectionMatrix = InMat;
+    m_ViewProjectionMatrixNeedsUpdate = false;
+    m_ViewMatrixNeedsUpdate = false;
+}
+
 Mat4x4f Camera::GetViewMatrix()
 {
     if (m_ViewMatrixNeedsUpdate)

@@ -49,6 +49,10 @@ public:
     Mat4x4f GetCamMatrix();
     Mat4x4f GetInvCamMatrix();
     
+    Mat4x4f GetCamTransMatrix();
+
+    void SetCamMatrix(Mat4x4f InMat);
+
     Mat4x4f GetViewMatrix();
     Mat4x4f GetProjectionMatrix();
 

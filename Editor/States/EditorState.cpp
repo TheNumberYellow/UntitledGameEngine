@@ -21,6 +21,25 @@ void SelectedModel::Draw()
 
 void SelectedModel::DrawInspectorPanel()
 {
+    UIModule* UI = UIModule::Get();
+
+    Material Mat = ModelPtr->m_TexturedMeshes[0].m_Material;
+
+    std::string MatStr = Mat.m_Albedo.Path.GetFullPath();
+    UI->TextButton("Albedo: " + MatStr, Vec2f(180.0f, 40.0f), 12.0f, c_InspectorColour);
+
+    MatStr = Mat.m_Normal.Path.GetFullPath();
+    UI->TextButton("Normal: " + MatStr, Vec2f(180.0f, 40.0f), 12.0f, c_InspectorColour);
+
+    MatStr = Mat.m_Roughness.Path.GetFullPath();
+    UI->TextButton("Roughness: " + MatStr, Vec2f(180.0f, 40.0f), 12.0f, c_InspectorColour);
+
+    MatStr = Mat.m_Metallic.Path.GetFullPath();
+    UI->TextButton("Metallic: " + MatStr, Vec2f(180.0f, 40.0f), 12.0f, c_InspectorColour);
+
+    MatStr = Mat.m_AO.Path.GetFullPath();
+    UI->TextButton("AO: " + MatStr, Vec2f(180.0f, 40.0f), 12.0f, c_InspectorColour);
+
 }
 
 Transform* SelectedModel::GetTransform()
@@ -226,16 +245,16 @@ void CursorState::Update()
 
             DraggingPointLightPtr->position = MouseRay.point + MouseRay.direction * 8.0f;
         
-            Vec3f LightScalingIncrement = Vec3f(0.1f, 0.1f, 0.1f);
+            float LightScalingIncrement = 0.1f;
             
             int DeltaMouseWheel = Input->GetMouseState().GetDeltaMouseWheel();
             if (DeltaMouseWheel > 0)
             {
-                DraggingPointLightPtr->colour += LightScalingIncrement;
+                DraggingPointLightPtr->intensity += LightScalingIncrement;
             }
             else if (DeltaMouseWheel < 0)
             {
-                DraggingPointLightPtr->colour -= LightScalingIncrement;
+                DraggingPointLightPtr->intensity -= LightScalingIncrement;
             }
         }
         else
@@ -355,12 +374,36 @@ void CursorState::Update()
             UnselectSelectedObjects();
         }
     }
+}
 
+void CursorState::ResetAllState()
+{
+    Dragging = DraggingMode::None;
 
+    DraggingModelPtr = nullptr;
+    DraggingPointLightPtr = nullptr;
+    DraggingMaterialPtr = nullptr;
+    DraggingBehaviourName = "";
+
+    //for (ISelectedObject* SelectedObj : SelectedObjects)
+    //{
+    //    delete SelectedObj;
+    //}
+    //SelectedObjects.clear();
+
+    Axis = EditingAxis::None;
+
+    IsCreatingNewBox = false;
+}
+
+void CursorState::UnselectAll()
+{
+    UnselectSelectedObjects();
 }
 
 void CursorState::CycleToolMode()
 {
+    ResetAllState();
     switch (Tool)
     {
     case ToolMode::Select:
@@ -386,6 +429,7 @@ void CursorState::CycleToolMode()
 
 void CursorState::CycleGeometryMode()
 {
+    ResetAllState();
     switch (GeoMode)
     {
     case GeometryMode::Box:
@@ -402,6 +446,7 @@ void CursorState::CycleGeometryMode()
 
 void CursorState::CycleTransformMode()
 {
+    ResetAllState();
     switch (TransMode)
     {
     case TransformMode::Translate:
@@ -421,6 +466,7 @@ void CursorState::CycleTransformMode()
 
 void CursorState::SetToolMode(ToolMode InToolMode)
 {
+    ResetAllState();
     Tool = InToolMode;
 }
 
@@ -544,6 +590,11 @@ void CursorState::UpdateSelectTool()
     InputModule* Input = InputModule::Get();
     
     Vec2i MousePos = Input->GetMouseState().GetMousePos();
+
+    if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).justPressed)
+    {
+        Engine::DEBUGPrint("JUST PRESSED MOUSE BUTTON");
+    }
 
     if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).justPressed && EditorStatePtr->GetEditorSceneViewportRect().Contains(MousePos))
     {   
@@ -877,10 +928,20 @@ void CursorState::UpdateBoxTool()
     {
         if (ClickState.justReleased)
         {
-            // Create the box model, add to scene
             IsCreatingNewBox = false;
 
-            EditorScenePtr->AddModel(Graphics->CreateBoxModel(BoxBeingCreated));
+            if (BoxBeingCreated.XSize() <= 0.0001f
+                || BoxBeingCreated.YSize() <= 0.0001f
+                || BoxBeingCreated.ZSize() < 0.0001f)
+            {
+                // Box too smol
+            }
+            else
+            {
+                // Create the box model, add to scene
+                EditorScenePtr->AddModel(Graphics->CreateBoxModel(BoxBeingCreated));
+            }
+
         }
         else
         {
@@ -1038,9 +1099,9 @@ void EditorState::OnInitialized()
     ModelCamera.Rotate(Quaternion(Vec3f(1.0f, 0.0f, 0.0f), -0.7f));
     
     // Set up empty editor scene
-    EditorScene.Init(*Graphics, *Collisions);
-    EditorScene.SetDirectionalLight(DirectionalLight{ Math::normalize(Vec3f(0.0f, 1.0f, -1.0f)), Vec3f(1.0f, 1.0f, 1.0f) });
-    EditorScene.SetCamera(&ViewportCamera);
+    EditorScene.SetDirectionalLight(DirectionalLight{ Math::normalize(Vec3f(0.5f, 1.0f, -1.0f)), Vec3f(1.0f, 1.0f, 1.0f) });
+    //EditorScene.SetCamera(&ViewportCamera);
+    //EditorScene.SetCamera(&ModelCamera);
 
     Cursor = CursorState(this, &EditorScene);
 
@@ -1140,6 +1201,18 @@ void EditorState::UpdateEditor(float DeltaTime)
             }
         }
     }
+    else
+    {
+        Cursor.ResetAllState();
+    }
+
+    if (Input->IsKeyDown(Key::E))
+    {
+        EditorScene.GetCamera()->SetPosition(ViewportCamera.GetPosition());
+        EditorScene.GetCamera()->SetDirection(ViewportCamera.GetDirection());
+
+        //EditorScene.GetCamera()->SetCamMatrix(ViewportCamera.GetInvCamMatrix());
+    }
 
     // Keyboard hotkeys for switching tools
     if (Input->GetKeyState(Key::One).justPressed)
@@ -1173,7 +1246,7 @@ void EditorState::UpdateEditor(float DeltaTime)
 
     Vec2i ViewportSize = Engine::GetClientAreaSize();
 
-    EditorScene.Draw(*Graphics, ViewportBuffer);
+    EditorScene.EditorDraw(*Graphics, ViewportBuffer, &ViewportCamera);
 
     Graphics->SetActiveFrameBuffer(WidgetBuffer);
     {
@@ -1215,7 +1288,7 @@ Rect EditorState::GetEditorSceneViewportRect()
     Vec2f ViewportSize = Engine::GetClientAreaSize();
 
     Rect SceneViewportRect = Rect(  Vec2f(80.0f, 40.0f), 
-                                    Vec2f(ViewportSize.x - 320.0f, ViewportSize.y * 0.7f - 40.0f));
+                                    Vec2f(ViewportSize.x - 520.0f, ViewportSize.y * 0.7f - 40.0f));
     return SceneViewportRect;
 }
 
@@ -1607,6 +1680,8 @@ void EditorState::DrawTopPanel()
     {
         if (UI->ImgButton("PlayButton", playButtonTexture, TopPanelButtonSize, 8.0f))
         {
+            Cursor.UnselectAll();
+            Cursor.ResetAllState();
             GameState* NewGameState = new GameState();
             NewGameState->LoadScene(EditorScene);
 
@@ -1614,10 +1689,13 @@ void EditorState::DrawTopPanel()
         }
         if (UI->TextButton("New", Vec2f(40.0f, 40.0f), 8.0f))
         {
+            Cursor.UnselectAll();
             EditorScene.Clear();
+            BehaviourRegistry::Get()->ClearAllAttachedBehaviours();
         }
         if (UI->TextButton("Open", Vec2f(40.0f, 40.0f), 8.0f))
         {
+            Cursor.UnselectAll();
             std::string FileName;
             if (Engine::FileOpenDialog(FileName))
             {

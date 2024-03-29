@@ -521,6 +521,8 @@ int WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ L
     NetworkModule Network(networkInterface);
     AudioModule Audio;
 
+    Graphics.Initialize();
+
     Modules.SetGraphics(&Graphics);
     Modules.SetCollision(&Collisions);
     Modules.SetText(&Text);

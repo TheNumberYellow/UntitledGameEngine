@@ -2599,7 +2599,7 @@ StateMachine Machine;
 const std::string InitialLevelName = "levels\\Survival.lvl";
 const std::string TitleBarText = "Survival";
 
-Scene GameScene;
+Scene* GameScene;
 
 void Initialize()
 {
@@ -2612,13 +2612,12 @@ void Initialize()
     
     Graphics->SetRenderMode(RenderMode::DEFAULT);
 
-    GameScene = Scene();
-    GameScene.Init(*Graphics, *Collisions);
+    GameScene = new Scene();
 
-    GameScene.SetDirectionalLight(DirectionalLight{ Math::normalize(Vec3f(0.0f, 1.0f, -1.0f)), Vec3f(1.0f, 1.0f, 1.0f) });
+    GameScene->SetDirectionalLight(DirectionalLight{ Math::normalize(Vec3f(0.5f, 1.0f, -1.0f)), Vec3f(1.0f, 1.0f, 1.0f) });
 
-    GameScene.Load(InitialLevelName);
-    GState->LoadScene(GameScene);
+    GameScene->Load(InitialLevelName);
+    GState->LoadScene(*GameScene);
     Machine.PushState(GState);
 }
 

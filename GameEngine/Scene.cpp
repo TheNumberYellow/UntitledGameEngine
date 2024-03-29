@@ -12,33 +12,48 @@
 
 const std::string Separator = " ";
 
+Texture* Scene::LightBillboardTexture = nullptr;
+StaticMesh* Scene::CameraMesh = nullptr;
+Material* Scene::CameraMaterial = nullptr;
+
 SceneRayCastHit Closer(const SceneRayCastHit& lhs, const SceneRayCastHit& rhs)
 {
     return (lhs.rayCastHit.hitDistance <= rhs.rayCastHit.hitDistance ? lhs : rhs);
 }
 
-
 Scene::Scene()
 {
+    GraphicsModule* Graphics = GraphicsModule::Get();
+
     m_Cameras.resize(1);
 
 
     m_DirLight.colour = Vec3f(1.0, 1.0, 1.0);
 
+    AssetRegistry* Registry = AssetRegistry::Get();
 
-
+    if (!LightBillboardTexture)
+    {
+        LightBillboardTexture = Registry->LoadTexture("images/light.png");
+    }
+    if (!CameraMesh)
+    {
+        CameraMesh = Registry->LoadStaticMesh("models/CornyCamera.obj");
+    }
+    if (!CameraMaterial)
+    {
+        CameraMaterial = new Material(Graphics->CreateMaterial(*(Registry->LoadTexture("textures/Camera.png"))));
+    }
 }
 
 Scene::Scene(Scene& other)
 {
-    m_Cameras.resize(1);
-    m_PointLights.clear();
+    Clear();
 
-    m_Graphics = other.m_Graphics;
-    m_Collisions = other.m_Collisions;
+    m_Cameras.resize(1);
 
     m_DirLight = other.m_DirLight;
-    m_PointLights = other.m_PointLights;
+    m_Cameras = other.m_Cameras;
 
     for (auto& model : other.m_UntrackedModels)
     {
@@ -50,27 +65,22 @@ Scene::Scene(Scene& other)
         {
             BehaviourRegistry::Get()->AttachNewBehaviour(oldBehaviour->BehaviourName, newModel);
         }
+    }
+
+    for (auto& pointLight : other.m_PointLights)
+    {
+        PointLight* newPointLight = new PointLight(*pointLight);
+        m_PointLights.push_back(newPointLight);
     }
 }
 
 Scene& Scene::operator=(const Scene& other)
 {
-    for (auto& model : m_UntrackedModels)
-    {
-        BehaviourRegistry::Get()->ClearBehavioursOnEntity(model);
-    }
-    m_UntrackedModels.clear();
-
-    m_Cameras.clear();
+    Clear();
     m_Cameras.resize(1);
 
-    m_PointLights.clear();
-
-    m_Graphics = other.m_Graphics;
-    m_Collisions = other.m_Collisions;
-
     m_DirLight = other.m_DirLight;
-    m_PointLights = other.m_PointLights;
+    m_Cameras = other.m_Cameras;
 
     for (auto& model : other.m_UntrackedModels)
     {
@@ -82,6 +92,12 @@ Scene& Scene::operator=(const Scene& other)
         {
             BehaviourRegistry::Get()->AttachNewBehaviour(oldBehaviour->BehaviourName, newModel);
         }
+    }
+
+    for (auto& pointLight : other.m_PointLights)
+    {
+        PointLight* newPointLight = new PointLight(*pointLight);
+        m_PointLights.push_back(newPointLight);
     }
 
     return *this;
@@ -95,12 +111,6 @@ Scene::~Scene()
     }
     m_UntrackedModels.clear();
     m_PointLights.clear();
-}
-
-void Scene::Init(GraphicsModule& graphics, CollisionModule& collisions)
-{
-    m_Graphics = &graphics;
-    m_Collisions = &collisions;
 }
 
 void Scene::Pause()
@@ -202,26 +212,40 @@ void Scene::DeleteModel(Model* model)
 
 void Scene::AddCamera(Camera* camera)
 {
-    m_Cameras.push_back(camera);
+    m_Cameras.push_back(Camera(*camera));
 
     // If in editor
 
 
 }
 
-Camera* Scene::GetCamera()
+Camera* Scene::GetCamera(size_t index)
 {
-    if (!m_Cameras[0])
+    if (index < m_Cameras.size())
     {
-        m_Cameras[0] = new Camera();
+        return &m_Cameras[index];
     }
 
-    return m_Cameras[0];
+    return nullptr;
 }
 
 void Scene::SetCamera(Camera* camera)
 {
-    m_Cameras[0] = camera;
+    m_Cameras[0] = Camera(*camera);
+}
+
+void Scene::Initialize()
+{
+    InitializeBehaviours();
+}
+
+void Scene::InitializeBehaviours()
+{
+    BehaviourRegistry* Registry = BehaviourRegistry::Get();
+    for (auto& it : m_UntrackedModels)
+    {
+        Registry->InitializeModelBehaviours(it, this);
+    }
 }
 
 void Scene::Update(float DeltaTime)
@@ -238,69 +262,52 @@ void Scene::UpdateBehaviours(float DeltaTime)
     }
 }
 
-void Scene::Draw(GraphicsModule& graphics, GBuffer gBuffer)
+void Scene::Draw(GraphicsModule& graphics, GBuffer gBuffer, size_t camIndex)
 {
-    for (auto& it : m_Models)
-    {
-        StaticMeshRenderCommand command;
-        command.m_Material = it.second->m_TexturedMeshes[0].m_Material;
-        command.m_Mesh = it.second->m_TexturedMeshes[0].m_Mesh.Id;
-        command.m_Transform = it.second->GetTransform();
+    PushSceneRenderCommandsInternal(graphics);
 
-        graphics.AddRenderCommand(command);
-    }
+    assert(camIndex < m_Cameras.size());
 
-    for (auto& it : m_UntrackedModels)
-    {
-        StaticMeshRenderCommand command;
-        command.m_Material = it->m_TexturedMeshes[0].m_Material;
-        command.m_Mesh = it->m_TexturedMeshes[0].m_Mesh.Id;
-        command.m_Transform = it->GetTransform();
+    graphics.Render(gBuffer, m_Cameras[camIndex], m_DirLight);
+}
 
-        //if (it->Type == ModelType::PLANE)
-        //{
-        //    std::vector<Vertex*> Vertices = graphics.m_Renderer.MapMeshVertices(command.mesh);
-        //    
-        //    Vec3f Pos = it->GetTransform().GetPosition();
+void Scene::EditorDraw(GraphicsModule& graphics, GBuffer gBuffer, Camera* editorCam)
+{
+    PushSceneRenderCommandsInternal(graphics);
 
-        //    for (auto& Vert : Vertices)
-        //    {
-        //        Vec3f A = Vert->position + Pos;
-        //        Vec3f B = (A + Vert->normal);
-
-        //        graphics.DebugDrawLine(A, B);
-        //    }
-
-
-        //    graphics.m_Renderer.UnmapMeshVertices(command.mesh);
-        //}
-
-        graphics.AddRenderCommand(command);
-
-    }
+    assert(editorCam);
     for (PointLight* Light : m_PointLights)
     {
-        PointLightRenderCommand LightRC;
-        LightRC.m_Colour = Light->colour;
-        LightRC.m_Position = Light->position;
-
         BillboardRenderCommand BillboardRC;
         BillboardRC.m_Colour = Light->colour;
         BillboardRC.m_Position = Light->position;
-        BillboardRC.m_Texture = graphics.GetLightTexture();
+        BillboardRC.m_Texture = LightBillboardTexture->Id;
         BillboardRC.m_Size = 0.5f;
 
-        graphics.AddRenderCommand(LightRC);
         graphics.AddRenderCommand(BillboardRC);
     }
+    for (Camera& Cam : m_Cameras)
+    {
+        StaticMeshRenderCommand CamRC;
+        CamRC.m_Mesh = CameraMesh->Id;
+        CamRC.m_Material = *CameraMaterial;
+        
+        Transform CamTrans;
+        CamTrans.SetTransformMatrix(Cam.GetCamTransMatrix());
 
-    graphics.Render(gBuffer, *(m_Cameras[0]), m_DirLight);
+        // *vomits on the floor*
+        Quaternion CamRot = Quaternion(Vec3f(0.0f, 0.0f, 1.0f), (float)M_PI);
+        CamRot = CamRot * Quaternion(Vec3f(1.0f, 0.0f, 0.0f), (float)M_PI_2);
 
-}
+        CamTrans.Rotate(CamRot);
+        CamTrans.SetScale(0.1f);
 
-void Scene::EditorDraw(GraphicsModule& graphics, Framebuffer_ID buffer)
-{
-    //Draw(graphics, buffer);
+        CamRC.m_Transform = CamTrans;
+
+        graphics.AddRenderCommand(CamRC);
+    }
+
+    graphics.Render(gBuffer, *editorCam, m_DirLight);
 }
 
 void Scene::SetDirectionalLight(DirectionalLight light)
@@ -422,6 +429,8 @@ void Scene::Save(std::string FileName)
 
     File << "Entities:" << std::endl;
 
+    CollisionModule* Collisions = CollisionModule::Get();
+
     for (auto& it : m_UntrackedModels)
     {
         int64_t StaticMeshIndex = 0;
@@ -460,7 +469,7 @@ void Scene::Save(std::string FileName)
         {
             File << "B" << Separator;
             // For now, all generated meshes are boxes, so store the AABB
-            AABB BoxAABB = m_Collisions->GetCollisionMeshFromMesh(it->m_TexturedMeshes[0].m_Mesh)->boundingBox;
+            AABB BoxAABB = Collisions->GetCollisionMeshFromMesh(it->m_TexturedMeshes[0].m_Mesh)->boundingBox;
 
             File << BoxAABB.min.x << Separator << BoxAABB.min.y << Separator << BoxAABB.min.z << Separator;
             File << BoxAABB.max.x << Separator << BoxAABB.max.y << Separator << BoxAABB.max.z << Separator;
@@ -499,6 +508,8 @@ void Scene::Load(std::string FileName)
         return;
     }
 
+    GraphicsModule* Graphics = GraphicsModule::Get();
+
     Clear();
 
     std::vector<Material> SceneMaterials;
@@ -527,7 +538,7 @@ void Scene::Load(std::string FileName)
                 Texture MetallicTex = *Registry->LoadTexture(LineTokens[3]);
                 Texture AOTex = *Registry->LoadTexture(LineTokens[4]);
 
-                SceneMaterials.push_back(m_Graphics->CreateMaterial(DiffuseTex, NormalTex, RoughnessTex, MetallicTex, AOTex));
+                SceneMaterials.push_back(Graphics->CreateMaterial(DiffuseTex, NormalTex, RoughnessTex, MetallicTex, AOTex));
             }
             else if (LineTokens.size() == 4)
             {
@@ -536,7 +547,7 @@ void Scene::Load(std::string FileName)
                 Texture RoughnessTex = *Registry->LoadTexture(LineTokens[2]);
                 Texture MetallicTex = *Registry->LoadTexture(LineTokens[3]);
 
-                SceneMaterials.push_back(m_Graphics->CreateMaterial(DiffuseTex, NormalTex, RoughnessTex, MetallicTex));
+                SceneMaterials.push_back(Graphics->CreateMaterial(DiffuseTex, NormalTex, RoughnessTex, MetallicTex));
             }
             else if (LineTokens.size() == 3)
             {
@@ -544,19 +555,19 @@ void Scene::Load(std::string FileName)
                 Texture NormalTex = *Registry->LoadTexture(LineTokens[1]);
                 Texture RoughnessTex = *Registry->LoadTexture(LineTokens[2]);
 
-                SceneMaterials.push_back(m_Graphics->CreateMaterial(DiffuseTex, NormalTex, RoughnessTex));
+                SceneMaterials.push_back(Graphics->CreateMaterial(DiffuseTex, NormalTex, RoughnessTex));
             }
             else if (LineTokens.size() == 2)
             {
                 Texture DiffuseTex = *Registry->LoadTexture(LineTokens[0]);
                 Texture NormalTex = *Registry->LoadTexture(LineTokens[1]);
 
-                SceneMaterials.push_back(m_Graphics->CreateMaterial(DiffuseTex, NormalTex));
+                SceneMaterials.push_back(Graphics->CreateMaterial(DiffuseTex, NormalTex));
             }
             else
             {
                 Texture DiffuseTex = *Registry->LoadTexture(LineTokens[0]);
-                SceneMaterials.push_back(m_Graphics->CreateMaterial(DiffuseTex));
+                SceneMaterials.push_back(Graphics->CreateMaterial(DiffuseTex));
             }
             break;
         case STATIC_MESHES:
@@ -576,12 +587,12 @@ void Scene::Load(std::string FileName)
                 BoxAABB.min.x = std::stof(LineTokens[At++]); BoxAABB.min.y = std::stof(LineTokens[At++]); BoxAABB.min.z = std::stof(LineTokens[At++]);
                 BoxAABB.max.x = std::stof(LineTokens[At++]); BoxAABB.max.y = std::stof(LineTokens[At++]); BoxAABB.max.z = std::stof(LineTokens[At++]);
 
-                NewModel = new Model(m_Graphics->CreateBoxModel(BoxAABB, SceneMaterials[MaterialIndex]));
+                NewModel = new Model(Graphics->CreateBoxModel(BoxAABB, SceneMaterials[MaterialIndex]));
             }
             else
             {
                 int StaticMeshIndex = std::stoi(LineTokens[1]);
-                NewModel = new Model(m_Graphics->CreateModel(TexturedMesh(SceneStaticMeshes[StaticMeshIndex], SceneMaterials[MaterialIndex])));
+                NewModel = new Model(Graphics->CreateModel(TexturedMesh(SceneStaticMeshes[StaticMeshIndex], SceneMaterials[MaterialIndex])));
             }
 
             Mat4x4f EntityTransform;
@@ -613,11 +624,31 @@ void Scene::Load(std::string FileName)
 
 void Scene::Clear()
 {
+    for (auto& model : m_UntrackedModels)
+    {
+        BehaviourRegistry::Get()->ClearBehavioursOnEntity(model);
+    }
+
+    for (auto& Model : m_Models)
+    {
+        delete Model.second;
+    }
+    for (auto& Model : m_UntrackedModels)
+    {
+        delete Model;
+    }
+    for (auto& PointLight : m_PointLights)
+    {
+        delete PointLight;
+    }
+
     m_Models.clear();
     m_UntrackedModels.clear();
     m_PointLights.clear();
+    m_Cameras.clear();
 
-    BehaviourRegistry::Get()->ClearAllAttachedBehaviours();
+    // Set camera to default TODO: (want to load camera info from file)
+    m_Cameras.push_back(Camera());
 }
 
 bool Scene::IsIgnored(Model* model, std::vector<Model*> ignoredModels)
@@ -630,6 +661,39 @@ bool Scene::IsIgnored(Model* model, std::vector<Model*> ignoredModels)
         }
     }
     return false;
+}
+
+void Scene::PushSceneRenderCommandsInternal(GraphicsModule& graphics)
+{
+    for (auto& it : m_Models)
+    {
+        StaticMeshRenderCommand command;
+        command.m_Material = it.second->m_TexturedMeshes[0].m_Material;
+        command.m_Mesh = it.second->m_TexturedMeshes[0].m_Mesh.Id;
+        command.m_Transform = it.second->GetTransform();
+
+        graphics.AddRenderCommand(command);
+    }
+
+    for (auto& it : m_UntrackedModels)
+    {
+        StaticMeshRenderCommand command;
+        command.m_Material = it->m_TexturedMeshes[0].m_Material;
+        command.m_Mesh = it->m_TexturedMeshes[0].m_Mesh.Id;
+        command.m_Transform = it->GetTransform();
+
+        graphics.AddRenderCommand(command);
+
+    }
+    for (PointLight* Light : m_PointLights)
+    {
+        PointLightRenderCommand LightRC;
+        LightRC.m_Colour = Light->colour;
+        LightRC.m_Position = Light->position;
+        LightRC.m_Intensity = Light->intensity;
+
+        graphics.AddRenderCommand(LightRC);
+    }
 }
 
 bool Scene::GetReaderStateFromToken(std::string Token, FileReaderState& OutState)

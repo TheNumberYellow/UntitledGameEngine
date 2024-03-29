@@ -34,8 +34,6 @@ public:
     Scene& operator=(const Scene& other);
     ~Scene();
 
-    void Init(GraphicsModule& graphics, CollisionModule& collisions);
-
     void Pause();
     void UnPause();
     bool IsPaused();
@@ -54,14 +52,17 @@ public:
 
     void AddCamera(Camera* camera);
 
-    Camera* GetCamera();
+    Camera* GetCamera(size_t index = 0);
     void SetCamera(Camera* camera);
+
+    void Initialize();
+    void InitializeBehaviours();
 
     void Update(float DeltaTime);
     void UpdateBehaviours(float DeltaTime);
 
-    void Draw(GraphicsModule& graphics, GBuffer gBuffer);
-    void EditorDraw(GraphicsModule& graphics, Framebuffer_ID buffer);
+    void Draw(GraphicsModule& graphics, GBuffer gBuffer, size_t camIndex = 0);
+    void EditorDraw(GraphicsModule& graphics, GBuffer gBuffer, Camera* editorCam);
 
     void SetDirectionalLight(DirectionalLight light);
 
@@ -84,23 +85,16 @@ private:
     
     DirectionalLight m_DirLight;
 
-    std::vector<Camera*> m_Cameras;
+    std::vector<Camera> m_Cameras;
 
     bool m_Paused = false;
 
-    // TEMP member variables start
-    //Camera m_ShadowCamera;
-    //Framebuffer_ID m_ShadowBuffer;
-
-    //GBuffer GBuf;
-
-    //Shader_ID PosShader;
-
-    // TEMP member variables end
-
-    GraphicsModule* m_Graphics;
-    CollisionModule* m_Collisions;
+    void PushSceneRenderCommandsInternal(GraphicsModule& graphics);
 
     static bool GetReaderStateFromToken(std::string Token, FileReaderState& OutState);
 
+    // Editor specific rendering stuff
+    static Texture* LightBillboardTexture;
+    static StaticMesh* CameraMesh;
+    static Material* CameraMaterial;
 };
