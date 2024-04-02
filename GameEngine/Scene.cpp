@@ -1020,7 +1020,10 @@ Model Scene::LoadModel(json& JsonObject, std::vector<Material>& MaterialVector, 
         BehaviourRegistry::Get()->AttachNewBehaviour(Behaviour, &NewModel);
     }
 
-    NewModel.Type = JsonObject["Type"];
+    if (JsonObject.contains("Type"))
+    {
+        NewModel.Type = JsonObject["Type"];
+    }
 
     return NewModel;
 }
@@ -1050,7 +1053,10 @@ Model Scene::LoadRawModel(json& JsonObject, std::vector<Material>& MaterialVecto
         BehaviourRegistry::Get()->AttachNewBehaviour(Behaviour, &NewModel);
     }
 
-    NewModel.Type = JsonObject["Type"];
+    if (JsonObject.contains("Type"))
+    {
+        NewModel.Type = JsonObject["Type"];
+    }
 
     return NewModel;
 }

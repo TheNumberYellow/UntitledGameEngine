@@ -551,14 +551,13 @@ int WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ L
 
         if (Engine::IsWindowFocused())
         {
+            GetKeyboardState(Input);
+            GetControllerState(Input);
             if (cursorLocked)
             {
                 WarpMouseToWindowCenter();
             }
         }
-
-        GetKeyboardState(Input);
-        GetControllerState(Input);
 
         Graphics.OnFrameStart();
         UI.OnFrameStart();
