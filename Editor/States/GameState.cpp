@@ -11,6 +11,8 @@ void GameState::OnInitialized()
 
     Rect ViewportRect = GetViewportRect();
     Input->SetMouseCenter(ViewportRect.Center());
+
+    TestFont = TextModule::Get()->LoadFont("fonts/ARLRDBD.TTF", 30);
 }
 
 void GameState::OnUninitialized()
@@ -42,6 +44,21 @@ void GameState::Update(float DeltaTime)
     Graphics->ResetFrameBuffer();
 
     UI->BufferPanel(ViewportBuffer.FinalOutput, GetViewportRect());
+
+    TextModule::Get()->DrawText("Frame Time: " + std::to_string(DeltaTime), &TestFont, Vec2f(0.0f, 0.0f));
+
+    PrevFrameTimeCount++;
+    PrevFrameTimeSum += DeltaTime;
+
+    if (PrevFrameTimeSum > 0.5f)
+    {
+        PrevAveFPS = (int)round(1.0f / (PrevFrameTimeSum / PrevFrameTimeCount));
+        PrevFrameTimeCount = 0;
+        PrevFrameTimeSum -= 0.5f;
+    }
+
+    TextModule::Get()->DrawText("FPS: " + std::to_string(PrevAveFPS), &TestFont, Vec2f(0.0f, 30.0f));
+
 
     if (Input->GetKeyState(Key::Escape))
     {

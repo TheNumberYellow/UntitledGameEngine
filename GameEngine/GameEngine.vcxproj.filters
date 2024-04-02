@@ -209,5 +209,8 @@
     <ClInclude Include="State\StateMachine.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\json.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

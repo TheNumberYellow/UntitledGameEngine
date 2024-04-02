@@ -207,6 +207,11 @@ void CursorState::Update()
 
                     DraggingModelPtr->GetTransform().SetRotation(q);
                 }
+                else
+                {
+                    NewDraggingModelPos = MouseRay.point + MouseRay.direction * 8.0f;
+                    DraggingModelPtr->GetTransform().SetRotation(Quaternion());
+                }
             }
             else
             {
@@ -1013,6 +1018,17 @@ void CursorState::UpdateBoxTool()
 
 void CursorState::UpdatePlaneTool()
 {
+    InputModule* Input = InputModule::Get();
+    CollisionModule* Collisions = CollisionModule::Get();
+    GraphicsModule* Graphics = GraphicsModule::Get();
+
+    KeyState ClickState = Input->GetMouseState().GetMouseButtonState(MouseButton::LMB);
+
+    if (Dragging != DraggingMode::None)
+    {
+        IsCreatingNewBox = false;
+    }
+
 }
 
 void CursorState::UpdateSelectedObjects()

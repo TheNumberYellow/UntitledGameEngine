@@ -87,9 +87,13 @@ void Camera::SetFarPlane(float farPlane)
 
 Mat4x4f Camera::GetCamMatrix()
 {
+    Mat4x4f ProjMatrix = GetProjectionMatrix();
+    Mat4x4f ViewMatrix = GetViewMatrix();
+
     if (m_ViewProjectionMatrixNeedsUpdate)
     {
-        m_ViewProjectionMatrix = GetProjectionMatrix() * GetViewMatrix();
+        m_ViewProjectionMatrix = ProjMatrix * ViewMatrix;
+        m_ViewProjectionMatrixNeedsUpdate = false;
     }
     return m_ViewProjectionMatrix;
 }
@@ -104,18 +108,18 @@ Mat4x4f Camera::GetCamTransMatrix()
     return Math::inv(GetViewMatrix());
 }
 
-void Camera::SetCamMatrix(Mat4x4f InMat)
-{
-    m_ViewProjectionMatrix = InMat;
-    m_ViewProjectionMatrixNeedsUpdate = false;
-    m_ViewMatrixNeedsUpdate = false;
-}
+//void Camera::SetCamTrans(Transform& InTrans)
+//{
+//    m_Position = InTrans.GetPosition();
+//
+//}
 
 Mat4x4f Camera::GetViewMatrix()
 {
     if (m_ViewMatrixNeedsUpdate)
     {
         UpdateViewMatrix();
+        m_ViewMatrixNeedsUpdate = false;
     }
     return m_ViewMatrix;
 }
@@ -125,6 +129,7 @@ Mat4x4f Camera::GetProjectionMatrix()
     if (m_ProjectionMatrixNeedsUpdate)
     {
         UpdateProjectionMatrix();
+        m_ProjectionMatrixNeedsUpdate = false;
     }
     return m_ProjectionMatrix;
 }
@@ -132,6 +137,8 @@ Mat4x4f Camera::GetProjectionMatrix()
 void Camera::UpdateViewMatrix()
 {
     m_ViewMatrix = Math::GenerateViewMatrix(m_Position, m_Direction, m_Up);
+
+    m_ViewProjectionMatrixNeedsUpdate = true;
 }
 
 void Camera::UpdateProjectionMatrix()

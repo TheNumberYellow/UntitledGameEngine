@@ -47,7 +47,7 @@ void TopDownPlayer::Update(Scene* Scene, float DeltaTime)
         NewGhostModel->GetTransform().SetScale(Vec3f(0.5f, 0.5f, 0.5f));
 
         Model* What = Scene->AddModel(*NewGhostModel);
-        
+
         Ghost* GhostBehaviour = static_cast<Ghost*>(BehaviourRegistry::Get()->AttachNewBehaviour("Ghost", What));
 
         GhostBehaviour->GhostSpeed = Math::RandomFloat(3.0f, 6.0f);
@@ -109,7 +109,7 @@ void TopDownPlayer::Update(Scene* Scene, float DeltaTime)
     {
         float LeftTrigger = Input.GetGamepadState().GetLeftTriggerAnalog();
         float RightTrigger = Input.GetGamepadState().GetRightTriggerAnalog();
-        
+
         float Delta = RightTrigger - LeftTrigger;
 
         CamHeight -= 0.1f * Delta;
@@ -125,7 +125,7 @@ void TopDownPlayer::Update(Scene* Scene, float DeltaTime)
 
     CamHeight = Math::clamp(CamHeight, 1.0f, 20.0f);
 
-    if (AnyFacingInput || (AnyInput && Math::magnitude(InputDir) > 0.01f))
+    if (AnyInput && Math::magnitude(InputDir) > 0.01f)
     {
         float Mult = 1.0f;
         if (Input.GetKeyState(Key::Shift))
@@ -138,7 +138,7 @@ void TopDownPlayer::Update(Scene* Scene, float DeltaTime)
         }
         Vec3f Pos = m_Model->GetTransform().GetPosition();
         Vec3f Movement = (InputDir * Speed * Mult) * DeltaTime;
-        
+
         Vec3f Skin = Vec3f(0.0f, 0.0f, 0.01f);
 
         std::vector<Model*> IgnoredModels;
@@ -154,7 +154,10 @@ void TopDownPlayer::Update(Scene* Scene, float DeltaTime)
             Vec3f HitPos = MoveHit.rayCastHit.hitPoint + (0.01f * MoveHit.rayCastHit.hitNormal);
             m_Model->GetTransform().SetPosition(HitPos - Skin);
         }
-    
+    }
+
+    if (AnyFacingInput || AnyInput && Math::magnitude(InputDir) > 0.01f)
+    {
         if (AnyFacingInput)
         {
             InputDir = FacingDir;

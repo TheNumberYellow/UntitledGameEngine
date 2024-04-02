@@ -243,6 +243,11 @@ private:
     AABB BoxBeingCreated;
     float GeoPlaceSnap = 1.0f;
 
+    bool IsCreatingNewPlane;
+    Vec3f NewPlaneStartPoint;
+    Vec3f NewPlaneMin, NewPlaneMax;
+    int NewPlaneSubdivisions;
+
     EditorState* EditorStatePtr;
     Scene* EditorScenePtr;
 };

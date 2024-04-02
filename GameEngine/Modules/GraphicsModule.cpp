@@ -78,25 +78,12 @@ void Transform::SetTransformMatrix(Mat4x4f mat)
 
     Math::DecomposeMatrix(m_Transform, m_Position, m_Rotation, m_Scale);
 
-    m_WasTransformMatrixUpdated = true;
     m_TransformMatrixNeedsUpdate = false;
-}
-
-bool Transform::WasTransformMatrixUpdated()
-{
-    if (m_WasTransformMatrixUpdated)
-    {
-        m_WasTransformMatrixUpdated = false;
-        return true;
-    }
-    return false;
 }
 
 void Transform::UpdateTransformMatrix()
 {
     m_Transform = Math::GenerateTransformMatrix(m_Position, m_Scale, m_Rotation);
-
-    m_WasTransformMatrixUpdated = true;
 }
 
 GraphicsModule::GraphicsModule(Renderer& renderer)
@@ -1817,6 +1804,19 @@ Model GraphicsModule::CloneModel(const Model& original)
     return Model(original.m_TexturedMeshes[0]);
 }
 
+Model GraphicsModule::LoadModel(std::vector<float>& BufferData, std::vector<unsigned int>& IndexData, Material Mat)
+{
+    StaticMesh_ID MeshID = m_Renderer.LoadMesh(m_TexturedMeshFormat, BufferData, IndexData);
+
+    StaticMesh Mesh;
+    Mesh.Id = MeshID;
+    Mesh.LoadedFromFile = false;
+
+    Model Result = Model(TexturedMesh(Mesh, Mat));
+
+    return Result;
+}
+
 Model GraphicsModule::CreateBoxModel(AABB box)
 {
     return CreateBoxModel(box, m_DebugMaterial);
@@ -2096,6 +2096,16 @@ void GraphicsModule::SetDirectionalLight(DirectionalLight dirLight)
 {
     m_Renderer.SetShaderUniformVec3f(m_TexturedMeshShader, "SunDirection", dirLight.direction);
     m_Renderer.SetShaderUniformVec3f(m_TexturedMeshShader, "SunColour", dirLight.colour);
+}
+
+std::vector<float> GraphicsModule::GetModelVertexBuffer(Model& model)
+{
+    return m_Renderer.GetMeshVertexData(model.m_TexturedMeshes[0].m_Mesh.Id);
+}
+
+std::vector<unsigned int> GraphicsModule::GetModelIndexBuffer(Model& model)
+{
+    return m_Renderer.GetMeshIndexData(model.m_TexturedMeshes[0].m_Mesh.Id);
 }
 
 void GraphicsModule::OnFrameStart()

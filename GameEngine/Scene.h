@@ -7,6 +7,10 @@
 
 #include <string>
 
+#include <json.hpp>
+
+using json = nlohmann::json;
+
 typedef uint64_t Entity_ID;
 
 // TODO(Fraser): Move this to some reader/asset manager file
@@ -92,6 +96,19 @@ private:
     void PushSceneRenderCommandsInternal(GraphicsModule& graphics);
 
     static bool GetReaderStateFromToken(std::string Token, FileReaderState& OutState);
+
+    // Utility functions for scene serialization/deserialization
+    void SaveMaterial(json& JsonObject, Material& Mat);
+    void SaveStaticMesh(json& JsonObject, StaticMesh& Mesh);
+    void SavePointLight(json& JsonObject, PointLight& PointLight);
+    void SaveModel(json& JsonObject, Model& Mod, int64_t MeshIndex, int64_t MatIndex);
+    void SaveRawModel(json& JsonObject, Model& Mod, int64_t MatIndex);
+
+    Material LoadMaterial(json& JsonObject);
+    StaticMesh LoadStaticMesh(json& JsonObject);
+    PointLight LoadPointLight(json& JsonObject);
+    Model LoadModel(json& JsonObject, std::vector<Material>& MaterialVector, std::vector<StaticMesh>& StaticMeshVector);
+    Model LoadRawModel(json& JsonObject, std::vector<Material>& MaterialVector);
 
     // Editor specific rendering stuff
     static Texture* LightBillboardTexture;

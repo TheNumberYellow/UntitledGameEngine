@@ -3,6 +3,7 @@
 #include "Math/Math.h"
 #include "Math/Quaternion.h"
 
+class Transform;
 class Model;
 
 enum class Projection
@@ -50,8 +51,6 @@ public:
     Mat4x4f GetInvCamMatrix();
     
     Mat4x4f GetCamTransMatrix();
-
-    void SetCamMatrix(Mat4x4f InMat);
 
     Mat4x4f GetViewMatrix();
     Mat4x4f GetProjectionMatrix();

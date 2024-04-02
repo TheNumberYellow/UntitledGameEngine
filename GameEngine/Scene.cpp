@@ -10,6 +10,7 @@
 #include <set>
 #include <filesystem>
 
+
 const std::string Separator = " ";
 
 Texture* Scene::LightBillboardTexture = nullptr;
@@ -25,10 +26,17 @@ Scene::Scene()
 {
     GraphicsModule* Graphics = GraphicsModule::Get();
 
+
     m_Cameras.resize(1);
 
 
     m_DirLight.colour = Vec3f(1.0, 1.0, 1.0);
+
+    if (!Graphics)
+    {
+        return;
+    }
+
 
     AssetRegistry* Registry = AssetRegistry::Get();
 
@@ -373,8 +381,16 @@ Model* Scene::MenuListEntities(UIModule& ui, Font& font)
 }
 
 void Scene::Save(std::string FileName)
-{   
-    // Set of all textures used in the scene (TODO: replace with Materials)
+{
+    std::ofstream File(FileName);
+
+    if (!File.is_open())
+    {
+        Engine::DEBUGPrint("Failed to save scene :(");
+        return;
+    }
+
+    // Set of all textures used in the scene
     std::set<Material> Materials;
     // Set of all Static Meshes used in the scene
     std::set<StaticMesh> StaticMeshes;
@@ -385,10 +401,7 @@ void Scene::Save(std::string FileName)
         StaticMesh mesh = it->m_TexturedMeshes[0].m_Mesh;
         
         Material mat = it->m_TexturedMeshes[0].m_Material;
-        //if (tex.LoadedFromFile)
-        //{
-        //  Materials.insert(mat);
-        //}
+
         Materials.insert(mat);
         if (mesh.LoadedFromFile)
         {
@@ -396,231 +409,390 @@ void Scene::Save(std::string FileName)
         }
     }
 
-    std::vector<Material> MaterialVec(Materials.begin(), Materials.end());
-    std::vector<StaticMesh> StaticMeshVec(StaticMeshes.begin(), StaticMeshes.end());
+    std::vector<Material> MatVec(Materials.begin(), Materials.end());
+    std::vector<StaticMesh> MeshVec(StaticMeshes.begin(), StaticMeshes.end());
 
+    json SceneJson;
 
-    std::ofstream File(FileName);
+    json TextureList;
+    json StaticMeshList;
+    json PointLightList;
+    json ModelList;
 
-    if (!File.is_open())
+    int Index = 0;
+    for (Material Mat : MatVec)
     {
-        Engine::DEBUGPrint("Failed to save scene :(");
-        return;
+        SaveMaterial(TextureList[Index++], Mat);
     }
-
-    File << "Textures:" << std::endl;
-    for (auto& Mat : MaterialVec)
+    Index = 0;
+    for (StaticMesh Mesh : MeshVec)
     {
-        std::string Path = Mat.m_Albedo.Path.GetFullPath();
-        std::string NormPath = Mat.m_Normal.Path.GetFullPath();
-        std::string RoughPath = Mat.m_Roughness.Path.GetFullPath();
-        std::string MetalPath = Mat.m_Metallic.Path.GetFullPath();
-        std::string AOPath = Mat.m_AO.Path.GetFullPath();
+        if (!Mesh.LoadedFromFile)
+            continue;
 
-        File << Path << Separator << NormPath << Separator << RoughPath << Separator << MetalPath << Separator << AOPath << std::endl;
+        SaveStaticMesh(StaticMeshList[Index++], Mesh);
     }
-
-    File << "StaticMeshes:" << std::endl;
-    for (auto& Mesh : StaticMeshVec)
+    Index = 0;
+    for (PointLight* PLight : m_PointLights)
     {
-        std::string Path = Mesh.Path.GetFullPath();
-        File << Path << std::endl;
+        SavePointLight(PointLightList[Index++], *PLight);
     }
-
-    File << "Entities:" << std::endl;
-
-    CollisionModule* Collisions = CollisionModule::Get();
-
-    for (auto& it : m_UntrackedModels)
+    Index = 0;
+    for (Model* Mod : m_UntrackedModels)
     {
         int64_t StaticMeshIndex = 0;
-        int64_t TextureIndex = 0;
-
         bool GeneratedMesh = false;
 
-        auto MeshIt = std::find(StaticMeshVec.begin(), StaticMeshVec.end(), it->m_TexturedMeshes[0].m_Mesh);
-        if (MeshIt != StaticMeshVec.end())
+        auto MeshIt = std::find(MeshVec.begin(), MeshVec.end(), Mod->m_TexturedMeshes[0].m_Mesh);
+        if (MeshIt != MeshVec.end())
         {
-            StaticMeshIndex = MeshIt - StaticMeshVec.begin();
+            StaticMeshIndex = MeshIt - MeshVec.begin();
         }
         else
         {
             GeneratedMesh = true;
-            //Engine::FatalError("Could not find mesh while saving scene (this should never happen)");
         }
+        
+        int64_t MaterialIndex = 0;
 
-        auto MaterialIt = std::find(MaterialVec.begin(), MaterialVec.end(), it->m_TexturedMeshes[0].m_Material);
-        if (MaterialIt != MaterialVec.end())
+        auto MatIt = std::find(MatVec.begin(), MatVec.end(), Mod->m_TexturedMeshes[0].m_Material);
+        if (MatIt != MatVec.end())
         {
-            TextureIndex = MaterialIt - MaterialVec.begin();
+            MaterialIndex = MatIt - MatVec.begin();
         }
         else
         {
-            Engine::FatalError("Could not find texture while saving scene (this should never happen)");
+            Engine::FatalError("Could not find material, this should never happen");
         }
 
-        File << TextureIndex << Separator;
-
-        if (!GeneratedMesh)
+        if (GeneratedMesh)
         {
-            File << StaticMeshIndex << Separator;
+            SaveRawModel(ModelList[Index++], *Mod, MaterialIndex);
         }
         else
         {
-            File << "B" << Separator;
-            // For now, all generated meshes are boxes, so store the AABB
-            AABB BoxAABB = Collisions->GetCollisionMeshFromMesh(it->m_TexturedMeshes[0].m_Mesh)->boundingBox;
-
-            File << BoxAABB.min.x << Separator << BoxAABB.min.y << Separator << BoxAABB.min.z << Separator;
-            File << BoxAABB.max.x << Separator << BoxAABB.max.y << Separator << BoxAABB.max.z << Separator;
+            SaveModel(ModelList[Index++], *Mod, StaticMeshIndex, MaterialIndex);
         }
-
-        Mat4x4f TransMat = it->GetTransform().GetTransformMatrix();
-
-        for (int i = 0; i < 4; ++i)
-        {
-            File << TransMat[i].x << Separator << TransMat[i].y << Separator << TransMat[i].z << Separator << TransMat[i].w << Separator;
-        }
-
-        std::vector<std::string> BehaviourNames = BehaviourRegistry::Get()->GetBehavioursAttachedToEntity(it);
-
-        for (std::string BehaviourName : BehaviourNames)
-        {
-            File << BehaviourName << Separator;
-        }
-
-        File << std::endl;
-
     }
 
-    File.close();
+    SceneJson["Textures"] = TextureList;
+    SceneJson["StaticMeshes"] = StaticMeshList;
+    SceneJson["PointLights"] = PointLightList;
+    SceneJson["Models"] = ModelList;
 
+    // Uncomment to beautify json - makes it easier to debug but makes files much larger
+    //File << std::setw(4) << SceneJson;
+    File << SceneJson;
+
+    File.close();
 }
 
 void Scene::Load(std::string FileName)
 {
-    AssetRegistry* Registry = AssetRegistry::Get();
-
     std::ifstream File(FileName);
 
     if (!File.is_open())
     {
+        Engine::Alert("Failed to open level " + FileName);
         return;
     }
 
-    GraphicsModule* Graphics = GraphicsModule::Get();
-
     Clear();
 
-    std::vector<Material> SceneMaterials;
-    std::vector<StaticMesh> SceneStaticMeshes;
+    json SceneJson = json::parse(File);
 
-    FileReaderState ReaderState;
+    File.close();
 
-    std::string Line;
-    while (std::getline(File, Line))
+    std::vector<Material> MaterialVec;
+    std::vector<StaticMesh> StaticMeshVec;
+
+    json TexturesJson = SceneJson["Textures"];
+    json StaticMeshesJson = SceneJson["StaticMeshes"];
+    json PointLightsJson = SceneJson["PointLights"];
+    json ModelsJson = SceneJson["Models"];
+    
+
+    for (json& TextureJson : TexturesJson)
     {
-        std::vector<std::string> LineTokens = StringUtils::Split(Line, Separator);
+        MaterialVec.push_back(LoadMaterial(TextureJson));
+    }
+    for (json& StaticMeshJson : StaticMeshesJson)
+    {
+        StaticMeshVec.push_back(LoadStaticMesh(StaticMeshJson));
+    }
 
-        if (GetReaderStateFromToken(LineTokens[0], ReaderState))
+    for (json& PointLightJson : PointLightsJson)
+    {
+        AddPointLight(LoadPointLight(PointLightJson));
+    }
+    for (json& ModelJson : ModelsJson)
+    {
+        Model* AddedModel;
+        if (ModelJson.contains("Buffer"))
         {
-            // State changed, go to next line
-            continue;
+            AddedModel = AddModel(LoadRawModel(ModelJson, MaterialVec));
         }
-        switch (ReaderState)
+        else
         {
-        case TEXTURES:
-            if (LineTokens.size() == 5)
-            {
-                Texture DiffuseTex = *Registry->LoadTexture(LineTokens[0]);
-                Texture NormalTex = *Registry->LoadTexture(LineTokens[1]);
-                Texture RoughnessTex = *Registry->LoadTexture(LineTokens[2]);
-                Texture MetallicTex = *Registry->LoadTexture(LineTokens[3]);
-                Texture AOTex = *Registry->LoadTexture(LineTokens[4]);
-
-                SceneMaterials.push_back(Graphics->CreateMaterial(DiffuseTex, NormalTex, RoughnessTex, MetallicTex, AOTex));
-            }
-            else if (LineTokens.size() == 4)
-            {
-                Texture DiffuseTex = *Registry->LoadTexture(LineTokens[0]);
-                Texture NormalTex = *Registry->LoadTexture(LineTokens[1]);
-                Texture RoughnessTex = *Registry->LoadTexture(LineTokens[2]);
-                Texture MetallicTex = *Registry->LoadTexture(LineTokens[3]);
-
-                SceneMaterials.push_back(Graphics->CreateMaterial(DiffuseTex, NormalTex, RoughnessTex, MetallicTex));
-            }
-            else if (LineTokens.size() == 3)
-            {
-                Texture DiffuseTex = *Registry->LoadTexture(LineTokens[0]);
-                Texture NormalTex = *Registry->LoadTexture(LineTokens[1]);
-                Texture RoughnessTex = *Registry->LoadTexture(LineTokens[2]);
-
-                SceneMaterials.push_back(Graphics->CreateMaterial(DiffuseTex, NormalTex, RoughnessTex));
-            }
-            else if (LineTokens.size() == 2)
-            {
-                Texture DiffuseTex = *Registry->LoadTexture(LineTokens[0]);
-                Texture NormalTex = *Registry->LoadTexture(LineTokens[1]);
-
-                SceneMaterials.push_back(Graphics->CreateMaterial(DiffuseTex, NormalTex));
-            }
-            else
-            {
-                Texture DiffuseTex = *Registry->LoadTexture(LineTokens[0]);
-                SceneMaterials.push_back(Graphics->CreateMaterial(DiffuseTex));
-            }
-            break;
-        case STATIC_MESHES:
-            SceneStaticMeshes.push_back(*Registry->LoadStaticMesh(LineTokens[0]));
-            break;
-        case ENTITIES:
-        {
-            int At = 0;
-            
-            int MaterialIndex = std::stoi(LineTokens[At++]);
-            
-            Model* NewModel;
-
-            if (LineTokens[At++] == "B")
-            {
-                AABB BoxAABB;
-                BoxAABB.min.x = std::stof(LineTokens[At++]); BoxAABB.min.y = std::stof(LineTokens[At++]); BoxAABB.min.z = std::stof(LineTokens[At++]);
-                BoxAABB.max.x = std::stof(LineTokens[At++]); BoxAABB.max.y = std::stof(LineTokens[At++]); BoxAABB.max.z = std::stof(LineTokens[At++]);
-
-                NewModel = new Model(Graphics->CreateBoxModel(BoxAABB, SceneMaterials[MaterialIndex]));
-            }
-            else
-            {
-                int StaticMeshIndex = std::stoi(LineTokens[1]);
-                NewModel = new Model(Graphics->CreateModel(TexturedMesh(SceneStaticMeshes[StaticMeshIndex], SceneMaterials[MaterialIndex])));
-            }
-
-            Mat4x4f EntityTransform;
-            EntityTransform[0].x = std::stof(LineTokens[At++]); EntityTransform[0].y = std::stof(LineTokens[At++]); EntityTransform[0].z = std::stof(LineTokens[At++]); EntityTransform[0].w = std::stof(LineTokens[At++]);
-            EntityTransform[1].x = std::stof(LineTokens[At++]); EntityTransform[1].y = std::stof(LineTokens[At++]); EntityTransform[1].z = std::stof(LineTokens[At++]); EntityTransform[1].w = std::stof(LineTokens[At++]);
-            EntityTransform[2].x = std::stof(LineTokens[At++]); EntityTransform[2].y = std::stof(LineTokens[At++]); EntityTransform[2].z = std::stof(LineTokens[At++]); EntityTransform[2].w = std::stof(LineTokens[At++]);
-            EntityTransform[3].x = std::stof(LineTokens[At++]); EntityTransform[3].y = std::stof(LineTokens[At++]); EntityTransform[3].z = std::stof(LineTokens[At++]); EntityTransform[3].w = std::stof(LineTokens[At++]);
-
-            NewModel->GetTransform().SetTransformMatrix(EntityTransform);
-
-            size_t NumBehaviours = LineTokens.size() - (At);
-
-            for (int i = 0; i < NumBehaviours; ++i)
-            {
-                std::string BehaviourName = LineTokens[At++];
-                BehaviourRegistry::Get()->AttachNewBehaviour(BehaviourName, NewModel);
-            }
-
-            m_UntrackedModels.push_back(NewModel);
-
-            break;
+            AddedModel = AddModel(LoadModel(ModelJson, MaterialVec, StaticMeshVec));
         }
-        default:
-            break;
+        for (std::string Behaviour : ModelJson["Behaviours"])
+        {
+            BehaviourRegistry::Get()->AttachNewBehaviour(Behaviour, AddedModel);
         }
     }
 
 }
+
+//void Scene::Save(std::string FileName)
+//{   
+//    // Set of all textures used in the scene (TODO: replace with Materials)
+//    std::set<Material> Materials;
+//    // Set of all Static Meshes used in the scene
+//    std::set<StaticMesh> StaticMeshes;
+//
+//    for (auto& it : m_UntrackedModels)
+//    {
+//        Texture tex = it->m_TexturedMeshes[0].m_Material.m_Albedo;
+//        StaticMesh mesh = it->m_TexturedMeshes[0].m_Mesh;
+//        
+//        Material mat = it->m_TexturedMeshes[0].m_Material;
+//        //if (tex.LoadedFromFile)
+//        //{
+//        //  Materials.insert(mat);
+//        //}
+//        Materials.insert(mat);
+//        if (mesh.LoadedFromFile)
+//        {
+//            StaticMeshes.insert(it->m_TexturedMeshes[0].m_Mesh);
+//        }
+//    }
+//
+//    std::vector<Material> MaterialVec(Materials.begin(), Materials.end());
+//    std::vector<StaticMesh> StaticMeshVec(StaticMeshes.begin(), StaticMeshes.end());
+//
+//
+//    std::ofstream File(FileName);
+//
+//    if (!File.is_open())
+//    {
+//        Engine::DEBUGPrint("Failed to save scene :(");
+//        return;
+//    }
+//
+//    File << "Textures:" << std::endl;
+//    for (auto& Mat : MaterialVec)
+//    {
+//        std::string Path = Mat.m_Albedo.Path.GetFullPath();
+//        std::string NormPath = Mat.m_Normal.Path.GetFullPath();
+//        std::string RoughPath = Mat.m_Roughness.Path.GetFullPath();
+//        std::string MetalPath = Mat.m_Metallic.Path.GetFullPath();
+//        std::string AOPath = Mat.m_AO.Path.GetFullPath();
+//
+//        File << Path << Separator << NormPath << Separator << RoughPath << Separator << MetalPath << Separator << AOPath << std::endl;
+//    }
+//
+//    File << "StaticMeshes:" << std::endl;
+//    for (auto& Mesh : StaticMeshVec)
+//    {
+//        std::string Path = Mesh.Path.GetFullPath();
+//        File << Path << std::endl;
+//    }
+//
+//    File << "Entities:" << std::endl;
+//
+//    CollisionModule* Collisions = CollisionModule::Get();
+//
+//    for (auto& it : m_UntrackedModels)
+//    {
+//        int64_t StaticMeshIndex = 0;
+//        int64_t TextureIndex = 0;
+//
+//        bool GeneratedMesh = false;
+//
+//        auto MeshIt = std::find(StaticMeshVec.begin(), StaticMeshVec.end(), it->m_TexturedMeshes[0].m_Mesh);
+//        if (MeshIt != StaticMeshVec.end())
+//        {
+//            StaticMeshIndex = MeshIt - StaticMeshVec.begin();
+//        }
+//        else
+//        {
+//            GeneratedMesh = true;
+//            //Engine::FatalError("Could not find mesh while saving scene (this should never happen)");
+//        }
+//
+//        auto MaterialIt = std::find(MaterialVec.begin(), MaterialVec.end(), it->m_TexturedMeshes[0].m_Material);
+//        if (MaterialIt != MaterialVec.end())
+//        {
+//            TextureIndex = MaterialIt - MaterialVec.begin();
+//        }
+//        else
+//        {
+//            Engine::FatalError("Could not find texture while saving scene (this should never happen)");
+//        }
+//
+//        File << TextureIndex << Separator;
+//
+//        if (!GeneratedMesh)
+//        {
+//            File << StaticMeshIndex << Separator;
+//        }
+//        else
+//        {
+//            File << "B" << Separator;
+//            // For now, all generated meshes are boxes, so store the AABB
+//            AABB BoxAABB = Collisions->GetCollisionMeshFromMesh(it->m_TexturedMeshes[0].m_Mesh)->boundingBox;
+//
+//            File << BoxAABB.min.x << Separator << BoxAABB.min.y << Separator << BoxAABB.min.z << Separator;
+//            File << BoxAABB.max.x << Separator << BoxAABB.max.y << Separator << BoxAABB.max.z << Separator;
+//        }
+//
+//        Mat4x4f TransMat = it->GetTransform().GetTransformMatrix();
+//
+//        for (int i = 0; i < 4; ++i)
+//        {
+//            File << TransMat[i].x << Separator << TransMat[i].y << Separator << TransMat[i].z << Separator << TransMat[i].w << Separator;
+//        }
+//
+//        std::vector<std::string> BehaviourNames = BehaviourRegistry::Get()->GetBehavioursAttachedToEntity(it);
+//
+//        for (std::string BehaviourName : BehaviourNames)
+//        {
+//            File << BehaviourName << Separator;
+//        }
+//
+//        File << std::endl;
+//
+//    }
+//
+//    File.close();
+//
+//}
+//
+//void Scene::Load(std::string FileName)
+//{
+//    AssetRegistry* Registry = AssetRegistry::Get();
+//
+//    std::ifstream File(FileName);
+//
+//    if (!File.is_open())
+//    {
+//        return;
+//    }
+//
+//    GraphicsModule* Graphics = GraphicsModule::Get();
+//
+//    Clear();
+//
+//    std::vector<Material> SceneMaterials;
+//    std::vector<StaticMesh> SceneStaticMeshes;
+//
+//    FileReaderState ReaderState;
+//
+//    std::string Line;
+//    while (std::getline(File, Line))
+//    {
+//        std::vector<std::string> LineTokens = StringUtils::Split(Line, Separator);
+//
+//        if (GetReaderStateFromToken(LineTokens[0], ReaderState))
+//        {
+//             State changed, go to next line
+//            continue;
+//        }
+//        switch (ReaderState)
+//        {
+//        case TEXTURES:
+//            if (LineTokens.size() == 5)
+//            {
+//                Texture DiffuseTex = *Registry->LoadTexture(LineTokens[0]);
+//                Texture NormalTex = *Registry->LoadTexture(LineTokens[1]);
+//                Texture RoughnessTex = *Registry->LoadTexture(LineTokens[2]);
+//                Texture MetallicTex = *Registry->LoadTexture(LineTokens[3]);
+//                Texture AOTex = *Registry->LoadTexture(LineTokens[4]);
+//
+//                SceneMaterials.push_back(Graphics->CreateMaterial(DiffuseTex, NormalTex, RoughnessTex, MetallicTex, AOTex));
+//            }
+//            else if (LineTokens.size() == 4)
+//            {
+//                Texture DiffuseTex = *Registry->LoadTexture(LineTokens[0]);
+//                Texture NormalTex = *Registry->LoadTexture(LineTokens[1]);
+//                Texture RoughnessTex = *Registry->LoadTexture(LineTokens[2]);
+//                Texture MetallicTex = *Registry->LoadTexture(LineTokens[3]);
+//
+//                SceneMaterials.push_back(Graphics->CreateMaterial(DiffuseTex, NormalTex, RoughnessTex, MetallicTex));
+//            }
+//            else if (LineTokens.size() == 3)
+//            {
+//                Texture DiffuseTex = *Registry->LoadTexture(LineTokens[0]);
+//                Texture NormalTex = *Registry->LoadTexture(LineTokens[1]);
+//                Texture RoughnessTex = *Registry->LoadTexture(LineTokens[2]);
+//
+//                SceneMaterials.push_back(Graphics->CreateMaterial(DiffuseTex, NormalTex, RoughnessTex));
+//            }
+//            else if (LineTokens.size() == 2)
+//            {
+//                Texture DiffuseTex = *Registry->LoadTexture(LineTokens[0]);
+//                Texture NormalTex = *Registry->LoadTexture(LineTokens[1]);
+//
+//                SceneMaterials.push_back(Graphics->CreateMaterial(DiffuseTex, NormalTex));
+//            }
+//            else
+//            {
+//                Texture DiffuseTex = *Registry->LoadTexture(LineTokens[0]);
+//                SceneMaterials.push_back(Graphics->CreateMaterial(DiffuseTex));
+//            }
+//            break;
+//        case STATIC_MESHES:
+//            SceneStaticMeshes.push_back(*Registry->LoadStaticMesh(LineTokens[0]));
+//            break;
+//        case ENTITIES:
+//        {
+//            int At = 0;
+//            
+//            int MaterialIndex = std::stoi(LineTokens[At++]);
+//            
+//            Model* NewModel;
+//
+//            if (LineTokens[At++] == "B")
+//            {
+//                AABB BoxAABB;
+//                BoxAABB.min.x = std::stof(LineTokens[At++]); BoxAABB.min.y = std::stof(LineTokens[At++]); BoxAABB.min.z = std::stof(LineTokens[At++]);
+//                BoxAABB.max.x = std::stof(LineTokens[At++]); BoxAABB.max.y = std::stof(LineTokens[At++]); BoxAABB.max.z = std::stof(LineTokens[At++]);
+//
+//                NewModel = new Model(Graphics->CreateBoxModel(BoxAABB, SceneMaterials[MaterialIndex]));
+//            }
+//            else
+//            {
+//                int StaticMeshIndex = std::stoi(LineTokens[1]);
+//                NewModel = new Model(Graphics->CreateModel(TexturedMesh(SceneStaticMeshes[StaticMeshIndex], SceneMaterials[MaterialIndex])));
+//            }
+//
+//            Mat4x4f EntityTransform;
+//            EntityTransform[0].x = std::stof(LineTokens[At++]); EntityTransform[0].y = std::stof(LineTokens[At++]); EntityTransform[0].z = std::stof(LineTokens[At++]); EntityTransform[0].w = std::stof(LineTokens[At++]);
+//            EntityTransform[1].x = std::stof(LineTokens[At++]); EntityTransform[1].y = std::stof(LineTokens[At++]); EntityTransform[1].z = std::stof(LineTokens[At++]); EntityTransform[1].w = std::stof(LineTokens[At++]);
+//            EntityTransform[2].x = std::stof(LineTokens[At++]); EntityTransform[2].y = std::stof(LineTokens[At++]); EntityTransform[2].z = std::stof(LineTokens[At++]); EntityTransform[2].w = std::stof(LineTokens[At++]);
+//            EntityTransform[3].x = std::stof(LineTokens[At++]); EntityTransform[3].y = std::stof(LineTokens[At++]); EntityTransform[3].z = std::stof(LineTokens[At++]); EntityTransform[3].w = std::stof(LineTokens[At++]);
+//
+//            NewModel->GetTransform().SetTransformMatrix(EntityTransform);
+//
+//            size_t NumBehaviours = LineTokens.size() - (At);
+//
+//            for (int i = 0; i < NumBehaviours; ++i)
+//            {
+//                std::string BehaviourName = LineTokens[At++];
+//                BehaviourRegistry::Get()->AttachNewBehaviour(BehaviourName, NewModel);
+//            }
+//
+//            m_UntrackedModels.push_back(NewModel);
+//
+//            break;
+//        }
+//        default:
+//            break;
+//        }
+//    }
+//
+//}
 
 void Scene::Clear()
 {
@@ -715,4 +887,154 @@ bool Scene::GetReaderStateFromToken(std::string Token, FileReaderState& OutState
     }
     // Otherwise leave state the same
     return false;
+}
+
+void Scene::SaveMaterial(json& JsonObject, Material& Mat)
+{
+    JsonObject[0] = Mat.m_Albedo.Path.GetFullPath();
+    JsonObject[1] = Mat.m_Normal.Path.GetFullPath();
+    JsonObject[2] = Mat.m_Roughness.Path.GetFullPath();
+    JsonObject[3] = Mat.m_Metallic.Path.GetFullPath();
+    JsonObject[4] = Mat.m_AO.Path.GetFullPath();
+}
+
+void Scene::SaveStaticMesh(json& JsonObject, StaticMesh& Mesh)
+{
+    JsonObject = { Mesh.Path.GetFullPath() };
+}
+
+void Scene::SavePointLight(json& JsonObject, PointLight& PointLight)
+{
+    JsonObject["Position"] = { PointLight.position.x, PointLight.position.y, PointLight.position.z };
+    JsonObject["Colour"] = { PointLight.colour.x, PointLight.colour.y, PointLight.colour.z };
+    JsonObject["Intensity"] = PointLight.intensity;
+}
+
+void Scene::SaveModel(json& JsonObject, Model& Mod, int64_t MeshIndex, int64_t MatIndex)
+{
+    Mat4x4f ModTrans = Mod.GetTransform().GetTransformMatrix();
+
+    JsonObject["MeshID"] = MeshIndex;
+    JsonObject["MatID"] = MatIndex;
+    JsonObject["Transform"] = { 
+        ModTrans[0].x, ModTrans[0].y, ModTrans[0].z, ModTrans[0].w,
+        ModTrans[1].x, ModTrans[1].y, ModTrans[1].z, ModTrans[1].w,
+        ModTrans[2].x, ModTrans[2].y, ModTrans[2].z, ModTrans[2].w,
+        ModTrans[3].x, ModTrans[3].y, ModTrans[3].z, ModTrans[3].w,
+    };
+
+    std::vector<std::string> Behaviours = BehaviourRegistry::Get()->GetBehavioursAttachedToEntity(&Mod);
+
+    JsonObject["Behaviours"] = Behaviours;
+
+}
+
+void Scene::SaveRawModel(json& JsonObject, Model& Mod, int64_t MatIndex)
+{
+    Mat4x4f ModTrans = Mod.GetTransform().GetTransformMatrix();
+    JsonObject["MatID"] = MatIndex;
+    JsonObject["Transform"] = {
+        ModTrans[0].x, ModTrans[0].y, ModTrans[0].z, ModTrans[0].w,
+        ModTrans[1].x, ModTrans[1].y, ModTrans[1].z, ModTrans[1].w,
+        ModTrans[2].x, ModTrans[2].y, ModTrans[2].z, ModTrans[2].w,
+        ModTrans[3].x, ModTrans[3].y, ModTrans[3].z, ModTrans[3].w,
+    };
+
+    GraphicsModule* Graphics = GraphicsModule::Get();
+
+    std::vector<float> VertBuf = Graphics->GetModelVertexBuffer(Mod);
+    std::vector<unsigned int> IndexBuf = Graphics->GetModelIndexBuffer(Mod);
+
+    JsonObject["Buffer"][0] = VertBuf;
+    JsonObject["Buffer"][1] = IndexBuf;
+
+    std::vector<std::string> Behaviours = BehaviourRegistry::Get()->GetBehavioursAttachedToEntity(&Mod);
+
+    JsonObject["Behaviours"] = Behaviours;
+}
+
+Material Scene::LoadMaterial(json& JsonObject)
+{
+    Texture* Albedo = AssetRegistry::Get()->LoadTexture(JsonObject[0].get<std::string>());
+    Texture* Normal = AssetRegistry::Get()->LoadTexture(JsonObject[1].get<std::string>());
+    Texture* Roughness = AssetRegistry::Get()->LoadTexture(JsonObject[2].get<std::string>());
+    Texture* Metallic = AssetRegistry::Get()->LoadTexture(JsonObject[3].get<std::string>());
+    Texture* AO = AssetRegistry::Get()->LoadTexture(JsonObject[4].get<std::string>());
+
+    return Material(*Albedo, *Normal, *Roughness, *Metallic, *AO);
+}
+
+StaticMesh Scene::LoadStaticMesh(json& JsonObject)
+{
+    return *AssetRegistry::Get()->LoadStaticMesh(JsonObject[0].get<std::string>());
+}
+
+PointLight Scene::LoadPointLight(json& JsonObject)
+{
+    auto Pos = JsonObject["Position"];
+    auto Colour = JsonObject["Colour"];
+
+    Vec3f VecPos = Vec3f(Pos[0], Pos[1], Pos[2]);
+    Vec3f VecColour = Vec3f(Colour[0], Colour[1], Colour[2]);
+    
+    float Intensity = JsonObject["Intensity"];
+
+    PointLight PLight;
+    PLight.position = VecPos;
+    PLight.colour = VecColour;
+    PLight.intensity = Intensity;
+
+    return PLight;
+}
+
+Model Scene::LoadModel(json& JsonObject, std::vector<Material>& MaterialVector, std::vector<StaticMesh>& StaticMeshVector)
+{
+    Material ModelMat = MaterialVector[JsonObject["MatID"]];
+    StaticMesh ModelMesh = StaticMeshVector[JsonObject["MeshID"]];
+
+    auto Trans = JsonObject["Transform"];
+
+    Mat4x4f TransMat;
+    TransMat[0] = { Trans[0], Trans[1], Trans[2], Trans[3]};
+    TransMat[1] = { Trans[4], Trans[5], Trans[6], Trans[7] };
+    TransMat[2] = { Trans[8], Trans[9], Trans[10], Trans[11] };
+    TransMat[3] = { Trans[12], Trans[13], Trans[14], Trans[15] };
+
+    Model NewModel = Model(TexturedMesh(ModelMesh, ModelMat));
+    NewModel.GetTransform().SetTransformMatrix(TransMat);
+
+    for (std::string Behaviour : JsonObject["Behaviours"])
+    {
+        BehaviourRegistry::Get()->AttachNewBehaviour(Behaviour, &NewModel);
+    }
+
+    return NewModel;
+}
+
+Model Scene::LoadRawModel(json& JsonObject, std::vector<Material>& MaterialVector)
+{
+    Material ModelMat = MaterialVector[JsonObject["MatID"]];
+    std::vector<float> MeshBuffer = JsonObject["Buffer"][0];
+    std::vector<unsigned int> IndexBuffer = JsonObject["Buffer"][1];
+
+    auto Trans = JsonObject["Transform"];
+
+    Mat4x4f TransMat;
+    TransMat[0] = { Trans[0], Trans[1], Trans[2], Trans[3] };
+    TransMat[1] = { Trans[4], Trans[5], Trans[6], Trans[7] };
+    TransMat[2] = { Trans[8], Trans[9], Trans[10], Trans[11] };
+    TransMat[3] = { Trans[12], Trans[13], Trans[14], Trans[15] };
+
+    GraphicsModule* Graphics = GraphicsModule::Get();
+
+    Model NewModel = Graphics->LoadModel(MeshBuffer, IndexBuffer, ModelMat);
+
+    NewModel.GetTransform().SetTransformMatrix(TransMat);
+
+    for (std::string Behaviour : JsonObject["Behaviours"])
+    {
+        BehaviourRegistry::Get()->AttachNewBehaviour(Behaviour, &NewModel);
+    }
+
+    return NewModel;
 }

@@ -189,7 +189,8 @@ public:
     void UpdateMeshData(StaticMesh_ID meshID, const VertexBufferFormat& vertBufFormat, std::vector<float> vertexData);
     void UpdateMeshData(StaticMesh_ID meshID, const VertexBufferFormat& vertBufFormat, std::vector<float> vertexData, std::vector<ElementIndex> indices);
 
-    float* GetMeshVertexData(StaticMesh_ID meshID);
+    std::vector<float> GetMeshVertexData(StaticMesh_ID meshID);
+    std::vector<unsigned int> GetMeshIndexData(StaticMesh_ID meshID);
 
     void SetActiveFBuffer(Framebuffer_ID fBufferID);
     void ResizeFBuffer(Framebuffer_ID fBufferID, Vec2i newSize);

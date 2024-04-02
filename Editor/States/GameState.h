@@ -36,5 +36,12 @@ private:
 
     Camera* ViewportCamera;
     GBuffer ViewportBuffer;
+
+    // TEMP
+    int PrevFrameTimeCount = 0;
+    float PrevFrameTimeSum = 0.0f;
+    int PrevAveFPS = 0;
+
+    Font TestFont;
 };
 

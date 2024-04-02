@@ -977,7 +977,11 @@ MessageCallback(GLenum source,
     const GLchar* message,
     const void* userParam)
 {
-    if (severity == GL_DEBUG_SEVERITY_MEDIUM)
+    if (severity == GL_DEBUG_SEVERITY_LOW)
+    {
+        Engine::DEBUGPrint("Low severity: " + std::string(message) + "\n");
+    }
+    else if (severity == GL_DEBUG_SEVERITY_MEDIUM)
     {
         Engine::DEBUGPrint("Medium severity: " + std::string(message) + "\n");
     }
@@ -1355,9 +1359,38 @@ void Renderer::UpdateMeshData(StaticMesh_ID meshID, const VertexBufferFormat& ve
     delete[] bufferData;
 }
 
-float* Renderer::GetMeshVertexData(StaticMesh_ID meshID)
+std::vector<float> Renderer::GetMeshVertexData(StaticMesh_ID meshID)
 {
-    return nullptr;
+    OpenGLMesh mesh = *GetGLMeshFromMeshID(meshID);
+
+    float* vertexBuffer = new float[mesh.bufferSize / sizeof(float)];
+    glGetNamedBufferSubData(mesh.VBO, 0, mesh.bufferSize, (void*)vertexBuffer);
+    std::vector<float> vertices;
+    for (int i = 0; i < mesh.bufferSize / sizeof(float); ++i)
+    {
+        vertices.push_back(vertexBuffer[i]);
+    }
+
+    delete[] vertexBuffer;
+
+    return vertices;
+}
+
+std::vector<unsigned int> Renderer::GetMeshIndexData(StaticMesh_ID meshID)
+{
+    OpenGLMesh mesh = *GetGLMeshFromMeshID(meshID);
+
+    unsigned int* elementBuffer = new unsigned int[mesh.numElements];
+    glGetNamedBufferSubData(mesh.EBO, 0, mesh.numElements * sizeof(unsigned int), (void*)elementBuffer);
+    std::vector<unsigned int> elements;
+    for (int i = 0; i < mesh.numElements; ++i)
+    {
+        elements.push_back(elementBuffer[i]);
+    }
+
+    delete[] elementBuffer;
+
+    return elements;
 }
 
 void Renderer::SetActiveFBuffer(Framebuffer_ID fBufferID)

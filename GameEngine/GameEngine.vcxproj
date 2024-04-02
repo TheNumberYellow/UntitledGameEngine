@@ -563,6 +563,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Asset\AssetRegistry.h" />
+    <ClInclude Include="include\json.hpp" />
     <ClInclude Include="Modules\AudioModule.h" />
     <ClInclude Include="State\BaseState.h" />
     <ClInclude Include="Behaviour\Behaviour.h" />

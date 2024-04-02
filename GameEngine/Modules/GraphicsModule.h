@@ -41,7 +41,7 @@ struct GBuffer
 struct Material
 {
     Material() {}
-    Material(Texture Albedo, Texture Normal, Texture Metallic, Texture Roughness, Texture AO);
+    Material(Texture Albedo, Texture Normal, Texture Roughness, Texture Metallic, Texture AO);
 
     Texture m_Albedo;
     Texture m_Normal;
@@ -105,8 +105,6 @@ public:
     Mat4x4f GetTransformMatrix();
     void SetTransformMatrix(Mat4x4f mat);
 
-    bool WasTransformMatrixUpdated();
-
 private:
 
     void UpdateTransformMatrix();
@@ -117,7 +115,6 @@ private:
 
     Mat4x4f m_Transform;
     bool m_TransformMatrixNeedsUpdate = false;
-    bool m_WasTransformMatrixUpdated = false;
 };
 
 struct TexturedMesh
@@ -254,6 +251,8 @@ public:
 
     Model CloneModel(const Model& original);
 
+    Model LoadModel(std::vector<float>& BufferData, std::vector<unsigned int>& IndexData, Material Mat);
+
     //TODO(fraser) Going to want something that's not a model for level geometry like this, something that can be edited easily (and which doesn't need use a transform matrix)
     Model CreateBoxModel(AABB box);
     Model CreateBoxModel(AABB box, Material texture);
@@ -268,6 +267,9 @@ public:
     void SetCamera(Camera* camera);
 
     void SetDirectionalLight(DirectionalLight dirLight);
+
+    std::vector<float> GetModelVertexBuffer(Model& model);
+    std::vector<unsigned int> GetModelIndexBuffer(Model& model);
 
     // todo(Fraser): these two should not be called from client code (only the engine)
     // look up a better way to do this
