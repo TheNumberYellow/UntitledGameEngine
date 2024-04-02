@@ -935,6 +935,7 @@ void Scene::SaveModel(json& JsonObject, Model& Mod, int64_t MeshIndex, int64_t M
     std::vector<std::string> Behaviours = BehaviourRegistry::Get()->GetBehavioursAttachedToEntity(&Mod);
 
     JsonObject["Behaviours"] = Behaviours;
+    JsonObject["Type"] = Mod.Type;
 
 }
 
@@ -960,6 +961,8 @@ void Scene::SaveRawModel(json& JsonObject, Model& Mod, int64_t MatIndex)
     std::vector<std::string> Behaviours = BehaviourRegistry::Get()->GetBehavioursAttachedToEntity(&Mod);
 
     JsonObject["Behaviours"] = Behaviours;
+
+    JsonObject["Type"] = Mod.Type;
 }
 
 Material Scene::LoadMaterial(json& JsonObject)
@@ -1017,6 +1020,8 @@ Model Scene::LoadModel(json& JsonObject, std::vector<Material>& MaterialVector, 
         BehaviourRegistry::Get()->AttachNewBehaviour(Behaviour, &NewModel);
     }
 
+    NewModel.Type = JsonObject["Type"];
+
     return NewModel;
 }
 
@@ -1044,6 +1049,8 @@ Model Scene::LoadRawModel(json& JsonObject, std::vector<Material>& MaterialVecto
     {
         BehaviourRegistry::Get()->AttachNewBehaviour(Behaviour, &NewModel);
     }
+
+    NewModel.Type = JsonObject["Type"];
 
     return NewModel;
 }

@@ -182,7 +182,7 @@ inline CursorState::CursorState(EditorState* InEditorState, Scene* InEditorScene
     ZAxisScale = &EditorStatePtr->zScaleWidget;
 }
 
-void CursorState::Update()
+void CursorState::Update(float DeltaTime)
 {
     InputModule* Input = InputModule::Get();
     UIModule* UI = UIModule::Get();
@@ -325,6 +325,9 @@ void CursorState::Update()
         break;
     case ToolMode::Geometry:
         UpdateGeometryTool();
+        break;
+    case ToolMode::Sculpt:
+        UpdateSculptTool(DeltaTime);
         break;
     default:
     {
@@ -697,8 +700,117 @@ void CursorState::UpdateVertexTool()
 {
 }
 
-void CursorState::UpdateSculptTool()
+void CursorState::UpdateSculptTool(float DeltaTime)
 {
+    InputModule* Input = InputModule::Get();
+    CollisionModule* Collisions = CollisionModule::Get();
+    GraphicsModule* Graphics = GraphicsModule::Get();
+
+    KeyState ClickState = Input->GetMouseState().GetMouseButtonState(MouseButton::LMB);
+
+    if (Dragging != DraggingMode::None)
+    {
+        return;
+    }
+
+    Vec2i MousePos = Input->GetMouseState().GetMousePos();
+    
+    if (!EditorStatePtr->GetEditorSceneViewportRect().Contains(MousePos))
+    {
+        return;
+    }
+
+    if (Input->GetMouseState().GetDeltaMouseWheel() > 0)
+    {
+        SculptRadius += 0.1f;
+    }
+    else if (Input->GetMouseState().GetDeltaMouseWheel() < 0)
+    {
+        SculptRadius -= 0.1f;
+        if (SculptRadius < 1.0f)
+        {
+            SculptRadius = 1.0f;
+        }
+    }
+
+    Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+
+    SceneRayCastHit FinalHit = EditorScenePtr->RayCast(MouseRay);
+
+    if (FinalHit.rayCastHit.hit)
+    {
+        if (FinalHit.hitModel->Type == ModelType::PLANE)
+        {
+            Vec3f HitPoint = FinalHit.rayCastHit.hitPoint;
+            Graphics->DebugDrawSphere(HitPoint, SculptRadius, Vec3f(0.6f, 0.3f, 0.9f));
+
+            if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB) || Input->GetMouseState().GetMouseButtonState(MouseButton::RMB))
+            {
+                Model* PlaneModel = FinalHit.hitModel;
+                Vec3f ModelSpaceVertPos = HitPoint * Math::inv(PlaneModel->GetTransform().GetTransformMatrix());
+
+                float VerticalDir = Input->GetMouseState().GetMouseButtonState(MouseButton::RMB) ? -SculptSpeed : SculptSpeed;
+
+                StaticMesh_ID Mesh = PlaneModel->m_TexturedMeshes[0].m_Mesh.Id;
+
+                std::vector<Vertex*> Vertices = Graphics->m_Renderer.MapMeshVertices(Mesh);
+
+                for (auto& Vert : Vertices)
+                {
+                    float Dist = Math::magnitude(Vert->position - ModelSpaceVertPos);
+                    //if (Dist < radius)
+                    //{
+                    float Strength = Math::SmoothStep(Dist, SculptRadius, 0.5f) * VerticalDir * (SculptRadius * 0.25f);
+                    Vert->position += Vec3f(0.0f, 0.0f, Strength) * (float)DeltaTime;
+                    //}
+                }
+
+                Graphics->m_Renderer.UnmapMeshVertices(Mesh);
+                Collisions->InvalidateMeshCollisionData(Mesh);
+                Graphics->RecalculateTerrainModelNormals(*PlaneModel);
+            }
+            else if (Input->GetMouseState().GetMouseButtonState(MouseButton::MIDDLE))
+            {
+                Model* PlaneModel = FinalHit.hitModel;
+                Vec3f ModelSpaceVertPos = HitPoint * Math::inv(PlaneModel->GetTransform().GetTransformMatrix());
+
+                StaticMesh_ID Mesh = PlaneModel->m_TexturedMeshes[0].m_Mesh.Id;
+
+                std::vector<Vertex*> Vertices = Graphics->m_Renderer.MapMeshVertices(Mesh);
+
+                std::vector<Vertex*> VerticesInRange;
+                float AverageElevation = 0.0f;
+
+                for (auto& Vert : Vertices)
+                {
+                    float Dist = Math::magnitude(Vert->position - ModelSpaceVertPos);
+                    if (Dist < SculptRadius)
+                    {
+                        VerticesInRange.push_back(Vert);
+                        AverageElevation += Vert->position.z;
+                    }
+                }
+                AverageElevation /= VerticesInRange.size();
+
+                for (auto& InRangeVert : VerticesInRange)
+                {
+                    float Dist = Math::magnitude(InRangeVert->position - ModelSpaceVertPos);
+                    float Strength = Math::SmoothStep(Dist, SculptRadius, 0.0f);
+
+                    float Diff = AverageElevation - InRangeVert->position.z;
+
+                    InRangeVert->position.z += SculptSpeed * Diff * Strength * (float)DeltaTime;
+                }
+
+                Graphics->m_Renderer.UnmapMeshVertices(Mesh);
+                Collisions->InvalidateMeshCollisionData(Mesh);
+                Graphics->RecalculateTerrainModelNormals(*PlaneModel);
+
+            }
+
+
+        }
+    }
 }
 
 void CursorState::UpdateTranslateTool()
@@ -1026,9 +1138,102 @@ void CursorState::UpdatePlaneTool()
 
     if (Dragging != DraggingMode::None)
     {
-        IsCreatingNewBox = false;
+        IsCreatingNewPlane = false;
     }
 
+    if (IsCreatingNewPlane)
+    {
+        if (ClickState.justReleased)
+        {
+            Model* NewPlane = new Model(Graphics->CreatePlaneModel(Vec2f(NewPlaneMin.x, NewPlaneMin.y), Vec2f(NewPlaneMax.x, NewPlaneMax.y), NewPlaneMin.z, NewPlaneSubdivisions));
+            EditorScenePtr->AddModel(*NewPlane);
+            IsCreatingNewPlane = false;
+        }
+        else
+        {
+            Vec2i MousePos = Input->GetMouseState().GetMousePos();
+            Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+
+            RayCastHit PlaneHit = Collisions->RayCast(MouseRay, Plane{ NewPlaneStartPoint, Vec3f(0.0f, 0.0f, 1.0f) });
+
+            int DeltaMouseWheel = Input->GetMouseState().GetDeltaMouseWheel();
+            if (DeltaMouseWheel > 0)
+            {
+                NewPlaneSubdivisions += 1;
+            }
+            else if (DeltaMouseWheel < 0)
+            {
+                NewPlaneSubdivisions -= 1;
+                if (NewPlaneSubdivisions < 1)
+                {
+                    NewPlaneSubdivisions = 1;
+                }
+            }
+
+            Vec3f OriginalHitPoint = PlaneHit.hitPoint;
+
+            PlaneHit.hitPoint.x = Math::Round(PlaneHit.hitPoint.x, GeoPlaceSnap);
+            PlaneHit.hitPoint.y = Math::Round(PlaneHit.hitPoint.y, GeoPlaceSnap);
+            PlaneHit.hitPoint.z = Math::Round(PlaneHit.hitPoint.z, GeoPlaceSnap);
+
+            float minX = std::min(PlaneHit.hitPoint.x, NewPlaneStartPoint.x);
+            float minY = std::min(PlaneHit.hitPoint.y, NewPlaneStartPoint.y);
+
+            float maxX = std::max(PlaneHit.hitPoint.x, NewPlaneStartPoint.x);
+            float maxY = std::max(PlaneHit.hitPoint.y, NewPlaneStartPoint.y);
+
+            NewPlaneMin = Vec3f(minX, minY, PlaneHit.hitPoint.z);
+            NewPlaneMax = Vec3f(maxX, maxY, PlaneHit.hitPoint.z);
+
+            Vec3f Green = Vec3f(0.1f, 1.0f, 0.3f);
+
+            Vec3f SouthWest = NewPlaneMin;
+            Vec3f NorthWest = Vec3f(minX, maxY, PlaneHit.hitPoint.z);
+            Vec3f NorthEast = NewPlaneMax;
+            Vec3f SouthEast = Vec3f(maxX, minY, PlaneHit.hitPoint.z);
+
+            for (int i = 0; i < NewPlaneSubdivisions + 1; ++i)
+            {
+                Vec3f HorizonalLeft = SouthWest + ((float)i * ((NorthWest - SouthWest) / (float)NewPlaneSubdivisions));
+                Vec3f HorizontalRight = SouthEast + ((float)i * ((NorthEast - SouthEast) / (float)NewPlaneSubdivisions));
+
+                Vec3f VerticalBottom = SouthWest + ((float)i * ((SouthEast - SouthWest) / (float)NewPlaneSubdivisions));
+                Vec3f VerticalTop = NorthWest + ((float)i * ((NorthEast - NorthWest) / (float)NewPlaneSubdivisions));
+
+                Graphics->DebugDrawLine(HorizonalLeft, HorizontalRight, Green);
+                Graphics->DebugDrawLine(VerticalBottom, VerticalTop, Green);
+            }
+
+            //graphics.DebugDrawAABB(aabbBox, Vec3f(0.1f, 1.0f, 0.3f));
+            //graphics.DebugDrawLine(originalHitPoint, hit.hitPoint, Vec3f(1.0f, 0.5f, 0.5f));
+        }
+
+    }
+    else
+    {
+        Vec2i MousePos = Input->GetMouseState().GetMousePos();
+        if (ClickState.justPressed && Dragging == DraggingMode::None && EditorStatePtr->GetEditorSceneViewportRect().Contains(MousePos))
+        {
+            Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+
+            RayCastHit PlaneHit = Collisions->RayCast(MouseRay, Plane(Vec3f(0.0f, 0.0f, 0.0f), Vec3f(0.0f, 0.0f, 1.0f)));
+            RayCastHit SceneHit = EditorScenePtr->RayCast(MouseRay).rayCastHit;
+
+            RayCastHit FinalHit = PlaneHit.hitDistance < SceneHit.hitDistance ? PlaneHit : SceneHit;
+
+            if (FinalHit.hit)
+            {
+                Vec3f HitPoint = FinalHit.hitPoint;
+
+                HitPoint.x = Math::Round(HitPoint.x, GeoPlaceSnap);
+                HitPoint.y = Math::Round(HitPoint.y, GeoPlaceSnap);
+                HitPoint.z = Math::Round(HitPoint.z, GeoPlaceSnap);
+
+                IsCreatingNewPlane = true;
+                NewPlaneStartPoint = HitPoint;
+            }
+        }
+    }
 }
 
 void CursorState::UpdateSelectedObjects()
@@ -1201,7 +1406,7 @@ void EditorState::UpdateEditor(float DeltaTime)
     {
         // Update tools
         // TODO(Fraser): This is heavily reliant on order since Update() calls UI functions - another reason to make the UI module use deferred render commands
-        Cursor.Update();
+        Cursor.Update(DeltaTime);
         if (Input->GetKeyState(Key::Alt).justPressed)
         {
             if (CursorLocked)
@@ -1258,6 +1463,10 @@ void EditorState::UpdateEditor(float DeltaTime)
         {       
             Cursor.SetToolMode(ToolMode::Geometry);
         }
+    }
+    if (Input->GetKeyState(Key::Four).justPressed)
+    {
+        Cursor.SetToolMode(ToolMode::Sculpt);
     }
 
     Vec2i ViewportSize = Engine::GetClientAreaSize();
@@ -1671,6 +1880,13 @@ void EditorState::DrawEditorUI()
                 Cursor.SetToolMode(ToolMode::Geometry);
             }
         }
+
+        if (UI->ImgButton("SculptTool", sculptToolTexture, Vec2f(80.0f, 80.0f), 12.0f,
+            Cursor.GetToolMode() == ToolMode::Sculpt ? SelectedColour : UnSelectedColour))
+        {
+            Cursor.SetToolMode(ToolMode::Sculpt);
+        }
+
     }
     UI->EndFrame();
 

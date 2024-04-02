@@ -148,7 +148,7 @@ public:
 
     CursorState(EditorState* InEditorState, Scene* InEditorScene);
 
-    void Update();
+    void Update(float DeltaTime);
 
     void ResetAllState();
     void UnselectAll();
@@ -179,7 +179,7 @@ private:
     void UpdateTransformTool();
     void UpdateGeometryTool();
     void UpdateVertexTool();
-    void UpdateSculptTool();
+    void UpdateSculptTool(float DeltaTime);
 
     void UpdateTranslateTool();
     void UpdateRotateTool();
@@ -243,10 +243,14 @@ private:
     AABB BoxBeingCreated;
     float GeoPlaceSnap = 1.0f;
 
-    bool IsCreatingNewPlane;
+    bool IsCreatingNewPlane = false;
     Vec3f NewPlaneStartPoint;
     Vec3f NewPlaneMin, NewPlaneMax;
-    int NewPlaneSubdivisions;
+    int NewPlaneSubdivisions = 1;
+
+    // Sculpt mode state
+    float SculptSpeed = 3.0f;
+    float SculptRadius = 1.0f;
 
     EditorState* EditorStatePtr;
     Scene* EditorScenePtr;
