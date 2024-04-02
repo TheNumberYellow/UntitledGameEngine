@@ -77,6 +77,7 @@ public:
     void Save(std::string FileName);
 
     void Load(std::string FileName);
+    void LegacyLoad(std::string FileName);
 
     void Clear();
 private:

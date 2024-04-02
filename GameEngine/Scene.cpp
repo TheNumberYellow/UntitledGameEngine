@@ -499,6 +499,15 @@ void Scene::Load(std::string FileName)
 
     Clear();
 
+    if (!json::accept(File))
+    {
+        LegacyLoad(FileName);
+        return;
+    }
+
+    File.clear();
+    File.seekg(0, std::ios::beg);
+
     json SceneJson = json::parse(File);
 
     File.close();
@@ -668,131 +677,131 @@ void Scene::Load(std::string FileName)
 //    File.close();
 //
 //}
-//
-//void Scene::Load(std::string FileName)
-//{
-//    AssetRegistry* Registry = AssetRegistry::Get();
-//
-//    std::ifstream File(FileName);
-//
-//    if (!File.is_open())
-//    {
-//        return;
-//    }
-//
-//    GraphicsModule* Graphics = GraphicsModule::Get();
-//
-//    Clear();
-//
-//    std::vector<Material> SceneMaterials;
-//    std::vector<StaticMesh> SceneStaticMeshes;
-//
-//    FileReaderState ReaderState;
-//
-//    std::string Line;
-//    while (std::getline(File, Line))
-//    {
-//        std::vector<std::string> LineTokens = StringUtils::Split(Line, Separator);
-//
-//        if (GetReaderStateFromToken(LineTokens[0], ReaderState))
-//        {
-//             State changed, go to next line
-//            continue;
-//        }
-//        switch (ReaderState)
-//        {
-//        case TEXTURES:
-//            if (LineTokens.size() == 5)
-//            {
-//                Texture DiffuseTex = *Registry->LoadTexture(LineTokens[0]);
-//                Texture NormalTex = *Registry->LoadTexture(LineTokens[1]);
-//                Texture RoughnessTex = *Registry->LoadTexture(LineTokens[2]);
-//                Texture MetallicTex = *Registry->LoadTexture(LineTokens[3]);
-//                Texture AOTex = *Registry->LoadTexture(LineTokens[4]);
-//
-//                SceneMaterials.push_back(Graphics->CreateMaterial(DiffuseTex, NormalTex, RoughnessTex, MetallicTex, AOTex));
-//            }
-//            else if (LineTokens.size() == 4)
-//            {
-//                Texture DiffuseTex = *Registry->LoadTexture(LineTokens[0]);
-//                Texture NormalTex = *Registry->LoadTexture(LineTokens[1]);
-//                Texture RoughnessTex = *Registry->LoadTexture(LineTokens[2]);
-//                Texture MetallicTex = *Registry->LoadTexture(LineTokens[3]);
-//
-//                SceneMaterials.push_back(Graphics->CreateMaterial(DiffuseTex, NormalTex, RoughnessTex, MetallicTex));
-//            }
-//            else if (LineTokens.size() == 3)
-//            {
-//                Texture DiffuseTex = *Registry->LoadTexture(LineTokens[0]);
-//                Texture NormalTex = *Registry->LoadTexture(LineTokens[1]);
-//                Texture RoughnessTex = *Registry->LoadTexture(LineTokens[2]);
-//
-//                SceneMaterials.push_back(Graphics->CreateMaterial(DiffuseTex, NormalTex, RoughnessTex));
-//            }
-//            else if (LineTokens.size() == 2)
-//            {
-//                Texture DiffuseTex = *Registry->LoadTexture(LineTokens[0]);
-//                Texture NormalTex = *Registry->LoadTexture(LineTokens[1]);
-//
-//                SceneMaterials.push_back(Graphics->CreateMaterial(DiffuseTex, NormalTex));
-//            }
-//            else
-//            {
-//                Texture DiffuseTex = *Registry->LoadTexture(LineTokens[0]);
-//                SceneMaterials.push_back(Graphics->CreateMaterial(DiffuseTex));
-//            }
-//            break;
-//        case STATIC_MESHES:
-//            SceneStaticMeshes.push_back(*Registry->LoadStaticMesh(LineTokens[0]));
-//            break;
-//        case ENTITIES:
-//        {
-//            int At = 0;
-//            
-//            int MaterialIndex = std::stoi(LineTokens[At++]);
-//            
-//            Model* NewModel;
-//
-//            if (LineTokens[At++] == "B")
-//            {
-//                AABB BoxAABB;
-//                BoxAABB.min.x = std::stof(LineTokens[At++]); BoxAABB.min.y = std::stof(LineTokens[At++]); BoxAABB.min.z = std::stof(LineTokens[At++]);
-//                BoxAABB.max.x = std::stof(LineTokens[At++]); BoxAABB.max.y = std::stof(LineTokens[At++]); BoxAABB.max.z = std::stof(LineTokens[At++]);
-//
-//                NewModel = new Model(Graphics->CreateBoxModel(BoxAABB, SceneMaterials[MaterialIndex]));
-//            }
-//            else
-//            {
-//                int StaticMeshIndex = std::stoi(LineTokens[1]);
-//                NewModel = new Model(Graphics->CreateModel(TexturedMesh(SceneStaticMeshes[StaticMeshIndex], SceneMaterials[MaterialIndex])));
-//            }
-//
-//            Mat4x4f EntityTransform;
-//            EntityTransform[0].x = std::stof(LineTokens[At++]); EntityTransform[0].y = std::stof(LineTokens[At++]); EntityTransform[0].z = std::stof(LineTokens[At++]); EntityTransform[0].w = std::stof(LineTokens[At++]);
-//            EntityTransform[1].x = std::stof(LineTokens[At++]); EntityTransform[1].y = std::stof(LineTokens[At++]); EntityTransform[1].z = std::stof(LineTokens[At++]); EntityTransform[1].w = std::stof(LineTokens[At++]);
-//            EntityTransform[2].x = std::stof(LineTokens[At++]); EntityTransform[2].y = std::stof(LineTokens[At++]); EntityTransform[2].z = std::stof(LineTokens[At++]); EntityTransform[2].w = std::stof(LineTokens[At++]);
-//            EntityTransform[3].x = std::stof(LineTokens[At++]); EntityTransform[3].y = std::stof(LineTokens[At++]); EntityTransform[3].z = std::stof(LineTokens[At++]); EntityTransform[3].w = std::stof(LineTokens[At++]);
-//
-//            NewModel->GetTransform().SetTransformMatrix(EntityTransform);
-//
-//            size_t NumBehaviours = LineTokens.size() - (At);
-//
-//            for (int i = 0; i < NumBehaviours; ++i)
-//            {
-//                std::string BehaviourName = LineTokens[At++];
-//                BehaviourRegistry::Get()->AttachNewBehaviour(BehaviourName, NewModel);
-//            }
-//
-//            m_UntrackedModels.push_back(NewModel);
-//
-//            break;
-//        }
-//        default:
-//            break;
-//        }
-//    }
-//
-//}
+
+void Scene::LegacyLoad(std::string FileName)
+{
+    AssetRegistry* Registry = AssetRegistry::Get();
+
+    std::ifstream File(FileName);
+
+    if (!File.is_open())
+    {
+        return;
+    }
+
+    GraphicsModule* Graphics = GraphicsModule::Get();
+
+    Clear();
+
+    std::vector<Material> SceneMaterials;
+    std::vector<StaticMesh> SceneStaticMeshes;
+
+    FileReaderState ReaderState;
+
+    std::string Line;
+    while (std::getline(File, Line))
+    {
+        std::vector<std::string> LineTokens = StringUtils::Split(Line, Separator);
+
+        if (GetReaderStateFromToken(LineTokens[0], ReaderState))
+        {
+            // State changed, go to next line
+            continue;
+        }
+        switch (ReaderState)
+        {
+        case TEXTURES:
+            if (LineTokens.size() == 5)
+            {
+                Texture DiffuseTex = *Registry->LoadTexture(LineTokens[0]);
+                Texture NormalTex = *Registry->LoadTexture(LineTokens[1]);
+                Texture RoughnessTex = *Registry->LoadTexture(LineTokens[2]);
+                Texture MetallicTex = *Registry->LoadTexture(LineTokens[3]);
+                Texture AOTex = *Registry->LoadTexture(LineTokens[4]);
+
+                SceneMaterials.push_back(Graphics->CreateMaterial(DiffuseTex, NormalTex, RoughnessTex, MetallicTex, AOTex));
+            }
+            else if (LineTokens.size() == 4)
+            {
+                Texture DiffuseTex = *Registry->LoadTexture(LineTokens[0]);
+                Texture NormalTex = *Registry->LoadTexture(LineTokens[1]);
+                Texture RoughnessTex = *Registry->LoadTexture(LineTokens[2]);
+                Texture MetallicTex = *Registry->LoadTexture(LineTokens[3]);
+
+                SceneMaterials.push_back(Graphics->CreateMaterial(DiffuseTex, NormalTex, RoughnessTex, MetallicTex));
+            }
+            else if (LineTokens.size() == 3)
+            {
+                Texture DiffuseTex = *Registry->LoadTexture(LineTokens[0]);
+                Texture NormalTex = *Registry->LoadTexture(LineTokens[1]);
+                Texture RoughnessTex = *Registry->LoadTexture(LineTokens[2]);
+
+                SceneMaterials.push_back(Graphics->CreateMaterial(DiffuseTex, NormalTex, RoughnessTex));
+            }
+            else if (LineTokens.size() == 2)
+            {
+                Texture DiffuseTex = *Registry->LoadTexture(LineTokens[0]);
+                Texture NormalTex = *Registry->LoadTexture(LineTokens[1]);
+
+                SceneMaterials.push_back(Graphics->CreateMaterial(DiffuseTex, NormalTex));
+            }
+            else
+            {
+                Texture DiffuseTex = *Registry->LoadTexture(LineTokens[0]);
+                SceneMaterials.push_back(Graphics->CreateMaterial(DiffuseTex));
+            }
+            break;
+        case STATIC_MESHES:
+            SceneStaticMeshes.push_back(*Registry->LoadStaticMesh(LineTokens[0]));
+            break;
+        case ENTITIES:
+        {
+            int At = 0;
+            
+            int MaterialIndex = std::stoi(LineTokens[At++]);
+            
+            Model* NewModel;
+
+            if (LineTokens[At++] == "B")
+            {
+                AABB BoxAABB;
+                BoxAABB.min.x = std::stof(LineTokens[At++]); BoxAABB.min.y = std::stof(LineTokens[At++]); BoxAABB.min.z = std::stof(LineTokens[At++]);
+                BoxAABB.max.x = std::stof(LineTokens[At++]); BoxAABB.max.y = std::stof(LineTokens[At++]); BoxAABB.max.z = std::stof(LineTokens[At++]);
+
+                NewModel = new Model(Graphics->CreateBoxModel(BoxAABB, SceneMaterials[MaterialIndex]));
+            }
+            else
+            {
+                int StaticMeshIndex = std::stoi(LineTokens[1]);
+                NewModel = new Model(Graphics->CreateModel(TexturedMesh(SceneStaticMeshes[StaticMeshIndex], SceneMaterials[MaterialIndex])));
+            }
+
+            Mat4x4f EntityTransform;
+            EntityTransform[0].x = std::stof(LineTokens[At++]); EntityTransform[0].y = std::stof(LineTokens[At++]); EntityTransform[0].z = std::stof(LineTokens[At++]); EntityTransform[0].w = std::stof(LineTokens[At++]);
+            EntityTransform[1].x = std::stof(LineTokens[At++]); EntityTransform[1].y = std::stof(LineTokens[At++]); EntityTransform[1].z = std::stof(LineTokens[At++]); EntityTransform[1].w = std::stof(LineTokens[At++]);
+            EntityTransform[2].x = std::stof(LineTokens[At++]); EntityTransform[2].y = std::stof(LineTokens[At++]); EntityTransform[2].z = std::stof(LineTokens[At++]); EntityTransform[2].w = std::stof(LineTokens[At++]);
+            EntityTransform[3].x = std::stof(LineTokens[At++]); EntityTransform[3].y = std::stof(LineTokens[At++]); EntityTransform[3].z = std::stof(LineTokens[At++]); EntityTransform[3].w = std::stof(LineTokens[At++]);
+
+            NewModel->GetTransform().SetTransformMatrix(EntityTransform);
+
+            size_t NumBehaviours = LineTokens.size() - (At);
+
+            for (int i = 0; i < NumBehaviours; ++i)
+            {
+                std::string BehaviourName = LineTokens[At++];
+                BehaviourRegistry::Get()->AttachNewBehaviour(BehaviourName, NewModel);
+            }
+
+            m_UntrackedModels.push_back(NewModel);
+
+            break;
+        }
+        default:
+            break;
+        }
+    }
+
+}
 
 void Scene::Clear()
 {
