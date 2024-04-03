@@ -2596,7 +2596,7 @@ void Resize(Vec2i newSize)
 StateMachine Machine;
 
 // CHANGE THIS TO SET INITIAL LEVEL
-const std::string InitialLevelName = "levels\\NewSurvival.lvl";
+const std::string InitialLevelName = "levels\\Survival.lvl";
 const std::string TitleBarText = "Survival";
 
 Scene* GameScene;

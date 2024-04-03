@@ -1640,6 +1640,7 @@ void EditorState::LoadEditorResources()
     directionalLightEntityTexture = *Registry->LoadTexture("images/dirLight.png");
     cameraEntityTexture = *Registry->LoadTexture("images/cameraButton.png");
     brainEntityTexture = *Registry->LoadTexture("images/brainTool.png");
+    billboardEntityTexture = *Registry->LoadTexture("images/billboardTool.png");
 
     // Load editor fonts
     DefaultFont = Text->LoadFont("fonts/ARLRDBD.TTF", 30);
@@ -2016,7 +2017,9 @@ void EditorState::DrawResourcesPanel()
             if (UI->ImgButton("BrainEntity", brainEntityTexture, Vec2f(80.0f, 80.0f), 12.0f))
             {
             }
-
+            if (UI->ImgButton("BillboardEntity", billboardEntityTexture, Vec2f(80.0f, 80.0f), 12.0f))
+            {
+            }
         }
         UI->EndTab();
 

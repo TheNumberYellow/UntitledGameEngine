@@ -336,6 +336,7 @@ private:
     Texture directionalLightEntityTexture;
     Texture cameraEntityTexture;
     Texture brainEntityTexture;
+    Texture billboardEntityTexture;
 
     Material WhiteMaterial;
 

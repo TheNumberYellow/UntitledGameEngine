@@ -1054,7 +1054,8 @@ Renderer::Renderer()
 
     if (wglewIsSupported("WGL_EXT_swap_control") == 1)
     {
-        wglSwapIntervalEXT(0);
+        // VSYNC
+        wglSwapIntervalEXT(1);
     }
 
     // Enable various OpenGL features
