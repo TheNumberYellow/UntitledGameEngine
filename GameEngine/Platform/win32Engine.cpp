@@ -558,6 +558,10 @@ int WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ L
                 WarpMouseToWindowCenter();
             }
         }
+        else
+        {
+            Input.ResetAllInputState();
+        }
 
         Graphics.OnFrameStart();
         UI.OnFrameStart();

@@ -90,6 +90,16 @@ void InputModule::ClearCharacters()
 	}
 }
 
+void InputModule::ResetAllInputState()
+{
+	for (KeyState& Key : m_Keys)
+	{
+		Key.UpdateState(false);
+	}
+
+	m_MouseState.ResetMouseState();
+}
+
 void InputModule::OnFrameEnd()
 {
 	m_MouseState.UpdateMouseWheel(0);
@@ -151,6 +161,14 @@ KeyState MouseState::GetMouseButtonState(MouseButton button) const
 void MouseState::SetMouseButtonDown(MouseButton button, bool pressed)
 {
 	m_Buttons[static_cast<size_t>(button)].UpdateState(pressed);
+}
+
+void MouseState::ResetMouseState()
+{
+	for (KeyState& Button : m_Buttons)
+	{
+		Button.UpdateState(false);
+	}
 }
 
 void GamepadState::SetEnabled(bool enabled)

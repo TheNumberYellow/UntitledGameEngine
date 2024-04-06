@@ -137,6 +137,8 @@ public:
 	KeyState GetMouseButtonState(MouseButton button) const;
 	void SetMouseButtonDown(MouseButton button, bool pressed);
 
+	void ResetMouseState();
+
 private:
 	//bool m_LeftMouseButtonDown = false;
 	//bool m_RightMouseButtonDown = false;
@@ -206,6 +208,8 @@ public:
 	void InputCharacter(char c);
 	bool ConsumeCharacter(char& c);
 	void ClearCharacters();
+
+	void ResetAllInputState();
 
 	void OnFrameEnd();
 
