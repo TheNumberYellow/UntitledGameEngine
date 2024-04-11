@@ -8,6 +8,11 @@
 #include <glm/gtx/rotate_vector.hpp>
 #include <glm/gtx/matrix_decompose.hpp>
 
+float Math::dot(Quaternion leftQuat, Quaternion rightQuat)
+{
+    return (leftQuat.x * rightQuat.x) + (leftQuat.y * rightQuat.y) + (leftQuat.z * rightQuat.z) + (leftQuat.w * rightQuat.w);
+}
+
 float Math::dot(Vec3f leftVec, Vec3f rightVec)
 {
     float result = (leftVec.x * rightVec.x) + (leftVec.y * rightVec.y) + (leftVec.z * rightVec.z);
@@ -126,7 +131,7 @@ Mat4x4f Math::inv(Mat4x4f mat)
     glmMat = glm::inverse(glmMat);
 
     Mat4x4f result;
-
+    
     result[0] = Vec4f(glmMat[0].x, glmMat[0].y, glmMat[0].z, glmMat[0].w);
     result[1] = Vec4f(glmMat[1].x, glmMat[1].y, glmMat[1].z, glmMat[1].w);
     result[2] = Vec4f(glmMat[2].x, glmMat[2].y, glmMat[2].z, glmMat[2].w);
@@ -269,6 +274,8 @@ void Math::DecomposeMatrix(Mat4x4f matrix, Vec3f& OutTranslation, Quaternion& Ou
     glm::vec3 glmScale;
     glm::vec3 glmSkew;
     glm::vec4 glmPerspective;
+
+    glm::inverse(glmRotation);
 
     glm::decompose(glmMat, glmScale, glmRotation, glmTranslation, glmSkew, glmPerspective);
 

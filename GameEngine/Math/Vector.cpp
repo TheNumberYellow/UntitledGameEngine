@@ -208,9 +208,27 @@ Vec3f Vec3f::operator*(float rhs)
     return Vec3f(this->x * rhs, this->y * rhs, this->z * rhs);
 }
 
+Vec3f& Vec3f::operator*=(float rhs)
+{
+    this->x *= rhs;
+    this->y *= rhs;
+    this->z *= rhs;
+
+    return *this;
+}
+
 Vec3f Vec3f::operator/(float rhs)
 {
     return Vec3f(this->x / rhs, this->y / rhs, this->z / rhs);
+}
+
+Vec3f& Vec3f::operator/=(float rhs)
+{
+    this->x /= rhs;
+    this->y /= rhs;
+    this->z /= rhs;
+
+    return *this;
 }
 
 bool Vec3f::operator<(const Vec3f& rhs)

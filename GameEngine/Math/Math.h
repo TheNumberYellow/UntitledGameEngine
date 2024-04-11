@@ -48,6 +48,7 @@ public:
 
     static float Round(float num, float multiple = 1.0f);
 
+    static float dot(Quaternion leftQuat, Quaternion rightQuat);
     static float dot(Vec3f leftVec, Vec3f rightVec);
     static float dot(Vec2f leftVec, Vec2f rightVec);
     static Vec3f cross(Vec3f leftVec, Vec3f rightVec);

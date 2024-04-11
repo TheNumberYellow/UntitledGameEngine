@@ -30,4 +30,8 @@ struct Quaternion
     Quaternion operator*(Quaternion rhs);
 
     Mat4x4f ToMatrix();
+
+    Quaternion Conjugate();
+    Quaternion Inverse();
+
 };

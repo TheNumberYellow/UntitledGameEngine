@@ -19,6 +19,12 @@ enum class ToolMode : uint8_t
     Sculpt,
 };
 
+enum class SelectMode : uint8_t
+{
+    ModelSelect,
+    VertexSelect
+};
+
 enum class TransformMode : uint8_t
 {
     Translate,
@@ -94,6 +100,34 @@ private:
     Scene* ScenePtr;
 };
 
+class SelectedVertex : public ISelectedObject
+{
+public:
+    SelectedVertex(Vec3f* InVertPtr);
+
+
+    void Draw() override;
+
+
+    void Update() override;
+
+
+    void DrawInspectorPanel() override;
+
+
+    Transform* GetTransform() override;
+
+
+    void DeleteObject() override;
+
+
+    bool operator==(const ISelectedObject& Other) override;
+
+private:
+
+    Vec3f* VertPtr = nullptr;
+};
+
 class SelectedLight : public ISelectedObject
 {
 public:
@@ -140,6 +174,12 @@ private:
     Transform Trans;
 };
 
+struct OffsetInfo
+{
+    Vec3f Offset;
+    Quaternion RotationDiff;
+};
+
 class CursorState
 {
 public:
@@ -154,12 +194,16 @@ public:
     void UnselectAll();
 
     void CycleToolMode();
+
+    void CycleSelectMode();
     void CycleGeometryMode();
     void CycleTransformMode();
 
     void SetToolMode(ToolMode InToolMode);
 
     ToolMode GetToolMode();
+    
+    SelectMode GetSelectMode();
     TransformMode GetTransMode();
     GeometryMode GetGeoMode();
 
@@ -181,6 +225,9 @@ private:
     void UpdateVertexTool();
     void UpdateSculptTool(float DeltaTime);
 
+    void UpdateModelSelectTool();
+    void UpdateVertexSelectTool();
+
     void UpdateTranslateTool();
     void UpdateRotateTool();
     void UpdateScaleTool();
@@ -196,8 +243,13 @@ private:
 
     void AddToSelectedObjects(ISelectedObject* NewSelectedObject);
 
+    void UpdateSelectedTransformsBasedOnProxy();
+    void RotateSelectedTransforms(Quaternion Rotation);
+
     ToolMode Tool = ToolMode::Select;
     DraggingMode Dragging = DraggingMode::None;
+
+    SelectMode Select = SelectMode::ModelSelect;
 
     TransformMode TransMode = TransformMode::Translate;
     GeometryMode GeoMode = GeometryMode::Box;
@@ -208,7 +260,8 @@ private:
     Material* DraggingMaterialPtr = nullptr;
     std::string DraggingBehaviourName;
 
-    std::vector<ISelectedObject*> SelectedObjects;
+    Transform SelectedProxyTransform;
+    std::vector<std::pair<OffsetInfo, ISelectedObject*>> SelectedObjects;
 
     // Transform mode state + models
     EditingAxis Axis = EditingAxis::None;
@@ -317,7 +370,8 @@ private:
     //--------------------
     Texture playButtonTexture;
 
-    Texture cursorToolTexture;
+    Texture modelSelectToolTexture;
+    Texture vertexSelectToolTexture;
 
     Texture boxToolTexture;
     Texture planeToolTexture;

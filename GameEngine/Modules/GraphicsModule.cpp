@@ -62,6 +62,18 @@ void Transform::Rotate(Quaternion rotation)
     m_TransformMatrixNeedsUpdate = true;
 }
 
+void Transform::RotateAroundPoint(Vec3f point, Quaternion rotation)
+{
+    Mat4x4f RotMat = rotation.ToMatrix();
+
+    Mat4x4f TransMat = Math::Translate(Mat4x4f(), point);
+    Mat4x4f RevTransMat = Math::Translate(Mat4x4f(), -point);
+
+    Mat4x4f TotalTrans = TransMat * RotMat * RevTransMat;
+
+    SetTransformMatrix(TransMat * RotMat * RevTransMat * GetTransformMatrix());
+}
+
 Mat4x4f Transform::GetTransformMatrix()
 {
     if (m_TransformMatrixNeedsUpdate)

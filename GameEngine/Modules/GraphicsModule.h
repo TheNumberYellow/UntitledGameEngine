@@ -102,6 +102,8 @@ public:
     void Scale(Vec3f scale);
     void Rotate(Quaternion rotation);
 
+    void RotateAroundPoint(Vec3f point, Quaternion rotation);
+
     Mat4x4f GetTransformMatrix();
     void SetTransformMatrix(Mat4x4f mat);
 

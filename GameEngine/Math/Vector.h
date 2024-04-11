@@ -77,7 +77,10 @@ struct Vec3f
     friend Vec3f operator*(float lhs, const Vec3f& rhs);
 
     Vec3f operator*(float rhs);
+    Vec3f& operator*=(float rhs);
+
     Vec3f operator/(float rhs);
+    Vec3f& operator/=(float rhs);
 
     friend bool operator==(const Vec3f& lhs, const Vec3f& rhs);
 

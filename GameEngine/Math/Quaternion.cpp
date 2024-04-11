@@ -34,3 +34,15 @@ Mat4x4f Quaternion::ToMatrix()
     result[3] = Vec4f(0, 0, 0, 1);
     return result;
 }
+
+Quaternion Quaternion::Conjugate()
+{
+    return Quaternion(-x, -y, -z, w);
+}
+
+Quaternion Quaternion::Inverse()
+{
+    Quaternion Result = Conjugate();
+    float Scale = Math::dot(*this, *this);
+    return Quaternion(Result.x / Scale, Result.y / Scale, Result.z / Scale, Result.w / Scale);
+}

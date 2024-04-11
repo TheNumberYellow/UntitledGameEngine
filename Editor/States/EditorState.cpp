@@ -23,22 +23,28 @@ void SelectedModel::DrawInspectorPanel()
 {
     UIModule* UI = UIModule::Get();
 
-    Material Mat = ModelPtr->m_TexturedMeshes[0].m_Material;
+    Quaternion ModelQuat = ModelPtr->GetTransform().GetRotation();
 
-    std::string MatStr = Mat.m_Albedo.Path.GetFullPath();
-    UI->TextButton("Albedo: " + MatStr, Vec2f(180.0f, 40.0f), 12.0f, c_InspectorColour);
+    float QuatLength = (ModelQuat.x * ModelQuat.x) + (ModelQuat.y * ModelQuat.y) + (ModelQuat.z * ModelQuat.z) + (ModelQuat.w * ModelQuat.w);
 
-    MatStr = Mat.m_Normal.Path.GetFullPath();
-    UI->TextButton("Normal: " + MatStr, Vec2f(180.0f, 40.0f), 12.0f, c_InspectorColour);
+    UI->TextButton("Rotation Quaternion length: " + std::to_string(QuatLength), Vec2f(240.0f, 40.0f), 12.0f, c_InspectorColour);
 
-    MatStr = Mat.m_Roughness.Path.GetFullPath();
-    UI->TextButton("Roughness: " + MatStr, Vec2f(180.0f, 40.0f), 12.0f, c_InspectorColour);
+    //Material Mat = ModelPtr->m_TexturedMeshes[0].m_Material;
 
-    MatStr = Mat.m_Metallic.Path.GetFullPath();
-    UI->TextButton("Metallic: " + MatStr, Vec2f(180.0f, 40.0f), 12.0f, c_InspectorColour);
+    //std::string MatStr = Mat.m_Albedo.Path.GetFullPath();
+    //UI->TextButton("Albedo: " + MatStr, Vec2f(180.0f, 40.0f), 12.0f, c_InspectorColour);
 
-    MatStr = Mat.m_AO.Path.GetFullPath();
-    UI->TextButton("AO: " + MatStr, Vec2f(180.0f, 40.0f), 12.0f, c_InspectorColour);
+    //MatStr = Mat.m_Normal.Path.GetFullPath();
+    //UI->TextButton("Normal: " + MatStr, Vec2f(180.0f, 40.0f), 12.0f, c_InspectorColour);
+
+    //MatStr = Mat.m_Roughness.Path.GetFullPath();
+    //UI->TextButton("Roughness: " + MatStr, Vec2f(180.0f, 40.0f), 12.0f, c_InspectorColour);
+
+    //MatStr = Mat.m_Metallic.Path.GetFullPath();
+    //UI->TextButton("Metallic: " + MatStr, Vec2f(180.0f, 40.0f), 12.0f, c_InspectorColour);
+
+    //MatStr = Mat.m_AO.Path.GetFullPath();
+    //UI->TextButton("AO: " + MatStr, Vec2f(180.0f, 40.0f), 12.0f, c_InspectorColour);
 
 }
 
@@ -64,6 +70,46 @@ bool SelectedModel::operator==(const ISelectedObject& Other)
         return ModelPtr == OtherPtr->ModelPtr;
     }
 }
+
+SelectedVertex::SelectedVertex(Vec3f* InVertPtr)
+{
+    VertPtr = InVertPtr;
+}
+
+void SelectedVertex::Draw()
+{
+}
+
+void SelectedVertex::Update()
+{
+}
+
+void SelectedVertex::DrawInspectorPanel()
+{
+}
+
+Transform* SelectedVertex::GetTransform()
+{
+}
+
+void SelectedVertex::DeleteObject()
+{
+}
+
+bool SelectedVertex::operator==(const ISelectedObject& Other)
+{
+    const SelectedVertex* OtherPtr = dynamic_cast<const SelectedVertex*>(&Other);
+
+    if (!OtherPtr)
+    {
+        return false;
+    }
+    else
+    {
+        return VertPtr == OtherPtr->VertPtr;
+    }
+}
+
 
 SelectedLight::SelectedLight(PointLight* InPointLight, Scene* InScene)
 {
@@ -335,10 +381,12 @@ void CursorState::Update(float DeltaTime)
     }
     }
 
+    UpdateSelectedTransformsBasedOnProxy();
+
     if (!SelectedObjects.empty())
     {
         // Update widget positions
-        Transform ObjTrans = *SelectedObjects[0]->GetTransform();
+        Transform ObjTrans = SelectedProxyTransform;
 
         float DistFromCam = Math::magnitude(ObjTrans.GetPosition() - EditorStatePtr->ViewportCamera.GetPosition());
 
@@ -435,6 +483,23 @@ void CursorState::CycleToolMode()
     }
 }
 
+void CursorState::CycleSelectMode()
+{
+    ResetAllState();
+    switch (Select)
+    {
+    case SelectMode::ModelSelect:
+        Select = SelectMode::VertexSelect;
+        break;
+    case SelectMode::VertexSelect:
+        Select = SelectMode::ModelSelect;
+        break;
+    default:
+        Engine::FatalError("Invalid editor select tool mode.");
+        break;
+    }
+}
+
 void CursorState::CycleGeometryMode()
 {
     ResetAllState();
@@ -481,6 +546,11 @@ void CursorState::SetToolMode(ToolMode InToolMode)
 ToolMode CursorState::GetToolMode()
 {
     return Tool;
+}
+
+SelectMode CursorState::GetSelectMode()
+{
+    return Select;
 }
 
 TransformMode CursorState::GetTransMode()
@@ -595,70 +665,16 @@ bool CursorState::IsDraggingSomething()
 
 void CursorState::UpdateSelectTool()
 {
-    InputModule* Input = InputModule::Get();
-    
-    Vec2i MousePos = Input->GetMouseState().GetMousePos();
-
-    if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).justPressed)
+    switch (Select)
     {
-        Engine::DEBUGPrint("JUST PRESSED MOUSE BUTTON");
-    }
-
-    if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).justPressed && EditorStatePtr->GetEditorSceneViewportRect().Contains(MousePos))
-    {   
-        Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
-
-        CollisionModule* Collisions = CollisionModule::Get();
-        GraphicsModule* Graphics = GraphicsModule::Get();
-
-        RayCastHit PointLightHit;
-
-        PointLight* HitLight = nullptr;
-
-        auto& Lights = EditorScenePtr->GetPointLights();
-
-        for (PointLight* Light : Lights)
-        {
-            AABB LightAABB = AABB(Light->position - Vec3f(0.35f, 0.35f, 0.35f), Light->position + Vec3f(0.35f, 0.35f, 0.35f));
-            RayCastHit NewPointLightHit = Collisions->RayCast(MouseRay, LightAABB);
-
-            if (NewPointLightHit.hit && NewPointLightHit.hitDistance < PointLightHit.hitDistance)
-            {
-                PointLightHit = NewPointLightHit;
-                HitLight = Light;
-            }
-        }
-
-        auto ModelHit = EditorScenePtr->RayCast(MouseRay);
-
-        bool HoldingShift = Input->GetKeyState(Key::Shift).pressed;
-
-        if (ModelHit.rayCastHit.hit || PointLightHit.hit)
-        {
-            if (!HoldingShift)
-            {
-                UnselectSelectedObjects();
-            }
-
-            if (ModelHit.rayCastHit.hitDistance < PointLightHit.hitDistance)
-            {
-                if (ModelHit.hitModel != DraggingModelPtr)
-                {
-                    SelectedModel* EdModel = new SelectedModel(ModelHit.hitModel, EditorScenePtr);
-
-                    AddToSelectedObjects(EdModel);
-                }
-            }
-            else
-            {
-                if (HitLight != DraggingPointLightPtr)
-                {
-                    SelectedLight* EdLight = new SelectedLight(HitLight, EditorScenePtr);
-
-                    AddToSelectedObjects(EdLight);
-                }
-            }
-        }
+    case SelectMode::ModelSelect:
+        UpdateModelSelectTool();
+        break;
+    case SelectMode::VertexSelect:
+        UpdateVertexSelectTool();
+        break;
+    default: 
+        break;
     }
 }
 
@@ -813,6 +829,79 @@ void CursorState::UpdateSculptTool(float DeltaTime)
     }
 }
 
+void CursorState::UpdateModelSelectTool()
+{
+    InputModule* Input = InputModule::Get();
+
+    Vec2i MousePos = Input->GetMouseState().GetMousePos();
+
+    if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).justPressed)
+    {
+        Engine::DEBUGPrint("JUST PRESSED MOUSE BUTTON");
+    }
+
+    if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).justPressed && EditorStatePtr->GetEditorSceneViewportRect().Contains(MousePos))
+    {
+        Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+
+        CollisionModule* Collisions = CollisionModule::Get();
+        GraphicsModule* Graphics = GraphicsModule::Get();
+
+        RayCastHit PointLightHit;
+
+        PointLight* HitLight = nullptr;
+
+        auto& Lights = EditorScenePtr->GetPointLights();
+
+        for (PointLight* Light : Lights)
+        {
+            AABB LightAABB = AABB(Light->position - Vec3f(0.35f, 0.35f, 0.35f), Light->position + Vec3f(0.35f, 0.35f, 0.35f));
+            RayCastHit NewPointLightHit = Collisions->RayCast(MouseRay, LightAABB);
+
+            if (NewPointLightHit.hit && NewPointLightHit.hitDistance < PointLightHit.hitDistance)
+            {
+                PointLightHit = NewPointLightHit;
+                HitLight = Light;
+            }
+        }
+
+        auto ModelHit = EditorScenePtr->RayCast(MouseRay);
+
+        bool HoldingShift = Input->GetKeyState(Key::Shift).pressed;
+
+        if (ModelHit.rayCastHit.hit || PointLightHit.hit)
+        {
+            if (!HoldingShift)
+            {
+                UnselectSelectedObjects();
+            }
+
+            if (ModelHit.rayCastHit.hitDistance < PointLightHit.hitDistance)
+            {
+                if (ModelHit.hitModel != DraggingModelPtr)
+                {
+                    SelectedModel* EdModel = new SelectedModel(ModelHit.hitModel, EditorScenePtr);
+
+                    AddToSelectedObjects(EdModel);
+                }
+            }
+            else
+            {
+                if (HitLight != DraggingPointLightPtr)
+                {
+                    SelectedLight* EdLight = new SelectedLight(HitLight, EditorScenePtr);
+
+                    AddToSelectedObjects(EdLight);
+                }
+            }
+        }
+    }
+}
+
+void CursorState::UpdateVertexSelectTool()
+{
+}
+
 void CursorState::UpdateTranslateTool()
 {
     InputModule* Input = InputModule::Get();
@@ -829,7 +918,8 @@ void CursorState::UpdateTranslateTool()
 
     CollisionModule* Collisions = CollisionModule::Get();
 
-    Vec3f SelectedPos = SelectedObjects[0]->GetTransform()->GetPosition();
+    Vec3f SelectedPos = SelectedProxyTransform.GetPosition();
+    //Vec3f SelectedPos = SelectedObjects[0]->GetTransform()->GetPosition();
 
     if (Axis == EditingAxis::None && Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).justPressed)
     {
@@ -877,7 +967,7 @@ void CursorState::UpdateTranslateTool()
         Vec3f NewObjPos = (MouseRay.point - ObjectRelativeHitPoint) + 
             (MouseRay.direction * ObjectDistanceAtHit);
     
-        SelectedObjects[0]->GetTransform()->SetPosition(NewObjPos);
+        SelectedProxyTransform.SetPosition(NewObjPos);
     }
     else if (Axis != EditingAxis::None)
     {
@@ -902,7 +992,7 @@ void CursorState::UpdateTranslateTool()
 
         Vec3f PointAlongAxis = Math::ClosestPointsOnLines(MouseLine, AxisLine).second;
 
-        SelectedObjects[0]->GetTransform()->SetPosition(PointAlongAxis);
+        SelectedProxyTransform.SetPosition(PointAlongAxis);
     }
 
     if (Axis == EditingAxis::None)
@@ -932,7 +1022,7 @@ void CursorState::UpdateRotateTool()
         Plane AxisPlane;
         Vec3f PerpUnitVec;
 
-        AxisPlane.center = SelectedObjects[0]->GetTransform()->GetPosition();
+        AxisPlane.center = SelectedProxyTransform.GetPosition();
 
         RayCastHit ClosestHit;
         if (RayCastHit XHit = Collisions->RayCast(MouseRay, *XAxisRot); XHit.hit)
@@ -964,14 +1054,14 @@ void CursorState::UpdateRotateTool()
         {
             RayCastHit PlaneHit = Collisions->RayCast(MouseRay, AxisPlane);
 
-            Vec3f ObjectCenter = SelectedObjects[0]->GetTransform()->GetPosition();
+            Vec3f ObjectCenter = SelectedProxyTransform.GetPosition();
             Vec3f HitPoint = PlaneHit.hitPoint;
             Vec3f AngleVec = HitPoint - ObjectCenter;
             float Dot = Math::dot(AngleVec, PerpUnitVec);
             float Det = Math::dot(AxisPlane.normal, (Math::cross(AngleVec, PerpUnitVec)));
             
             InitialAngle = atan2(Det, Dot);
-            ObjectInitialRotation = SelectedObjects[0]->GetTransform()->GetRotation();
+            ObjectInitialRotation = SelectedProxyTransform.GetRotation();
 
             Engine::DEBUGPrint("Initial Angle: " + std::to_string(InitialAngle));
         }
@@ -981,7 +1071,7 @@ void CursorState::UpdateRotateTool()
         Plane AxisPlane;
         Vec3f PerpUnitVec;
 
-        AxisPlane.center = SelectedObjects[0]->GetTransform()->GetPosition();
+        AxisPlane.center = SelectedProxyTransform.GetPosition();
         
         if (Axis == EditingAxis::X)
         {
@@ -1001,7 +1091,7 @@ void CursorState::UpdateRotateTool()
 
         RayCastHit PlaneHit = Collisions->RayCast(MouseRay, AxisPlane);
 
-        Vec3f ObjectCenter = SelectedObjects[0]->GetTransform()->GetPosition();
+        Vec3f ObjectCenter = SelectedProxyTransform.GetPosition();
         Vec3f HitPoint = PlaneHit.hitPoint;
         Vec3f AngleVec = HitPoint - ObjectCenter;
         float Dot = Math::dot(AngleVec, PerpUnitVec);
@@ -1015,7 +1105,7 @@ void CursorState::UpdateRotateTool()
 
         Quaternion axisQuat = Quaternion(AxisPlane.normal, DeltaAngle);
 
-        SelectedObjects[0]->GetTransform()->SetRotation(axisQuat * ObjectInitialRotation);
+        SelectedProxyTransform.SetRotation(axisQuat * ObjectInitialRotation);
     }
 
     if (Axis == EditingAxis::None)
@@ -1238,34 +1328,34 @@ void CursorState::UpdatePlaneTool()
 
 void CursorState::UpdateSelectedObjects()
 {
-    for (ISelectedObject* Object : SelectedObjects)
+    for (auto& Object : SelectedObjects)
     {
-        Object->Update();
+        Object.second->Update();
     }
 }
 
 void CursorState::DrawSelectedObjects()
 {
-    for (ISelectedObject* Object : SelectedObjects)
+    for (auto& Object : SelectedObjects)
     {
-        Object->Draw();
+        Object.second->Draw();
     }
 }
 
 void CursorState::DrawSelectedInspectorPanels()
 {
-    for (ISelectedObject* Object : SelectedObjects)
+    for (auto& Object : SelectedObjects)
     {
-        Object->DrawInspectorPanel();
+        Object.second->DrawInspectorPanel();
     }
 }
 
 void CursorState::DeleteSelectedObjects()
 {
-    for (ISelectedObject* Object : SelectedObjects)
+    for (auto& Object : SelectedObjects)
     {
-        Object->DeleteObject();
-        delete Object;
+        Object.second->DeleteObject();
+        delete Object.second;
     }
 
     SelectedObjects.clear();
@@ -1273,9 +1363,9 @@ void CursorState::DeleteSelectedObjects()
 
 void CursorState::UnselectSelectedObjects()
 {
-    for (ISelectedObject* Object : SelectedObjects)
+    for (auto& Object : SelectedObjects)
     {
-        delete Object;
+        delete Object.second;
     }
 
     SelectedObjects.clear();
@@ -1283,15 +1373,67 @@ void CursorState::UnselectSelectedObjects()
 
 void CursorState::AddToSelectedObjects(ISelectedObject* NewSelectedObject)
 {
-    for (ISelectedObject* Obj : SelectedObjects)
+    OffsetInfo NewObjectOffsetInfo;
+
+    Vec3f AveragePos = Vec3f(0.0f, 0.0f, 0.0f);
+
+    for (auto& Obj : SelectedObjects)
     {
-        if (*Obj == *NewSelectedObject)
+        AveragePos += Obj.second->GetTransform()->GetPosition();
+        if (*Obj.second == *NewSelectedObject)
         {
             delete NewSelectedObject;
             return;
         }
     }
-    SelectedObjects.push_back(NewSelectedObject);
+    
+    AveragePos += NewSelectedObject->GetTransform()->GetPosition();
+    AveragePos /= SelectedObjects.size() + 1;
+
+    // Update selected object offsets
+    for (auto& Obj : SelectedObjects)
+    {
+        Obj.first.Offset = AveragePos - Obj.second->GetTransform()->GetPosition();
+    }
+
+    NewObjectOffsetInfo.Offset = AveragePos - NewSelectedObject->GetTransform()->GetPosition();
+
+    SelectedProxyTransform.SetPosition(AveragePos);
+
+    // Reset proxy rotation, determine quaternion difference of selected objects
+
+    SelectedProxyTransform.SetRotation(Quaternion());
+
+    for (auto& Obj : SelectedObjects)
+    {
+        Obj.first.RotationDiff = Obj.second->GetTransform()->GetRotation() * SelectedProxyTransform.GetRotation().Inverse();
+    }
+
+    NewObjectOffsetInfo.RotationDiff = NewSelectedObject->GetTransform()->GetRotation() * SelectedProxyTransform.GetRotation().Inverse();
+
+
+    SelectedObjects.push_back(std::make_pair(NewObjectOffsetInfo, NewSelectedObject));
+}
+
+void CursorState::UpdateSelectedTransformsBasedOnProxy()
+{
+    Vec3f ProxyPos = SelectedProxyTransform.GetPosition();
+
+    for (auto& Object : SelectedObjects)
+    {
+        Object.second->GetTransform()->SetPosition(ProxyPos - Object.first.Offset);
+    }
+    for (auto& Object : SelectedObjects)
+    {
+        Object.second->GetTransform()->RotateAroundPoint(ProxyPos, SelectedProxyTransform.GetRotation());
+        Object.second->GetTransform()->SetRotation(SelectedProxyTransform.GetRotation() * Object.first.RotationDiff);
+    }
+}
+
+void CursorState::RotateSelectedTransforms(Quaternion Rotation)
+{
+    Vec3f ProxyPos = SelectedProxyTransform.GetPosition();
+
 }
 
 void EditorState::OnInitialized()
@@ -1438,7 +1580,15 @@ void EditorState::UpdateEditor(float DeltaTime)
     // Keyboard hotkeys for switching tools
     if (Input->GetKeyState(Key::One).justPressed)
     {
-        Cursor.SetToolMode(ToolMode::Select);
+        // If already in select tool, cycle sub-tool
+        if (Cursor.GetToolMode() == ToolMode::Select)
+        {
+            Cursor.CycleSelectMode();
+        }
+        else
+        {
+            Cursor.SetToolMode(ToolMode::Select);
+        }
     }
     if (Input->GetKeyState(Key::Two).justPressed)
     {
@@ -1625,7 +1775,9 @@ void EditorState::LoadEditorResources()
     // Load editor UI textures
     playButtonTexture = *Registry->LoadTexture("images/playButton.png");
 
-    cursorToolTexture = *Registry->LoadTexture("images/cursorTool.png");
+    modelSelectToolTexture = *Registry->LoadTexture("images/cursorTool.png");
+    vertexSelectToolTexture = *Registry->LoadTexture("images/vertexSelectTool.png");
+
     boxToolTexture = *Registry->LoadTexture("images/boxTool.png");
     planeToolTexture = *Registry->LoadTexture("images/planeTool.png");
 
@@ -1821,10 +1973,30 @@ void EditorState::DrawEditorUI()
         Vec3f SelectedColour = c_NiceGreen;
         Vec3f UnSelectedColour = c_NiceLighterBlue;
 
-        if (UI->ImgButton("CursorTool", cursorToolTexture, Vec2f(80.0f, 80.0f), 12.0f, 
+        Texture SelectModeTexture = modelSelectToolTexture;
+        switch (Cursor.GetSelectMode())
+        {
+        case SelectMode::ModelSelect:
+            SelectModeTexture = modelSelectToolTexture;
+            break;
+        case SelectMode::VertexSelect:
+            SelectModeTexture = vertexSelectToolTexture;
+            break;
+        default:
+            break;
+        }
+
+        if (UI->ImgButton("SelectTool", SelectModeTexture, Vec2f(80.0f, 80.0f), 12.0f,
             Cursor.GetToolMode() == ToolMode::Select ? SelectedColour : UnSelectedColour))
         {
-            Cursor.SetToolMode(ToolMode::Select);
+            if (Cursor.GetToolMode() == ToolMode::Select)
+            {
+                Cursor.CycleSelectMode();
+            }
+            else
+            {
+                Cursor.SetToolMode(ToolMode::Select);
+            }
         }
 
         Texture TransModeTexture = translateToolTexture;
