@@ -90,6 +90,7 @@ void SelectedVertex::DrawInspectorPanel()
 
 Transform* SelectedVertex::GetTransform()
 {
+    return nullptr;
 }
 
 void SelectedVertex::DeleteObject()
@@ -140,18 +141,18 @@ void SelectedLight::DrawInspectorPanel()
     Vec3f Pos = PointLightPtr->position;
     Vec3f Col = PointLightPtr->colour;
 
-    static std::string TestString = "Test";
+    static std::string ColourString = "Colour";
+    static std::string IntensityString = "Intensity";
 
-    UI->TextEntry("Test", TestString, Vec2f(100.0f, 20.0f), c_InspectorColour);
+    UI->TextEntry("Colour", ColourString, Vec2f(250.0f, 20.0f), c_InspectorColour);
 
-    UI->TextButton("X: " + std::to_string(Pos.x), Vec2f(180.0f, 40.0f), 12.0f, c_InspectorColour);
-    UI->TextButton("Y: " + std::to_string(Pos.y), Vec2f(180.0f, 40.0f), 12.0f, c_InspectorColour);
-    UI->TextButton("Z: " + std::to_string(Pos.z), Vec2f(180.0f, 40.0f), 12.0f, c_InspectorColour);
+    UI->FloatSlider("R", Vec2f(400.0f, 20.0f), PointLightPtr->colour.r);
+    UI->FloatSlider("G", Vec2f(400.0f, 20.0f), PointLightPtr->colour.g);
+    UI->FloatSlider("B", Vec2f(400.0f, 20.0f), PointLightPtr->colour.b);
 
-    UI->TextButton("R: " + std::to_string(Col.x), Vec2f(180.0f, 40.0f), 12.0f, c_InspectorColour);
-    UI->TextButton("G: " + std::to_string(Col.y), Vec2f(180.0f, 40.0f), 12.0f, c_InspectorColour);
-    UI->TextButton("B: " + std::to_string(Col.z), Vec2f(180.0f, 40.0f), 12.0f, c_InspectorColour);
+    UI->TextEntry("Intensity", IntensityString, Vec2f(250.0f, 20.0f), c_InspectorColour);
 
+    UI->FloatSlider("Intensity", Vec2f(400.0f, 20.0f), PointLightPtr->intensity, 0.0f, 10.0f);
 }
 
 Transform* SelectedLight::GetTransform()
@@ -648,9 +649,17 @@ void CursorState::DrawInspectorPanel()
 {
     UIModule* UI = UIModule::Get();
 
+    // TEMP: edit directional light colour
+    Colour dirLightColour = EditorScenePtr->m_DirLight.colour;
+    Colour invDirlightColour = Colour(1.0f - dirLightColour.r, 1.0f - dirLightColour.g, 1.0f - dirLightColour.b);
+    UI->TextButton("Directional Light Colour", Vec2f(250.0f, 20.0f), 8.0f, dirLightColour, invDirlightColour);
+
+    UI->FloatSlider("R", Vec2f(400.0f, 20.0f), EditorScenePtr->m_DirLight.colour.r);
+    UI->FloatSlider("G", Vec2f(400.0f, 20.0f), EditorScenePtr->m_DirLight.colour.g);
+    UI->FloatSlider("B", Vec2f(400.0f, 20.0f), EditorScenePtr->m_DirLight.colour.b);
+
     if (SelectedObjects.empty())
     {
-        UI->TextButton("No object selected.", Vec2f(120.0f, 60.0f), 4.0f);
     }
     else
     {
@@ -2175,7 +2184,9 @@ void EditorState::DrawResourcesPanel()
             {
                 if (!Cursor.IsDraggingSomething())
                 {
-                    PointLight* PointLightPtr = EditorScene.AddPointLight(PointLight());
+                    PointLight NewLight = PointLight();
+
+                    PointLight* PointLightPtr = EditorScene.AddPointLight(NewLight);
                     Cursor.StartDraggingNewPointLight(PointLightPtr);
                 }
             }

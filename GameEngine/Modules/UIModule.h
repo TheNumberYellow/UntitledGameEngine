@@ -62,6 +62,12 @@ struct TextEntryState : public ElementState
     bool focused = false;
 };
 
+struct FloatSliderState : public ElementState
+{
+    float percentage = 0.0f;
+    bool dragging = false;
+};
+
 class UIModule
     : public IResizeable
 {
@@ -93,6 +99,8 @@ public:
     void StartTab(std::string text = "", Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
     void EndTab();
 
+    void FloatSlider(std::string name, Vec2f size, float& outNum, float min = 0.0f, float max = 1.0f, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
+
     void OnFrameStart();
     void OnFrameEnd();
 
@@ -103,6 +111,9 @@ public:
 private:
 
     Click ButtonInternal(std::string name, Vec2f size, float borderWidth, Vec3f colour);
+
+    Click ButtonInternal(std::string name, Rect rect, float borderWidth, Vec3f colour);
+
 
     // Returns the bounds of an element given a size, without advancing the cursor
     Rect SizeElement(Vec2f size);
@@ -118,6 +129,7 @@ private:
     FrameState* GetFrameState(std::string name);
     ButtonState* GetButtonState(std::string name);
     TextEntryState* GetTextEntryState(std::string name);
+    FloatSliderState* GetFloatSliderState(std::string name);
 
     Rect GetFrame();
 
@@ -133,6 +145,7 @@ private:
     std::unordered_map<ElementID, FrameState> m_FrameStates;
     std::unordered_map<ElementID, ButtonState> m_ButtonStates;
     std::unordered_map<ElementID, TextEntryState> m_TextEntryStates;
+    std::unordered_map<ElementID, FloatSliderState> m_FloatSliderStates;
 
     bool m_InTab = false;
 

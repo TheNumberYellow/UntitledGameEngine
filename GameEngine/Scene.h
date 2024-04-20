@@ -80,6 +80,9 @@ public:
     void LegacyLoad(std::string FileName);
 
     void Clear();
+
+    DirectionalLight m_DirLight;
+
 private:
     bool IsIgnored(Model* model, std::vector<Model*> ignoredModels);
 
@@ -88,7 +91,7 @@ private:
     
     std::vector<PointLight*> m_PointLights;
     
-    DirectionalLight m_DirLight;
+    
 
     std::vector<Camera> m_Cameras;
 

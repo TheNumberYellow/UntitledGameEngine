@@ -168,6 +168,10 @@ void TextModule::DrawText(std::string text, Font* font, Vec2f position, Vec3f co
         position.x -= meshInfo.m_Bounds.size.x / 2;
         position.y -= meshInfo.m_Bounds.size.y / 2;
         break;
+    case Anchor::TOP_RIGHT:
+        position.x -= meshInfo.m_Bounds.size.x;
+        position.y -= meshInfo.m_Bounds.size.y;
+        break;
     default:
         break;
     }

@@ -325,6 +325,22 @@ float Math::Min(float a, float b)
     return a < b ? a : b;
 }
 
+float Math::Lerp(float a, float b, float t)
+{
+    return (1.0f - t) * a + b * t;
+}
+
+float Math::InvLerp(float a, float b, float v)
+{
+    return (v - a) / (b - a);
+}
+
+float Math::Remap(float iMin, float iMax, float oMin, float oMax, float v)
+{
+    float t = InvLerp(iMin, iMax, v);
+    return Lerp(oMin, oMax, t);
+}
+
 float Math::SmoothStep(float in, float edge0, float edge1)
 {
     in = Clamp((in - edge0) / (edge1 - edge0));

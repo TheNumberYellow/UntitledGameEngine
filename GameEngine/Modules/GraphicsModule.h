@@ -173,7 +173,7 @@ struct DirectionalLight
 struct PointLight
 {
     Vec3f position = Vec3f(0.0f, 0.0f, 0.0f);
-    Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f);
+    Colour colour = Colour(1.0f, 1.0f, 1.0f);
     float intensity = 1.0f;
 };
 

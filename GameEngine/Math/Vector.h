@@ -48,7 +48,18 @@ struct Vec2f
 
 struct Vec3f
 {
-    float x, y, z;
+    union
+    {
+        float x, r;
+    };
+    union
+    {
+        float y, g;
+    };
+    union
+    {
+        float z, b;
+    };
 
     Vec3f(float x, float y, float z) : x(x), y(y), z(z) {}
     Vec3f() : x(0.0f), y(0.0f), z(0.0f) {}
@@ -92,6 +103,8 @@ struct Vec3f
     std::string toString();
 
 };
+
+using Colour = Vec3f;
 
 class Vec3fHash
 {

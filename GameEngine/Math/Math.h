@@ -40,6 +40,10 @@ public:
     static float Max(float a, float b);
     static float Min(float a, float b);
 
+    static float Lerp(float a, float b, float t);
+    static float InvLerp(float a, float b, float v);
+    static float Remap(float iMin, float iMax, float oMin, float oMax, float v);
+
     static float SmoothStep(float in, float edge0 = 0.0f, float edge1 = 0.0f);
 
     static float Clamp(float in, float lower = 0.0f, float upper = 1.0f);

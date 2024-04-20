@@ -60,15 +60,34 @@ StaticMesh_ID FileLoader::LoadOBJFile(std::string filePath, Renderer& renderer)
 
             if (words[0] == "f")
             {
-                for (int i = 3; i > 0; --i)
+                std::vector<std::string> LineWords(words.begin() + 1, words.end());
+
+                if (LineWords.size() > 4)
+                {
+                    LineWords = std::vector<std::string>(LineWords.begin(), LineWords.begin() + 4);
+                }
+
+                if (LineWords.size() == 4)
+                {
+                    std::vector<std::string> TempLineWords = {
+                        LineWords[0], LineWords[1], LineWords[2],
+                        LineWords[0], LineWords[2], LineWords[3]
+                    };
+                    LineWords = TempLineWords;
+                }
+
+                for (int i = (int)LineWords.size() - 1; i >= 0; --i)
                 {
                     std::vector<std::string> indexes;
-                    indexes = StringUtils::Split(words[i], "/");
+                    indexes = StringUtils::Split(LineWords[i], "/");
 
                     Vertex newVert;
                     newVert.position = vecs[std::stoul(indexes[0]) - 1];
                     newVert.uv = uvs[std::stoul(indexes[1]) - 1];
-                    newVert.normal = norms[std::stoul(indexes[2]) - 1];
+                    if (indexes.size() > 2)
+                    {
+                        newVert.normal = norms[std::stoul(indexes[2]) - 1];
+                    }
 
                     newVert.colour = Vec4f(1.0f, 1.0f, 1.0f, 1.0f);
 
