@@ -4,6 +4,7 @@
 
 #include <filesystem>
 
+
 SelectedModel::SelectedModel(Model* InModel, Scene* InScene)
 {
     ModelPtr = InModel;
@@ -28,6 +29,10 @@ void SelectedModel::DrawInspectorPanel()
     float QuatLength = (ModelQuat.x * ModelQuat.x) + (ModelQuat.y * ModelQuat.y) + (ModelQuat.z * ModelQuat.z) + (ModelQuat.w * ModelQuat.w);
 
     UI->TextButton("Rotation Quaternion length: " + std::to_string(QuatLength), Vec2f(240.0f, 40.0f), 12.0f, c_InspectorColour);
+
+    static std::string TestString = "Test";
+
+    UI->TextEntry("TestEntry", TestString, Vec2f(300.0f, 40.0f));
 
     //Material Mat = ModelPtr->m_TexturedMeshes[0].m_Material;
 
@@ -71,17 +76,34 @@ bool SelectedModel::operator==(const ISelectedObject& Other)
     }
 }
 
-SelectedVertex::SelectedVertex(Vec3f* InVertPtr)
+SelectedVertex::SelectedVertex(Vec3f* InVertPtr, Brush* InBrushPtr)
 {
     VertPtr = InVertPtr;
+    BrushPtr = InBrushPtr;
+    Trans.SetPosition(*VertPtr);
 }
 
 void SelectedVertex::Draw()
 {
+    GraphicsModule* Graphics = GraphicsModule::Get();
+
+    AABB VertAABB = AABB(*VertPtr - Vec3f(0.35f, 0.35f, 0.35f), *VertPtr + Vec3f(0.35f, 0.35f, 0.35f));
+
+    Graphics->DebugDrawAABB(VertAABB, c_SelectedBoxColour);
 }
 
 void SelectedVertex::Update()
 {
+    GraphicsModule* Graphics = GraphicsModule::Get();
+
+    *VertPtr = Trans.GetPosition();
+
+
+    if (!BrushPtr->UpdatedThisFrame)
+    {
+        Graphics->UpdateBrushModel(BrushPtr);
+        //BrushPtr->UpdatedThisFrame = true;
+    }
 }
 
 void SelectedVertex::DrawInspectorPanel()
@@ -90,11 +112,12 @@ void SelectedVertex::DrawInspectorPanel()
 
 Transform* SelectedVertex::GetTransform()
 {
-    return nullptr;
+    return &Trans;
 }
 
 void SelectedVertex::DeleteObject()
 {
+    // Do nothing (can't delete individual brush vertices for now
 }
 
 bool SelectedVertex::operator==(const ISelectedObject& Other)
@@ -376,6 +399,10 @@ void CursorState::Update(float DeltaTime)
     case ToolMode::Sculpt:
         UpdateSculptTool(DeltaTime);
         break;
+    case ToolMode::Brush:
+        UpdateBrushTool();
+        break;
+
     default:
     {
         break;
@@ -838,16 +865,117 @@ void CursorState::UpdateSculptTool(float DeltaTime)
     }
 }
 
+void CursorState::UpdateBrushTool()
+{
+    InputModule* Input = InputModule::Get();
+    CollisionModule* Collisions = CollisionModule::Get();
+    GraphicsModule* Graphics = GraphicsModule::Get();
+
+    KeyState ClickState = Input->GetMouseState().GetMouseButtonState(MouseButton::LMB);
+
+    if (Dragging != DraggingMode::None)
+    {
+        IsCreatingNewBox = false;
+    }
+
+    if (IsCreatingNewBox)
+    {
+        if (ClickState.justReleased)
+        {
+            IsCreatingNewBox = false;
+
+            if (BoxBeingCreated.XSize() <= 0.0001f
+                || BoxBeingCreated.YSize() <= 0.0001f
+                || BoxBeingCreated.ZSize() < 0.0001f)
+            {
+                // Box too smol
+            }
+            else
+            {
+                // Create the box model, add to scene
+                Brush* NewBrush = new Brush(BoxBeingCreated);
+                
+                EditorScenePtr->AddBrush(NewBrush);
+                Graphics->UpdateBrushModel(NewBrush);
+
+                EditorScenePtr->AddModel(NewBrush->RepModel);
+
+                //EditorScenePtr->AddModel(Graphics->CreateBoxModel(BoxBeingCreated));
+            }
+
+        }
+        else
+        {
+            Vec2i MousePos = Input->GetMouseState().GetMousePos();
+            Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+
+            RayCastHit PlaneHit = Collisions->RayCast(MouseRay, Plane(NewBoxStartPoint, Vec3f(0.0f, 0.0f, 1.0f)));
+
+            if (PlaneHit.hit)
+            {
+                int DeltaMouseWheel = Input->GetMouseState().GetDeltaMouseWheel();
+                if (DeltaMouseWheel > 0)
+                {
+                    NewBoxHeight += GeoPlaceSnap;
+                }
+                else if (DeltaMouseWheel < 0)
+                {
+                    NewBoxHeight -= GeoPlaceSnap;
+                }
+
+                if (NewBoxHeight < GeoPlaceSnap) NewBoxHeight = GeoPlaceSnap;
+
+                Vec3f HitPoint = PlaneHit.hitPoint;
+
+                HitPoint.x = Math::Round(HitPoint.x, GeoPlaceSnap);
+                HitPoint.y = Math::Round(HitPoint.y, GeoPlaceSnap);
+                HitPoint.z = Math::Round(HitPoint.z, GeoPlaceSnap);
+
+                float minX = std::min(HitPoint.x, NewBoxStartPoint.x);
+                float minY = std::min(HitPoint.y, NewBoxStartPoint.y);
+
+                float maxX = std::max(HitPoint.x, NewBoxStartPoint.x);
+                float maxY = std::max(HitPoint.y, NewBoxStartPoint.y);
+
+                BoxBeingCreated.min = Vec3f(minX, minY, HitPoint.z);
+                BoxBeingCreated.max = Vec3f(maxX, maxY, HitPoint.z + NewBoxHeight);
+
+                Graphics->DebugDrawAABB(BoxBeingCreated, Vec3f(0.1f, 1.0f, 0.3f));
+            }
+        }
+    }
+    else
+    {
+        Vec2i MousePos = Input->GetMouseState().GetMousePos();
+        if (ClickState.justPressed && Dragging == DraggingMode::None && EditorStatePtr->GetEditorSceneViewportRect().Contains(MousePos))
+        {
+            Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+
+            RayCastHit PlaneHit = Collisions->RayCast(MouseRay, Plane(Vec3f(0.0f, 0.0f, 0.0f), Vec3f(0.0f, 0.0f, 1.0f)));
+            RayCastHit SceneHit = EditorScenePtr->RayCast(MouseRay).rayCastHit;
+
+            RayCastHit FinalHit = PlaneHit.hitDistance < SceneHit.hitDistance ? PlaneHit : SceneHit;
+
+            if (FinalHit.hit)
+            {
+                Vec3f HitPoint = FinalHit.hitPoint;
+
+                HitPoint.x = Math::Round(HitPoint.x, GeoPlaceSnap);
+                HitPoint.y = Math::Round(HitPoint.y, GeoPlaceSnap);
+                HitPoint.z = Math::Round(HitPoint.z, GeoPlaceSnap);
+
+                IsCreatingNewBox = true;
+                NewBoxStartPoint = HitPoint;
+            }
+        }
+    }
+}
+
 void CursorState::UpdateModelSelectTool()
 {
     InputModule* Input = InputModule::Get();
 
     Vec2i MousePos = Input->GetMouseState().GetMousePos();
-
-    if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).justPressed)
-    {
-        Engine::DEBUGPrint("JUST PRESSED MOUSE BUTTON");
-    }
 
     if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).justPressed && EditorStatePtr->GetEditorSceneViewportRect().Contains(MousePos))
     {
@@ -909,6 +1037,78 @@ void CursorState::UpdateModelSelectTool()
 
 void CursorState::UpdateVertexSelectTool()
 {
+    InputModule* Input = InputModule::Get();
+    GraphicsModule* Graphics = GraphicsModule::Get();
+
+    Vec2i MousePos = Input->GetMouseState().GetMousePos();
+
+    auto BrushVec = EditorScenePtr->GetBrushes();
+
+    for (auto& B : BrushVec)
+    {
+        for (auto& Vert : B->Vertices)
+        {
+            AABB BrushVertAABB = AABB(Vert - Vec3f(0.15f, 0.15f, 0.15f), Vert + Vec3f(0.15f, 0.15f, 0.15f));
+            Graphics->DebugDrawAABB(BrushVertAABB, Colour(0.7f, 0.9f, 0.3f));
+        }
+    }
+
+    if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).justPressed && EditorStatePtr->GetEditorSceneViewportRect().Contains(MousePos))
+    {
+        Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+
+        RayCastHit VertHit;
+
+        Vec3f* HitVert = nullptr;
+        Brush* HitBrush = nullptr;
+
+        CollisionModule* Collisions = CollisionModule::Get();
+
+        for (auto& B : BrushVec)
+        {
+            for (auto& Vert : B->Vertices)
+            {
+                AABB BrushVertAABB = AABB(Vert - Vec3f(0.15f, 0.15f, 0.15f), Vert + Vec3f(0.15f, 0.15f, 0.15f));
+
+                RayCastHit NewVertHit = Collisions->RayCast(MouseRay, BrushVertAABB);
+
+                if (NewVertHit.hit && NewVertHit.hitDistance < VertHit.hitDistance)
+                {
+                    VertHit = NewVertHit;
+                    HitBrush = B;
+                    HitVert = &Vert;
+                }
+
+            }
+        }
+
+        if (VertHit.hit && HitVert)
+        {
+            if (!Input->GetKeyState(Key::Shift).pressed)
+            {
+                UnselectSelectedObjects();
+            }
+
+            SelectedVertex* ClickedVert = new SelectedVertex(HitVert, HitBrush);
+        
+            AddToSelectedObjects(ClickedVert);
+
+            // Also add all vertices which were very close to the chosen vert
+            for (auto& B : BrushVec)
+            {
+                for (auto& Vert : B->Vertices)
+                {
+                    if (Math::magnitude(*HitVert - Vert) < 0.00001f)
+                    {
+                        SelectedVertex* CloseVert = new SelectedVertex(&Vert, B);
+
+                        AddToSelectedObjects(CloseVert);
+                    }
+                }
+            }
+        }
+
+    }
 }
 
 void CursorState::UpdateTranslateTool()
@@ -1628,7 +1828,62 @@ void EditorState::UpdateEditor(float DeltaTime)
         Cursor.SetToolMode(ToolMode::Sculpt);
     }
 
+    if (Input->GetKeyState(Key::Five).justPressed)
+    {
+        Cursor.SetToolMode(ToolMode::Brush);
+    }
+
     Vec2i ViewportSize = Engine::GetClientAreaSize();
+
+    auto BrushVec = EditorScene.GetBrushes();
+
+    for (Brush* B : BrushVec)
+    {
+        B->UpdatedThisFrame = false;
+        for (auto& Face : B->Faces)
+        {
+            Vec3f PlanePoint = Vec3f(0.0f, 0.0f, 0.0f);
+
+            for (int i = 0; i < Face.size(); i++)
+            {
+                PlanePoint += *Face[i];
+            }
+            PlanePoint = PlanePoint / Face.size();
+
+            for (int i = 0; i < Face.size() - 1; i++)
+            {
+                Graphics->DebugDrawLine(*Face[i], *Face[i + 1]);
+            }
+            Graphics->DebugDrawLine(*Face[Face.size() - 1], *Face[0]);
+
+            Vec3f u = *Face[1] - *Face[0];
+            Vec3f v = *Face[2] - *Face[0];
+
+            Vec3f PlaneNorm = -Math::cross(u, v);
+            PlaneNorm = Math::normalize(PlaneNorm);
+
+            Vec3f UpProjection = Math::ProjectVecOnPlane(Vec3f(0.0f, 0.0f, 1.0f), Plane(PlanePoint, PlaneNorm));
+
+            if (UpProjection.IsNearlyZero())
+            {
+                if (PlaneNorm.z > 0.0f)
+                {
+                    UpProjection = u;
+                }
+                else
+                {
+                    UpProjection = -u;
+                }
+            }
+           
+            UpProjection = Math::normalize(UpProjection);
+
+            Graphics->DebugDrawLine(PlanePoint, PlanePoint + UpProjection, c_NiceYellow);
+
+            Graphics->DebugDrawLine(PlanePoint, PlanePoint + PlaneNorm, c_NiceRed);
+        }
+
+    }
 
     EditorScene.EditorDraw(*Graphics, ViewportBuffer, &ViewportCamera);
 
@@ -1872,10 +2127,10 @@ std::vector<Material> EditorState::LoadMaterials(GraphicsModule& graphics)
 
             Texture newTexture = *Registry->LoadTexture(fileName);
 
-            std::string NormalMapString = entry.path().parent_path().generic_string() + "/" + entry.path().stem().generic_string() + ".norm.png";
-            std::string RoughnessMapString = entry.path().parent_path().generic_string() + "/" + entry.path().stem().generic_string() + ".rough.png";
-            std::string MetallicMapString = entry.path().parent_path().generic_string() + "/" + entry.path().stem().generic_string() + ".metal.png";
-            std::string AOMapString = entry.path().parent_path().generic_string() + "/" + entry.path().stem().generic_string() + ".ao.png";
+            std::string NormalMapString = entry.path().parent_path().generic_string() + "/" + entry.path().stem().generic_string() + ".norm" + extensionString;
+            std::string RoughnessMapString = entry.path().parent_path().generic_string() + "/" + entry.path().stem().generic_string() + ".rough" + extensionString;
+            std::string MetallicMapString = entry.path().parent_path().generic_string() + "/" + entry.path().stem().generic_string() + ".metal" + extensionString;
+            std::string AOMapString = entry.path().parent_path().generic_string() + "/" + entry.path().stem().generic_string() + ".ao" + extensionString;
 
             if (std::filesystem::exists(NormalMapString))
             {
@@ -2068,6 +2323,13 @@ void EditorState::DrawEditorUI()
         {
             Cursor.SetToolMode(ToolMode::Sculpt);
         }
+
+        if (UI->ImgButton("BrushTool", vertexToolTexture, Vec2f(80.0f, 80.0f), 12.0f,
+            Cursor.GetToolMode() == ToolMode::Brush ? SelectedColour : UnSelectedColour))
+        {
+            Cursor.SetToolMode(ToolMode::Brush);
+        }
+
 
     }
     UI->EndFrame();

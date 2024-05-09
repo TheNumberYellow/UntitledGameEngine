@@ -2,9 +2,10 @@
 
 #include "Asset/AssetRegistry.h"
 #include "Camera.h"
-#include "Interfaces\Resizeable_i.h"
-#include "Math\Geometry.h"
-#include "Platform\RendererPlatform.h"
+#include "Interfaces/Resizeable_i.h"
+#include "Math/Geometry.h"
+#include "Math/Transform.h"
+#include "Platform/RendererPlatform.h"
 
 #include <unordered_map>
 #include <vector>
@@ -12,6 +13,25 @@
 typedef std::pair<std::vector<float>, std::vector<ElementIndex>> MeshData;
 
 class GraphicsModule;
+
+// TODO(Fraser): Just putting brush stuff here because I don't know where else to put it for now
+struct Brush
+{
+    Brush(AABB InAABB);
+
+    Brush(Rect InRect);
+
+    
+    std::vector<Vec3f> Vertices;
+
+    std::vector<std::vector<Vec3f*>> Faces;
+
+    Transform* Trans = nullptr;
+
+    Model* RepModel = nullptr;
+
+    bool UpdatedThisFrame = false;
+};
 
 struct GBuffer
 {
@@ -84,39 +104,6 @@ enum class RenderMode
 {
     FULLBRIGHT,
     DEFAULT
-};
-
-class Transform
-{
-public:
-    void SetPosition(Vec3f newPos);
-    void SetScale(Vec3f newScale);
-    void SetScale(float newScale);
-    void SetRotation(Quaternion newRotation);
-
-    Vec3f GetPosition() { return m_Position; }
-    Vec3f GetScale() { return m_Scale; }
-    Quaternion GetRotation() { return m_Rotation; }
-
-    void Move(Vec3f move);
-    void Scale(Vec3f scale);
-    void Rotate(Quaternion rotation);
-
-    void RotateAroundPoint(Vec3f point, Quaternion rotation);
-
-    Mat4x4f GetTransformMatrix();
-    void SetTransformMatrix(Mat4x4f mat);
-
-private:
-
-    void UpdateTransformMatrix();
-
-    Vec3f m_Position = Vec3f(0.0f, 0.0f, 0.0f);
-    Vec3f m_Scale = Vec3f(1.0f, 1.0f, 1.0f);
-    Quaternion m_Rotation;
-
-    Mat4x4f m_Transform;
-    bool m_TransformMatrixNeedsUpdate = false;
 };
 
 struct TexturedMesh
@@ -258,6 +245,8 @@ public:
     //TODO(fraser) Going to want something that's not a model for level geometry like this, something that can be edited easily (and which doesn't need use a transform matrix)
     Model CreateBoxModel(AABB box);
     Model CreateBoxModel(AABB box, Material texture);
+
+    void UpdateBrushModel(Brush* brush);
 
     Model CreatePlaneModel(Vec2f min, Vec2f max, float elevation = 0.0f, int subsections = 1);
     Model CreatePlaneModel(Vec2f min, Vec2f max, Material material, float elevation = 0.0f, int subsections = 1);

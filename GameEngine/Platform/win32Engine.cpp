@@ -8,6 +8,8 @@
 
 static bool running = true;
 static HWND WindowHandle;
+static HINSTANCE Instance;
+static ModuleManager Modules;
 
 static Vec2i cursorCenter;
 static bool cursorLocked = false;
@@ -459,10 +461,11 @@ LRESULT CALLBACK WindowProc(_In_ HWND WindowHandle, _In_ UINT Message, _In_ WPAR
 
 
 // Program entry point
-int WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ LPSTR CommandLine, _In_ int ShowCommand)
+int WinMain(_In_ HINSTANCE InInstance, _In_opt_ HINSTANCE InPreviousInstance, _In_ LPSTR CommandLine, _In_ int ShowCommand)
 {
-    ModuleManager Modules;
     
+    Instance = InInstance;
+
     // Initialize window class
     WNDCLASSEX wndClass = {};
     wndClass.cbSize = sizeof(WNDCLASSEX);
@@ -581,4 +584,38 @@ int WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ L
         Input.OnFrameEnd();
     }
     return 0;
+}
+
+void Engine::CreateNewWindow()
+{
+    // Initialize window class
+    WNDCLASSEX wndClass = {};
+    wndClass.cbSize = sizeof(WNDCLASSEX);
+    wndClass.style = CS_OWNDC;
+    wndClass.lpfnWndProc = WindowProc;
+    wndClass.hInstance = Instance;
+    wndClass.lpszClassName = L"GameEngineSubWindowClass";
+    wndClass.hCursor = LoadCursor(NULL, IDC_ARROW);
+
+    if (!RegisterClassEx(&wndClass))
+    {
+        return;
+    }
+    HWND NewWindowHandle = CreateWindowEx
+    (
+        0,
+        wndClass.lpszClassName,
+        L"Game Engine Sub Window",
+        WS_OVERLAPPEDWINDOW,
+        CW_USEDEFAULT,
+        CW_USEDEFAULT,
+        CW_USEDEFAULT,
+        CW_USEDEFAULT,
+        0,
+        0,
+        Instance,
+        &Modules
+    );
+
+    ShowWindow(NewWindowHandle, SW_SHOW);
 }

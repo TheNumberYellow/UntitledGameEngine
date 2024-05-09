@@ -17,6 +17,7 @@ enum class ToolMode : uint8_t
     Geometry,
     Vertex,
     Sculpt,
+    Brush,
 };
 
 enum class SelectMode : uint8_t
@@ -103,29 +104,25 @@ private:
 class SelectedVertex : public ISelectedObject
 {
 public:
-    SelectedVertex(Vec3f* InVertPtr);
-
+    SelectedVertex(Vec3f* InVertPtr, Brush* InBrushPtr);
 
     void Draw() override;
 
-
     void Update() override;
-
 
     void DrawInspectorPanel() override;
 
-
     Transform* GetTransform() override;
 
-
     void DeleteObject() override;
-
 
     bool operator==(const ISelectedObject& Other) override;
 
 private:
 
     Vec3f* VertPtr = nullptr;
+    Brush* BrushPtr = nullptr;
+    Transform Trans;
 };
 
 class SelectedLight : public ISelectedObject
@@ -224,6 +221,7 @@ private:
     void UpdateGeometryTool();
     void UpdateVertexTool();
     void UpdateSculptTool(float DeltaTime);
+    void UpdateBrushTool();
 
     void UpdateModelSelectTool();
     void UpdateVertexSelectTool();
@@ -441,7 +439,6 @@ private:
     const Vec3f c_NiceBrightBlue = Vec3f(125.f / 255.f, 249.f / 255.f, 255.f / 255.f);
     const Vec3f c_NiceGreen = Vec3f(11.f / 255.f, 218.f / 255.f, 81.f / 255.f);
     const Vec3f c_NiceYellow = Vec3f(255.f / 255.f, 191.5 / 255.f, 0.f / 255.f);
-
 
     // TEMP
     int PrevFrameTimeCount = 0;

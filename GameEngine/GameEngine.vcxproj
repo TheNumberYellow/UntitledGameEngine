@@ -523,6 +523,7 @@
   <ItemGroup>
     <ClCompile Include="Asset\AssetRegistry.cpp" />
     <ClCompile Include="Modules\AudioModule.cpp" />
+    <ClCompile Include="Modules\PhysicsModule.cpp" />
     <ClCompile Include="State\BaseState.cpp" />
     <ClCompile Include="Behaviour\Behaviour.cpp" />
     <ClCompile Include="Camera.cpp" />
@@ -560,11 +561,13 @@
     <ClCompile Include="StringUtils.cpp" />
     <ClCompile Include="Platform\win32Engine.cpp" />
     <ClCompile Include="Modules\TextModule.cpp" />
+    <ClCompile Include="Math\Transform.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Asset\AssetRegistry.h" />
     <ClInclude Include="include\json.hpp" />
     <ClInclude Include="Modules\AudioModule.h" />
+    <ClInclude Include="Modules\PhysicsModule.h" />
     <ClInclude Include="State\BaseState.h" />
     <ClInclude Include="Behaviour\Behaviour.h" />
     <ClInclude Include="Camera.h" />
@@ -596,6 +599,7 @@
     <ClInclude Include="State\StateMachine.h" />
     <ClInclude Include="StringUtils.h" />
     <ClInclude Include="Modules\TextModule.h" />
+    <ClInclude Include="Math\Transform.h" />
     <ClInclude Include="Utils\FilePath.h" />
     <ClInclude Include="Utils\Hash.h" />
   </ItemGroup>

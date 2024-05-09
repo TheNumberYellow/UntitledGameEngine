@@ -74,6 +74,9 @@ struct Vec3f
     Vec3f XZOnly();
     Vec3f YZOnly();
 
+    bool IsZero();
+    bool IsNearlyZero();
+
     Vec3f operator+(Vec3f rhs);
     Vec3f& operator+=(const Vec3f& rhs);
 

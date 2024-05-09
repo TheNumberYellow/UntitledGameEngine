@@ -38,4 +38,7 @@ namespace Engine
     extern bool FileSaveDialog(std::string& OutFileString);
 
     extern void SetWindowTitleText(std::string Text);
+
+    extern void CreateNewWindow();
+
 }

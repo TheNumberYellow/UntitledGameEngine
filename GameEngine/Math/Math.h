@@ -92,4 +92,6 @@ public:
     static std::pair<Vec3f, Vec3f> ClosestPointsOnLines(Line a, Line b);
     static Vec3f ClosestPointOnPlaneToPoint(Plane plane, Vec3f point);
 
+    static Vec3f ProjectVecOnPlane(Vec3f Vec, Plane P);
+
 };

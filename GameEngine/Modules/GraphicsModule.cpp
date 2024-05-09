@@ -5,6 +5,53 @@
 #include <random>
 #include "Scene.h"
 
+Brush::Brush(AABB InAABB)
+{
+    Vec3f BoxMin = InAABB.min;
+    Vec3f BoxMax = InAABB.max;
+
+    float BoxXSize = InAABB.XSize();
+    float BoxYSize = InAABB.YSize();
+
+    Vertices.insert(Vertices.end(),
+        {
+            BoxMin,
+            BoxMin + Vec3f(0.0f, BoxYSize, 0.0f),
+            BoxMin + Vec3f(BoxXSize, BoxYSize, 0.0f),
+            BoxMin + Vec3f(BoxXSize, 0.0f, 0.0f),
+
+            BoxMax - Vec3f(BoxXSize, BoxYSize, 0.0f),
+            BoxMax - Vec3f(BoxXSize, 0.0f, 0.0f),
+            BoxMax,
+            BoxMax - Vec3f(0.0f, BoxYSize, 0.0f),
+        }
+    );
+
+    Faces.push_back({ &Vertices[3], &Vertices[2], &Vertices[1], &Vertices[0] });
+    Faces.push_back({ &Vertices[4], &Vertices[5], &Vertices[6], &Vertices[7] });
+
+    Faces.push_back({ &Vertices[0], &Vertices[1], &Vertices[5], &Vertices[4] });
+    Faces.push_back({ &Vertices[2], &Vertices[3], &Vertices[7], &Vertices[6] });
+
+    Faces.push_back({ &Vertices[3], &Vertices[0], &Vertices[4], &Vertices[7] });
+    Faces.push_back({ &Vertices[1], &Vertices[2], &Vertices[6], &Vertices[5] });
+}
+
+Brush::Brush(Rect InRect)
+{
+    Vertices.insert( Vertices.end(),
+        { 
+            Vec3f(InRect.location.x, InRect.location.y, 0.0f), 
+            Vec3f(InRect.location.x, InRect.location.y + InRect.size.y, 0.0f),
+            Vec3f(InRect.location.x + InRect.size.x, InRect.location.y + InRect.size.y, 0.0f),
+            Vec3f(InRect.location.x + InRect.size.x, InRect.location.y, 0.0f),
+        }
+    );
+
+    Faces.push_back({ &Vertices[0], &Vertices[1], &Vertices[2] });
+    Faces.push_back({ &Vertices[0], &Vertices[2], &Vertices[3] });
+}
+
 GraphicsModule* GraphicsModule::s_Instance = nullptr;
 
 Material::Material(Texture Albedo, Texture Normal, Texture Roughness, Texture Metallic, Texture AO)
@@ -14,88 +61,6 @@ Material::Material(Texture Albedo, Texture Normal, Texture Roughness, Texture Me
     , m_Metallic(Metallic)
     , m_AO(AO)
 {
-}
-
-void Transform::SetPosition(Vec3f newPos)
-{
-    m_Position = newPos;
-    m_TransformMatrixNeedsUpdate = true;
-}
-
-void Transform::SetScale(Vec3f newScale)
-{
-    m_Scale = newScale;
-    m_TransformMatrixNeedsUpdate = true;
-}
-
-void Transform::SetScale(float newScale)
-{
-    m_Scale = Vec3f(newScale, newScale, newScale);
-    m_TransformMatrixNeedsUpdate = true;
-}
-
-void Transform::SetRotation(Quaternion newRotation)
-{
-    m_Rotation = newRotation;
-    m_TransformMatrixNeedsUpdate = true;
-}
-
-void Transform::Move(Vec3f move)
-{
-    m_Position += move;
-    m_TransformMatrixNeedsUpdate = true;
-}
-
-void Transform::Scale(Vec3f scale)
-{
-    m_Scale.x *= scale.x;
-    m_Scale.y *= scale.y;
-    m_Scale.z *= scale.z;
-
-    m_TransformMatrixNeedsUpdate = true;
-}
-
-void Transform::Rotate(Quaternion rotation)
-{
-    m_Rotation = m_Rotation * rotation;
-
-    m_TransformMatrixNeedsUpdate = true;
-}
-
-void Transform::RotateAroundPoint(Vec3f point, Quaternion rotation)
-{
-    Mat4x4f RotMat = rotation.ToMatrix();
-
-    Mat4x4f TransMat = Math::Translate(Mat4x4f(), point);
-    Mat4x4f RevTransMat = Math::Translate(Mat4x4f(), -point);
-
-    Mat4x4f TotalTrans = TransMat * RotMat * RevTransMat;
-
-    SetTransformMatrix(TransMat * RotMat * RevTransMat * GetTransformMatrix());
-}
-
-Mat4x4f Transform::GetTransformMatrix()
-{
-    if (m_TransformMatrixNeedsUpdate)
-    {
-        UpdateTransformMatrix();
-        m_TransformMatrixNeedsUpdate = false;
-    }
-    return m_Transform;
-}
-
-void Transform::SetTransformMatrix(Mat4x4f mat)
-{
-    m_Transform = mat;
-
-    Math::DecomposeMatrix(m_Transform, m_Position, m_Rotation, m_Scale);
-
-    m_TransformMatrixNeedsUpdate = false;
-}
-
-void Transform::UpdateTransformMatrix()
-{
-    m_Transform = Math::GenerateTransformMatrix(m_Position, m_Scale, m_Rotation);
 }
 
 GraphicsModule::GraphicsModule(Renderer& renderer)
@@ -1923,6 +1888,191 @@ Model GraphicsModule::CreateBoxModel(AABB box, Material material)
     return result;
 }
 
+void GraphicsModule::UpdateBrushModel(Brush* brush)
+{
+    std::vector<float> Vertices;
+    std::vector<ElementIndex> Indices;
+
+    ElementIndex CurrentIndex = 0;
+
+    for (auto& Face : brush->Faces)
+    {
+        // No n-gons for now
+        if (Face.size() == 3)
+        {
+            // Tri face
+
+            Vec3f A = *Face[0];
+            Vec3f B = *Face[1];
+            Vec3f C = *Face[2];
+
+            Vec3f FaceNormal = -Math::cross(B - A, C - A);
+            FaceNormal = Math::normalize(FaceNormal);
+
+            Vertices.insert(Vertices.end(), 
+                {
+                    // Positions    // Normals                                  // Colours                  // Texcoords
+                    A.x, A.y, A.z,  FaceNormal.x, FaceNormal.y, FaceNormal.z,   1.0f, 1.0f, 1.0f, 1.0f,     0.0f, 0.0f,
+                    B.x, B.y, B.z,  FaceNormal.x, FaceNormal.y, FaceNormal.z,   1.0f, 1.0f, 1.0f, 1.0f,     1.0f, 0.0f,
+                    C.x, C.y, C.z,  FaceNormal.x, FaceNormal.y, FaceNormal.z,   1.0f, 1.0f, 1.0f, 1.0f,     1.0f, 1.0f,
+                } 
+            );
+
+            Indices.insert(Indices.end(),
+                {
+                    CurrentIndex++, CurrentIndex++, CurrentIndex++
+                }
+            );
+        }
+        else if (Face.size() == 4)
+        {
+            // Quad face
+
+            Vec3f A = *Face[0];
+            Vec3f B = *Face[1];
+            Vec3f C = *Face[2];
+            Vec3f D = *Face[3];
+
+            Vec2f UVs[6];
+
+            Vec3f FaceNormal0 = -Math::cross(B - A, C - A);
+            FaceNormal0 = Math::normalize(FaceNormal0);
+
+            Vec3f FaceNormal1 = -Math::cross(C - A, D - A);
+            FaceNormal1 = Math::normalize(FaceNormal1);
+
+            Vec3f PlanePoint = (A + B + C + D) / 4;
+
+            Vec3f PlaneUp = Math::ProjectVecOnPlane(Vec3f(0.0f, 0.0f, 1.0f), Plane(PlanePoint, FaceNormal0));
+
+            if (PlaneUp.IsNearlyZero())
+            {
+                if (FaceNormal0.z > 0.0f)
+                {
+                    PlaneUp = B - A;
+                }
+                else
+                {
+                    PlaneUp = -(B - A);
+                }
+            }
+
+            PlaneUp = Math::normalize(PlaneUp);
+
+            Vec3f PlaneRight = Math::cross(FaceNormal0, PlaneUp);
+
+            for (int i = 0; i < 3; i++)
+            {
+                Vec3f P = *Face[i];
+
+                Vec3f AP = P - PlanePoint;
+
+                float x = Math::dot(PlaneRight, AP);
+                float y = Math::dot(PlaneUp, AP);
+
+                UVs[i] = Vec2f(x, y);
+            }
+
+            PlaneUp = Math::ProjectVecOnPlane(Vec3f(0.0f, 0.0f, 1.0f), Plane(PlanePoint, FaceNormal1));
+
+            if (PlaneUp.IsNearlyZero())
+            {
+                if (FaceNormal1.z > 0.0f)
+                {
+                    PlaneUp = B - A;
+                }
+                else
+                {
+                    PlaneUp = -(B - A);
+                }
+            }
+
+            PlaneUp = Math::normalize(PlaneUp);
+
+            PlaneRight = Math::cross(FaceNormal1, PlaneUp);
+
+            Vec3f Points[] = {A, C, D};
+
+            for (int i = 0; i < 3; i++)
+            {
+                Vec3f P = Points[i];
+
+                Vec3f AP = P - PlanePoint;
+
+                float x = Math::dot(PlaneRight, AP);
+                float y = Math::dot(PlaneUp, AP);
+
+                UVs[i + 3] = Vec2f(x, y);
+            }
+
+            Vec2f UVMin = UVs[0];
+            Vec2f UVMax = UVs[0];
+            
+            for (int i = 0; i < 6; i++)
+            {
+                if (UVs[i].x < UVMin.x) UVMin.x = UVs[i].x;
+                if (UVs[i].y < UVMin.y) UVMin.y = UVs[i].y;
+
+                if (UVs[i].x > UVMax.x) UVMax.x = UVs[i].x;
+                if (UVs[i].y > UVMax.y) UVMax.y = UVs[i].y;
+            }
+
+            Rect UVBounds = Rect(UVMin, UVMax - UVMin);
+
+            for (int i = 0; i < 6; i++)
+            {
+                UVs[i] = UVs[i] - UVBounds.location;
+            }
+
+            Vertices.insert(Vertices.end(),
+                {
+                    // Positions    // Normals                                      // Colours                  // Texcoords
+                    A.x, A.y, A.z,  FaceNormal0.x, FaceNormal0.y, FaceNormal0.z,    1.0f, 1.0f, 1.0f, 1.0f,     UVs[0].x, UVs[0].y,
+                    B.x, B.y, B.z,  FaceNormal0.x, FaceNormal0.y, FaceNormal0.z,    1.0f, 1.0f, 1.0f, 1.0f,     UVs[1].x, UVs[1].y,
+                    C.x, C.y, C.z,  FaceNormal0.x, FaceNormal0.y, FaceNormal0.z,    1.0f, 1.0f, 1.0f, 1.0f,     UVs[2].x, UVs[2].y,
+
+                    A.x, A.y, A.z,  FaceNormal1.x, FaceNormal1.y, FaceNormal1.z,    1.0f, 1.0f, 1.0f, 1.0f,     UVs[3].x, UVs[3].y,
+                    C.x, C.y, C.z,  FaceNormal1.x, FaceNormal1.y, FaceNormal1.z,    1.0f, 1.0f, 1.0f, 1.0f,     UVs[4].x, UVs[4].y,
+                    D.x, D.y, D.z,  FaceNormal1.x, FaceNormal1.y, FaceNormal1.z,    1.0f, 1.0f, 1.0f, 1.0f,     UVs[5].x, UVs[5].y,
+                }
+            );
+
+            Indices.insert(Indices.end(),
+                {
+                    CurrentIndex++, CurrentIndex++, CurrentIndex++, CurrentIndex++, CurrentIndex++, CurrentIndex++
+                }
+            );
+        }
+    }
+
+
+
+    if (brush->RepModel == nullptr)
+    {
+        StaticMesh_ID BrushMeshId = m_Renderer.LoadMesh(m_TexturedMeshFormat, Vertices, Indices);
+
+        StaticMesh BrushMesh;
+        BrushMesh.Id = BrushMeshId;
+        BrushMesh.LoadedFromFile = false;
+
+        brush->RepModel = new Model(TexturedMesh(BrushMesh, m_DebugMaterial));
+        brush->Trans = &brush->RepModel->GetTransform();
+    }
+    else
+    {
+        m_Renderer.ClearMesh(brush->RepModel->m_TexturedMeshes[0].m_Mesh.Id);
+
+        m_Renderer.UpdateMeshData(brush->RepModel->m_TexturedMeshes[0].m_Mesh.Id, m_TexturedMeshFormat, Vertices, Indices);
+        //Material OldMaterial = brush->RepModel->m_TexturedMeshes[0].m_Material;
+        //brush->RepModel->m_TexturedMeshes[0] = TexturedMesh(BrushMesh, OldMaterial);
+
+        brush->Trans = &brush->RepModel->GetTransform();
+        
+        //m_Renderer.DeleteMesh(brush->RepModel->m_TexturedMeshes[0].m_Mesh.Id);
+    }
+
+}
+
 Model GraphicsModule::CreatePlaneModel(Vec2f min, Vec2f max, float elevation, int subsections)
 {
     return CreatePlaneModel(min, max, m_DebugMaterial, elevation, subsections);
@@ -2376,3 +2526,4 @@ Texture_ID GraphicsModule::GetLightTexture()
 {
     return m_LightTexture;
 }
+

@@ -43,6 +43,7 @@ public:
     bool IsPaused();
 
     Model* AddModel(Model model, std::string name = "");
+    Model* AddModel(Model* model);
     void DeleteModel(Model* model);
     
     Model* GetModel(std::string name);
@@ -52,7 +53,11 @@ public:
     PointLight* AddPointLight(PointLight newLight);
     void DeletePointLight(PointLight* light);
     
+    Brush* AddBrush(Brush* newBrush);
+
     std::vector<PointLight*>& GetPointLights();
+
+    std::vector<Brush*>& GetBrushes();
 
     void AddCamera(Camera* camera);
 
@@ -90,8 +95,9 @@ private:
     std::vector<Model*> m_UntrackedModels;
     
     std::vector<PointLight*> m_PointLights;
+    std::vector<Brush*> m_Brushes;
     
-    
+    std::unordered_map<Model*, Brush*> m_ModelBrushMap;
 
     std::vector<Camera> m_Cameras;
 

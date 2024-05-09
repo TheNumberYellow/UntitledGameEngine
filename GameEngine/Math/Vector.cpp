@@ -133,6 +133,16 @@ Vec3f Vec3f::YZOnly()
     return Vec3f(0.0f, y, z);
 }
 
+bool Vec3f::IsZero()
+{
+    return x == 0.0f && y == 0.0f && z == 0.0f;
+}
+
+bool Vec3f::IsNearlyZero()
+{
+    return abs(x) < 0.001f && abs(y) < 0.001f && abs(z) < 0.001f;
+}
+
 Vec3f Vec3f::operator+(Vec3f rhs)
 {
     return Vec3f(this->x + rhs.x, this->y + rhs.y, this->z + rhs.z);

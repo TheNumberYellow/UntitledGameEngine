@@ -304,6 +304,11 @@ void UIModule::Text(std::string text, Vec2f position, Vec3f colour)
     m_Text.DrawText(text, &m_FrameFont, position, colour);
 }
 
+void UIModule::Text(std::string text, Colour col)
+{
+
+}
+
 void UIModule::TextEntry(std::string name, std::string& stringRef, Vec2f size, Vec3f colour)
 {
     if (!ShouldDisplay())
@@ -358,6 +363,10 @@ void UIModule::TextEntry(std::string name, std::string& stringRef, Vec2f size, V
             }
         }
     }
+}
+
+void UIModule::FloatTextEntry(std::string name, float& floatRef, Vec2f size, Colour colour)
+{
 }
 
 void UIModule::StartFrame(std::string name, Rect rect, float borderWidth, Vec3f colour)
@@ -550,7 +559,7 @@ void UIModule::OnFrameEnd()
     {
         std::string errorString = "Not all UI frames have been closed!";
 
-        Engine::FatalError(errorString);
+        //Engine::FatalError(errorString);
     }
 
     while (!CursorStack.empty())

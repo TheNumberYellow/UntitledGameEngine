@@ -102,6 +102,12 @@
     <ClCompile Include="State\StateMachine.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Modules\PhysicsModule.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Math\Transform.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Platform\EnginePlatform.h">
@@ -210,6 +216,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\json.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Modules\PhysicsModule.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Math\Transform.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -8,6 +8,7 @@
 #include <glm/gtx/rotate_vector.hpp>
 #include <glm/gtx/matrix_decompose.hpp>
 
+
 float Math::dot(Quaternion leftQuat, Quaternion rightQuat)
 {
     return (leftQuat.x * rightQuat.x) + (leftQuat.y * rightQuat.y) + (leftQuat.z * rightQuat.z) + (leftQuat.w * rightQuat.w);
@@ -48,7 +49,14 @@ Vec3f Math::rotate(Vec3f inputVec, float radians, Vec3f axis)
 
 Vec3f Math::normalize(Vec3f vec)
 {
-    float mag_inv = 1.0f / magnitude(vec);
+    float mag = magnitude(vec);
+ 
+    //if (mag == 0.0f)
+    //{
+    //    return Vec3f(0.0f, 0.0f, 0.0f);
+    //}
+
+    float mag_inv = 1.0f / mag;
     return vec * mag_inv;
 }
 
@@ -313,6 +321,11 @@ Vec3f Math::ClosestPointOnPlaneToPoint(Plane plane, Vec3f point)
     float dist = Math::dot(plane.normal, point) - Math::dot(plane.normal, plane.center);
 
     return point - (dist * plane.normal);
+}
+
+Vec3f Math::ProjectVecOnPlane(Vec3f Vec, Plane P)
+{
+    return Vec - (Math::dot(Vec, P.normal) * P.normal);
 }
 
 float Math::Max(float a, float b)

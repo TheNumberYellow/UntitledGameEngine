@@ -148,6 +148,12 @@ Model* Scene::AddModel(Model model, std::string name)
     return m_Models[name];
 }
 
+Model* Scene::AddModel(Model* model)
+{
+    m_UntrackedModels.push_back(model);
+    return m_UntrackedModels.back();
+}
+
 
 Model* Scene::GetModel(std::string name)
 {
@@ -202,9 +208,20 @@ void Scene::DeletePointLight(PointLight* light)
     }
 }
 
+Brush* Scene::AddBrush(Brush* newBrush)
+{
+    m_Brushes.push_back(newBrush);
+    return m_Brushes.back();
+}
+
 std::vector<PointLight*>& Scene::GetPointLights()
 {
     return m_PointLights;
+}
+
+std::vector<Brush*>& Scene::GetBrushes()
+{
+    return m_Brushes;
 }
 
 void Scene::DeleteModel(Model* model)
