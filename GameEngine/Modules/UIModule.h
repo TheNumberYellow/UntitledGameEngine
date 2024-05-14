@@ -28,7 +28,7 @@ struct CursorInfo
 
 struct Click
 {
-    void Update(Rect bounds);
+    void Update(Rect bounds, Rect frameRect);
 
     explicit operator bool()
     {
@@ -49,8 +49,12 @@ struct ElementState
 struct FrameState : public ElementState
 {
     uint32_t activeTab = 0;
+    std::string name;
 
     float verticalOffset = 0.0f;
+    bool scrollingNeeded = false;
+    bool elementOutsideRectBoundsThisFrame = false;
+    float maxElementOffset = 0.0f;
 };
 
 struct ButtonState : public ElementState
@@ -101,7 +105,7 @@ public:
     void StartTab(std::string text = "", Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
     void EndTab();
 
-    void FloatSlider(std::string name, Vec2f size, float& outNum, float min = 0.0f, float max = 1.0f, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
+    void FloatSlider(std::string name, Vec2f size, float& outNum, float min = 0.0f, float max = 1.0f, bool vertical = false, bool drawText = true, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
 
     void OnFrameStart();
     void OnFrameEnd();
@@ -115,6 +119,8 @@ private:
     Click ButtonInternal(std::string name, Vec2f size, float borderWidth, Vec3f colour);
 
     Click ButtonInternal(std::string name, Rect rect, float borderWidth, Vec3f colour);
+
+    void FloatSliderInternal(std::string name, Rect rect, float& outNum, float min = 0.0f, float max = 1.0f, bool vertical = false, bool drawText = true, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
 
 
     // Returns the bounds of an element given a size, without advancing the cursor
@@ -136,8 +142,14 @@ private:
     Rect GetFrame();
 
     // Returns whether the ui element we're about to draw/update should be drawn or updated. 
-    // As an example, if we're currently in a tab which hasn't been selected, that tab's contents should not be drawn.
-    bool ShouldDisplay();
+    // As an example, if we're currently in a tab which hasn't been selected, that tab's contents are not active.
+    bool IsActive();
+
+    // Returns whether the ui element we're about to draw is visible.
+    // If IsActive returns false, this will always display false as well.
+    // However, this will additionally return false in some cases where the element is not visible but it still needs to be updated,
+    // like when it's been scrolled away from in a scrolling frame but it still needs to update the cursor position.
+    bool ShouldDraw(Rect rectToDraw);
 
     void ResetAllElementAliveFlags();
     void RemoveInactiveElements();
@@ -159,7 +171,8 @@ private:
     Texture_ID m_DefaultButtonTexture;
     Texture_ID m_DefaultFrameTexture;
     Texture_ID m_DefaultTabTexture;
-    
+    Texture_ID m_White;
+
     Shader_ID m_UIShader;
 
     GraphicsModule& m_Graphics;

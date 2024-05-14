@@ -128,13 +128,11 @@ Font TextModule::LoadFont(std::string filePath, int pixelSize)
         m_Renderer.UpdateTextureData(newFont.m_TextureAtlas, glyphRect, glyphData, ColourFormat::Red);
 
         // Insert character info into font map
-        CharacterInfo newChar =
-        {
-            Vec2i(newFace->glyph->advance.x, newFace->glyph->advance.y),
-            Vec2i(newFace->glyph->bitmap.width, newFace->glyph->bitmap.rows),
-            Vec2i(newFace->glyph->bitmap_left, newFace->glyph->bitmap_top),
-            (float)currentXPos / fontAtlasSize.x
-        };
+        CharacterInfo newChar;
+        newChar.Advance = Vec2i(newFace->glyph->advance.x, newFace->glyph->advance.y);
+        newChar.Size = Vec2i(newFace->glyph->bitmap.width, newFace->glyph->bitmap.rows);
+        newChar.Bearing = Vec2i(newFace->glyph->bitmap_left, newFace->glyph->bitmap_top);
+        newChar.AtlasOffset = (float)currentXPos / fontAtlasSize.x;
 
         newFont.m_CharacterInfo[c] = newChar;
 

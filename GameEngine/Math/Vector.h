@@ -43,6 +43,8 @@ struct Vec2f
 
     friend bool operator==(const Vec2f& lhs, const Vec2f& rhs);
 
+    bool IsZero();
+
     operator Vec2i() const;
 };
 

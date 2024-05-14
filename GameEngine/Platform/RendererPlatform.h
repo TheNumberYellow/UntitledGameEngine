@@ -231,12 +231,22 @@ public:
 
     void ClearColourBuffer();
     void ClearDepthBuffer();
+    void ClearStencilBuffer();
 
     void EnableDepthTesting();
     void DisableDepthTesting();
 
     void SetDepthFunction(DepthFunc func);
     void SetBlendFunction(BlendFunc func);
+
+    void EnableStencilTesting();
+    void DisableStencilTesting();
+
+    void StartStencilDrawing();
+    void EndStencilDrawing();
+
+    void StartStencilTesting();
+    void EndStencilTesting();
 
     void SetCulling(Cull c);
 

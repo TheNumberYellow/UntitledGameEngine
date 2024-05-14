@@ -2489,7 +2489,7 @@ void EditorState::DrawResourcesPanel()
         {
             for (int i = 0; i < 1000; ++i)
             {
-                UI->TextButton("", Vec2f(20.0f, 20.0f), 4.0f, RandomColours[i]);
+                UI->TextButton("", Vec2f(80.0f, 80.0f), 4.0f, RandomColours[i]);
             }
         }
         UI->EndTab();

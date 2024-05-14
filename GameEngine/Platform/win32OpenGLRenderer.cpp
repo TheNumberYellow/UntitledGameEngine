@@ -1008,6 +1008,7 @@ Renderer::Renderer()
     desiredPixelFormat.iPixelType = PFD_TYPE_RGBA;
     desiredPixelFormat.cColorBits = 32;
     desiredPixelFormat.cDepthBits = 24;
+    desiredPixelFormat.cStencilBits = 8;
     desiredPixelFormat.cAlphaBits = 8;
     desiredPixelFormat.iLayerType = PFD_MAIN_PLANE;
 
@@ -1060,10 +1061,13 @@ Renderer::Renderer()
 
     // Enable various OpenGL features
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_STENCIL_TEST);
     glEnable(GL_CULL_FACE);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
+    
+    //glStencilFunc(GL_EQUAL, 1, 0xFF);
+    //glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 
     glEnable(GL_DEBUG_OUTPUT);
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
@@ -1722,6 +1726,11 @@ void Renderer::ClearDepthBuffer()
     glClear(GL_DEPTH_BUFFER_BIT);
 }
 
+void Renderer::ClearStencilBuffer()
+{
+    glClear(GL_STENCIL_BUFFER_BIT);
+}
+
 void Renderer::EnableDepthTesting()
 {
     glEnable(GL_DEPTH_TEST);
@@ -1766,6 +1775,41 @@ void Renderer::SetBlendFunction(BlendFunc func)
     }
 
     glBlendFunc(glBlendSource, glBlendDest);
+}
+
+void Renderer::EnableStencilTesting()
+{
+    glEnable(GL_STENCIL_TEST);
+}
+
+void Renderer::DisableStencilTesting()
+{
+    glDisable(GL_STENCIL_TEST);
+}
+
+void Renderer::StartStencilDrawing()
+{
+    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+    glStencilFunc(GL_ALWAYS, 1, 0xFF);
+    glStencilMask(0xFF);
+}
+
+void Renderer::EndStencilDrawing()
+{
+    glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+    glStencilMask(0x00);
+}
+
+void Renderer::StartStencilTesting()
+{
+    glStencilFunc(GL_EQUAL, 1, 0xFF);
+    glStencilMask(0xFF);
+    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+}
+
+void Renderer::EndStencilTesting()
+{
+    glStencilFunc(GL_ALWAYS, 1, 0xFF);
 }
 
 void Renderer::SetCulling(Cull c)

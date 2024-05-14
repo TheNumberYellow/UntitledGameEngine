@@ -2,9 +2,17 @@
 
 UIModule* UIModule::s_Instance = nullptr;
 
-void Click::Update(Rect bounds)
+void Click::Update(Rect bounds, Rect frameRect)
 {
     Vec2i mousePos = Engine::GetMousePosition();
+
+    if (!frameRect.IsZero() && !frameRect.Contains(mousePos))
+    {
+        hovering = false;
+        clicking = false;
+        clicked = false;
+        return;
+    }
 
     if (clicked)
     {
@@ -53,6 +61,7 @@ UIModule::UIModule(GraphicsModule& graphics, TextModule& text, InputModule& inpu
     m_DefaultButtonTexture = m_Renderer.LoadTexture("images/nine_cut_bw.png");
     m_DefaultFrameTexture = m_Renderer.LoadTexture("images/nine_cut_bw.png");
     m_DefaultTabTexture = m_Renderer.LoadTexture("images/nine_cut_bw.png");
+    m_White = m_Renderer.LoadTexture("images/white.png");
 
     // ~~~~~~~~~~~~~~~~~~~~~UI shader code~~~~~~~~~~~~~~~~~~~~~ //
     std::string vertShaderSource = R"(
@@ -139,10 +148,15 @@ void UIModule::AlignBottom()
 
 void UIModule::ImgPanel(Texture texture, Rect rect)
 {
-    if (!ShouldDisplay())
+    if (!IsActive())
         return;
 
     rect.location += GetFrame().location;
+
+    if (!ShouldDraw(rect))
+    {
+        return;
+    }
 
     m_Renderer.DisableDepthTesting();
 
@@ -164,10 +178,15 @@ void UIModule::ImgPanel(Texture texture, Rect rect)
 
 void UIModule::ImgPanel(Texture_ID texture, Rect rect)
 {
-    if (!ShouldDisplay())
+    if (!IsActive())
         return;
 
     rect.location += GetFrame().location;
+
+    if (!ShouldDraw(rect))
+    {
+        return;
+    }
 
     m_Renderer.DisableDepthTesting();
 
@@ -189,11 +208,16 @@ void UIModule::ImgPanel(Texture_ID texture, Rect rect)
 
 void UIModule::BufferPanel(Framebuffer_ID fBuffer, Rect rect)
 {
-    if (!ShouldDisplay())
+    if (!IsActive())
         return;
 
     rect.location += GetFrame().location;
     
+    if (!ShouldDraw(rect))
+    {
+        return;
+    }
+
     m_Renderer.DisableDepthTesting();
 
     MeshData vertexData = GetVertexDataForRect(rect);
@@ -215,7 +239,7 @@ void UIModule::BufferPanel(Framebuffer_ID fBuffer, Rect rect)
 
 Click UIModule::TextButton(std::string text, Vec2f size, float borderWidth, Vec3f colour, Vec3f textColour)
 {
-    if (!ShouldDisplay())
+    if (!IsActive())
     {
         return Click();
     }
@@ -223,6 +247,11 @@ Click UIModule::TextButton(std::string text, Vec2f size, float borderWidth, Vec3
     Rect BRect = SizeElement(size);
 
     Click Result = ButtonInternal(text, size, borderWidth, colour);
+
+    if (!ShouldDraw(BRect))
+    {
+        return Result;
+    }
 
     //TODO: hard coded text colour
     if (text != "")
@@ -238,7 +267,7 @@ Click UIModule::TextButton(std::string text, Vec2f size, float borderWidth, Vec3
 
 Click UIModule::ImgButton(std::string name, Texture texture, Vec2f size, float borderWidth, Vec3f colour)
 {
-    if (!ShouldDisplay())
+    if (!IsActive())
     {
         return Click();
     }
@@ -246,6 +275,11 @@ Click UIModule::ImgButton(std::string name, Texture texture, Vec2f size, float b
     Rect BRect = SizeElement(size);
 
     Click Result = ButtonInternal(name, size, borderWidth, colour);
+
+    if (!ShouldDraw(BRect))
+    {
+        return Result;
+    }
 
     Rect innerRect = BRect;
     innerRect.location.x += borderWidth;
@@ -269,7 +303,7 @@ Click UIModule::ImgButton(std::string name, Texture texture, Vec2f size, float b
 
 Click UIModule::BufferButton(std::string name, Framebuffer_ID fBuffer, Vec2f size, float borderWidth, Vec3f colour)
 {
-    if (!ShouldDisplay())
+    if (!IsActive())
     {
         return Click();
     }
@@ -277,6 +311,11 @@ Click UIModule::BufferButton(std::string name, Framebuffer_ID fBuffer, Vec2f siz
     Rect BRect = SizeElement(size);
 
     Click Result = ButtonInternal(name, size, borderWidth, colour);
+
+    if (!ShouldDraw(BRect))
+    {
+        return Result;
+    }
 
     Rect innerRect = BRect;
     innerRect.location.x += borderWidth;
@@ -311,11 +350,9 @@ void UIModule::Text(std::string text, Colour col)
 
 void UIModule::TextEntry(std::string name, std::string& stringRef, Vec2f size, Vec3f colour)
 {
-    if (!ShouldDisplay())
+    if (!IsActive())
         return;
-
-    //Click click = TextButton(stringRef, rect, 4.0f);
-    
+   
     TextEntryState* State = GetTextEntryState(name);
     
     Click click = TextButton(stringRef, size, m_ActiveElement == State ? 0.0f : 4.0f, colour);
@@ -371,11 +408,13 @@ void UIModule::FloatTextEntry(std::string name, float& floatRef, Vec2f size, Col
 
 void UIModule::StartFrame(std::string name, Rect rect, float borderWidth, Vec3f colour)
 {
-    if (!ShouldDisplay())
+    if (!IsActive())
         return;
 
-
     FrameState* State = GetFrameState(name);
+
+    State->elementOutsideRectBoundsThisFrame = false;
+    State->maxElementOffset = 0.0f;
 
     m_FrameStateStack.push(State);
 
@@ -399,6 +438,17 @@ void UIModule::StartFrame(std::string name, Rect rect, float borderWidth, Vec3f 
 
     m_Renderer.DrawMesh(m_BorderMesh);
 
+    verts = GetVertexDataForRect(Rect(rect.location + Vec2f(borderWidth, borderWidth), rect.size - Vec2f(borderWidth * 2, borderWidth * 2)));
+    
+    m_Renderer.UpdateMeshData(m_RectMesh, UIElementFormat, verts.first, verts.second);
+
+    m_Renderer.SetActiveTexture(m_White, "Texture");
+
+    m_Renderer.ClearStencilBuffer();
+    m_Renderer.StartStencilDrawing();
+    m_Renderer.DrawMesh(m_RectMesh);
+    m_Renderer.EndStencilDrawing();
+
     if (name != "")
     {
         Rect r = rect;
@@ -407,14 +457,41 @@ void UIModule::StartFrame(std::string name, Rect rect, float borderWidth, Vec3f 
     }
 
     m_Renderer.EnableDepthTesting();
+
+    m_Renderer.StartStencilTesting();
 } 
 
 void UIModule::EndFrame()
 {
+    m_Renderer.EndStencilTesting();
+    //m_Renderer.ClearStencilBuffer();
+
+    FrameState* frameState = m_FrameStateStack.top();
+    Rect FrameRect = m_SubRectStack.top();
+
     m_SubRectStack.pop();
     m_FrameStateStack.pop();
     CursorStack.pop();
     m_TabIndexOnCurrentFrame = 0;
+
+    if (frameState->elementOutsideRectBoundsThisFrame)
+    {
+        if (!frameState->scrollingNeeded)
+        {
+            frameState->verticalOffset = 0;
+        }
+        frameState->scrollingNeeded = true;
+
+        Rect SliderRect;
+        SliderRect.location = FrameRect.location + Vec2f(FrameRect.size.x, 0.0f);
+        SliderRect.size = Vec2f(15.0f, FrameRect.size.y);
+
+        FloatSliderInternal(frameState->name + "_Slider", SliderRect, frameState->verticalOffset, 0.0f, frameState->maxElementOffset, true, false);
+    }
+    else
+    {
+        frameState->scrollingNeeded = false;
+    }
 }
 
 void UIModule::StartTab(std::string text, Vec3f colour)
@@ -454,87 +531,16 @@ void UIModule::EndTab()
     CursorStack.pop();
 }
 
-void UIModule::FloatSlider(std::string name, Vec2f size, float& outNum, float min, float max, Vec3f colour)
+void UIModule::FloatSlider(std::string name, Vec2f size, float& outNum, float min, float max, bool vertical, bool drawText, Vec3f colour)
 {
-    if (!ShouldDisplay())
+    if (!IsActive())
     {
         return;
     }
 
-    FloatSliderState* SliderState = GetFloatSliderState(name);
-
-    if (SliderState->dragging)
-    {
-        if (!Engine::GetMouseDown())
-        {
-            SliderState->dragging = false;
-        }
-    }
-
     Rect TotalSize = PlaceElement(size);
 
-    // Render
-    m_Renderer.DisableDepthTesting();
-
-    MeshData verts = GetVertexDataForBorderMesh(TotalSize, 2.f);
-
-    m_Renderer.SetActiveShader(m_UIShader);
-
-    m_Renderer.UpdateMeshData(m_BorderMesh, UIElementFormat, verts.first, verts.second);
-    m_Renderer.SetActiveTexture(m_DefaultFrameTexture, "Texture");
-
-    m_Renderer.SetShaderUniformBool(m_UIShader, "Hovering", false);
-    m_Renderer.SetShaderUniformBool(m_UIShader, "Clicking", false);
-    m_Renderer.SetShaderUniformVec3f(m_UIShader, "Colour", colour);
-
-    m_Renderer.DrawMesh(m_BorderMesh);
-
-    if (name != "")
-    {
-        //TODO: hard coded text colour
-        m_Text.DrawText(name + " = " + std::to_string(outNum), &m_FrameFont, TotalSize.Center(), Vec3f(0.5f, 0.5f, 0.5f), Anchor::CENTER);
-        m_Text.DrawText(std::to_string(min), &m_FrameFont, TotalSize.location, Vec3f(0.5f, 0.5f, 0.5f), Anchor::TOP_LEFT);
-        m_Text.DrawText(std::to_string(max), &m_FrameFont, TotalSize.location + Vec2f(TotalSize.size.x, 0.0f), Vec3f(0.5f, 0.5f, 0.5f), Anchor::TOP_RIGHT);
-    }
-
-    m_Renderer.EnableDepthTesting();
-    // End render
-
-    float XSize = TotalSize.size.x;
-    float Num = Math::Clamp(outNum, min, max);
-
-    float Val = (Num - min) / (max - min);
-    Val = Val * XSize;
-
-    Rect SliderRect;
-    SliderRect.location = TotalSize.location + Vec2f(Val - 5.0f, 0.0f);
-    SliderRect.size = Vec2f(10.0f, TotalSize.size.y);
-
-    Click SliderClick = ButtonInternal(name + "_Slider", SliderRect, 2.0f, c_NiceBlue);
-
-    bool SliderContainsMouse = Engine::GetMouseDown() && TotalSize.Contains(Engine::GetMousePosition());
-
-    if ((SliderClick.clicking || SliderContainsMouse) && !SliderState->dragging)
-    {
-        // Initial grab of slider
-        SliderState->dragging = true;
-    }
-
-    if (SliderState->dragging)
-    {
-        Vec2f MousePos = Engine::GetMousePosition();
-
-        MousePos = MousePos - TotalSize.location;
-
-        float MouseVal = Math::Remap(
-            0.0f, TotalSize.size.x,
-            0.0f, 1.0f, MousePos.x
-        );
-
-        MouseVal = Math::Clamp(MouseVal, 0.0f, 1.0f);
-
-        outNum = Math::Lerp(min, max, MouseVal);
-    }
+    FloatSliderInternal(name, TotalSize, outNum, min, max, vertical, drawText, colour);
 }
 
 void UIModule::OnFrameStart()
@@ -570,7 +576,7 @@ void UIModule::OnFrameEnd()
 
 Click UIModule::ButtonInternal(std::string name, Vec2f size, float borderWidth, Vec3f colour)
 {
-    if (!ShouldDisplay())
+    if (!IsActive())
     {
         return Click();
     }
@@ -582,14 +588,26 @@ Click UIModule::ButtonInternal(std::string name, Vec2f size, float borderWidth, 
 
 Click UIModule::ButtonInternal(std::string name, Rect rect, float borderWidth, Vec3f colour)
 {
-    if (!ShouldDisplay())
+    if (!IsActive())
     {
         return Click();
     }
 
     ButtonState* BState = GetButtonState(name);
 
-    BState->m_Click.Update(rect);
+    if (!m_SubRectStack.empty())
+    {
+        BState->m_Click.Update(rect, m_SubRectStack.top());
+    }
+    else
+    {
+        BState->m_Click.Update(rect, Rect());
+    }
+
+    if (!ShouldDraw(rect))
+    {
+        return BState->m_Click;
+    }
 
     // Render
     m_Renderer.DisableDepthTesting();
@@ -613,10 +631,128 @@ Click UIModule::ButtonInternal(std::string name, Rect rect, float borderWidth, V
     return BState->m_Click;
 }
 
+void UIModule::FloatSliderInternal(std::string name, Rect rect, float& outNum, float min, float max, bool vertical, bool drawText, Vec3f colour)
+{
+    if (!IsActive())
+    {
+        return;
+    }
+
+    FloatSliderState* SliderState = GetFloatSliderState(name);
+
+    if (SliderState->dragging)
+    {
+        if (!Engine::GetMouseDown())
+        {
+            SliderState->dragging = false;
+        }
+    }
+
+    Rect TotalSize = rect;
+
+    if (ShouldDraw(TotalSize))
+    {
+        // Render
+        m_Renderer.DisableDepthTesting();
+
+        MeshData verts = GetVertexDataForBorderMesh(TotalSize, 2.f);
+
+        m_Renderer.SetActiveShader(m_UIShader);
+
+        m_Renderer.UpdateMeshData(m_BorderMesh, UIElementFormat, verts.first, verts.second);
+        m_Renderer.SetActiveTexture(m_DefaultFrameTexture, "Texture");
+
+        m_Renderer.SetShaderUniformBool(m_UIShader, "Hovering", false);
+        m_Renderer.SetShaderUniformBool(m_UIShader, "Clicking", false);
+        m_Renderer.SetShaderUniformVec3f(m_UIShader, "Colour", colour);
+
+        m_Renderer.DrawMesh(m_BorderMesh);
+
+        if (name != "" && drawText)
+        {
+            //TODO: hard coded text colour
+            m_Text.DrawText(name + " = " + std::to_string(outNum), &m_FrameFont, TotalSize.Center(), Vec3f(0.5f, 0.5f, 0.5f), Anchor::CENTER);
+            m_Text.DrawText(std::to_string(min), &m_FrameFont, TotalSize.location, Vec3f(0.5f, 0.5f, 0.5f), Anchor::TOP_LEFT);
+            m_Text.DrawText(std::to_string(max), &m_FrameFont, TotalSize.location + Vec2f(TotalSize.size.x, 0.0f), Vec3f(0.5f, 0.5f, 0.5f), Anchor::TOP_RIGHT);
+        }
+
+        m_Renderer.EnableDepthTesting();
+        // End render
+    }
+
+    float XSize;
+
+    if (vertical)
+    {
+        XSize = TotalSize.size.y;
+    }
+    else
+    {
+        XSize = TotalSize.size.x;
+    }
+
+    float Num = Math::Clamp(outNum, min, max);
+
+    float Val = (Num - min) / (max - min);
+    Val = Val * XSize;
+
+    Rect SliderRect;
+
+    if (vertical)
+    {
+        SliderRect.location = TotalSize.location + Vec2f(0.0f, Val - 5.0f);
+        SliderRect.size = Vec2f(TotalSize.size.x, 10.0f);
+    }
+    else
+    {
+        SliderRect.location = TotalSize.location + Vec2f(Val - 5.0f, 0.0f);
+        SliderRect.size = Vec2f(10.0f, TotalSize.size.y);
+    }
+
+    Click SliderClick = ButtonInternal(name + "_Slider", SliderRect, 2.0f, c_NiceBlue);
+
+    bool SliderContainsMouse = Engine::GetMouseDown() && TotalSize.Contains(Engine::GetMousePosition());
+
+    if ((SliderClick.clicking || SliderContainsMouse) && !SliderState->dragging)
+    {
+        // Initial grab of slider
+        SliderState->dragging = true;
+    }
+
+    if (SliderState->dragging)
+    {
+        Vec2f MousePos = Engine::GetMousePosition();
+
+        MousePos = MousePos - TotalSize.location;
+
+        float MouseVal;
+
+        if (vertical)
+        {
+            MouseVal = Math::Remap(
+                0.0f, TotalSize.size.y,
+                0.0f, 1.0f, MousePos.y
+            );
+        }
+        else
+        {
+            MouseVal = Math::Remap(
+                0.0f, TotalSize.size.x,
+                0.0f, 1.0f, MousePos.x
+            );
+        }
+
+        MouseVal = Math::Clamp(MouseVal, 0.0f, 1.0f);
+
+        outNum = Math::Lerp(min, max, MouseVal);
+    }
+
+}
+
 Rect UIModule::SizeElement(Vec2f size)
 {
     Rect ElementBounds;
-    
+
     Rect CurrentFrame = GetFrame();
     CursorInfo& CurrentCursor = CursorStack.top();
 
@@ -640,6 +776,22 @@ Rect UIModule::SizeElement(Vec2f size)
 
     ElementBounds.location = NewCursor.Top;
     NewCursor.Top.x += ElementBounds.size.x;
+
+    if (!m_FrameStateStack.empty())
+    {
+        FrameState* frameState = m_FrameStateStack.top();
+
+        if (!CurrentFrame.Contains(ElementBounds))
+        {
+            frameState->elementOutsideRectBoundsThisFrame = true;
+            frameState->maxElementOffset = (ElementBounds.location.y + ElementBounds.size.y) - (CurrentFrame.location.y + CurrentFrame.size.y);
+        }
+
+        if (frameState->scrollingNeeded)
+        {
+            ElementBounds.location.y -= frameState->verticalOffset;
+        }
+    }
 
     return ElementBounds;
 }
@@ -669,6 +821,21 @@ Rect UIModule::PlaceElement(Vec2f size)
 
     ElementBounds.location = CurrentCursor.Top;
     CurrentCursor.Top.x += ElementBounds.size.x;
+
+    if (!m_FrameStateStack.empty())
+    {
+        FrameState* frameState = m_FrameStateStack.top();
+
+        if (!CurrentFrame.Contains(ElementBounds))
+        {
+            frameState->elementOutsideRectBoundsThisFrame = true;
+        }
+
+        if (frameState->scrollingNeeded)
+        {
+            ElementBounds.location.y -= frameState->verticalOffset;
+        }
+    }
 
     return ElementBounds;
 }
@@ -778,7 +945,9 @@ FrameState* UIModule::GetFrameState(std::string name)
     auto got = m_FrameStates.find(ID);
     if (got == m_FrameStates.end())
     {
-        m_FrameStates.emplace(ID, FrameState());
+        FrameState newFrameState;
+        newFrameState.name = name;
+        m_FrameStates.emplace(ID, newFrameState);
     }
 
     m_FrameStates[ID].m_Alive = true;
@@ -843,11 +1012,11 @@ Rect UIModule::GetFrame()
     }
 }
 
-bool UIModule::ShouldDisplay()
+bool UIModule::IsActive()
 {
     if (m_FrameStateStack.empty())
     {
-        // We're not inside a frame element, so always display
+        // We're not inside a frame element, so we're always active
         return true;
     }
     else if (!m_InTab)
@@ -868,6 +1037,28 @@ bool UIModule::ShouldDisplay()
         {
             return false;
         }
+    }
+}
+
+bool UIModule::ShouldDraw(Rect rectToDraw)
+{
+    if (!IsActive())
+    {
+        return false;
+    }
+
+    if (m_SubRectStack.empty())
+    {
+        return true;
+    }
+
+    if (m_SubRectStack.top().Overlaps(rectToDraw))
+    {
+        return true;
+    }
+    else
+    {
+        return false;
     }
 }
 

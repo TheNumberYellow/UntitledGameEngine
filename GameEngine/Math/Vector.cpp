@@ -82,6 +82,11 @@ bool operator==(const Vec2f& lhs, const Vec2f& rhs)
     return lhs.x == rhs.x && lhs.y == rhs.y;
 }
 
+bool Vec2f::IsZero()
+{
+    return x == 0.0f && y == 0.0f;
+}
+
 Vec2f::operator Vec2i() const
 {
     return Vec2i((int)x, (int)y);
