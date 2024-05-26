@@ -396,6 +396,52 @@ RayCastHit CollisionModule::RayCast(Ray ray, OctreeNode* node, const Mat4x4f& te
     return ClosestHit;
 }
 
+Intersection CollisionModule::SphereIntersection(Sphere sphere, Sphere other)
+{
+    Intersection result;
+
+    Vec3f Delta = sphere.position - other.position;
+    float Distance = Math::magnitude(Delta);
+    float TotalRadius = sphere.radius + other.radius;
+
+    if (Distance > TotalRadius)
+    {
+        // No intersection
+        return result;
+    }
+
+    if (Delta.IsNearlyZero())
+    {
+        result.penetrationNormal = Vec3f(0.0f, 0.0f, 1.0f);
+        result.penetrationDepth = TotalRadius;
+    }
+    else
+    {
+        result.penetrationNormal = Math::normalize(Delta);
+        result.penetrationDepth = Distance - TotalRadius;
+    }
+
+    return result;
+}
+
+Intersection CollisionModule::SphereIntersection(Sphere sphere, Triangle tri)
+{
+    Intersection result;
+
+    Vec3f triPlaneNormal = Math::normalize(Math::cross(tri.b - tri.a, tri.c - tri.a));
+
+    float sphereTriPlaneDistance = Math::dot(sphere.position - tri.a, triPlaneNormal);
+
+    if (sphereTriPlaneDistance < -sphere.radius || sphereTriPlaneDistance > sphere.radius)
+    {
+        // No intersection
+        return result;
+    }
+    //TODO: Incomplete
+
+    return result;
+}
+
 const RayCastHit* CollisionModule::Closest(std::initializer_list<RayCastHit> hitList)
 {
     const RayCastHit* closestHit = hitList.begin();

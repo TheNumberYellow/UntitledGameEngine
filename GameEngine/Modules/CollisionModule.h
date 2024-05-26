@@ -64,6 +64,14 @@ struct RayCastHit
     }
 };
 
+struct Intersection
+{
+    bool hit = false;
+
+    Vec3f penetrationNormal;
+    float penetrationDepth = 0.0f;
+};
+
 struct CollisionMesh
 {
     CollisionMesh() : OctreeHead(nullptr) {}
@@ -94,6 +102,9 @@ public:
     RayCastHit RayCast(Ray ray, Plane plane);
     RayCastHit RayCast(Ray ray, Triangle tri);
     RayCastHit RayCast(Ray ray, OctreeNode* node, const Mat4x4f& tempTrans);
+
+    Intersection SphereIntersection(Sphere sphere, Sphere other);
+    Intersection SphereIntersection(Sphere sphere, Triangle tri);
 
     static const RayCastHit* Closest(std::initializer_list<RayCastHit> hitList);
 

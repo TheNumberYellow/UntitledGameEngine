@@ -267,6 +267,7 @@ private:
     // Translate
     Vec3f ObjectRelativeHitPoint;
     float ObjectDistanceAtHit;
+    float TransSnap = 0.5f;
 
     // Rotate
     Quaternion ObjectInitialRotation;
@@ -307,6 +308,11 @@ private:
     Scene* EditorScenePtr;
 };
 
+enum class DrawerMode
+{
+    CONTENT,
+    BROWSER
+};
 
 class EditorState : public BaseState
 {
@@ -326,6 +332,7 @@ public:
     //--------------------
 private:
     void UpdateEditor(float DeltaTime);
+
     void UpdateGame(float DeltaTime);
 
     Rect GetEditorSceneViewportRect();
@@ -339,9 +346,12 @@ private:
 
     void MoveCamera(Camera* Camera, float PixelToRadians, double DeltaTime);
 
+    void DrawLevelEditor(GraphicsModule* Graphics, UIModule* UI, float DeltaTime);
+
     void DrawEditorUI();
 
     void DrawTopPanel();
+    void DrawDrawerSettingsPanel();
     void DrawResourcesPanel();
     void DrawInspectorPanel();
 
@@ -362,6 +372,10 @@ private:
 
     std::vector<float> RandomSizes;
     std::vector<Vec3f> RandomColours;
+
+    DrawerMode Drawer = DrawerMode::CONTENT;
+
+    std::string CurrentLevelName = "Untitled Level";
 
     //--------------------
     // Editor Textures
@@ -431,14 +445,30 @@ private:
     //--------------------
     // Constants
     //--------------------
-    const Vec3f c_NiceBlue = Vec3f(0.0f, 150.f / 255.f, 255.f / 255.f);
-    const Vec3f c_NiceLighterBlue = Vec3f(40.f / 255.f, 190.f / 255.f, 255.f / 255.f);
-    const Vec3f c_NicePurple = Vec3f(207.f / 255.f, 159.f / 255.f, 255.f / 255.f);
-    const Vec3f c_NicePink = Vec3f(248.f / 255.f, 131.f / 255.f, 121.f / 255.f);
-    const Vec3f c_NiceRed = Vec3f(238.f / 255.f, 75.f / 255.f, 43.f / 255.f);
-    const Vec3f c_NiceBrightBlue = Vec3f(125.f / 255.f, 249.f / 255.f, 255.f / 255.f);
-    const Vec3f c_NiceGreen = Vec3f(11.f / 255.f, 218.f / 255.f, 81.f / 255.f);
-    const Vec3f c_NiceYellow = Vec3f(255.f / 255.f, 191.5 / 255.f, 0.f / 255.f);
+    //const Vec3f c_NiceBlue = Vec3f(0.0f, 150.f / 255.f, 255.f / 255.f);
+    //const Vec3f c_NiceLighterBlue = Vec3f(40.f / 255.f, 190.f / 255.f, 255.f / 255.f);
+    //const Vec3f c_NicePurple = Vec3f(207.f / 255.f, 159.f / 255.f, 255.f / 255.f);
+    //const Vec3f c_NicePink = Vec3f(248.f / 255.f, 131.f / 255.f, 121.f / 255.f);
+    //const Vec3f c_NiceRed = Vec3f(238.f / 255.f, 75.f / 255.f, 43.f / 255.f);
+    //const Vec3f c_NiceBrightBlue = Vec3f(125.f / 255.f, 249.f / 255.f, 255.f / 255.f);
+    //const Vec3f c_NiceGreen = Vec3f(11.f / 255.f, 218.f / 255.f, 81.f / 255.f);
+    //const Vec3f c_NiceBrightGreen = Vec3f(152.f / 255.f, 251.f / 255.f, 152.f / 255.f);
+    //const Vec3f c_NiceYellow = Vec3f(255.f / 255.f, 191.5 / 255.f, 0.f / 255.f);
+
+    const Colour c_VegasGold = Colour(197.f / 255.f, 179.f / 255.f, 88.f / 255.f);
+    const Colour c_LightGoldenRodYellow = Colour(250.f / 255.f, 250.f / 255.f, 210.f / 255.f);
+    const Colour c_GoldenYellow = Colour(255.f / 255.f, 223.f / 255.f, 0.0f);
+    const Colour c_DarkOrange = Colour(255.f / 255.f, 140.f / 255.f, 0.0f);
+
+    //const Vec3f c_NiceBlue = Vec3f(197.f / 255.f, 179.f / 255.f, 88.f / 255.f);
+    //const Vec3f c_NiceLighterBlue = Vec3f(197.f / 255.f, 179.f / 255.f, 88.f / 255.f);
+    //const Vec3f c_NicePurple = Vec3f(197.f / 255.f, 179.f / 255.f, 88.f / 255.f);
+    //const Vec3f c_NicePink = Vec3f(197.f / 255.f, 179.f / 255.f, 88.f / 255.f);
+    //const Vec3f c_NiceRed = Vec3f(197.f / 255.f, 179.f / 255.f, 88.f / 255.f);
+    //const Vec3f c_NiceBrightBlue = Vec3f(197.f / 255.f, 179.f / 255.f, 88.f / 255.f);
+    //const Vec3f c_NiceGreen = Vec3f(197.f / 255.f, 179.f / 255.f, 88.f / 255.f);
+    //const Vec3f c_NiceBrightGreen = Vec3f(197.f / 255.f, 179.f / 255.f, 88.f / 255.f);
+    //const Vec3f c_NiceYellow = Vec3f(197.f / 255.f, 179.f / 255.f, 88.f / 255.f);
 
     // TEMP
     int PrevFrameTimeCount = 0;

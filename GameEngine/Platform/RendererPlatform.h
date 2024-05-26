@@ -150,6 +150,22 @@ enum class BlendFunc
     ADDITIVE
 };
 
+enum class StencilCompareFunc
+{
+    ALWAYS,
+    EQUAL,
+    GREATER,
+    LESS
+};
+
+enum class StencilOperationFunc
+{
+    KEEP,
+    REPLACE,
+    INCREMENT,
+    DECREMENT
+};
+
 class Renderer
 {
 public:
@@ -242,10 +258,10 @@ public:
     void EnableStencilTesting();
     void DisableStencilTesting();
 
-    void StartStencilDrawing();
+    void StartStencilDrawing(StencilCompareFunc compareFunc = StencilCompareFunc::ALWAYS, StencilOperationFunc opFunc = StencilOperationFunc::REPLACE, int value = 1);
     void EndStencilDrawing();
 
-    void StartStencilTesting();
+    void StartStencilTesting(StencilCompareFunc func = StencilCompareFunc::EQUAL, int value = 1);
     void EndStencilTesting();
 
     void SetCulling(Cull c);

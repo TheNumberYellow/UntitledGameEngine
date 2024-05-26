@@ -48,7 +48,11 @@ struct ElementState
 
 struct FrameState : public ElementState
 {
+    // The tab is changed on a one frame delay 
+    uint32_t activeTabNextTick = 0;
+
     uint32_t activeTab = 0;
+
     std::string name;
 
     float verticalOffset = 0.0f;
@@ -102,6 +106,8 @@ public:
     void StartFrame(std::string name, Rect rect, float borderWidth, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
     void EndFrame();
 
+    void StartFrame(std::string name, Vec2f size, float borderWidth, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
+
     void StartTab(std::string text = "", Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
     void EndTab();
 
@@ -146,7 +152,7 @@ private:
     bool IsActive();
 
     // Returns whether the ui element we're about to draw is visible.
-    // If IsActive returns false, this will always display false as well.
+    // If IsActive returns false, this will always return false as well.
     // However, this will additionally return false in some cases where the element is not visible but it still needs to be updated,
     // like when it's been scrolled away from in a scrolling frame but it still needs to update the cursor position.
     bool ShouldDraw(Rect rectToDraw);
@@ -160,8 +166,6 @@ private:
     std::unordered_map<ElementID, ButtonState> m_ButtonStates;
     std::unordered_map<ElementID, TextEntryState> m_TextEntryStates;
     std::unordered_map<ElementID, FloatSliderState> m_FloatSliderStates;
-
-    bool m_InTab = false;
 
     size_t m_HashCount = 0;
 
@@ -184,9 +188,12 @@ private:
     Font m_FrameFont;
 
     std::stack<Rect> m_SubRectStack;
-    std::stack<FrameState*> m_FrameStateStack;
+    std::vector<FrameState*> m_FrameStateStack;
+    std::vector<bool> m_InTabStack;
+    std::vector<uint32_t> m_CurrentTabIndexStack;
+    //uint32_t m_TabIndexOnCurrentFrame = 0;
 
-    uint32_t m_TabIndexOnCurrentFrame = 0;
+    bool m_InInactiveTab = false;
 
     std::stack<CursorInfo> CursorStack;
 

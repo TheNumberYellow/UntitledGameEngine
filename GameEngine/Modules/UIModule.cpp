@@ -408,19 +408,31 @@ void UIModule::FloatTextEntry(std::string name, float& floatRef, Vec2f size, Col
 
 void UIModule::StartFrame(std::string name, Rect rect, float borderWidth, Vec3f colour)
 {
+    m_InTabStack.push_back(false);
+
     if (!IsActive())
         return;
 
+    //rect.location += GetFrame().location;
+
+    m_CurrentTabIndexStack.push_back(0);
+
+    Engine::DEBUGPrint("Starting frame named " + name);
+
     FrameState* State = GetFrameState(name);
+
+    State->activeTab = State->activeTabNextTick;
 
     State->elementOutsideRectBoundsThisFrame = false;
     State->maxElementOffset = 0.0f;
 
-    m_FrameStateStack.push(State);
+    m_FrameStateStack.push_back(State);
 
     m_SubRectStack.push(Rect(rect.location + Vec2f(borderWidth, borderWidth), rect.size - Vec2f(borderWidth * 2, borderWidth * 2)));
 
     CursorStack.push(CursorInfo(rect.location + Vec2f(borderWidth, borderWidth), rect.location + Vec2f(borderWidth, borderWidth)));
+
+    
 
     // Render
     m_Renderer.DisableDepthTesting();
@@ -444,8 +456,8 @@ void UIModule::StartFrame(std::string name, Rect rect, float borderWidth, Vec3f 
 
     m_Renderer.SetActiveTexture(m_White, "Texture");
 
-    m_Renderer.ClearStencilBuffer();
-    m_Renderer.StartStencilDrawing();
+    //m_Renderer.ClearStencilBuffer();
+    m_Renderer.StartStencilDrawing(StencilCompareFunc::EQUAL, StencilOperationFunc::INCREMENT, (int)m_FrameStateStack.size() - 1);
     m_Renderer.DrawMesh(m_RectMesh);
     m_Renderer.EndStencilDrawing();
 
@@ -458,21 +470,29 @@ void UIModule::StartFrame(std::string name, Rect rect, float borderWidth, Vec3f 
 
     m_Renderer.EnableDepthTesting();
 
-    m_Renderer.StartStencilTesting();
+    m_Renderer.StartStencilTesting(StencilCompareFunc::EQUAL, (int)m_FrameStateStack.size());
 } 
 
 void UIModule::EndFrame()
 {
+    m_InTabStack.pop_back();
+
+    if (!IsActive())
+    {
+        return;
+    }
     m_Renderer.EndStencilTesting();
     //m_Renderer.ClearStencilBuffer();
 
-    FrameState* frameState = m_FrameStateStack.top();
+    FrameState* frameState = m_FrameStateStack.back();
+    Engine::DEBUGPrint("Ending frame named " + frameState->name);
     Rect FrameRect = m_SubRectStack.top();
 
+    m_CurrentTabIndexStack.pop_back();
     m_SubRectStack.pop();
-    m_FrameStateStack.pop();
+    m_FrameStateStack.pop_back();
     CursorStack.pop();
-    m_TabIndexOnCurrentFrame = 0;
+    
 
     if (frameState->elementOutsideRectBoundsThisFrame)
     {
@@ -494,11 +514,29 @@ void UIModule::EndFrame()
     }
 }
 
+void UIModule::StartFrame(std::string name, Vec2f size, float borderWidth, Vec3f colour)
+{
+    if (!IsActive())
+    {
+        return;
+    }
+
+    Rect FrameRect = PlaceElement(size);
+
+    StartFrame(name, FrameRect, borderWidth, colour);
+}
+
 void UIModule::StartTab(std::string text, Vec3f colour)
 {
-    if (m_SubRectStack.empty())
+    if (!IsActive())
     {
-        Engine::FatalError("Tabs must be inside frames.");
+        return;
+    }
+
+    Engine::DEBUGPrint("Start tab " + text);
+
+    if (m_FrameStateStack.empty())
+    {
         return;
     }
     else
@@ -507,12 +545,12 @@ void UIModule::StartTab(std::string text, Vec3f colour)
 
         Vec2f buttonSize = Vec2f(c_TabButtonWidth, borderWidth);
         
-        FrameState* frameState = m_FrameStateStack.top();
-        bool IsActiveTab = frameState->activeTab == m_TabIndexOnCurrentFrame;
+        FrameState* frameState = m_FrameStateStack.back();
+        bool IsActiveTab = frameState->activeTab == m_CurrentTabIndexStack.back();
 
         if (TextButton(text, buttonSize, 5.0f, IsActiveTab ? colour * 0.75f : colour))
         {
-            frameState->activeTab = m_TabIndexOnCurrentFrame;
+            frameState->activeTabNextTick = m_CurrentTabIndexStack.back();
         }
 
         Rect CurrentFrame = GetFrame();
@@ -520,14 +558,34 @@ void UIModule::StartTab(std::string text, Vec3f colour)
 
         CursorStack.push(CursorInfo(NewCursorPos, NewCursorPos));
 
-        m_TabIndexOnCurrentFrame++;
+        m_CurrentTabIndexStack.back()++;
+        m_InTabStack.back() = true;
+        //m_InTabStack.top() = true;
     }
-    m_InTab = true;
+    //m_InTab = true;
 }
 
 void UIModule::EndTab()
 {
-    m_InTab = false;
+
+    //if (CursorStack.size() == m_InTabStack)
+
+    if (!m_InTabStack.back() && !IsActive())
+    {
+        return;
+    }
+    //if (!IsActive())
+    //{
+    //    return;
+    //}
+    if (m_FrameStateStack.empty())
+    {
+        return;
+    }
+
+    Engine::DEBUGPrint("Ending tab");
+
+    m_InTabStack.back() = false;
     CursorStack.pop();
 }
 
@@ -553,8 +611,11 @@ void UIModule::OnFrameStart()
     }
 
     CursorStack.push(CursorInfo());
+    //m_InTabStack.push_back(false);
 
     m_HashCount = 0;
+
+    m_Renderer.ClearStencilBuffer();
 }
 
 void UIModule::OnFrameEnd()
@@ -572,6 +633,16 @@ void UIModule::OnFrameEnd()
     {
         CursorStack.pop();
     }
+    while (!m_InTabStack.empty())
+    {
+        m_InTabStack.pop_back();
+    }
+    while (!m_CurrentTabIndexStack.empty())
+    {
+        m_CurrentTabIndexStack.pop_back();
+    }
+
+    Engine::DEBUGPrint("~~~~ENDING FRAME~~~~");
 }
 
 Click UIModule::ButtonInternal(std::string name, Vec2f size, float borderWidth, Vec3f colour)
@@ -779,12 +850,13 @@ Rect UIModule::SizeElement(Vec2f size)
 
     if (!m_FrameStateStack.empty())
     {
-        FrameState* frameState = m_FrameStateStack.top();
+        FrameState* frameState = m_FrameStateStack.back();
 
         if (!CurrentFrame.Contains(ElementBounds))
         {
             frameState->elementOutsideRectBoundsThisFrame = true;
-            frameState->maxElementOffset = (ElementBounds.location.y + ElementBounds.size.y) - (CurrentFrame.location.y + CurrentFrame.size.y);
+            float elementOffset = (ElementBounds.location.y + ElementBounds.size.y) - (CurrentFrame.location.y + CurrentFrame.size.y);
+            if (frameState->maxElementOffset < elementOffset) frameState->maxElementOffset = elementOffset;
         }
 
         if (frameState->scrollingNeeded)
@@ -824,7 +896,7 @@ Rect UIModule::PlaceElement(Vec2f size)
 
     if (!m_FrameStateStack.empty())
     {
-        FrameState* frameState = m_FrameStateStack.top();
+        FrameState* frameState = m_FrameStateStack.back();
 
         if (!CurrentFrame.Contains(ElementBounds))
         {
@@ -1019,24 +1091,34 @@ bool UIModule::IsActive()
         // We're not inside a frame element, so we're always active
         return true;
     }
-    else if (!m_InTab)
-    {
-        // We're not in a tab, so always display (add more elements maybe later)
-        return true;
-    }
+    //else if (m_InTabStack.size() == 1 && !m_InTabStack.back())
+    //{
+    //    // We're not in a tab, so always display (add more elements maybe later)
+    //    return true;
+    //}
     else
     {
-        // Get the state of the frame element we're in now
-        FrameState* frameState = m_FrameStateStack.top();
+        for (int i = 0; i < m_FrameStateStack.size(); i++)
+        {
+            if (m_InTabStack[i] && m_FrameStateStack[i]->activeTab != m_CurrentTabIndexStack[i] - 1)
+            {
+                return false;
+            }
+        }
 
-        if (frameState->activeTab == m_TabIndexOnCurrentFrame - 1)
-        {
-            return true;
-        }
-        else
-        {
-            return false;
-        }
+        return true;
+
+        //// Get the state of the frame element we're in now
+        //FrameState* frameState = m_FrameStateStack.back();
+
+        //if (frameState->activeTab == m_TabIndexStack.back() - 1)
+        //{
+        //    return true;
+        //}
+        //else
+        //{
+        //    return false;
+        //}
     }
 }
 

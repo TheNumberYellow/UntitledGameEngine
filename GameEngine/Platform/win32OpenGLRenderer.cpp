@@ -1787,29 +1787,78 @@ void Renderer::DisableStencilTesting()
     glDisable(GL_STENCIL_TEST);
 }
 
-void Renderer::StartStencilDrawing()
+void Renderer::StartStencilDrawing(StencilCompareFunc compareFunc, StencilOperationFunc opFunc, int value)
 {
-    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
-    glStencilFunc(GL_ALWAYS, 1, 0xFF);
-    glStencilMask(0xFF);
+    if (compareFunc == StencilCompareFunc::ALWAYS)
+    {
+        glStencilFunc(GL_ALWAYS, value, 0xFF);
+    }
+    else if (compareFunc == StencilCompareFunc::EQUAL)
+    {
+        glStencilFunc(GL_EQUAL, value, 0xFF);
+    }
+    else if (compareFunc == StencilCompareFunc::GREATER)
+    {
+        glStencilFunc(GL_GEQUAL, value, 0xFF);
+    }
+    else if (compareFunc == StencilCompareFunc::LESS)
+    {
+        glStencilFunc(GL_LEQUAL, value, 0xFF);
+    }
+
+    if (opFunc == StencilOperationFunc::KEEP)
+    {
+        glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+    }
+    else if (opFunc == StencilOperationFunc::REPLACE)
+    {
+        glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+    }
+    else if (opFunc == StencilOperationFunc::INCREMENT)
+    {
+        glStencilOp(GL_KEEP, GL_KEEP, GL_INCR);
+    }
+    else if (opFunc == StencilOperationFunc::DECREMENT)
+    {
+        glStencilOp(GL_KEEP, GL_KEEP, GL_DECR);
+    }
+
+    //glStencilMask(0xFF);
 }
 
 void Renderer::EndStencilDrawing()
 {
     glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-    glStencilMask(0x00);
+    //glStencilMask(0x00);
 }
 
-void Renderer::StartStencilTesting()
+void Renderer::StartStencilTesting(StencilCompareFunc func, int value)
 {
-    glStencilFunc(GL_EQUAL, 1, 0xFF);
-    glStencilMask(0xFF);
-    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+    if (func == StencilCompareFunc::ALWAYS)
+    {
+        glStencilFunc(GL_ALWAYS, value, 0xFF);
+    }
+    else if (func == StencilCompareFunc::EQUAL)
+    {
+        glStencilFunc(GL_EQUAL, value, 0xFF);
+    }
+    else if (func == StencilCompareFunc::GREATER)
+    {
+        glStencilFunc(GL_GEQUAL, value, 0xFF);
+    }
+    else if (func == StencilCompareFunc::LESS)
+    {
+        glStencilFunc(GL_LEQUAL, value, 0xFF);
+    }
+    
+    //glStencilMask(0xFF);
+    //glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 }
 
 void Renderer::EndStencilTesting()
 {
     glStencilFunc(GL_ALWAYS, 1, 0xFF);
+    //glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 }
 
 void Renderer::SetCulling(Cull c)

@@ -28,6 +28,18 @@ struct Plane
     Vec3f normal;
 };
 
+struct Sphere
+{
+    Vec3f position;
+    float radius;
+};
+
+struct Capsule
+{
+    Vec3f top, bottom;
+    float radius;
+};
+
 struct LineSegment
 {
     LineSegment() {}

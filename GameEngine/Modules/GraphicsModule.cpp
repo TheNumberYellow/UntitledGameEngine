@@ -1665,6 +1665,7 @@ void GraphicsModule::AttachTextureToFBuffer(Texture texture, Framebuffer_ID fBuf
 
 void GraphicsModule::SetActiveFrameBuffer(Framebuffer_ID fBufferID)
 {
+    m_Renderer.DisableStencilTesting();
     m_Renderer.SetActiveFBuffer(fBufferID);
     m_Renderer.ClearScreenAndDepthBuffer();
     m_ActiveFrameBuffer = fBufferID;
@@ -1733,6 +1734,7 @@ void GraphicsModule::ResetFrameBuffer()
         DrawDebugDrawMesh(*m_Camera);
     }
     m_Renderer.ResetToScreenBuffer();
+    m_Renderer.EnableStencilTesting();
 }
 
 //Material GraphicsModule::CreateMaterial(Texture AlbedoMap, Texture NormalMap, Texture RoughnessMap, Texture MetallicMap, Texture AOMap, Texture HeightMap)
@@ -2272,6 +2274,8 @@ std::vector<unsigned int> GraphicsModule::GetModelIndexBuffer(Model& model)
 
 void GraphicsModule::OnFrameStart()
 {
+    ResetFrameBuffer();
+
     m_CameraMatrixSetThisFrame = false;
     m_Renderer.ClearScreenAndDepthBuffer();
 
@@ -2279,6 +2283,7 @@ void GraphicsModule::OnFrameStart()
     {
         m_DebugLineMap.clear();
     }
+   
 }
 
 void GraphicsModule::OnFrameEnd()
@@ -2288,6 +2293,7 @@ void GraphicsModule::OnFrameEnd()
         DrawDebugDrawMesh(*m_Camera);
     }
 
+    //ResetFrameBuffer();
     m_Renderer.SwapBuffer();
 }
 
