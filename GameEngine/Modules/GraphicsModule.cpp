@@ -1390,6 +1390,8 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam, DirectionalLight DirLigh
 {
     m_Renderer.SetActiveFBuffer(Buffer.Buffer);
 
+    m_Renderer.DisableStencilTesting();
+
     m_Renderer.SetActiveShader(m_GBufferShader);
     m_Renderer.ClearScreenAndDepthBuffer();
 
@@ -1603,6 +1605,8 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam, DirectionalLight DirLigh
     m_StaticMeshRenderCommands.clear();
     m_BillboardRenderCommands.clear();
     m_PointLightRenderCommands.clear();
+
+    m_Renderer.EnableStencilTesting();
 }
 
 Shader_ID GraphicsModule::CreateShader(std::string vertShaderSource, std::string fragShaderSource)

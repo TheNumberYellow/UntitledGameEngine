@@ -2264,9 +2264,9 @@ void EditorState::DrawLevelEditor(GraphicsModule* Graphics, UIModule* UI, float 
 
     }
 
-    Graphics->SetActiveFrameBuffer(WidgetBuffer);
-
     EditorScene.EditorDraw(*Graphics, ViewportBuffer, &ViewportCamera);
+    
+    Graphics->SetActiveFrameBuffer(WidgetBuffer);
     {
         Graphics->SetCamera(&ViewportCamera);
 
