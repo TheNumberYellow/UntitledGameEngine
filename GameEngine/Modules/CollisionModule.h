@@ -105,6 +105,8 @@ public:
 
     Intersection SphereIntersection(Sphere sphere, Sphere other);
     Intersection SphereIntersection(Sphere sphere, Triangle tri);
+    Intersection SphereIntersection(Sphere sphere, Model& model);
+    Intersection SphereIntersection(Sphere, const CollisionMesh& mesh, Transform& transform);
 
     static const RayCastHit* Closest(std::initializer_list<RayCastHit> hitList);
 

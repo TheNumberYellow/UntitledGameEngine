@@ -111,6 +111,8 @@ struct Vec3f
 
 using Colour = Vec3f;
 
+Colour MakeColour(int r, int g, int b);
+
 class Vec3fHash
 {
 public:

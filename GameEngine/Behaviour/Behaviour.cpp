@@ -23,6 +23,11 @@ BehaviourRegistry* BehaviourRegistry::Get()
 
 Behaviour* BehaviourRegistry::AddBehaviourPrototype(std::string BehaviourName, Behaviour* NewBehaviour)
 {
+    auto it = m_BehaviourPrototypes.find(BehaviourName);
+    if (it != m_BehaviourPrototypes.end())
+    {
+        Engine::DEBUGPrint("That behaviour prototype already exists...wtf");
+    }
     m_BehaviourPrototypes[BehaviourName] = NewBehaviour;
     return m_BehaviourPrototypes[BehaviourName];
 }
@@ -100,19 +105,28 @@ std::vector<std::string> BehaviourRegistry::GetBehavioursAttachedToEntity(Model*
 
 void BehaviourRegistry::ClearBehavioursOnEntity(Model* Model)
 {
-    m_AttachedBehaviours.erase(Model);
-    //for (int i = (int)m_AttachedBehaviours.size() - 1; i >= 0; --i)
-    //{
-    //    if (m_AttachedBehaviours[i]->m_Model == Model)
-    //    {
-    //        m_AttachedBehaviours.erase(m_AttachedBehaviours.begin() + i);
-    //        continue;
-    //    }
-    //}
+    auto it = m_AttachedBehaviours.find(Model);
+
+    if (it != m_AttachedBehaviours.end())
+    {
+        for (auto B : m_AttachedBehaviours[Model])
+        {
+            delete B;
+        }
+        m_AttachedBehaviours[Model].clear();
+        m_AttachedBehaviours.erase(Model);
+    }
 }
 
 void BehaviourRegistry::ClearAllAttachedBehaviours()
 {
+    for (auto M : m_AttachedBehaviours)
+    {
+        for (auto B : M.second)
+        {
+            delete B;
+        }
+    }
     m_AttachedBehaviours.clear();
 }
 

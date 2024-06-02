@@ -422,6 +422,7 @@
     <ClCompile Include="Behaviours\Spin.cpp" />
     <ClCompile Include="Behaviours\DungeonCornerstone.cpp" />
     <ClCompile Include="EditorScene.cpp" />
+    <ClCompile Include="Behaviours\SphereController.cpp" />
     <ClCompile Include="States\GameState.cpp" />
     <ClCompile Include="States\EditorState.cpp" />
     <ClCompile Include="Behaviours\Ghost.cpp" />
@@ -430,11 +431,13 @@
     <ClCompile Include="Behaviours\RCCar.cpp" />
     <ClCompile Include="Behaviours\TopDownPlayer.cpp" />
     <ClCompile Include="Behaviours\TopDownBullet.cpp" />
+    <ClCompile Include="Behaviours\TopDownController.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Behaviours\Spin.h" />
     <ClInclude Include="Behaviours\DungeonCornerstone.h" />
     <ClInclude Include="EditorScene.h" />
+    <ClInclude Include="Behaviours\SphereController.h" />
     <ClInclude Include="States\GameState.h" />
     <ClInclude Include="States\EditorState.h" />
     <ClInclude Include="Behaviours\Wobble.h" />
@@ -442,6 +445,7 @@
     <ClInclude Include="Behaviours\TopDownPlayer.h" />
     <ClInclude Include="Behaviours\Ghost.h" />
     <ClInclude Include="Behaviours\TopDownBullet.h" />
+    <ClInclude Include="Behaviours\TopDownController.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -1358,17 +1358,24 @@ void GraphicsModule::DeleteGBuffer(GBuffer& GBuf)
 {
     DeleteFBuffer(GBuf.Buffer);
 
+    DeleteTexture(GBuf.PositionTex);
+    DeleteTexture(GBuf.NormalTex);
+    DeleteTexture(GBuf.AlbedoTex);
+    DeleteTexture(GBuf.MetallicTex);
+    DeleteTexture(GBuf.RoughnessTex);
+    DeleteTexture(GBuf.AOTex);
 
     DeleteFBuffer(GBuf.SkyBuffer);
-
+    DeleteTexture(GBuf.SkyTex);
 
     DeleteFBuffer(GBuf.LightBuffer);
-
+    DeleteTexture(GBuf.LightTex);
 
     DeleteFBuffer(GBuf.DebugBuffer);
-
+    DeleteTexture(GBuf.DebugTex);
 
     DeleteFBuffer(GBuf.FinalOutput);
+    m_Renderer.DeleteMesh(GBuf.QuadMesh);
 }
 
 void GraphicsModule::AddRenderCommand(StaticMeshRenderCommand Command)
@@ -1649,6 +1656,11 @@ Texture GraphicsModule::LoadTexture(std::string filePath, TextureMode minFilter,
     return Result;
 }
 
+void GraphicsModule::DeleteTexture(Texture_ID texID)
+{
+    m_Renderer.DeleteTexture(texID);
+}
+
 StaticMesh GraphicsModule::LoadMesh(std::string filePath)
 {
     // todo(Fraser): Switch here on different file types? (If I ever want something that's not .obj)
@@ -1711,24 +1723,26 @@ void GraphicsModule::ResizeFrameBuffer(Framebuffer_ID fBufferID, Vec2i size)
     m_Renderer.ResizeFBuffer(fBufferID, size);
 }
 
-void GraphicsModule::ResizeGBuffer(GBuffer Buffer, Vec2i Size)
+void GraphicsModule::ResizeGBuffer(GBuffer& Buffer, Vec2i Size)
 {
-    m_Renderer.ResizeFBuffer(Buffer.Buffer, Size);
-    m_Renderer.ResizeFBuffer(Buffer.FinalOutput, Size);
-    m_Renderer.ResizeFBuffer(Buffer.SkyBuffer, Size);
-    m_Renderer.ResizeFBuffer(Buffer.LightBuffer, Size);
-    m_Renderer.ResizeFBuffer(Buffer.DebugBuffer, Size);
+    DeleteGBuffer(Buffer);
+    Buffer = CreateGBuffer(Size);
+    //m_Renderer.ResizeFBuffer(Buffer.Buffer, Size);
+    //m_Renderer.ResizeFBuffer(Buffer.FinalOutput, Size);
+    //m_Renderer.ResizeFBuffer(Buffer.SkyBuffer, Size);
+    //m_Renderer.ResizeFBuffer(Buffer.LightBuffer, Size);
+    //m_Renderer.ResizeFBuffer(Buffer.DebugBuffer, Size);
 
-    m_Renderer.ResizeTexture(Buffer.PositionTex, Size);
-    m_Renderer.ResizeTexture(Buffer.NormalTex, Size);
-    m_Renderer.ResizeTexture(Buffer.AlbedoTex, Size);
-    m_Renderer.ResizeTexture(Buffer.MetallicTex, Size);
-    m_Renderer.ResizeTexture(Buffer.RoughnessTex, Size);
-    m_Renderer.ResizeTexture(Buffer.AOTex, Size);
-    m_Renderer.ResizeTexture(Buffer.DebugTex, Size);
+    //m_Renderer.ResizeTexture(Buffer.PositionTex, Size);
+    //m_Renderer.ResizeTexture(Buffer.NormalTex, Size);
+    //m_Renderer.ResizeTexture(Buffer.AlbedoTex, Size);
+    //m_Renderer.ResizeTexture(Buffer.MetallicTex, Size);
+    //m_Renderer.ResizeTexture(Buffer.RoughnessTex, Size);
+    //m_Renderer.ResizeTexture(Buffer.AOTex, Size);
+    //m_Renderer.ResizeTexture(Buffer.DebugTex, Size);
 
-    m_Renderer.ResizeTexture(Buffer.SkyTex, Size);
-    m_Renderer.ResizeTexture(Buffer.LightTex, Size);
+    //m_Renderer.ResizeTexture(Buffer.SkyTex, Size);
+    //m_Renderer.ResizeTexture(Buffer.LightTex, Size);
 }
 
 void GraphicsModule::ResetFrameBuffer()
@@ -2071,6 +2085,7 @@ void GraphicsModule::UpdateBrushModel(Brush* brush)
         m_Renderer.UpdateMeshData(brush->RepModel->m_TexturedMeshes[0].m_Mesh.Id, m_TexturedMeshFormat, Vertices, Indices);
         //Material OldMaterial = brush->RepModel->m_TexturedMeshes[0].m_Material;
         //brush->RepModel->m_TexturedMeshes[0] = TexturedMesh(BrushMesh, OldMaterial);
+        CollisionModule::Get()->InvalidateMeshCollisionData(brush->RepModel->m_TexturedMeshes[0].m_Mesh.Id);
 
         brush->Trans = &brush->RepModel->GetTransform();
         

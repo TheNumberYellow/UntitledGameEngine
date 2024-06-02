@@ -145,7 +145,7 @@ bool Vec3f::IsZero()
 
 bool Vec3f::IsNearlyZero()
 {
-    return abs(x) < 0.001f && abs(y) < 0.001f && abs(z) < 0.001f;
+    return abs(x) < 0.0001f && abs(y) < 0.0001f && abs(z) < 0.0001f;
 }
 
 Vec3f Vec3f::operator+(Vec3f rhs)
@@ -278,6 +278,11 @@ bool operator==(const Vec3f& lhs, const Vec3f& rhs)
     return lhs.x == rhs.x
         && lhs.y == rhs.y
         && lhs.z == rhs.z;
+}
+
+Colour MakeColour(int r, int g, int b)
+{
+    return Colour((float)r / 255.f, (float)g / 255.f, (float)b / 255.f);
 }
 
 float& Vec4f::operator[](int index)

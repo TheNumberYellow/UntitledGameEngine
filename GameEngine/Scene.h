@@ -77,6 +77,8 @@ public:
 
     SceneRayCastHit RayCast(Ray ray, std::vector<Model*> IgnoredModels = std::vector<Model*>());
 
+    Intersection SphereIntersect(Sphere sphere, std::vector<Model*> IgnoredModels = std::vector<Model*>());
+
     Model* MenuListEntities(UIModule& ui, Font& font);
 
     void Save(std::string FileName);

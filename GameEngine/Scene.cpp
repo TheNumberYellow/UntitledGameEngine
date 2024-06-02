@@ -371,6 +371,32 @@ SceneRayCastHit Scene::RayCast(Ray ray, std::vector<Model*> IgnoredModels)
     return finalHit;
 }
 
+Intersection Scene::SphereIntersect(Sphere sphere, std::vector<Model*> IgnoredModels)
+{
+    CollisionModule& Collision = *CollisionModule::Get();
+
+    Intersection Result;
+
+    for (auto& it : m_UntrackedModels)
+    {
+        if (std::count(IgnoredModels.begin(), IgnoredModels.end(), it) > 0)
+        {
+            continue;
+        }
+
+        CollisionMesh& colMesh = *Collision.GetCollisionMeshFromMesh(it->m_TexturedMeshes[0].m_Mesh);
+
+        Intersection ModelIntersection = Collision.SphereIntersection(sphere, colMesh, it->GetTransform());
+
+        if (ModelIntersection.hit && ModelIntersection.penetrationDepth > Result.penetrationDepth)
+        {
+            Result = ModelIntersection;
+        }
+    }
+
+    return Result;
+}
+
 Model* Scene::MenuListEntities(UIModule& ui, Font& font)
 {
     Vec2f cursor = Vec2f(0.0f, 0.0f);

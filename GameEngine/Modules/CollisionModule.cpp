@@ -428,18 +428,89 @@ Intersection CollisionModule::SphereIntersection(Sphere sphere, Triangle tri)
 {
     Intersection result;
 
+    //tri.a = tri.a - sphere.position;
+    //tri.b = tri.b - sphere.position;
+    //tri.c = tri.c - sphere.position;
+
+    // Test sphere against triangle's plane
     Vec3f triPlaneNormal = Math::normalize(Math::cross(tri.b - tri.a, tri.c - tri.a));
 
     float sphereTriPlaneDistance = Math::dot(sphere.position - tri.a, triPlaneNormal);
 
     if (sphereTriPlaneDistance < -sphere.radius || sphereTriPlaneDistance > sphere.radius)
     {
-        // No intersection
+        // Sphere does not touch triangle's plane: No intersection
         return result;
     }
+
+    // Sphere intersects triangle's plane so next determine if its center projects to inside the triangle on the plane
+    Vec3f SphereCenterProjectionOnPlane = sphere.position - (triPlaneNormal * sphereTriPlaneDistance);
+
+    // Test point against all 3 triangle edges
+    bool InsideAB = Math::dot(Math::cross(SphereCenterProjectionOnPlane - tri.a, tri.b - tri.a), triPlaneNormal) <= 0.0f;
+    bool InsideBC = Math::dot(Math::cross(SphereCenterProjectionOnPlane - tri.b, tri.c - tri.b), triPlaneNormal) <= 0.0f;
+    bool InsideAC = Math::dot(Math::cross(SphereCenterProjectionOnPlane - tri.c, tri.a - tri.c), triPlaneNormal) <= 0.0f;
+
+    if (InsideAB && InsideBC && InsideAC)
+    {
+        // We're inside all three edges and intersecting with plane
+        result.hit = true;
+        result.penetrationNormal = triPlaneNormal;
+        result.penetrationDepth = sphere.radius + sphereTriPlaneDistance;
+    }
+
+    // Test sphere against each triangle vertex
+
+
+    // Test sphere against each triangle edge
+
+
     //TODO: Incomplete
 
     return result;
+}
+
+Intersection CollisionModule::SphereIntersection(Sphere sphere, Model& model)
+{
+    return SphereIntersection(sphere, *GetCollisionMeshFromMesh(model.m_TexturedMeshes[0].m_Mesh), model.GetTransform());
+}
+
+Intersection CollisionModule::SphereIntersection(Sphere sphere, const CollisionMesh& mesh, Transform& transform)
+{
+    Intersection resultIntersection;
+
+    Mat4x4f meshTransform = transform.GetTransformMatrix();
+
+    Mat4x4f invMeshTransform = Math::inv(meshTransform);
+
+    sphere.position = sphere.position * invMeshTransform;
+
+    //GraphicsModule::Get()->DebugDrawSphere(sphere.position * meshTransform, sphere.radius, MakeColour(255, 23, 90));
+
+    for (int i = 0; i < mesh.indices.size(); i += 3)
+    {
+        Vec3f a = mesh.points[mesh.indices[i]];
+        Vec3f b = mesh.points[mesh.indices[(size_t)i + 1]];
+        Vec3f c = mesh.points[mesh.indices[(size_t)i + 2]];
+
+        Intersection triIntersection = SphereIntersection(sphere, Triangle{ a, b, c });
+
+        if (triIntersection.hit && triIntersection.penetrationDepth > resultIntersection.penetrationDepth)
+        {
+            resultIntersection = triIntersection;
+        }
+        //GraphicsModule::Get()->DebugDrawLine(a * meshTransform, b * meshTransform);
+        //GraphicsModule::Get()->DebugDrawLine(a * meshTransform, c * meshTransform);
+        //GraphicsModule::Get()->DebugDrawLine(b * meshTransform, c * meshTransform);
+
+    }
+
+    //if (resultIntersection.hit)
+    //{
+    //    resultIntersection.penetrationNormal = Math::normalize(resultIntersection.penetrationNormal * transform.GetTransformMatrix());
+    //}
+
+    return resultIntersection;
 }
 
 const RayCastHit* CollisionModule::Closest(std::initializer_list<RayCastHit> hitList)

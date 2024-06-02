@@ -363,6 +363,7 @@ namespace
             else if (format == FBufferFormat::EMPTY)
             {
                 // We'll assume that empty fbuffers will have color attachments added later, so just add the render buffer to allow depth/stencil info now
+                // FOUND BUG: TEXTURE IS NOT SET SO WHEN I GO TO DELETE IT LATER IT DELETES texture WHICH IS UNSET - WHICH MIGHT BE ANOTHER TEXTURE!!!
                 glGenRenderbuffers(1, &rbo);
                 glBindRenderbuffer(GL_RENDERBUFFER, rbo);
                 glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, size.x, size.y);
@@ -423,6 +424,8 @@ namespace
                 break;
             }
 
+            glBindTexture(GL_TEXTURE_2D, 0);
+
             glGenTextures(1, &texture);
 
             glBindTexture(GL_TEXTURE_2D, texture);
@@ -457,6 +460,11 @@ namespace
                 break;
             }
 
+            if (!glIsTexture(texture))
+            {
+                Engine::Error("Failed to create texture");
+            }
+
             glGenerateMipmap(GL_TEXTURE_2D);
             glBindTexture(GL_TEXTURE_2D, 0);
 
@@ -487,6 +495,8 @@ namespace
                 glMagTextureMode = GL_NEAREST;
                 break;
             }
+
+            glBindTexture(GL_TEXTURE_2D, 0);
 
             glGenTextures(1, &texture);
 
@@ -523,11 +533,20 @@ namespace
             stbi_image_free(textureData);
 
             glGenerateMipmap(GL_TEXTURE_2D);
+            
+            if (!glIsTexture(texture))
+            {
+                Engine::FatalError("Failed to create texture");
+                return;
+            }
+
             glBindTexture(GL_TEXTURE_2D, 0);
         }
 
         OpenGLTexture(Vec2i size, ColourFormat format)
         {
+            glBindTexture(GL_TEXTURE_2D, 0);
+
             glGenTextures(1, &texture);
             glBindTexture(GL_TEXTURE_2D, texture);
 
@@ -581,6 +600,8 @@ namespace
         OpenGLTexture(TextureCreateInfo& CreateInfo) :
             createInfo(CreateInfo)
         {
+            glBindTexture(GL_TEXTURE_2D, 0);
+
             glGenTextures(1, &texture);
             glBindTexture(GL_TEXTURE_2D, texture);
 
@@ -1189,6 +1210,20 @@ Texture_ID Renderer::LoadTexture(std::string filePath, TextureMode minTexMode, T
     return newID;
 }
 
+bool Renderer::IsTextureValid(Texture_ID texID)
+{
+    OpenGLTexture* tex = GetGLTextureFromTextureID(texID);
+    return glIsTexture(tex->texture);
+}
+
+#pragma optimize("", off)
+bool Renderer::IsFBufferTextureValid(Framebuffer_ID bufID)
+{
+    OpenGLFBuffer* fBuffer = GetGLFBufferFromFBufferID(bufID);
+    return glIsTexture(fBuffer->texture);
+}
+#pragma optimize("", on)
+
 Cubemap_ID Renderer::LoadCubemap(std::string filepath)
 {
     OpenGLCubemap newCubemap = OpenGLCubemap(filepath);
@@ -1229,6 +1264,7 @@ StaticMesh_ID Renderer::LoadMesh(const VertexBufferFormat& vertBufFormat, std::v
     return newID;
 }
 
+#pragma optimize("", off)
 void Renderer::DeleteFrameBuffer(Framebuffer_ID fBufferID)
 {
     OpenGLFBuffer* fBuffer = GetGLFBufferFromFBufferID(fBufferID);
@@ -1237,11 +1273,17 @@ void Renderer::DeleteFrameBuffer(Framebuffer_ID fBufferID)
     {
         glDeleteFramebuffers(1, &(fBuffer->fbo));
         glDeleteRenderbuffers(1, &(fBuffer->rbo));
-        glDeleteTextures(1, &(fBuffer->texture));
+        if (fBuffer->format != FBufferFormat::EMPTY)
+        {
+            glDeleteTextures(1, &(fBuffer->texture));
+        }
 
         fBufferMap.erase(fBufferID);
     }
+
+    GUIDGen::FreeID(fBufferID);
 }
+#pragma optimize("", on)
 
 void Renderer::DeleteTexture(Texture_ID textureID)
 {
@@ -1253,6 +1295,8 @@ void Renderer::DeleteTexture(Texture_ID textureID)
 
         textureMap.erase(textureID);
     }
+
+    GUIDGen::FreeID(textureID);
 }
 
 void Renderer::DeleteMesh(StaticMesh_ID meshID)
@@ -1267,6 +1311,8 @@ void Renderer::DeleteMesh(StaticMesh_ID meshID)
 
         meshMap.erase(meshID);
     }
+
+    GUIDGen::FreeID(meshID);
 }
 
 Texture_ID Renderer::CreateEmptyTexture(Vec2i size, ColourFormat format)
@@ -1455,6 +1501,12 @@ void Renderer::SetActiveTexture(Texture_ID texture, unsigned int textureSlot)
 {
     OpenGLTexture* texturePtr = GetGLTextureFromTextureID(texture);
 
+    if (!glIsTexture(texturePtr->texture))
+    {
+        Engine::DEBUGPrint("Invalid texture");
+        return;
+    }
+
     glActiveTexture(GL_TEXTURE0 + textureSlot);
     glBindTexture(GL_TEXTURE_2D, texturePtr->texture);
 }
@@ -1489,6 +1541,12 @@ void Renderer::ResizeTexture(Texture_ID textureID, Vec2i newSize)
 void Renderer::SetActiveFBufferTexture(Framebuffer_ID frameBufferID, unsigned int textureSlot)
 {
     OpenGLFBuffer* bufferPtr = GetGLFBufferFromFBufferID(frameBufferID);
+
+    if (!glIsTexture(bufferPtr->texture))
+    {
+        Engine::DEBUGPrint("Invalid buffer texture");
+        return;
+    }
 
     glActiveTexture(GL_TEXTURE0 + textureSlot);
     glBindTexture(GL_TEXTURE_2D, bufferPtr->texture);

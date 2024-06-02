@@ -417,7 +417,7 @@ void UIModule::StartFrame(std::string name, Rect rect, float borderWidth, Vec3f 
 
     m_CurrentTabIndexStack.push_back(0);
 
-    Engine::DEBUGPrint("Starting frame named " + name);
+    //Engine::DEBUGPrint("Starting frame named " + name);
 
     FrameState* State = GetFrameState(name);
 
@@ -485,7 +485,7 @@ void UIModule::EndFrame()
     //m_Renderer.ClearStencilBuffer();
 
     FrameState* frameState = m_FrameStateStack.back();
-    Engine::DEBUGPrint("Ending frame named " + frameState->name);
+    //Engine::DEBUGPrint("Ending frame named " + frameState->name);
     Rect FrameRect = m_SubRectStack.top();
 
     m_CurrentTabIndexStack.pop_back();
@@ -533,7 +533,7 @@ void UIModule::StartTab(std::string text, Vec3f colour)
         return;
     }
 
-    Engine::DEBUGPrint("Start tab " + text);
+    //Engine::DEBUGPrint("Start tab " + text);
 
     if (m_FrameStateStack.empty())
     {
@@ -583,7 +583,7 @@ void UIModule::EndTab()
         return;
     }
 
-    Engine::DEBUGPrint("Ending tab");
+    //Engine::DEBUGPrint("Ending tab");
 
     m_InTabStack.back() = false;
     CursorStack.pop();
@@ -642,7 +642,7 @@ void UIModule::OnFrameEnd()
         m_CurrentTabIndexStack.pop_back();
     }
 
-    Engine::DEBUGPrint("~~~~ENDING FRAME~~~~");
+    //Engine::DEBUGPrint("~~~~ENDING FRAME~~~~");
 }
 
 Click UIModule::ButtonInternal(std::string name, Vec2f size, float borderWidth, Vec3f colour)
@@ -1098,7 +1098,7 @@ bool UIModule::IsActive()
     //}
     else
     {
-        for (int i = 0; i < m_FrameStateStack.size(); i++)
+        for (int i = 0; i < (m_InTabStack.size() < m_FrameStateStack.size() ? m_InTabStack.size() : m_FrameStateStack.size()); i++)
         {
             if (m_InTabStack[i] && m_FrameStateStack[i]->activeTab != m_CurrentTabIndexStack[i] - 1)
             {

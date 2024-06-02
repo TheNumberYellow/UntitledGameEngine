@@ -184,6 +184,9 @@ public:
     Texture_ID LoadTexture(Vec2i size, std::vector<unsigned char> textureData, ColourFormat format, TextureMode minTexMode = TextureMode::LINEAR, TextureMode magTexMode = TextureMode::LINEAR);
     Texture_ID LoadTexture(std::string filePath, TextureMode minTexMode = TextureMode::LINEAR, TextureMode magTexMode = TextureMode::LINEAR);
     
+    bool IsTextureValid(Texture_ID texID);
+    bool IsFBufferTextureValid(Framebuffer_ID bufID);
+
     Cubemap_ID LoadCubemap(std::string filepath);
 
     Shader_ID LoadShader(std::string vertShaderSource, std::string fragShaderSource);

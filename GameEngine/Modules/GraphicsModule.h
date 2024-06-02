@@ -222,11 +222,13 @@ public:
     
     Texture CreateTexture(Vec2i size);
     Texture LoadTexture(std::string filePath, TextureMode minFilter = TextureMode::LINEAR, TextureMode magFilter = TextureMode::LINEAR);
+    void DeleteTexture(Texture_ID texID);
+
     StaticMesh LoadMesh(std::string filePath);
 
     void SetActiveFrameBuffer(Framebuffer_ID fBufferID);
     void ResizeFrameBuffer(Framebuffer_ID fBufferID, Vec2i size);
-    void ResizeGBuffer(GBuffer Buffer, Vec2i Size);
+    void ResizeGBuffer(GBuffer& Buffer, Vec2i Size);
     void ResetFrameBuffer();
 
     //Material CreateMaterial(Texture AlbedoMap, Texture NormalMap, Texture RoughnessMap, Texture MetallicMap, Texture AOMap, Texture HeightMap);

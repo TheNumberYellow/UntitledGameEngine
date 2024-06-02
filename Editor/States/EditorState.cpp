@@ -1889,7 +1889,7 @@ void EditorState::UpdateEditor(float DeltaTime)
 
     //Graphics->ResetFrameBuffer();
 
-    UI->StartFrame("EditorFrame", Rect(Vec2f(0.0f, 0.0f), ViewportSize), 0.0f, c_VegasGold);
+    UI->StartFrame("EditorFrame", Rect(Vec2f(0.0f, 0.0f), ViewportSize), 0.0f, c_FrameDark);
     {
         UI->StartTab("Level Editor");
         {
@@ -2231,9 +2231,9 @@ void EditorState::DrawLevelEditor(GraphicsModule* Graphics, UIModule* UI, float 
 
             for (int i = 0; i < Face.size() - 1; i++)
             {
-                Graphics->DebugDrawLine(*Face[i], *Face[i + 1]);
+                //Graphics->DebugDrawLine(*Face[i], *Face[i + 1]);
             }
-            Graphics->DebugDrawLine(*Face[Face.size() - 1], *Face[0]);
+            //Graphics->DebugDrawLine(*Face[Face.size() - 1], *Face[0]);
 
             Vec3f u = *Face[1] - *Face[0];
             Vec3f v = *Face[2] - *Face[0];
@@ -2257,9 +2257,9 @@ void EditorState::DrawLevelEditor(GraphicsModule* Graphics, UIModule* UI, float 
 
             UpProjection = Math::normalize(UpProjection);
 
-            Graphics->DebugDrawLine(PlanePoint, PlanePoint + UpProjection, c_VegasGold);
+            //Graphics->DebugDrawLine(PlanePoint, PlanePoint + UpProjection, c_VegasGold);
 
-            Graphics->DebugDrawLine(PlanePoint, PlanePoint + PlaneNorm, c_LightGoldenRodYellow);
+            //Graphics->DebugDrawLine(PlanePoint, PlanePoint + PlaneNorm, c_LightGoldenRodYellow);
         }
 
     }
@@ -2308,10 +2308,10 @@ void EditorState::DrawEditorUI()
     // Left toolbar buttons
     Rect ToolbarButtonRect = Rect(Vec2f(0.0f, 60.0f), Vec2f(ViewportRect.location.x, ViewportRect.size.y));
 
-    UI->StartFrame("Tools", ToolbarButtonRect, 0.0f, c_VegasGold);
+    UI->StartFrame("Tools", ToolbarButtonRect, 0.0f, c_FrameLight);
     {
-        Vec3f SelectedColour = c_DarkOrange;
-        Vec3f UnSelectedColour = c_GoldenYellow;
+        Vec3f SelectedColour = c_SelectedButton;
+        Vec3f UnSelectedColour = c_Button;
 
         Texture SelectModeTexture = modelSelectToolTexture;
         switch (Cursor.GetSelectMode())
@@ -2429,9 +2429,9 @@ void EditorState::DrawTopPanel()
 
     //Vec2f TopPanelButtonSize = Vec2f(ViewportRect.location.y, ViewportRect.location.y);
 
-    UI->StartFrame("Top", TopPanelRect, 0.0f, c_VegasGold);
+    UI->StartFrame("Top", TopPanelRect, 0.0f, c_FrameDark);
     {
-        if (UI->ImgButton("PlayButton", playButtonTexture, Vec2f(40.0f, 40.0f), 8.0f))
+        if (UI->ImgButton("PlayButton", playButtonTexture, Vec2f(40.0f, 40.0f), 8.0f, c_TopButton))
         {
             Cursor.UnselectAll();
             Cursor.ResetAllState();
@@ -2440,13 +2440,13 @@ void EditorState::DrawTopPanel()
 
             Machine->PushState(NewGameState);
         }
-        if (UI->TextButton("New", Vec2f(40.0f, 40.0f), 8.0f))
+        if (UI->TextButton("New", Vec2f(40.0f, 40.0f), 8.0f, c_TopButton, Vec3f(1.0f, 1.0f, 1.0f)))
         {
             Cursor.UnselectAll();
             EditorScene.Clear();
             BehaviourRegistry::Get()->ClearAllAttachedBehaviours();
         }
-        if (UI->TextButton("Open", Vec2f(40.0f, 40.0f), 8.0f))
+        if (UI->TextButton("Open", Vec2f(40.0f, 40.0f), 8.0f, c_TopButton, Vec3f(1.0f, 1.0f, 1.0f)))
         {
             Cursor.UnselectAll();
             std::string FileName;
@@ -2455,7 +2455,7 @@ void EditorState::DrawTopPanel()
                 EditorScene.Load(FileName);
             }
         }
-        if (UI->TextButton("Save", Vec2f(40.0f, 40.0f), 8.0f))
+        if (UI->TextButton("Save", Vec2f(40.0f, 40.0f), 8.0f, c_TopButton, Vec3f(1.0f, 1.0f, 1.0f)))
         {
             std::string FileName;
             if (Engine::FileSaveDialog(FileName))
@@ -2479,7 +2479,7 @@ void EditorState::DrawDrawerSettingsPanel()
         Vec2f(ViewportRect.location.x, ScreenSize.y - (ViewportRect.location.y + ViewportRect.size.y))
     );
 
-    UI->StartFrame("Mode Select", ModeSelectRect, 6.0f, c_VegasGold);
+    UI->StartFrame("Mode Select", ModeSelectRect, 6.0f, c_FrameLight);
     {
         if (UI->TextButton("Content", Vec2f(ModeSelectRect.size.x - 16.0f, 40.0f), 6.0f))
         {
@@ -2509,14 +2509,14 @@ void EditorState::DrawResourcesPanel()
 
     if (Drawer == DrawerMode::CONTENT)
     {
-        UI->StartFrame("Resources", ResourcePanelRect, 16.0f, c_VegasGold);
+        UI->StartFrame("Resources", ResourcePanelRect, 16.0f, c_FrameDark);
         {
-            UI->StartTab("Models", c_LightGoldenRodYellow);
+            UI->StartTab("Models", c_Tab);
             {
                 int index = 0;
                 for (auto& AModel : LoadedModels)
                 {
-                    if (UI->TextButton(AModel.m_TexturedMeshes[0].m_Mesh.Path.GetFileNameNoExt(), Vec2f(120.0f, 40.0f), 10.0f, c_VegasGold).clicking)
+                    if (UI->TextButton(AModel.m_TexturedMeshes[0].m_Mesh.Path.GetFileNameNoExt(), Vec2f(120.0f, 40.0f), 10.0f, c_ResourceButton).clicking)
                     {
                         if (!Cursor.IsDraggingSomething())
                         {
@@ -2529,11 +2529,11 @@ void EditorState::DrawResourcesPanel()
             }
             UI->EndTab();
 
-            UI->StartTab("Materials", c_LightGoldenRodYellow);
+            UI->StartTab("Materials", c_Tab);
             {
                 for (auto& Mat : LoadedMaterials)
                 {
-                    if (UI->ImgButton(Mat.m_Albedo.Path.GetFileNameNoExt(), Mat.m_Albedo, Vec2f(80, 80), 5.0f, c_VegasGold).clicking)
+                    if (UI->ImgButton(Mat.m_Albedo.Path.GetFileNameNoExt(), Mat.m_Albedo, Vec2f(80, 80), 5.0f, c_ResourceButton).clicking)
                     {
                         if (!Cursor.IsDraggingSomething())
                         {
@@ -2546,9 +2546,9 @@ void EditorState::DrawResourcesPanel()
             }
             UI->EndTab();
 
-            UI->StartTab("Entities", c_LightGoldenRodYellow);
+            UI->StartTab("Entities", c_Tab);
             {
-                if (UI->ImgButton("LightEntity", lightEntityTexture, Vec2f(80.0f, 80.0f), 12.0f).clicking)
+                if (UI->ImgButton("LightEntity", lightEntityTexture, Vec2f(80.0f, 80.0f), 12.0f, c_ResourceButton).clicking)
                 {
                     if (!Cursor.IsDraggingSomething())
                     {
@@ -2558,29 +2558,29 @@ void EditorState::DrawResourcesPanel()
                         Cursor.StartDraggingNewPointLight(PointLightPtr);
                     }
                 }
-                if (UI->ImgButton("DirectionalLightEntity", directionalLightEntityTexture, Vec2f(80.0f, 80.0f), 12.0f).clicking)
+                if (UI->ImgButton("DirectionalLightEntity", directionalLightEntityTexture, Vec2f(80.0f, 80.0f), 12.0f, c_ResourceButton).clicking)
                 {
 
                 }
-                if (UI->ImgButton("CameraEntity", cameraEntityTexture, Vec2f(80.0f, 80.0f), 12.0f))
+                if (UI->ImgButton("CameraEntity", cameraEntityTexture, Vec2f(80.0f, 80.0f), 12.0f, c_ResourceButton))
                 {
                 }
-                if (UI->ImgButton("BrainEntity", brainEntityTexture, Vec2f(80.0f, 80.0f), 12.0f))
+                if (UI->ImgButton("BrainEntity", brainEntityTexture, Vec2f(80.0f, 80.0f), 12.0f, c_ResourceButton))
                 {
                 }
-                if (UI->ImgButton("BillboardEntity", billboardEntityTexture, Vec2f(80.0f, 80.0f), 12.0f))
+                if (UI->ImgButton("BillboardEntity", billboardEntityTexture, Vec2f(80.0f, 80.0f), 12.0f, c_ResourceButton))
                 {
                 }
             }
             UI->EndTab();
 
-            UI->StartTab("Behaviours", c_LightGoldenRodYellow);
+            UI->StartTab("Behaviours", c_Tab);
             {
                 auto BehaviourMap = BehaviourRegistry::Get()->GetBehaviours();
 
                 for (auto Behaviour : BehaviourMap)
                 {
-                    if (UI->TextButton(Behaviour.first, Vec2f(120, 40), 10.0f, c_VegasGold).clicking)
+                    if (UI->TextButton(Behaviour.first, Vec2f(120, 40), 10.0f, c_ResourceButton).clicking)
                     {
                         if (!Cursor.IsDraggingSomething())
                         {
@@ -2591,7 +2591,7 @@ void EditorState::DrawResourcesPanel()
             }
             UI->EndTab();
 
-            UI->StartTab("1000 Buttons", c_LightGoldenRodYellow);
+            UI->StartTab("1000 Buttons", c_Tab);
             {
                 for (int i = 0; i < 1000; ++i)
                 {
@@ -2600,7 +2600,7 @@ void EditorState::DrawResourcesPanel()
             }
             UI->EndTab();
 
-            UI->StartTab("Experiment", c_LightGoldenRodYellow);
+            UI->StartTab("Experiment", c_Tab);
             {
             }
             UI->EndTab();
@@ -2610,7 +2610,7 @@ void EditorState::DrawResourcesPanel()
     }
     else if (Drawer == DrawerMode::BROWSER)
     {
-        UI->StartFrame("Browser", ResourcePanelRect, 16.0f, c_LightGoldenRodYellow);
+        UI->StartFrame("Browser", ResourcePanelRect, 16.0f, c_FrameDark);
         {
 
         }
@@ -2630,7 +2630,7 @@ void EditorState::DrawInspectorPanel()
     Rect InspectorPanelRect = Rect( Vec2f(ViewportRect.location.x + ViewportRect.size.x, ViewportRect.location.y), 
                                     Vec2f(ScreenSize.x - (ViewportRect.location.x + ViewportRect.size.x), ScreenSize.y - ViewportRect.location.y));
 
-    UI->StartFrame("Inspector", InspectorPanelRect, 16.0f, c_LightGoldenRodYellow);
+    UI->StartFrame("Inspector", InspectorPanelRect, 16.0f, c_Inspector);
     {
         Cursor.DrawInspectorPanel();
     }
