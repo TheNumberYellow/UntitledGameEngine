@@ -421,7 +421,6 @@
   <ItemGroup>
     <ClCompile Include="Behaviours\Spin.cpp" />
     <ClCompile Include="Behaviours\DungeonCornerstone.cpp" />
-    <ClCompile Include="EditorScene.cpp" />
     <ClCompile Include="Behaviours\SphereController.cpp" />
     <ClCompile Include="States\GameState.cpp" />
     <ClCompile Include="States\EditorState.cpp" />
@@ -436,7 +435,6 @@
   <ItemGroup>
     <ClInclude Include="Behaviours\Spin.h" />
     <ClInclude Include="Behaviours\DungeonCornerstone.h" />
-    <ClInclude Include="EditorScene.h" />
     <ClInclude Include="Behaviours\SphereController.h" />
     <ClInclude Include="States\GameState.h" />
     <ClInclude Include="States\EditorState.h" />

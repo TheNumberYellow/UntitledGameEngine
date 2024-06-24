@@ -66,6 +66,9 @@ enum class Key
 	Right,
 	Delete,
 
+	Plus,
+	Minus,
+
 	Count
 };
 

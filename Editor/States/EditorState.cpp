@@ -772,11 +772,11 @@ void CursorState::UpdateSculptTool(float DeltaTime)
         return;
     }
 
-    if (Input->GetMouseState().GetDeltaMouseWheel() > 0)
+    if (Input->GetMouseState().GetDeltaMouseWheel() > 0 || Input->GetKeyState(Key::Plus).justPressed)
     {
         SculptRadius += 0.1f;
     }
-    else if (Input->GetMouseState().GetDeltaMouseWheel() < 0)
+    else if (Input->GetMouseState().GetDeltaMouseWheel() < 0 || Input->GetKeyState(Key::Minus).justPressed)
     {
         SculptRadius -= 0.1f;
         if (SculptRadius < 1.0f)
@@ -1478,6 +1478,19 @@ void CursorState::UpdatePlaneTool()
                 NewPlaneSubdivisions += 1;
             }
             else if (DeltaMouseWheel < 0)
+            {
+                NewPlaneSubdivisions -= 1;
+                if (NewPlaneSubdivisions < 1)
+                {
+                    NewPlaneSubdivisions = 1;
+                }
+            }
+
+            if (Input->GetKeyState(Key::Plus).justPressed)
+            {
+                NewPlaneSubdivisions += 1;
+            }
+            if (Input->GetKeyState(Key::Minus).justPressed)
             {
                 NewPlaneSubdivisions -= 1;
                 if (NewPlaneSubdivisions < 1)

@@ -527,7 +527,6 @@
     <ClCompile Include="State\BaseState.cpp" />
     <ClCompile Include="Behaviour\Behaviour.cpp" />
     <ClCompile Include="Camera.cpp" />
-    <ClCompile Include="Collisions.cpp" />
     <ClCompile Include="Components\Component.cpp" />
     <ClCompile Include="Entities\Entity.cpp" />
     <ClCompile Include="Components\ModelComponent.cpp" />
@@ -571,9 +570,7 @@
     <ClInclude Include="State\BaseState.h" />
     <ClInclude Include="Behaviour\Behaviour.h" />
     <ClInclude Include="Camera.h" />
-    <ClInclude Include="Collisions.h" />
     <ClInclude Include="Components\Component.h" />
-    <ClInclude Include="ControlInputs.h" />
     <ClInclude Include="Entities\Entity.h" />
     <ClInclude Include="FileIO\FileIO.h" />
     <ClInclude Include="Interfaces\Resizeable_i.h" />
