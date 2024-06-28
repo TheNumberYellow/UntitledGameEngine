@@ -457,12 +457,77 @@ Intersection CollisionModule::SphereIntersection(Sphere sphere, Triangle tri)
         result.hit = true;
         result.penetrationNormal = triPlaneNormal;
         result.penetrationDepth = sphere.radius + sphereTriPlaneDistance;
+        return result;
     }
 
     // Test sphere against each triangle vertex
-
-
+    if (Math::magnitude(sphere.position - tri.a) < sphere.radius)
+    {
+        float penDepth = sphere.radius + -Math::magnitude(tri.a - sphere.position);
+        if (!result.hit || penDepth > result.penetrationDepth)
+        {
+            result.hit = true;
+            result.penetrationNormal = Math::normalize(tri.a - sphere.position);
+            result.penetrationDepth = penDepth;
+        }
+    }
+    if (Math::magnitude(sphere.position - tri.b) < sphere.radius)
+    {
+        float penDepth = sphere.radius + -Math::magnitude(tri.b - sphere.position);
+        if (!result.hit || penDepth > result.penetrationDepth)
+        {
+            result.hit = true;
+            result.penetrationNormal = Math::normalize(tri.b - sphere.position);
+            result.penetrationDepth = penDepth;
+        }
+    }
+    if (Math::magnitude(sphere.position - tri.c) < sphere.radius)
+    {
+        float penDepth = sphere.radius + -Math::magnitude(tri.c - sphere.position);
+        if (!result.hit || penDepth > result.penetrationDepth)
+        {
+            result.hit = true;
+            result.penetrationNormal = Math::normalize(tri.c - sphere.position);
+            result.penetrationDepth = penDepth;
+        }
+    }
+    
     // Test sphere against each triangle edge
+
+    Vec3f abPoint = Math::ClosestPointOnLineToPoint(tri.a, tri.b, sphere.position);
+    Vec3f acPoint = Math::ClosestPointOnLineToPoint(tri.a, tri.c, sphere.position);
+    Vec3f bcPoint = Math::ClosestPointOnLineToPoint(tri.b, tri.c, sphere.position);
+
+    if (Math::magnitude(sphere.position - abPoint) < sphere.radius)
+    {
+        float penDepth = sphere.radius - Math::magnitude(abPoint - sphere.position);
+        if (!result.hit || penDepth > result.penetrationDepth)
+        {
+            result.hit = true;
+            result.penetrationNormal = Math::normalize(abPoint - sphere.position);
+            result.penetrationDepth = penDepth;
+        }
+    }
+    if (Math::magnitude(sphere.position - acPoint) < sphere.radius)
+    {
+        float penDepth = sphere.radius - Math::magnitude(acPoint - sphere.position);
+        if (!result.hit || penDepth > result.penetrationDepth)
+        {
+            result.hit = true;
+            result.penetrationNormal = Math::normalize(acPoint - sphere.position);
+            result.penetrationDepth = penDepth;
+        }
+    }
+    if (Math::magnitude(sphere.position - bcPoint) < sphere.radius)
+    {
+        float penDepth = sphere.radius - Math::magnitude(bcPoint - sphere.position);
+        if (!result.hit || penDepth > result.penetrationDepth)
+        {
+            result.hit = true;
+            result.penetrationNormal = Math::normalize(bcPoint - sphere.position);
+            result.penetrationDepth = penDepth;
+        }
+    }
 
 
     //TODO: Incomplete
@@ -483,7 +548,7 @@ Intersection CollisionModule::SphereIntersection(Sphere sphere, const CollisionM
 
     Mat4x4f invMeshTransform = Math::inv(meshTransform);
 
-    sphere.position = sphere.position * invMeshTransform;
+    //sphere.position = sphere.position * invMeshTransform;
 
     //GraphicsModule::Get()->DebugDrawSphere(sphere.position * meshTransform, sphere.radius, MakeColour(255, 23, 90));
 
@@ -492,6 +557,10 @@ Intersection CollisionModule::SphereIntersection(Sphere sphere, const CollisionM
         Vec3f a = mesh.points[mesh.indices[i]];
         Vec3f b = mesh.points[mesh.indices[(size_t)i + 1]];
         Vec3f c = mesh.points[mesh.indices[(size_t)i + 2]];
+
+        a = a * meshTransform;
+        b = b * meshTransform;
+        c = c * meshTransform;
 
         Intersection triIntersection = SphereIntersection(sphere, Triangle{ a, b, c });
 

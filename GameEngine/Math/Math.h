@@ -89,6 +89,8 @@ public:
 
     static void DecomposeMatrix(Mat4x4f matrix, Vec3f& OutTranslation, Quaternion& OutRotation, Vec3f& OutScale);
 
+    static Vec3f ClosestPointOnLineToPoint(Vec3f a, Vec3f b, Vec3f p);
+    static Vec3f ClosestPointOnLineToPoint(LineSegment line, Vec3f point);
     static std::pair<Vec3f, Vec3f> ClosestPointsOnLines(Line a, Line b);
     static Vec3f ClosestPointOnPlaneToPoint(Plane plane, Vec3f point);
 

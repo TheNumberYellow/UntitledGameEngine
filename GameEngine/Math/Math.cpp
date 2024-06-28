@@ -301,6 +301,38 @@ void Math::DecomposeMatrix(Mat4x4f matrix, Vec3f& OutTranslation, Quaternion& Ou
     OutScale.z = glmScale.z;
 }
 
+Vec3f Math::ClosestPointOnLineToPoint(Vec3f a, Vec3f b, Vec3f p)
+{
+    return ClosestPointOnLineToPoint(LineSegment(a, b), p);
+}
+
+Vec3f Math::ClosestPointOnLineToPoint(LineSegment line, Vec3f point)
+{
+    Vec3f u = line.a - point;
+    Vec3f v = line.b - line.a;
+
+    float t = -(Math::dot(v, u) / Math::dot(v, v));
+
+    if (t >= 0.0f && t <= 1.0f)
+    {
+        Vec3f result = ((1.0f - t) * line.a) + (t * line.b);
+
+        return result;
+    }
+
+    if (t < 0.0f)
+    {
+        return line.a;
+    }
+
+    if (t > 1.0f)
+    {
+        return line.b;
+    }
+
+    return Vec3f();
+}
+
 std::pair<Vec3f, Vec3f> Math::ClosestPointsOnLines(Line a, Line b)
 {
     // Get the direction of the line perpendicular to both lines

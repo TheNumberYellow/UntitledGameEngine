@@ -889,11 +889,11 @@ void CursorState::UpdateBrushTool()
             if (PlaneHit.hit)
             {
                 int DeltaMouseWheel = Input->GetMouseState().GetDeltaMouseWheel();
-                if (DeltaMouseWheel > 0)
+                if (DeltaMouseWheel > 0 || Input->GetKeyState(Key::Plus).justPressed)
                 {
                     NewBoxHeight += GeoPlaceSnap;
                 }
-                else if (DeltaMouseWheel < 0)
+                else if (DeltaMouseWheel < 0 || Input->GetKeyState(Key::Minus).justPressed)
                 {
                     NewBoxHeight -= GeoPlaceSnap;
                 }
@@ -1361,11 +1361,11 @@ void CursorState::UpdateBoxTool()
             if (PlaneHit.hit)
             {
                 int DeltaMouseWheel = Input->GetMouseState().GetDeltaMouseWheel();
-                if (DeltaMouseWheel > 0)
+                if (DeltaMouseWheel > 0 || Input->GetKeyState(Key::Plus).justPressed)
                 {
                     NewBoxHeight += GeoPlaceSnap;
                 }
-                else if (DeltaMouseWheel < 0)
+                else if (DeltaMouseWheel < 0 || Input->GetKeyState(Key::Minus).justPressed)
                 {
                     NewBoxHeight -= GeoPlaceSnap;
                 }
