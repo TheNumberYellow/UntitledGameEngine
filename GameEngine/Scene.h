@@ -28,6 +28,21 @@ struct SceneRayCastHit
     Model* hitModel;
 };
 
+enum class EditorObjectType
+{
+    NONE,
+    MODEL,
+    POINTLIGHT,
+
+};
+
+struct EditorRayCastHit
+{
+    RayCastHit rayCastHit;
+    EditorObjectType typeHit = EditorObjectType::NONE;
+
+};
+
 SceneRayCastHit Closer(const SceneRayCastHit& lhs, const SceneRayCastHit& rhs);
 
 class Scene
@@ -76,6 +91,8 @@ public:
     void SetDirectionalLight(DirectionalLight light);
 
     SceneRayCastHit RayCast(Ray ray, std::vector<Model*> IgnoredModels = std::vector<Model*>());
+
+    //EditorRayCastHit EditorRayCast(Ray ray);
 
     Intersection SphereIntersect(Sphere sphere, std::vector<Model*> IgnoredModels = std::vector<Model*>());
 

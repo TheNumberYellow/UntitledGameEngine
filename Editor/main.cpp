@@ -2565,7 +2565,7 @@ void Resize(Vec2i newSize)
 
 #include "GameEngine.h"
 
-#include "States/EditorState.h"
+#include "States/Editor/EditorState.h"
 #include "State/StateMachine.h"
 
 StateMachine Machine;

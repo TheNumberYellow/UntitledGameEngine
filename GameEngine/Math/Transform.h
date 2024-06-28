@@ -11,9 +11,9 @@ public:
     void SetScale(float newScale);
     void SetRotation(Quaternion newRotation);
 
-    Vec3f GetPosition() { return m_Position; }
-    Vec3f GetScale() { return m_Scale; }
-    Quaternion GetRotation() { return m_Rotation; }
+    Vec3f& GetPosition() { return m_Position; }
+    Vec3f& GetScale() { return m_Scale; }
+    Quaternion& GetRotation() { return m_Rotation; }
 
     void Move(Vec3f move);
     void Scale(Vec3f scale);

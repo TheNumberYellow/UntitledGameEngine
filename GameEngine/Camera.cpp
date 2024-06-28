@@ -53,6 +53,8 @@ void Camera::RotateCamBasedOnDeltaMouse(Vec2i deltaMouse, float radsPerScreenPix
     Vec3f perpVector = Math::cross(m_Direction, m_Up);
     m_Direction = Math::rotate(m_Direction, -(float)(deltaMouse.y) * radsPerScreenPixel, perpVector);
 
+    //m_Up = -Math::cross(m_Direction, perpVector);
+
     m_ViewMatrixNeedsUpdate = true;
 }
 

@@ -524,6 +524,9 @@
     <ClCompile Include="Asset\AssetRegistry.cpp" />
     <ClCompile Include="Modules\AudioModule.cpp" />
     <ClCompile Include="Modules\PhysicsModule.cpp" />
+    <ClCompile Include="States\Editor\CursorState.cpp" />
+    <ClCompile Include="States\Editor\EditorState.cpp" />
+    <ClCompile Include="States\GameState.cpp" />
     <ClCompile Include="State\BaseState.cpp" />
     <ClCompile Include="Behaviour\Behaviour.cpp" />
     <ClCompile Include="Camera.cpp" />
@@ -568,6 +571,9 @@
     <ClInclude Include="include\json.hpp" />
     <ClInclude Include="Modules\AudioModule.h" />
     <ClInclude Include="Modules\PhysicsModule.h" />
+    <ClInclude Include="States\Editor\CursorState.h" />
+    <ClInclude Include="States\Editor\EditorState.h" />
+    <ClInclude Include="States\GameState.h" />
     <ClInclude Include="State\BaseState.h" />
     <ClInclude Include="Behaviour\Behaviour.h" />
     <ClInclude Include="Camera.h" />

@@ -18,12 +18,6 @@
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="EditorScene.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="States\EditorState.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Behaviours\Wobble.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -42,9 +36,6 @@
     <ClCompile Include="Behaviours\TopDownBullet.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="States\GameState.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Behaviours\DungeonCornerstone.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -56,12 +47,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="EditorScene.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="States\EditorState.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Behaviours\Wobble.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -78,9 +63,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Behaviours\TopDownBullet.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="States\GameState.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Behaviours\DungeonCornerstone.h">

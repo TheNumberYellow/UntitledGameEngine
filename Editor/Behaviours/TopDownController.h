@@ -14,5 +14,11 @@ public:
     void Initialize(Scene* Scene) override;
     void Update(Scene* Scene, float DeltaTime) override;
 
+
+private:
+
+    Vec3f Velocity = Vec3f(0.0f, 0.0f, 0.0f);
+    bool Grounded = false;
+    bool Sliding = false;
 };
 
