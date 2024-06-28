@@ -281,6 +281,9 @@ void GetKeyboardState(InputModule& inputs)
 
     inputs.SetKeyDown(Key::Delete, GetAsyncKeyState(VK_DELETE));
 
+    inputs.SetKeyDown(Key::Plus, GetAsyncKeyState(VK_OEM_PLUS));
+    inputs.SetKeyDown(Key::Minus, GetAsyncKeyState(VK_OEM_MINUS));
+
     inputs.SetKeyDown(Key::Escape, GetAsyncKeyState(VK_ESCAPE));
 
     inputs.GetMouseState().SetMouseButtonDown(MouseButton::LMB, GetAsyncKeyState(VK_LBUTTON));
