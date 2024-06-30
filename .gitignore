@@ -342,3 +342,5 @@ healthchecksdb
 # Ignore model files
 !Editor/models/*
 /TestOut
+/Editor/textures/Old
+/Editor/textures/Test

@@ -519,6 +519,10 @@ namespace
 
             switch (channels)
             {
+            case 1:
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, textureData);
+                createInfo = TextureCreateInfo(Vec2i(width, height), ColourFormat::Red, ColourFormat::Red, DataFormat::UNSIGNED_BYTE);
+                break;
             case 3:
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, textureData);
                 createInfo = TextureCreateInfo(Vec2i(width, height), ColourFormat::RGB, ColourFormat::RGB, DataFormat::UNSIGNED_BYTE);
@@ -533,7 +537,7 @@ namespace
             stbi_image_free(textureData);
 
             glGenerateMipmap(GL_TEXTURE_2D);
-            
+
             if (!glIsTexture(texture))
             {
                 Engine::FatalError("Failed to create texture");

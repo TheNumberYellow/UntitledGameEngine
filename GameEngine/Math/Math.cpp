@@ -408,6 +408,17 @@ float Math::RandomFloat(float min, float max)
     return min + r;
 }
 
+int Math::RandomInt(int min, int max)
+{
+    int random = rand();
+    int diff = max - min;
+    int r = random % (diff + 1);
+
+    Engine::DEBUGPrint("Result of RandomInt(" + std::to_string(min) + ", " + std::to_string(max) + ") = " + std::to_string(min + r));
+
+    return min + r;
+}
+
 float Math::Round(float num, float multiple)
 {
     num /= multiple;

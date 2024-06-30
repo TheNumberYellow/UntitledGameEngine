@@ -56,10 +56,12 @@ bool SelectedModel::operator==(const ISelectedObject& Other)
     }
 }
 
-SelectedVertex::SelectedVertex(Vec3f* InVertPtr, Brush* InBrushPtr)
+SelectedVertex::SelectedVertex(Vec3f* InVertPtr, Brush* InBrushPtr, Scene* InScenePtr)
 {
     VertPtr = InVertPtr;
     BrushPtr = InBrushPtr;
+    ScenePtr = InScenePtr;
+
     Trans.SetPosition(*VertPtr);
 }
 
@@ -97,7 +99,8 @@ Transform* SelectedVertex::GetTransform()
 
 void SelectedVertex::DeleteObject()
 {
-    // Do nothing (can't delete individual brush vertices for now
+    // TODO: can't delete individual brush vertices for now
+    ScenePtr->DeleteBrush(BrushPtr);
 }
 
 bool SelectedVertex::operator==(const ISelectedObject& Other)
@@ -873,7 +876,7 @@ void CursorState::UpdateBrushTool()
                 EditorScenePtr->AddBrush(NewBrush);
                 Graphics->UpdateBrushModel(NewBrush);
 
-                EditorScenePtr->AddModel(NewBrush->RepModel);
+                //EditorScenePtr->AddModel(NewBrush->RepModel);
 
                 //EditorScenePtr->AddModel(Graphics->CreateBoxModel(BoxBeingCreated));
             }
@@ -1064,7 +1067,7 @@ void CursorState::UpdateVertexSelectTool()
                 UnselectSelectedObjects();
             }
 
-            SelectedVertex* ClickedVert = new SelectedVertex(HitVert, HitBrush);
+            SelectedVertex* ClickedVert = new SelectedVertex(HitVert, HitBrush, EditorScenePtr);
 
             AddToSelectedObjects(ClickedVert);
 
@@ -1075,7 +1078,7 @@ void CursorState::UpdateVertexSelectTool()
                 {
                     if (Math::magnitude(*HitVert - Vert) < 0.00001f)
                     {
-                        SelectedVertex* CloseVert = new SelectedVertex(&Vert, B);
+                        SelectedVertex* CloseVert = new SelectedVertex(&Vert, B, EditorScenePtr);
 
                         AddToSelectedObjects(CloseVert);
                     }
@@ -1347,7 +1350,7 @@ void CursorState::UpdateBoxTool()
             else
             {
                 // Create the box model, add to scene
-                EditorScenePtr->AddModel(Graphics->CreateBoxModel(BoxBeingCreated));
+                EditorScenePtr->AddModel(new Model(Graphics->CreateBoxModel(BoxBeingCreated)));
             }
 
         }
@@ -1437,7 +1440,7 @@ void CursorState::UpdatePlaneTool()
         if (ClickState.justReleased)
         {
             Model* NewPlane = new Model(Graphics->CreatePlaneModel(Vec2f(NewPlaneMin.x, NewPlaneMin.y), Vec2f(NewPlaneMax.x, NewPlaneMax.y), NewPlaneMin.z, NewPlaneSubdivisions));
-            EditorScenePtr->AddModel(*NewPlane);
+            EditorScenePtr->AddModel(NewPlane);
             IsCreatingNewPlane = false;
         }
         else

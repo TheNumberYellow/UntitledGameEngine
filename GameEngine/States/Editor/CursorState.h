@@ -108,7 +108,7 @@ private:
 class SelectedVertex : public ISelectedObject
 {
 public:
-    SelectedVertex(Vec3f* InVertPtr, Brush* InBrushPtr);
+    SelectedVertex(Vec3f* InVertPtr, Brush* InBrushPtr, Scene* InScene);
 
     void Draw() override;
 
@@ -126,6 +126,7 @@ private:
 
     Vec3f* VertPtr = nullptr;
     Brush* BrushPtr = nullptr;
+    Scene* ScenePtr = nullptr;
     Transform Trans;
 };
 

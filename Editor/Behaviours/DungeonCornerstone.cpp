@@ -50,7 +50,7 @@ void DungeonCornerstone::AddBlock(AABB block, Material mat)
 {
     GraphicsModule* Graphics = GraphicsModule::Get();
 
-    ContainingScene->AddModel(Graphics->CreateBoxModel(block, mat));
+    ContainingScene->AddModel(new Model(Graphics->CreateBoxModel(block, mat)));
 }
 
 void DungeonCornerstone::AddHallway(AABB hallway, bool xDirection)

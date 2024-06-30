@@ -26,8 +26,6 @@ struct Brush
 
     std::vector<std::vector<Vec3f*>> Faces;
 
-    Transform* Trans = nullptr;
-
     Model* RepModel = nullptr;
 
     bool UpdatedThisFrame = false;

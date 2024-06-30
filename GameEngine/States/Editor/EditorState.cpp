@@ -3,7 +3,7 @@
 #include "States/GameState.h"
 
 #include <filesystem>
-
+#include <ctime>
 
 
 
@@ -426,6 +426,11 @@ std::vector<Model> EditorState::LoadModels(GraphicsModule& graphics)
 
 std::vector<Material> EditorState::LoadMaterials(GraphicsModule& graphics)
 {
+    std::clock_t start;
+    double duration;
+
+    start = std::clock();
+
     AssetRegistry* Registry = AssetRegistry::Get();
 
     std::vector<Material> LoadedMaterials;
@@ -508,6 +513,10 @@ std::vector<Material> EditorState::LoadMaterials(GraphicsModule& graphics)
 
         }
     }
+
+    duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+
+    Engine::DEBUGPrint("Took " + std::to_string(duration) + " seconds to load all textures.");
 
     return LoadedMaterials;
 
@@ -865,7 +874,7 @@ void EditorState::DrawResourcesPanel()
                     {
                         if (!Cursor.IsDraggingSomething())
                         {
-                            Model* AddedModel = EditorScene.AddModel(AModel);
+                            Model* AddedModel = EditorScene.AddModel(new Model(AModel));
                             Cursor.StartDraggingNewModel(AddedModel);
                         }
                     }

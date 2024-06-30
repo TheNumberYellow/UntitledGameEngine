@@ -46,7 +46,7 @@ void TopDownPlayer::Update(Scene* Scene, float DeltaTime)
 
         NewGhostModel->GetTransform().SetScale(Vec3f(0.5f, 0.5f, 0.5f));
 
-        Model* What = Scene->AddModel(*NewGhostModel);
+        Model* What = Scene->AddModel(NewGhostModel);
 
         Ghost* GhostBehaviour = static_cast<Ghost*>(BehaviourRegistry::Get()->AttachNewBehaviour("Ghost", What));
 
@@ -210,7 +210,7 @@ void TopDownPlayer::Update(Scene* Scene, float DeltaTime)
             NewBulletModel->GetTransform().SetPosition(MyPos + (LastDir * 1.5f));
             NewBulletModel->GetTransform().SetScale(Vec3f(0.5f, 0.5f, 0.5f));
 
-            Model* What = Scene->AddModel(*NewBulletModel);
+            Model* What = Scene->AddModel(NewBulletModel);
 
             TopDownBullet* BulletBehaviour = static_cast<TopDownBullet*>(BehaviourRegistry::Get()->AttachNewBehaviour("TopDownBullet", What));
 

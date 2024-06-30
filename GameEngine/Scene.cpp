@@ -56,57 +56,12 @@ Scene::Scene()
 
 Scene::Scene(Scene& other)
 {
-    Clear();
-
-    m_Cameras.resize(1);
-
-    m_DirLight = other.m_DirLight;
-    m_Cameras = other.m_Cameras;
-
-    for (auto& model : other.m_UntrackedModels)
-    {
-        Model* newModel = new Model(*model);
-        m_UntrackedModels.push_back(newModel);
-
-        Behaviour* oldBehaviour = BehaviourRegistry::Get()->GetBehaviourAttachedToEntity(model);
-        if (oldBehaviour)
-        {
-            BehaviourRegistry::Get()->AttachNewBehaviour(oldBehaviour->BehaviourName, newModel);
-        }
-    }
-
-    for (auto& pointLight : other.m_PointLights)
-    {
-        PointLight* newPointLight = new PointLight(*pointLight);
-        m_PointLights.push_back(newPointLight);
-    }
+    CopyInternal(other);
 }
 
 Scene& Scene::operator=(const Scene& other)
 {
-    Clear();
-    m_Cameras.resize(1);
-
-    m_DirLight = other.m_DirLight;
-    m_Cameras = other.m_Cameras;
-
-    for (auto& model : other.m_UntrackedModels)
-    {
-        Model* newModel = new Model(*model);
-        m_UntrackedModels.push_back(newModel);
-
-        Behaviour* oldBehaviour = BehaviourRegistry::Get()->GetBehaviourAttachedToEntity(model);
-        if (oldBehaviour)
-        {
-            BehaviourRegistry::Get()->AttachNewBehaviour(oldBehaviour->BehaviourName, newModel);
-        }
-    }
-
-    for (auto& pointLight : other.m_PointLights)
-    {
-        PointLight* newPointLight = new PointLight(*pointLight);
-        m_PointLights.push_back(newPointLight);
-    }
+    CopyInternal(other);
 
     return *this;
 }
@@ -136,36 +91,10 @@ bool Scene::IsPaused()
     return m_Paused;
 }
 
-Model* Scene::AddModel(Model model, std::string name)
-{
-    if (name == "")
-    {
-        m_UntrackedModels.push_back(new Model(model));
-        return m_UntrackedModels.back();
-    }
-
-    m_Models.insert(std::pair<std::string, Model*>(name, new Model(model)));
-    return m_Models[name];
-}
-
 Model* Scene::AddModel(Model* model)
 {
     m_UntrackedModels.push_back(model);
     return m_UntrackedModels.back();
-}
-
-
-Model* Scene::GetModel(std::string name)
-{
-    auto it = m_Models.find(name);
-    if (it != m_Models.end())
-    {
-        return (it->second);
-    }
-    else
-    {
-        return nullptr;
-    }
 }
 
 Model* Scene::GetModelByTag(std::string tag)
@@ -205,6 +134,8 @@ void Scene::DeletePointLight(PointLight* light)
     if (it != m_PointLights.end())
     {
         m_PointLights.erase(it);
+
+        delete light;
     }
 }
 
@@ -212,6 +143,20 @@ Brush* Scene::AddBrush(Brush* newBrush)
 {
     m_Brushes.push_back(newBrush);
     return m_Brushes.back();
+}
+
+void Scene::DeleteBrush(Brush* brush)
+{
+    auto it = std::find(m_Brushes.begin(), m_Brushes.end(), brush);
+    if (it != m_Brushes.end())
+    {
+        m_Brushes.erase(it);
+
+        BehaviourRegistry::Get()->ClearBehavioursOnEntity(brush->RepModel);
+
+        delete brush->RepModel;
+        delete brush;
+    }
 }
 
 std::vector<PointLight*>& Scene::GetPointLights()
@@ -232,6 +177,8 @@ void Scene::DeleteModel(Model* model)
         m_UntrackedModels.erase(it);
 
         BehaviourRegistry::Get()->ClearBehavioursOnEntity(model);
+        
+        delete model;
     }
 }
 
@@ -346,17 +293,6 @@ SceneRayCastHit Scene::RayCast(Ray ray, std::vector<Model*> IgnoredModels)
 
     SceneRayCastHit finalHit;
 
-    for (auto& it : m_Models)
-    {
-        if (std::count(IgnoredModels.begin(), IgnoredModels.end(), it.second) > 0)
-        {
-            continue;
-        }
-        CollisionMesh& colMesh = *Collision.GetCollisionMeshFromMesh(it.second->m_TexturedMeshes[0].m_Mesh);
-
-        finalHit = Closer(finalHit, SceneRayCastHit{ Collision.RayCast(ray, colMesh, it.second->GetTransform()), it.second });
-    }
-
     for (auto& it : m_UntrackedModels)
     {
         if (std::count(IgnoredModels.begin(), IgnoredModels.end(), it) > 0)
@@ -387,6 +323,23 @@ Intersection Scene::SphereIntersect(Sphere sphere, std::vector<Model*> IgnoredMo
         CollisionMesh& colMesh = *Collision.GetCollisionMeshFromMesh(it->m_TexturedMeshes[0].m_Mesh);
 
         Intersection ModelIntersection = Collision.SphereIntersection(sphere, colMesh, it->GetTransform());
+
+        if (ModelIntersection.hit && ModelIntersection.penetrationDepth > Result.penetrationDepth)
+        {
+            Result = ModelIntersection;
+        }
+    }
+
+    for (auto& it : m_Brushes)
+    {
+        if (std::count(IgnoredModels.begin(), IgnoredModels.end(), it->RepModel) > 0)
+        {
+            continue;
+        }
+
+        CollisionMesh& colMesh = *Collision.GetCollisionMeshFromMesh(it->RepModel->m_TexturedMeshes[0].m_Mesh);
+
+        Intersection ModelIntersection = Collision.SphereIntersection(sphere, colMesh, it->RepModel->GetTransform());
 
         if (ModelIntersection.hit && ModelIntersection.penetrationDepth > Result.penetrationDepth)
         {
@@ -582,11 +535,11 @@ void Scene::Load(std::string FileName)
         Model* AddedModel;
         if (ModelJson.contains("Buffer"))
         {
-            AddedModel = AddModel(LoadRawModel(ModelJson, MaterialVec));
+            AddedModel = AddModel(new Model(LoadRawModel(ModelJson, MaterialVec)));
         }
         else
         {
-            AddedModel = AddModel(LoadModel(ModelJson, MaterialVec, StaticMeshVec));
+            AddedModel = AddModel(new Model(LoadModel(ModelJson, MaterialVec, StaticMeshVec)));
         }
         for (std::string Behaviour : ModelJson["Behaviours"])
         {
@@ -853,10 +806,6 @@ void Scene::Clear()
         BehaviourRegistry::Get()->ClearBehavioursOnEntity(model);
     }
 
-    for (auto& Model : m_Models)
-    {
-        delete Model.second;
-    }
     for (auto& Model : m_UntrackedModels)
     {
         delete Model;
@@ -866,13 +815,61 @@ void Scene::Clear()
         delete PointLight;
     }
 
-    m_Models.clear();
     m_UntrackedModels.clear();
     m_PointLights.clear();
     m_Cameras.clear();
 
     // Set camera to default TODO: (want to load camera info from file)
     m_Cameras.push_back(Camera());
+}
+
+void Scene::CopyInternal(const Scene& other)
+{
+    Clear();
+    m_Cameras.resize(1);
+
+    m_DirLight = other.m_DirLight;
+    m_Cameras = other.m_Cameras;
+
+    for (auto& model : other.m_UntrackedModels)
+    {
+        Model* newModel = new Model(*model);
+        m_UntrackedModels.push_back(newModel);
+
+        Behaviour* oldBehaviour = BehaviourRegistry::Get()->GetBehaviourAttachedToEntity(model);
+        if (oldBehaviour)
+        {
+            BehaviourRegistry::Get()->AttachNewBehaviour(oldBehaviour->BehaviourName, newModel);
+        }
+    }
+
+    for (auto& brush : other.m_Brushes)
+    {
+        // Reminder to self: copied brush needs its own rep model ptr
+
+        // (TODO): BIGGER REMINDER TO SELF: COPYING A 2D VECTOR OF VEC3FS IN THE FACE ARRAY NEEDS ANOTHER LOOK 
+        // (THEY'RE STILL POINTING TO THE INITIAL VEC3F VECTOR ELEMENTS!!!!)
+
+        Brush* newBrush = new Brush(*brush);
+
+        newBrush->RepModel = nullptr;
+
+        GraphicsModule::Get()->UpdateBrushModel(newBrush);
+
+        m_Brushes.push_back(newBrush);
+
+        Behaviour* oldBehaviour = BehaviourRegistry::Get()->GetBehaviourAttachedToEntity(brush->RepModel);
+        if (oldBehaviour)
+        {
+            BehaviourRegistry::Get()->AttachNewBehaviour(oldBehaviour->BehaviourName, brush->RepModel);
+        }
+    }
+
+    for (auto& pointLight : other.m_PointLights)
+    {
+        PointLight* newPointLight = new PointLight(*pointLight);
+        m_PointLights.push_back(newPointLight);
+    }
 }
 
 bool Scene::IsIgnored(Model* model, std::vector<Model*> ignoredModels)
@@ -889,16 +886,6 @@ bool Scene::IsIgnored(Model* model, std::vector<Model*> ignoredModels)
 
 void Scene::PushSceneRenderCommandsInternal(GraphicsModule& graphics)
 {
-    for (auto& it : m_Models)
-    {
-        StaticMeshRenderCommand command;
-        command.m_Material = it.second->m_TexturedMeshes[0].m_Material;
-        command.m_Mesh = it.second->m_TexturedMeshes[0].m_Mesh.Id;
-        command.m_Transform = it.second->GetTransform();
-
-        graphics.AddRenderCommand(command);
-    }
-
     for (auto& it : m_UntrackedModels)
     {
         StaticMeshRenderCommand command;
@@ -909,6 +896,24 @@ void Scene::PushSceneRenderCommandsInternal(GraphicsModule& graphics)
         graphics.AddRenderCommand(command);
 
     }
+
+    for (auto& it : m_Brushes)
+    {
+        if (!it->RepModel)
+        {
+            graphics.UpdateBrushModel(it);
+        }
+
+        Model* repModel = it->RepModel;
+        
+        StaticMeshRenderCommand command;
+        command.m_Material = repModel->m_TexturedMeshes[0].m_Material;
+        command.m_Mesh = repModel->m_TexturedMeshes[0].m_Mesh.Id;
+        command.m_Transform = repModel->GetTransform();
+
+        graphics.AddRenderCommand(command);
+    }
+
     for (PointLight* Light : m_PointLights)
     {
         PointLightRenderCommand LightRC;

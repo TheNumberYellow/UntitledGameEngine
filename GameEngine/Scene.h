@@ -57,11 +57,9 @@ public:
     void UnPause();
     bool IsPaused();
 
-    Model* AddModel(Model model, std::string name = "");
     Model* AddModel(Model* model);
     void DeleteModel(Model* model);
     
-    Model* GetModel(std::string name);
     Model* GetModelByTag(std::string tag);
     std::vector<Model*> GetModelsByTag(std::string tag);
 
@@ -69,6 +67,7 @@ public:
     void DeletePointLight(PointLight* light);
     
     Brush* AddBrush(Brush* newBrush);
+    void DeleteBrush(Brush* brush);
 
     std::vector<PointLight*>& GetPointLights();
 
@@ -92,8 +91,6 @@ public:
 
     SceneRayCastHit RayCast(Ray ray, std::vector<Model*> IgnoredModels = std::vector<Model*>());
 
-    //EditorRayCastHit EditorRayCast(Ray ray);
-
     Intersection SphereIntersect(Sphere sphere, std::vector<Model*> IgnoredModels = std::vector<Model*>());
 
     Model* MenuListEntities(UIModule& ui, Font& font);
@@ -108,9 +105,11 @@ public:
     DirectionalLight m_DirLight;
 
 private:
+
+    void CopyInternal(const Scene& other);
+
     bool IsIgnored(Model* model, std::vector<Model*> ignoredModels);
 
-    std::unordered_map<std::string, Model*> m_Models;
     std::vector<Model*> m_UntrackedModels;
     
     std::vector<PointLight*> m_PointLights;

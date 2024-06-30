@@ -2076,20 +2076,16 @@ void GraphicsModule::UpdateBrushModel(Brush* brush)
         BrushMesh.LoadedFromFile = false;
 
         brush->RepModel = new Model(TexturedMesh(BrushMesh, m_DebugMaterial));
-        brush->Trans = &brush->RepModel->GetTransform();
+        //brush->Trans = &brush->RepModel->GetTransform();
     }
     else
     {
         m_Renderer.ClearMesh(brush->RepModel->m_TexturedMeshes[0].m_Mesh.Id);
 
         m_Renderer.UpdateMeshData(brush->RepModel->m_TexturedMeshes[0].m_Mesh.Id, m_TexturedMeshFormat, Vertices, Indices);
-        //Material OldMaterial = brush->RepModel->m_TexturedMeshes[0].m_Material;
-        //brush->RepModel->m_TexturedMeshes[0] = TexturedMesh(BrushMesh, OldMaterial);
         CollisionModule::Get()->InvalidateMeshCollisionData(brush->RepModel->m_TexturedMeshes[0].m_Mesh.Id);
 
-        brush->Trans = &brush->RepModel->GetTransform();
-        
-        //m_Renderer.DeleteMesh(brush->RepModel->m_TexturedMeshes[0].m_Mesh.Id);
+        //brush->Trans = &brush->RepModel->GetTransform();
     }
 
 }

@@ -59,13 +59,23 @@ void SphereController::Update(Scene* Scene, float DeltaTime)
     {
         m_Model->GetTransform().Move((SceneIntersection.penetrationNormal * 0.001f) + (SceneIntersection.penetrationNormal * -SceneIntersection.penetrationDepth));
         Velocity = Velocity - (2.f * (Math::dot(Velocity, SceneIntersection.penetrationNormal)) * SceneIntersection.penetrationNormal) * 0.9f;
-        Engine::DEBUGPrint("Ball hit something");
+        //Engine::DEBUGPrint("Ball hit something");
     }
 
-    Scene->GetCamera()->SetPosition(m_Model->GetTransform().GetPosition() + Vec3f(0.0f, -5.0f, 7.5f));
-    Scene->GetCamera()->SetDirection(Math::normalize(m_Model->GetTransform().GetPosition() - Scene->GetCamera()->GetPosition()));
+    MyLight->position = m_Model->GetTransform().GetPosition();
+
+    //Scene->GetCamera()->SetPosition(m_Model->GetTransform().GetPosition() + Vec3f(0.0f, -5.0f, 7.5f));
+    //Scene->GetCamera()->SetDirection(Math::normalize(m_Model->GetTransform().GetPosition() - Scene->GetCamera()->GetPosition()));
 }
 
 void SphereController::Initialize(Scene* Scene)
 {
+    PointLight NewLight;
+
+    NewLight.position = m_Model->GetTransform().GetPosition();
+
+
+    NewLight.colour = MakeColour(Math::RandomInt(0, 255), Math::RandomInt(0, 255), Math::RandomInt(0, 255));
+
+    MyLight = Scene->AddPointLight(NewLight);
 }

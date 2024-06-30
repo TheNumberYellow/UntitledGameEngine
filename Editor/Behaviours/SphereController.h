@@ -18,5 +18,7 @@ public:
 private:
 
     Vec3f Velocity = Vec3f(0.0f, 0.0f, 0.0f);
+
+    PointLight* MyLight = nullptr;
 };
 
