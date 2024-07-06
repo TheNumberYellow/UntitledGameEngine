@@ -73,9 +73,10 @@ void SphereController::Initialize(Scene* Scene)
     PointLight NewLight;
 
     NewLight.position = m_Model->GetTransform().GetPosition();
+    //NewLight.colour = MakeColour(Math::RandomInt(0, 255), Math::RandomInt(0, 255), Math::RandomInt(0, 255));
+    NewLight.colour = MakeColour(155, 255, 155);
 
-
-    NewLight.colour = MakeColour(Math::RandomInt(0, 255), Math::RandomInt(0, 255), Math::RandomInt(0, 255));
+    NewLight.intensity = 0.5f;
 
     MyLight = Scene->AddPointLight(NewLight);
 }

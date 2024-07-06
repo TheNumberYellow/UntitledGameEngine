@@ -579,7 +579,7 @@ void EditorState::DrawLevelEditor(GraphicsModule* Graphics, UIModule* UI, float 
 
             for (int i = 0; i < Face.size(); i++)
             {
-                PlanePoint += *Face[i];
+                PlanePoint += B->Vertices[Face[i]];
             }
             PlanePoint = PlanePoint / (float)Face.size();
 
@@ -589,8 +589,8 @@ void EditorState::DrawLevelEditor(GraphicsModule* Graphics, UIModule* UI, float 
             }
             //Graphics->DebugDrawLine(*Face[Face.size() - 1], *Face[0]);
 
-            Vec3f u = *Face[1] - *Face[0];
-            Vec3f v = *Face[2] - *Face[0];
+            Vec3f u = B->Vertices[Face[1]] - B->Vertices[Face[0]];
+            Vec3f v = B->Vertices[Face[2]] - B->Vertices[Face[0]];
 
             Vec3f PlaneNorm = -Math::cross(u, v);
             PlaneNorm = Math::normalize(PlaneNorm);
@@ -966,7 +966,29 @@ void EditorState::DrawResourcesPanel()
     {
         UI->StartFrame("Browser", ResourcePanelRect, 16.0f, c_FrameDark);
         {
+            if (UI->TextButton("..", Vec2f(120.0f, 40.0f), 8.0f, c_NiceYellow))
+            {
+                CurrentResourceDirectoryPath = CurrentResourceDirectoryPath.parent_path();
+            }
 
+            for (const auto& entry : std::filesystem::directory_iterator(CurrentResourceDirectoryPath))
+            {
+                if (entry.is_directory())
+                {
+                    if (UI->TextButton(entry.path().filename().generic_string(), Vec2f(120.0f, 80.0f), 8.0f, c_FrameLight))
+                    {
+                        CurrentResourceDirectoryPath = entry.path();
+                        break;
+                    }
+                }
+                else
+                {
+                    if (UI->TextButton(entry.path().filename().generic_string(), Vec2f(120.0f, 80.0f), 8.0f, c_ResourceButton))
+                    {
+
+                    }
+                }
+            }
         }
         UI->EndFrame();
     }

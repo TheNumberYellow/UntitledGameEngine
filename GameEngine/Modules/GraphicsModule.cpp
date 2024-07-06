@@ -27,14 +27,14 @@ Brush::Brush(AABB InAABB)
         }
     );
 
-    Faces.push_back({ &Vertices[3], &Vertices[2], &Vertices[1], &Vertices[0] });
-    Faces.push_back({ &Vertices[4], &Vertices[5], &Vertices[6], &Vertices[7] });
+    Faces.push_back({ 3, 2, 1, 0 });
+    Faces.push_back({ 4, 5, 6, 7 });
 
-    Faces.push_back({ &Vertices[0], &Vertices[1], &Vertices[5], &Vertices[4] });
-    Faces.push_back({ &Vertices[2], &Vertices[3], &Vertices[7], &Vertices[6] });
+    Faces.push_back({ 0, 1, 5, 4 });
+    Faces.push_back({ 2, 3, 7, 6 });
 
-    Faces.push_back({ &Vertices[3], &Vertices[0], &Vertices[4], &Vertices[7] });
-    Faces.push_back({ &Vertices[1], &Vertices[2], &Vertices[6], &Vertices[5] });
+    Faces.push_back({ 3, 0, 4, 7 });
+    Faces.push_back({ 1, 2, 6, 5 });
 }
 
 Brush::Brush(Rect InRect)
@@ -48,8 +48,14 @@ Brush::Brush(Rect InRect)
         }
     );
 
-    Faces.push_back({ &Vertices[0], &Vertices[1], &Vertices[2] });
-    Faces.push_back({ &Vertices[0], &Vertices[2], &Vertices[3] });
+    Faces.push_back({ 0, 1, 2 });
+    Faces.push_back({ 0, 2, 3 });
+}
+
+Brush::Brush(std::vector<Vec3f>& InVerts, std::vector<std::vector<unsigned int>>& InFaces)
+{
+    Vertices = InVerts;
+    Faces = InFaces;
 }
 
 GraphicsModule* GraphicsModule::s_Instance = nullptr;
@@ -1407,7 +1413,7 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam, DirectionalLight DirLigh
 
     for (StaticMeshRenderCommand& Command : m_StaticMeshRenderCommands)
     {
-        m_Renderer.SetShaderUniformMat4x4f(m_GBufferShader, "Transformation", Command.m_Transform.GetTransformMatrix());
+        m_Renderer.SetShaderUniformMat4x4f(m_GBufferShader, "Transformation", Command.m_TransMat);
 
         m_Renderer.SetActiveTexture(Command.m_Material.m_Albedo.Id, "AlbedoMap");
         m_Renderer.SetActiveTexture(Command.m_Material.m_Normal.Id, "NormalMap");
@@ -1519,7 +1525,7 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam, DirectionalLight DirLigh
             for (StaticMeshRenderCommand& Command : m_StaticMeshRenderCommands)
             {
                 // Set mesh-specific transform uniform
-                m_Renderer.SetShaderUniformMat4x4f(m_ShadowShader, "Transformation", Command.m_Transform.GetTransformMatrix());
+                m_Renderer.SetShaderUniformMat4x4f(m_ShadowShader, "Transformation", Command.m_TransMat);
 
                 // Draw mesh to shadow map
                 m_Renderer.DrawMesh(Command.m_Mesh);
@@ -1922,9 +1928,9 @@ void GraphicsModule::UpdateBrushModel(Brush* brush)
         {
             // Tri face
 
-            Vec3f A = *Face[0];
-            Vec3f B = *Face[1];
-            Vec3f C = *Face[2];
+            Vec3f A = brush->Vertices[Face[0]];
+            Vec3f B = brush->Vertices[Face[1]];
+            Vec3f C = brush->Vertices[Face[2]];
 
             Vec3f FaceNormal = -Math::cross(B - A, C - A);
             FaceNormal = Math::normalize(FaceNormal);
@@ -1948,10 +1954,10 @@ void GraphicsModule::UpdateBrushModel(Brush* brush)
         {
             // Quad face
 
-            Vec3f A = *Face[0];
-            Vec3f B = *Face[1];
-            Vec3f C = *Face[2];
-            Vec3f D = *Face[3];
+            Vec3f A = brush->Vertices[Face[0]];
+            Vec3f B = brush->Vertices[Face[1]];
+            Vec3f C = brush->Vertices[Face[2]];
+            Vec3f D = brush->Vertices[Face[3]];
 
             Vec2f UVs[6];
 
@@ -1983,7 +1989,7 @@ void GraphicsModule::UpdateBrushModel(Brush* brush)
 
             for (int i = 0; i < 3; i++)
             {
-                Vec3f P = *Face[i];
+                Vec3f P = brush->Vertices[Face[i]];
 
                 Vec3f AP = P - PlanePoint;
 

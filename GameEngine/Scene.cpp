@@ -274,7 +274,7 @@ void Scene::EditorDraw(GraphicsModule& graphics, GBuffer gBuffer, Camera* editor
         CamTrans.Rotate(CamRot);
         CamTrans.SetScale(0.1f);
 
-        CamRC.m_Transform = CamTrans;
+        CamRC.m_TransMat = CamTrans.GetTransformMatrix();
 
         graphics.AddRenderCommand(CamRC);
     }
@@ -404,6 +404,12 @@ void Scene::Save(std::string FileName)
             StaticMeshes.insert(it->m_TexturedMeshes[0].m_Mesh);
         }
     }
+    for (auto& it : m_Brushes)
+    {
+        Material mat = it->RepModel->m_TexturedMeshes[0].m_Material;
+
+        Materials.insert(mat);
+    }
 
     std::vector<Material> MatVec(Materials.begin(), Materials.end());
     std::vector<StaticMesh> MeshVec(StaticMeshes.begin(), StaticMeshes.end());
@@ -414,6 +420,7 @@ void Scene::Save(std::string FileName)
     json StaticMeshList;
     json PointLightList;
     json ModelList;
+    json BrushList;
 
     int Index = 0;
     for (Material Mat : MatVec)
@@ -470,11 +477,29 @@ void Scene::Save(std::string FileName)
             SaveModel(ModelList[Index++], *Mod, StaticMeshIndex, MaterialIndex);
         }
     }
+    Index = 0;
+    for (Brush* B : m_Brushes)
+    {
+        int64_t MaterialIndex = 0;
+
+        auto MatIt = std::find(MatVec.begin(), MatVec.end(), B->RepModel->m_TexturedMeshes[0].m_Material);
+        if (MatIt != MatVec.end())
+        {
+            MaterialIndex = MatIt - MatVec.begin();
+        }
+        else
+        {
+            Engine::FatalError("Could not find material while saving brush, this should never happen");
+        }
+
+        SaveBrush(BrushList[Index++], *B, MaterialIndex);
+    }
 
     SceneJson["Textures"] = TextureList;
     SceneJson["StaticMeshes"] = StaticMeshList;
     SceneJson["PointLights"] = PointLightList;
     SceneJson["Models"] = ModelList;
+    SceneJson["Brushes"] = BrushList;
 
     // Uncomment to beautify json - makes it easier to debug but makes files much larger
     //File << std::setw(4) << SceneJson;
@@ -515,7 +540,7 @@ void Scene::Load(std::string FileName)
     json StaticMeshesJson = SceneJson["StaticMeshes"];
     json PointLightsJson = SceneJson["PointLights"];
     json ModelsJson = SceneJson["Models"];
-    
+    json BrushesJson = SceneJson["Brushes"];
 
     for (json& TextureJson : TexturesJson)
     {
@@ -545,6 +570,14 @@ void Scene::Load(std::string FileName)
         {
             BehaviourRegistry::Get()->AttachNewBehaviour(Behaviour, AddedModel);
         }
+    }
+    
+    for (json& BrushJson : BrushesJson)
+    {
+        // TODO: Brushes can't have behaviours (for now anyway)
+
+        Brush* AddedBrush;
+        AddedBrush = AddBrush(new Brush(LoadBrush(BrushJson, MaterialVec)));
     }
 
 }
@@ -814,10 +847,19 @@ void Scene::Clear()
     {
         delete PointLight;
     }
+    for (auto& B : m_Brushes)
+    {
+        if (B->RepModel)
+        {
+            delete B->RepModel;
+        }
+        delete B;
+    }
 
     m_UntrackedModels.clear();
     m_PointLights.clear();
     m_Cameras.clear();
+    m_Brushes.clear();
 
     // Set camera to default TODO: (want to load camera info from file)
     m_Cameras.push_back(Camera());
@@ -891,7 +933,7 @@ void Scene::PushSceneRenderCommandsInternal(GraphicsModule& graphics)
         StaticMeshRenderCommand command;
         command.m_Material = it->m_TexturedMeshes[0].m_Material;
         command.m_Mesh = it->m_TexturedMeshes[0].m_Mesh.Id;
-        command.m_Transform = it->GetTransform();
+        command.m_TransMat = it->GetTransform().GetTransformMatrix();
 
         graphics.AddRenderCommand(command);
 
@@ -909,7 +951,7 @@ void Scene::PushSceneRenderCommandsInternal(GraphicsModule& graphics)
         StaticMeshRenderCommand command;
         command.m_Material = repModel->m_TexturedMeshes[0].m_Material;
         command.m_Mesh = repModel->m_TexturedMeshes[0].m_Mesh.Id;
-        command.m_Transform = repModel->GetTransform();
+        command.m_TransMat = repModel->GetTransform().GetTransformMatrix();
 
         graphics.AddRenderCommand(command);
     }
@@ -1013,6 +1055,29 @@ void Scene::SaveRawModel(json& JsonObject, Model& Mod, int64_t MatIndex)
     JsonObject["Type"] = Mod.Type;
 }
 
+void Scene::SaveBrush(json& JsonObject, Brush& B, int64_t MatIndex)
+{
+    JsonObject["MatID"] = MatIndex;
+
+    std::vector<float> VertVec;
+
+    for (auto& Vert : B.Vertices)
+    {
+        VertVec.insert(VertVec.end(),
+            {
+                Vert.x, Vert.y, Vert.z
+            }
+        );
+    }
+
+    JsonObject["Verts"] = VertVec;
+    
+    for (int i = 0; i < B.Faces.size(); i++)
+    {
+        JsonObject["Faces"][i] = B.Faces[i];
+    }
+}
+
 Material Scene::LoadMaterial(json& JsonObject)
 {
     Texture* Albedo = AssetRegistry::Get()->LoadTexture(JsonObject[0].get<std::string>());
@@ -1107,4 +1172,28 @@ Model Scene::LoadRawModel(json& JsonObject, std::vector<Material>& MaterialVecto
     }
 
     return NewModel;
+}
+
+Brush Scene::LoadBrush(json& JsonObject, std::vector<Material>& MaterialVector)
+{
+    std::vector<float> ReadVerts = JsonObject["Verts"];
+
+    // I'll see if this works...
+    std::vector<std::vector<unsigned int>> ReadFaces = JsonObject["Faces"];
+
+
+    std::vector<Vec3f> Vertices;
+
+    for (int i = 0; i < ReadVerts.size(); i += 3)
+    {
+        Vertices.emplace_back(ReadVerts[i], ReadVerts[i + 1], ReadVerts[i + 2]);
+    }
+
+    GraphicsModule* Graphics = GraphicsModule::Get();
+    
+    Brush NewBrush = Brush(Vertices, ReadFaces);
+
+    Graphics->UpdateBrushModel(&NewBrush);
+
+    return NewBrush;
 }
