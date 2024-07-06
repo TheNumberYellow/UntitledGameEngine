@@ -208,14 +208,6 @@ Vec3f Vec3f::operator*(Quaternion rhs)
         + 2.0f * s * Math::cross(u, *this);
 
     return vprime;
-    //Quaternion thisAsQuat;
-    //thisAsQuat.x = this->x;
-    //thisAsQuat.y = this->y;
-    //thisAsQuat.z = this->z;
-    //thisAsQuat.w = 0;
-
-    //Quaternion resultQuat = thisAsQuat * rhs;
-    //return Vec3f(resultQuat.x, resultQuat.y, resultQuat.z);
 }
 
 Vec3f Vec3f::operator*(float rhs)

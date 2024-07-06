@@ -21,10 +21,11 @@ struct Brush
 
     Brush(Rect InRect);
 
+    Brush(std::vector<Vec3f>& InVerts, std::vector<std::vector<unsigned int>>& InFaces);
     
     std::vector<Vec3f> Vertices;
 
-    std::vector<std::vector<Vec3f*>> Faces;
+    std::vector<std::vector<unsigned int>> Faces;
 
     Model* RepModel = nullptr;
 
@@ -166,7 +167,7 @@ struct StaticMeshRenderCommand
 {
     StaticMesh_ID m_Mesh;
     Material m_Material;
-    Transform m_Transform;
+    Mat4x4f m_TransMat;
 };
 
 struct BillboardRenderCommand
