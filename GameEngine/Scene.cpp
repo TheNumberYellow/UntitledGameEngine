@@ -274,7 +274,7 @@ void Scene::EditorDraw(GraphicsModule& graphics, GBuffer gBuffer, Camera* editor
         CamTrans.Rotate(CamRot);
         CamTrans.SetScale(0.1f);
 
-        CamRC.m_TransMat = CamTrans.GetTransformMatrix();
+        CamRC.m_Transform = CamTrans;
 
         graphics.AddRenderCommand(CamRC);
     }
@@ -477,23 +477,6 @@ void Scene::Save(std::string FileName)
             SaveModel(ModelList[Index++], *Mod, StaticMeshIndex, MaterialIndex);
         }
     }
-    Index = 0;
-    for (Brush* B : m_Brushes)
-    {
-        int64_t MaterialIndex = 0;
-
-        auto MatIt = std::find(MatVec.begin(), MatVec.end(), B->RepModel->m_TexturedMeshes[0].m_Material);
-        if (MatIt != MatVec.end())
-        {
-            MaterialIndex = MatIt - MatVec.begin();
-        }
-        else
-        {
-            Engine::FatalError("Could not find material while saving brush, this should never happen");
-        }
-
-        SaveBrush(BrushList[Index++], *B, MaterialIndex);
-    }
 
     SceneJson["Textures"] = TextureList;
     SceneJson["StaticMeshes"] = StaticMeshList;
@@ -540,7 +523,7 @@ void Scene::Load(std::string FileName)
     json StaticMeshesJson = SceneJson["StaticMeshes"];
     json PointLightsJson = SceneJson["PointLights"];
     json ModelsJson = SceneJson["Models"];
-    json BrushesJson = SceneJson["Brushes"];
+    
 
     for (json& TextureJson : TexturesJson)
     {
