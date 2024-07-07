@@ -533,7 +533,7 @@ void Scene::Load(std::string FileName)
     {
         StaticMeshVec.push_back(LoadStaticMesh(StaticMeshJson));
     }
-
+    ///
     for (json& PointLightJson : PointLightsJson)
     {
         AddPointLight(LoadPointLight(PointLightJson));
