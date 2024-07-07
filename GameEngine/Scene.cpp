@@ -258,26 +258,26 @@ void Scene::EditorDraw(GraphicsModule& graphics, GBuffer gBuffer, Camera* editor
 
         graphics.AddRenderCommand(BillboardRC);
     }
-    //for (Camera& Cam : m_Cameras)
-    //{
-    //    StaticMeshRenderCommand CamRC;
-    //    CamRC.m_Mesh = CameraMesh->Id;
-    //    CamRC.m_Material = *CameraMaterial;
-    //    
-    //    Transform CamTrans;
-    //    CamTrans.SetTransformMatrix(Cam.GetCamTransMatrix());
+    for (Camera& Cam : m_Cameras)
+    {
+        StaticMeshRenderCommand CamRC;
+        CamRC.m_Mesh = CameraMesh->Id;
+        CamRC.m_Material = *CameraMaterial;
+        
+        Transform CamTrans;
+        CamTrans.SetTransformMatrix(Cam.GetCamTransMatrix());
 
-    //    // *vomits on the floor*
-    //    Quaternion CamRot = Quaternion(Vec3f(0.0f, 0.0f, 1.0f), (float)M_PI);
-    //    CamRot = CamRot * Quaternion(Vec3f(1.0f, 0.0f, 0.0f), (float)M_PI_2);
+        // *vomits on the floor*
+        Quaternion CamRot = Quaternion(Vec3f(0.0f, 0.0f, 1.0f), (float)M_PI);
+        CamRot = CamRot * Quaternion(Vec3f(1.0f, 0.0f, 0.0f), (float)M_PI_2);
 
-    //    CamTrans.Rotate(CamRot);
-    //    CamTrans.SetScale(0.1f);
+        CamTrans.Rotate(CamRot);
+        CamTrans.SetScale(0.1f);
 
-    //    CamRC.m_TransMat = CamTrans.GetTransformMatrix();
+        CamRC.m_TransMat = CamTrans.GetTransformMatrix();
 
-    //    graphics.AddRenderCommand(CamRC);
-    //}
+        graphics.AddRenderCommand(CamRC);
+    }
 
     graphics.Render(gBuffer, *editorCam, m_DirLight);
 }
