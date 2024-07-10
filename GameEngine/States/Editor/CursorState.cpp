@@ -22,15 +22,23 @@ void SelectedModel::DrawInspectorPanel()
 {
     UIModule* UI = UIModule::Get();
 
-    float newX = ModelPtr->GetTransform().GetPosition().x;
-    float newY = ModelPtr->GetTransform().GetPosition().y;
-    float newZ = ModelPtr->GetTransform().GetPosition().z;
+    float oldX = ModelPtr->GetTransform().GetPosition().x;
+    float oldY = ModelPtr->GetTransform().GetPosition().y;
+    float oldZ = ModelPtr->GetTransform().GetPosition().z;
+
+    float newX = oldX;
+    float newY = oldY;
+    float newZ = oldZ;
 
     UI->FloatSlider("X", Vec2f(400.0f, 20.0f), newX, -10.0f, 10.0f);
     UI->FloatSlider("Y", Vec2f(400.0f, 20.0f), newY, -10.0f, 10.0f);
     UI->FloatSlider("Z", Vec2f(400.0f, 20.0f), newZ, -10.0f, 10.0f);
 
-    ModelPtr->GetTransform().SetPosition(Vec3f(newX, newY, newZ));
+    if (newX != oldX || newY != oldY || newZ != oldZ)
+    {
+        ModelPtr->GetTransform().SetPosition(Vec3f(newX, newY, newZ));
+        
+    }
 }
 
 Transform* SelectedModel::GetTransform()
@@ -1565,6 +1573,9 @@ void CursorState::DrawSelectedInspectorPanels()
     {
         Object.second->DrawInspectorPanel();
     }
+
+    // The objects' transforms may have been changed by sliders in the inspector panel, so re-calculate proxy and offsets
+    RecalculateProxyAndObjectOffsets();
 }
 
 void CursorState::DeleteSelectedObjects()
@@ -1590,30 +1601,35 @@ void CursorState::UnselectSelectedObjects()
 
 void CursorState::AddToSelectedObjects(ISelectedObject* NewSelectedObject)
 {
-    OffsetInfo NewObjectOffsetInfo;
-
-    Vec3f AveragePos = Vec3f(0.0f, 0.0f, 0.0f);
-
     for (auto& Obj : SelectedObjects)
     {
-        AveragePos += Obj.second->GetTransform()->GetPosition();
         if (*Obj.second == *NewSelectedObject)
         {
             delete NewSelectedObject;
             return;
         }
     }
+    SelectedObjects.push_back(std::make_pair(OffsetInfo(), NewSelectedObject));
 
-    AveragePos += NewSelectedObject->GetTransform()->GetPosition();
-    AveragePos /= (float)(SelectedObjects.size() + 1);
+    RecalculateProxyAndObjectOffsets();
+}
+
+void CursorState::RecalculateProxyAndObjectOffsets()
+{
+    Vec3f AveragePos = Vec3f(0.0f, 0.0f, 0.0f);
+
+    for (auto& Obj : SelectedObjects)
+    {
+        AveragePos += Obj.second->GetTransform()->GetPosition();
+    }
+
+    AveragePos /= (float)SelectedObjects.size();
 
     // Update selected object offsets
     for (auto& Obj : SelectedObjects)
     {
         Obj.first.Offset = AveragePos - Obj.second->GetTransform()->GetPosition();
     }
-
-    NewObjectOffsetInfo.Offset = AveragePos - NewSelectedObject->GetTransform()->GetPosition();
 
     SelectedProxyTransform.SetPosition(AveragePos);
 
@@ -1625,11 +1641,6 @@ void CursorState::AddToSelectedObjects(ISelectedObject* NewSelectedObject)
     {
         Obj.first.RotationDiff = Obj.second->GetTransform()->GetRotation() * SelectedProxyTransform.GetRotation().Inverse();
     }
-
-    NewObjectOffsetInfo.RotationDiff = NewSelectedObject->GetTransform()->GetRotation() * SelectedProxyTransform.GetRotation().Inverse();
-
-
-    SelectedObjects.push_back(std::make_pair(NewObjectOffsetInfo, NewSelectedObject));
 }
 
 void CursorState::UpdateSelectedTransformsBasedOnProxy()

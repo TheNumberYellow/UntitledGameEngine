@@ -239,6 +239,7 @@ private:
     void UnselectSelectedObjects();
 
     void AddToSelectedObjects(ISelectedObject* NewSelectedObject);
+    void RecalculateProxyAndObjectOffsets();
 
     void UpdateSelectedTransformsBasedOnProxy();
     void RotateSelectedTransforms(Quaternion Rotation);
