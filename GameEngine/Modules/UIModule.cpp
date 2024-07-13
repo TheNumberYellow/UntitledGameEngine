@@ -782,7 +782,7 @@ void UIModule::FloatSliderInternal(std::string name, Rect rect, float& outNum, f
 
     Click SliderClick = ButtonInternal(name + "_Slider", SliderRect, 2.0f, c_NiceBlue);
 
-    bool SliderContainsMouse = Engine::GetMouseDown() && TotalSize.Contains(Engine::GetMousePosition());
+    bool SliderContainsMouse = InputModule::Get()->GetMouseState().GetMouseButtonState(MouseButton::LMB).justPressed && TotalSize.Contains(Engine::GetMousePosition());
 
     if ((SliderClick.clicking || SliderContainsMouse) && !SliderState->dragging)
     {

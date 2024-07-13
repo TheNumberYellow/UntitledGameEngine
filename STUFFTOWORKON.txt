@@ -1,0 +1,26 @@
+GRAPHICS
+    -Improve light performance
+    -Add omni-directional shadow casting point lights
+    -Add shadow casting spotlights
+
+EDITOR
+    -Drag to select (using frustum intersections)
+
+
+UI
+    -Infinite float sliders
+    -Numerical text entry
+
+
+ENTITY/BEHAVIOUR/COMPONENT SYSTEM
+    -Editor accessible behaviour parameters
+
+
+COLLISIONS
+    -Continuous (swept) sphere collisions
+    -Inprove sphere collision performance using octrees
+
+
+
+CHANGE HOW I DO SHADERS SO CHANGES ARE EASIER
+    -First: Move shaders into separate source files rather than in code

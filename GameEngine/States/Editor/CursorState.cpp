@@ -799,7 +799,9 @@ void CursorState::UpdateSculptTool(float DeltaTime)
                     //if (Dist < radius)
                     //{
                     float Strength = Math::SmoothStep(Dist, SculptRadius, 0.5f) * VerticalDir * (SculptRadius * 0.25f);
-                    Vert->position += Vec3f(0.0f, 0.0f, Strength) * (float)DeltaTime;
+                    
+                    Vec3f hitNorm = FinalHit.rayCastHit.hitNormal;
+                    Vert->position += Strength * hitNorm * (float)DeltaTime;
                     //}
                 }
 
