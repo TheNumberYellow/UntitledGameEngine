@@ -6,9 +6,9 @@ SphereController::SphereController()
 {
 }
 
-void SphereController::Update(Scene* Scene, float DeltaTime)
+void SphereController::Update(Scene* Scene, double DeltaTime)
 {
-    DeltaTime = Math::Min(DeltaTime, 0.015f);
+    DeltaTime = Math::Min(DeltaTime, 0.015);
 
     InputModule* Inputs = InputModule::Get();
 
@@ -37,17 +37,17 @@ void SphereController::Update(Scene* Scene, float DeltaTime)
 
         InputForce *= 30.0f;
 
-        Velocity += InputForce * DeltaTime;
+        Velocity += InputForce * (float)DeltaTime;
     }
 
-    Velocity.z -= 140.0f * DeltaTime;
+    Velocity.z -= 140.0f * (float)DeltaTime;
 
     if (Inputs->GetKeyState(Key::Space).justPressed)
     {
         Velocity.z = 50.f;
     }
 
-    m_Model->GetTransform().Move(Velocity * DeltaTime);
+    m_Model->GetTransform().Move(Velocity * (float)DeltaTime);
     
     Sphere MySphere;
     MySphere.position = m_Model->GetTransform().GetPosition();
@@ -64,8 +64,8 @@ void SphereController::Update(Scene* Scene, float DeltaTime)
 
     MyLight->position = m_Model->GetTransform().GetPosition();
 
-    //Scene->GetCamera()->SetPosition(m_Model->GetTransform().GetPosition() + Vec3f(0.0f, -5.0f, 7.5f));
-    //Scene->GetCamera()->SetDirection(Math::normalize(m_Model->GetTransform().GetPosition() - Scene->GetCamera()->GetPosition()));
+    Scene->GetCamera()->SetPosition(m_Model->GetTransform().GetPosition() + Vec3f(0.0f, -5.0f, 7.5f));
+    Scene->GetCamera()->SetDirection(Math::normalize(m_Model->GetTransform().GetPosition() - Scene->GetCamera()->GetPosition()));
 }
 
 void SphereController::Initialize(Scene* Scene)

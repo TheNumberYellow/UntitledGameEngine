@@ -6,7 +6,7 @@ StateMachine::StateMachine()
 {
 }
 
-void StateMachine::Update(float DeltaTime)
+void StateMachine::Update(double DeltaTime)
 {
     if (!StateStack.empty())
     {

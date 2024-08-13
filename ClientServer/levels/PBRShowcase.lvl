@@ -1,0 +1,35 @@
+Textures:
+textures/AK_103.png textures/AK_103.norm.png textures/AK_103.rough.png textures/AK_103.metal.png textures/default_ao.png
+textures/angled-blocks-vegetation.png textures/angled-blocks-vegetation.norm.png textures/default_roughness.png textures/default_metallic.png textures/default_ao.png
+textures/bamboo-wood-semigloss.png textures/bamboo-wood-semigloss.norm.png textures/bamboo-wood-semigloss.rough.png textures/bamboo-wood-semigloss.metal.png textures/bamboo-wood-semigloss.ao.png
+textures/dented-metal.png textures/dented-metal.norm.png textures/dented-metal.rough.png textures/dented-metal.metal.png textures/dented-metal.ao.png
+textures/DirtyGold.png textures/DirtyGold.norm.png textures/DirtyGold.rough.png textures/DirtyGold.metal.png textures/DirtyGold.ao.png
+textures/Iberian_Blue_Ceramic_Tiles.png textures/Iberian_Blue_Ceramic_Tiles.norm.png textures/Iberian_Blue_Ceramic_Tiles.rough.png textures/default_metallic.png textures/default_ao.png
+textures/pirate-gold.png textures/pirate-gold.norm.png textures/pirate-gold.rough.png textures/pirate-gold.metal.png textures/pirate-gold.ao.png
+textures/rusted-grate.png textures/rusted-grate.norm.png textures/rusted-grate.rough.png textures/rusted-grate.metal.png textures/rusted-grate.ao.png
+textures/rusted-steel.png textures/rusted-steel.norm.png textures/rusted-steel.rough.png textures/rusted-steel.metal.png textures/rusted-steel.ao.png
+textures/scuffed-plastic.png textures/scuffed-plastic.norm.png textures/scuffed-plastic.rough.png textures/scuffed-plastic.metal.png textures/scuffed-plastic.ao.png
+textures/streaked-marble.png textures/streaked-marble.norm.png textures/streaked-marble.rough.png textures/streaked-marble.metal.png textures/default_ao.png
+textures/studded-plastic.png textures/studded-plastic.norm.png textures/studded-plastic.rough.png textures/studded-plastic.metal.png textures/studded-plastic.ao.png
+textures/Titanium-Scuffed.png textures/Titanium-Scuffed.norm.png textures/Titanium-Scuffed.rough.png textures/Titanium-Scuffed.metal.png textures/default_ao.png
+textures/worn-factory-siding.png textures/worn-factory-siding.norm.png textures/worn-factory-siding.rough.png textures/worn-factory-siding.metal.png textures/worn-factory-siding.ao.png
+textures/rounded-alley-brick.png textures/rounded-alley-brick.norm.png textures/default_roughness.png textures/default_metallic.png textures/default_ao.png
+StaticMeshes:
+models/AK47.obj
+models/Curvy.obj
+Entities:
+13 B -0.5 -1 -1 0.5 1 1 1 0 0 0 0 1 0 0 0 0 1 0 -4.5 -3 1 1 Spin 
+1 B -0.5 -1 -1 0.5 1 1 1 0 0 0 0 1 0 0 0 0 1 0 -4.5 -1 1 1 Spin 
+4 B -0.5 -1 -1 0.5 1 1 1 0 0 0 0 1 0 0 0 0 1 0 -4.5 1 1 1 Spin 
+7 B -0.5 -1 -1 0.5 1 1 1 0 0 0 0 1 0 0 0 0 1 0 -4.5 3 1 1 Spin 
+8 B -0.5 -1 -1 0.5 1 1 1 0 0 0 0 1 0 0 0 0 1 0 -4.5 3 3 1 Spin 
+6 B -0.5 -1 -1 0.5 1 1 1 0 0 0 0 1 0 0 0 0 1 0 -4.5 1 3 1 Spin 
+5 B -0.5 -1 -1 0.5 1 1 1 0 0 0 0 1 0 0 0 0 1 0 -4.5 -1 3 1 Spin 
+2 B -0.5 -1 -1 0.5 1 1 1 0 0 0 0 1 0 0 0 0 1 0 -4.5 -3 3 1 Spin 
+10 1 -0.0139275 -0.00574612 -0.999886 0 -0.381385 0.924416 -7.45058e-08 0 0.924311 0.381342 -0.0150663 0 -4.49388 -7.51179 3.01016 1 Spin 
+9 1 0.0116954 -0.00456311 -0.999921 0 0.363478 0.931603 0 0 0.931531 -0.36345 0.0125541 0 -4.508 7.73376 3.07961 1 Spin 
+14 B -0.5 -1 -1 0.5 1 1 1 0 0 0 0 1 0 0 0 0 1 0 -4.5 -3 5 1 Spin 
+3 B -0.5 -1 -1 0.5 1 1 1 0 0 0 0 1 0 0 0 0 1 0 -4.5 3 5 1 Spin 
+11 B -0.5 -1 -1 0.5 1 1 1 0 0 0 0 1 0 0 0 0 1 0 -4.5 -1 5 1 Spin 
+12 B -0.5 -1 -1 0.5 1 1 1 0 0 0 0 1 0 0 0 0 1 0 -4.5 1 5 1 Spin 
+0 0 1 0 0 0 0 1 0 0 0 0 1 0 0.181001 -0.031203 2.71136 1 Spin 

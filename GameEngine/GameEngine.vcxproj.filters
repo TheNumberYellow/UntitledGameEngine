@@ -111,7 +111,13 @@
     <ClCompile Include="States\Editor\EditorState.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="States\GameState.cpp">
+    <ClCompile Include="States\Game\GameState.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="States\Game\ServerGameState.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="States\Game\ClientGameState.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -230,7 +236,13 @@
     <ClInclude Include="States\Editor\EditorState.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="States\GameState.h">
+    <ClInclude Include="States\Game\GameState.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="States\Game\ServerGameState.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="States\Game\ClientGameState.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

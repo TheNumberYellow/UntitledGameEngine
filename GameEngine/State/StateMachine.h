@@ -12,7 +12,7 @@ class StateMachine
 public:
     StateMachine();
 
-    void Update(float DeltaTime);
+    void Update(double DeltaTime);
 
     void PushState(BaseState* State);
     void PopState();

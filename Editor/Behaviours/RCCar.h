@@ -7,7 +7,7 @@ public:
 
     DEFINE_BEHAVIOUR(RCCar);
 
-    void Update(Scene* Scene, float DeltaTime) override;
+    void Update(Scene* Scene, double DeltaTime) override;
 
 private:
 

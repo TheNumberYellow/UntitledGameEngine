@@ -10,7 +10,7 @@ void TopDownController::Initialize(Scene* Scene)
 {
 }
 
-void TopDownController::Update(Scene* Scene, float DeltaTime)
+void TopDownController::Update(Scene* Scene, double DeltaTime)
 {
     InputModule* Inputs = InputModule::Get();
     UIModule* UI = UIModule::Get();

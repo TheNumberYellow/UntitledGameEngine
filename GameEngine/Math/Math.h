@@ -37,11 +37,30 @@ class Math
 {
 public:    
 
-    static float Max(float a, float b);
-    static float Min(float a, float b);
+    template<typename T>
+    static T Max(T a, T b)
+    {
+        return a > b ? a : b;
+    }
 
-    static float Lerp(float a, float b, float t);
-    static float InvLerp(float a, float b, float v);
+    template<typename T>
+    static T Min(T a, T b)
+    {
+        return a < b ? a : b;
+    }
+
+    template<typename T>
+    static T Lerp(T a, T b, T t)
+    {
+        return (1.0f - t) * a + b * t;
+    }
+
+    template<typename T>
+    static T InvLerp(T a, T b, T v)
+    {
+        return (v - a) / (b - a);
+    }
+
     static float Remap(float iMin, float iMax, float oMin, float oMax, float v);
 
     static float SmoothStep(float in, float edge0 = 0.0f, float edge1 = 0.0f);

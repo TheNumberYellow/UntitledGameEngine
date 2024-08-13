@@ -360,26 +360,6 @@ Vec3f Math::ProjectVecOnPlane(Vec3f Vec, Plane P)
     return Vec - (Math::dot(Vec, P.normal) * P.normal);
 }
 
-float Math::Max(float a, float b)
-{
-    return a > b ? a : b;
-}
-
-float Math::Min(float a, float b)
-{
-    return a < b ? a : b;
-}
-
-float Math::Lerp(float a, float b, float t)
-{
-    return (1.0f - t) * a + b * t;
-}
-
-float Math::InvLerp(float a, float b, float v)
-{
-    return (v - a) / (b - a);
-}
-
 float Math::Remap(float iMin, float iMax, float oMin, float oMax, float v)
 {
     float t = InvLerp(iMin, iMax, v);

@@ -1,0 +1,12 @@
+Textures:
+textures/Camera.png
+textures/dirt.png
+textures/marble.jpg
+StaticMeshes:
+models/CornyCamera.obj
+models/ToyCar.obj
+models/TranslatePad.obj
+Entities:
+0 0 1 0 0 0 0 1 0 0 0 0 1 0 -4.09994 0.320148 0.326053 1 Spin 
+2 1 1 0 0 0 0 1 0 0 0 0 1 0 7.75511 -7.24121 2.40651 1 RCCar 
+1 2 1 0 0 0 0 1 0 0 0 0 1 0 3.51025 -2.11095 0.245224 1 

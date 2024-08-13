@@ -6,6 +6,12 @@ struct Packet
     std::string Data;
 };
 
+struct ClientPacket
+{
+    ClientID id;
+    Packet packet;
+};
+
 class NetworkModule
 {
 public:
@@ -14,15 +20,16 @@ public:
 
     void StartServer();
 
-    void StartClient(std::string ip);
+    bool StartClient(std::string ip);
 
     void ServerPing();
     void ClientPing();
 
-    void ServerSendData(std::string data);
+    void ServerSendData(std::string data, ClientID id);
+    void ServerSendDataAll(std::string data);
     void ClientSendData(std::string data);
 
-    bool ServerPollData(Packet& packet);
+    bool ServerPollData(ClientPacket& packet);
     bool ClientPollData(Packet& packet);
 
     void DisconnectAll();

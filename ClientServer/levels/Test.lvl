@@ -1,0 +1,22 @@
+Textures:
+textures/angled-blocks-vegetation.png textures/angled-blocks-vegetation.norm.png textures/default_roughness.png textures/default_metallic.png textures/default_ao.png
+textures/Brick.png textures/Brick.norm.png textures/default_roughness.png textures/default_metallic.png textures/default_ao.png
+textures/Gravel.jpg textures/default_norm.png textures/default_roughness.png textures/default_metallic.png textures/default_ao.png
+textures/tiles.jpg textures/tiles.norm.png textures/default_roughness.png textures/default_metallic.png textures/default_ao.png
+StaticMeshes:
+models/Fire.obj
+Entities:
+0 B -10.5 -9 -0.5 10.5 9 0.5 1 0 0 0 0 1 0 0 0 0 1 0 11.5 10 0.5 1 DungeonCornerstone 
+1 B -10.5 -0.5 -3.5 10.5 0.5 3.5 1 0 0 0 0 1 0 0 0 0 1 0 11.5 0.5 4.5 1 
+1 B -10.5 -0.5 -3.5 10.5 0.5 3.5 1 0 0 0 0 1 0 0 0 0 1 0 11.5 19.5 4.5 1 
+1 B -0.5 -9 -3.5 0.5 9 3.5 1 0 0 0 0 1 0 0 0 0 1 0 0.5 10 4.5 1 
+3 B -10.5 -9 -0.5 10.5 9 0.5 1 0 0 0 0 1 0 0 0 0 1 0 11.5 10 8.5 1 
+2 0 1.2 0 0 0 0 1.2 0 0 0 0 1.2 0 2.57419 17.5447 1 1 
+2 0 1.2 0 0 0 0 1.2 0 0 0 0 1.2 0 2.29745 2.38525 1 1 
+2 0 1.2 0 0 0 0 1.2 0 0 0 0 1.2 0 20.4825 2.32388 1 1 
+2 0 1.2 0 0 0 0 1.2 0 0 0 0 1.2 0 20.7934 17.7662 1 1 
+1 B -0.5 -2 -3.5 0.5 2 3.5 1 0 0 0 0 1 0 0 0 0 1 0 22.5 17 4.5 1 
+1 B -0.5 -2 -3.5 0.5 2 3.5 1 0 0 0 0 1 0 0 0 0 1 0 22.5 3 4.5 1 
+1 B -0.5 -0.5 -1 0.5 0.5 1 1 0 0 0 0 1 0 0 0 0 1 0 22.5 14.5 7 1 
+1 B -0.5 -0.5 -1 0.5 0.5 1 1 0 0 0 0 1 0 0 0 0 1 0 22.5 5.5 7 1 
+1 B -0.5 -4 -0.5 0.5 4 0.5 1 0 0 0 0 1 0 0 0 0 1 0 22.5 10 7.5 1 

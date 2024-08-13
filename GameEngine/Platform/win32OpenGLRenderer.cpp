@@ -856,7 +856,7 @@ namespace
 
             // TODO: option for dynamic vs static draw (profile difference too)
             glBufferData(GL_ARRAY_BUFFER, bufferSize, vertexData.data(), GL_STATIC_DRAW);
-            glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(indices[0]), indices.data(), GL_STATIC_DRAW);
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(ElementIndex), indices.data(), GL_STATIC_DRAW);
 
             vertBufFormat.EnableVertexAttributes();
 
@@ -1379,12 +1379,17 @@ void Renderer::UpdateMeshData(StaticMesh_ID meshID, const VertexBufferFormat& ve
 {
     OpenGLMesh* mesh = GetGLMeshFromMeshID(meshID);
 
+    glBindVertexArray(mesh->VAO);
     glBindBuffer(GL_ARRAY_BUFFER, mesh->VBO);
 
     mesh->bufferSize = (int)vertexData.size() * sizeof(float);
     
     glBufferData(GL_ARRAY_BUFFER, mesh->bufferSize, vertexData.data(), GL_STATIC_DRAW);
 
+    vertBufFormat.EnableVertexAttributes();
+
+    glBindVertexArray(0);
+    
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     mesh->numVertices = (int)vertexData.size() / (vertBufFormat.GetVertexStride() / sizeof(float));
@@ -1394,14 +1399,19 @@ void Renderer::UpdateMeshData(StaticMesh_ID meshID, const VertexBufferFormat& ve
 {
     OpenGLMesh* mesh = GetGLMeshFromMeshID(meshID);
 
+    glBindVertexArray(mesh->VAO);
     glBindBuffer(GL_ARRAY_BUFFER, mesh->VBO);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->EBO);
 
     mesh->bufferSize = (int)vertexData.size() * sizeof(float);
 
     glBufferData(GL_ARRAY_BUFFER, mesh->bufferSize, vertexData.data(), GL_STATIC_DRAW);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(indices[0]), indices.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, (int)indices.size() * sizeof(ElementIndex), indices.data(), GL_STATIC_DRAW);
 
+    vertBufFormat.EnableVertexAttributes();
+
+    glBindVertexArray(0);
+    
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     
@@ -1409,9 +1419,9 @@ void Renderer::UpdateMeshData(StaticMesh_ID meshID, const VertexBufferFormat& ve
     mesh->numVertices = (int)vertexData.size() / (vertBufFormat.GetVertexStride() / sizeof(float));
 
     // Test: Memory leak?
-    float* bufferData = new float[mesh->bufferSize];
-    glGetNamedBufferSubData(mesh->VBO, 0, mesh->bufferSize, (void*)bufferData);
-    delete[] bufferData;
+    //float* bufferData = new float[mesh->bufferSize];
+    //glGetNamedBufferSubData(mesh->VBO, 0, mesh->bufferSize, (void*)bufferData);
+    //delete[] bufferData;
 }
 
 std::vector<float> Renderer::GetMeshVertexData(StaticMesh_ID meshID)
@@ -1753,9 +1763,16 @@ std::vector<unsigned int*> Renderer::MapMeshElements(StaticMesh_ID meshID)
 {
     OpenGLMesh mesh = *GetGLMeshFromMeshID(meshID);
 
-    unsigned int* elementBuffer = (unsigned int*)glMapNamedBuffer(mesh.EBO, GL_READ_WRITE);
+    GLint size = 0;
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.EBO);
+    glGetBufferParameteriv(GL_ELEMENT_ARRAY_BUFFER, GL_BUFFER_SIZE, &size);
+
+    size /= sizeof(ElementIndex);
+
+    unsigned int* elementBuffer = (unsigned int*)glMapBufferRange(GL_ELEMENT_ARRAY_BUFFER, 0, size, GL_MAP_READ_BIT);
     std::vector<unsigned int*> elements;
-    for (int i = 0; i < mesh.numElements; ++i)
+    for (int i = 0; i < size; ++i)
     {
         elements.push_back(&elementBuffer[i]);
     }

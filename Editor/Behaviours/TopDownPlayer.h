@@ -7,7 +7,7 @@ public:
 
     DEFINE_BEHAVIOUR(TopDownPlayer);
 
-    void Update(Scene* Scene, float DeltaTime) override;
+    void Update(Scene* Scene, double DeltaTime) override;
 
     void Hurt();
 
@@ -26,11 +26,11 @@ private:
 
     bool Started = false;
 
-    const float GhostSpawnPeriod = 0.05f;
-    float GhostSpawnTimer = GhostSpawnPeriod;
+    const double GhostSpawnPeriod = 0.05f;
+    double GhostSpawnTimer = GhostSpawnPeriod;
 
-    const float BulletShootPeriod = 0.1f;
-    float BulletShootTimer = BulletShootPeriod;
+    const double BulletShootPeriod = 0.1f;
+    double BulletShootTimer = BulletShootPeriod;
 
     int GhostCount = 0;
 

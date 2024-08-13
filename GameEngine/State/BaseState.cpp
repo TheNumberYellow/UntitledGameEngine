@@ -22,7 +22,7 @@ void BaseState::OnExit()
 
 }
 
-void BaseState::Update(float DeltaTime)
+void BaseState::Update(double DeltaTime)
 {
 
 }

@@ -3,22 +3,24 @@
 #include "Modules/NetworkModule.h"
 
 #include <winsock2.h>
+#include <mswsock.h>
 #include <ws2tcpip.h>
 #include <thread>
 #include <queue>
 
 static WSADATA wsaData;
 
-static SOCKET ServerListenSocket = INVALID_SOCKET;
-static SOCKET ServerConnectionSocket = INVALID_SOCKET;
-static std::thread ConnectionAcceptThread;
-static std::thread ServerReceiveThread;
-bool ServerHasConnection;
+static SOCKET ServerConnectionAcceptSocket = INVALID_SOCKET;
+static std::unordered_map<ClientID, SOCKET> ServerConnectionSockets;
+static std::thread ServerConnectionAcceptThread;
+static std::vector<std::thread> ServerConnectionThreads;
+//bool ServerHasConnection;
+int ServerNumConnections = 0;
 
 static SOCKET ClientConnectionSocket = INVALID_SOCKET;
 static std::thread ClientReceiveThread;
 
-static std::queue<Packet> ServerPacketQueue;
+static std::queue<ClientPacket> ServerPacketQueue;
 static std::queue<Packet> ClientPacketQueue;
 
 #define DEFAULT_PORT "25903"
@@ -55,10 +57,10 @@ void NetworkInterface::StartServer()
     {
         m_ServerRunning = false;
     }
-    if (ConnectionAcceptThread.joinable())
+    if (ServerConnectionAcceptThread.joinable())
     {
         // Currently blocking on accept() - use select() to check before calling accept() later
-        ConnectionAcceptThread.join();
+        ServerConnectionAcceptThread.join();
     }
 
     addrinfo* result = nullptr;
@@ -78,43 +80,43 @@ void NetworkInterface::StartServer()
         return;
     }
 
-    ServerListenSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+    ServerConnectionAcceptSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
 
-    if (ServerListenSocket == INVALID_SOCKET)
+    if (ServerConnectionAcceptSocket == INVALID_SOCKET)
     {
-        std::string errorString = "socket creation failed: " + std::to_string(WSAGetLastError());
+        std::string errorString = "server connection accept socket creation failed: " + std::to_string(WSAGetLastError());
         Engine::Error(errorString);
         freeaddrinfo(result);
         return;
     }
 
-    iResult = bind(ServerListenSocket, result->ai_addr, (int)result->ai_addrlen);
+    iResult = bind(ServerConnectionAcceptSocket, result->ai_addr, (int)result->ai_addrlen);
     if (iResult == SOCKET_ERROR) {
         std::string errorString = "socket bind failed: " + std::to_string(WSAGetLastError());
         Engine::Error(errorString);
         freeaddrinfo(result);
-        closesocket(ServerListenSocket);
+        closesocket(ServerConnectionAcceptSocket);
         return;
     }
 
-    if (listen(ServerListenSocket, SOMAXCONN) == SOCKET_ERROR) {
+    if (listen(ServerConnectionAcceptSocket, SOMAXCONN) == SOCKET_ERROR) {
         std::string errorString = "socket listen failed: " + std::to_string(WSAGetLastError());
         Engine::Error(errorString);
 
-        closesocket(ServerListenSocket);
+        closesocket(ServerConnectionAcceptSocket);
         return;
     }
 
     m_ServerRunning = true;
-    ConnectionAcceptThread = std::thread(&NetworkInterface::AcceptServerConnections, this);
+    ServerConnectionAcceptThread = std::thread(&NetworkInterface::AcceptServerConnections, this);
     
 }
 
-void NetworkInterface::StartClient(std::string ip)
+bool NetworkInterface::StartClient(std::string ip)
 {
     if (m_ServerRunning)
     {
-        return;
+        return false;
     }
 
     addrinfo* result = nullptr;
@@ -131,7 +133,7 @@ void NetworkInterface::StartClient(std::string ip)
     {
         std::string errorString = "getaddrinfo failed: " + std::to_string(iResult);
         Engine::Error(errorString);
-        return;
+        return false;
     }
 
     ClientConnectionSocket = INVALID_SOCKET;
@@ -143,7 +145,7 @@ void NetworkInterface::StartClient(std::string ip)
         std::string errorString = "socket creation failed: " + std::to_string(WSAGetLastError());
         Engine::Error(errorString);
         freeaddrinfo(result);
-        return;
+        return false;
     }
 
     // Connect to server.
@@ -153,7 +155,7 @@ void NetworkInterface::StartClient(std::string ip)
         Engine::Error(errorString);
         closesocket(ClientConnectionSocket);
         ClientConnectionSocket = INVALID_SOCKET;
-        return;
+        return false;
     }
 
     freeaddrinfo(result);
@@ -161,23 +163,27 @@ void NetworkInterface::StartClient(std::string ip)
     if (ClientConnectionSocket == INVALID_SOCKET) {
         std::string errorString = "could not connect to server";
         Engine::Error(errorString);
-        return;
+        return false;
     }
 
     m_ClientRunning = true;
 
     ClientReceiveThread = std::thread(&NetworkInterface::ClientReceiveData, this);
+
+    return true;
 }
 
 void NetworkInterface::ServerPing()
 {
     if (m_ServerRunning)
     {
-        if (ServerHasConnection)
+        for (auto& SocketPair : ServerConnectionSockets)
         {
+            auto Socket = SocketPair.second;
+
             const char* sendbuf = "PING";
             int iResult;
-            iResult = send(ServerConnectionSocket, sendbuf, (int)strlen(sendbuf), 0);
+            iResult = send(Socket, sendbuf, (int)strlen(sendbuf), 0);
             if (iResult == SOCKET_ERROR) {
                 std::string errorString = "send failed: " + std::to_string(WSAGetLastError());
                 Engine::Error(errorString);
@@ -202,17 +208,37 @@ void NetworkInterface::ClientPing()
     }
 }
 
-void NetworkInterface::ServerSendData(std::string data)
+void NetworkInterface::ServerSendData(std::string data, ClientID clientID)
 {
     if (m_ServerRunning)
     {
-        if (ServerHasConnection)
+        if (ServerConnectionSockets.find(clientID) != ServerConnectionSockets.end())
         {
             const char* sendbuf = data.c_str();
             int iResult;
-            iResult = send(ServerConnectionSocket, sendbuf, (int)strlen(sendbuf), 0);
+            iResult = send(ServerConnectionSockets[clientID], sendbuf, (int)strlen(sendbuf), 0);
             if (iResult == SOCKET_ERROR) {
                 std::string errorString = "send failed: " + std::to_string(WSAGetLastError());
+                Engine::Error(errorString);
+                return;
+            }
+        }
+    }
+}
+
+void NetworkInterface::ServerSendDataAll(std::string data)
+{
+    if (m_ServerRunning)
+    {
+        for (auto SocketPair : ServerConnectionSockets)
+        {
+            auto Socket = SocketPair.second;
+
+            const char* sendbuf = data.c_str();
+            int iResult;
+            iResult = send(Socket, sendbuf, (int)strlen(sendbuf), 0);
+            if (iResult == SOCKET_ERROR) {
+                std::string errorString = "send all failed: " + std::to_string(WSAGetLastError());
                 Engine::Error(errorString);
                 return;
             }
@@ -235,7 +261,7 @@ void NetworkInterface::ClientSendData(std::string data)
     }
 }
 
-bool NetworkInterface::ServerPollData(Packet& packet)
+bool NetworkInterface::ServerPollData(ClientPacket& packet)
 {
     if (ServerPacketQueue.empty())
     {
@@ -265,25 +291,46 @@ void NetworkInterface::DisconnectAll()
 
     if (m_ServerRunning)
     {
-        iResult = shutdown(ServerListenSocket, SD_SEND);
-        if (iResult == SOCKET_ERROR) {
-            std::string errorString = "server listen shutdown failed: " + std::to_string(WSAGetLastError());
-            Engine::Error(errorString);
-        }
+        //const char enable = 1;
+        //iResult = setsockopt(ServerConnectionAcceptSocket, SOL_SOCKET, SO_UPDATE_CONNECT_CONTEXT, &enable, sizeof(enable));
+        //if (iResult == SOCKET_ERROR)
+        //{
+        //    std::string errorString = "server listen setsockopt failed: " + std::to_string(WSAGetLastError());
+        //    Engine::Error(errorString);
+        //}
 
-        if (ServerHasConnection)
+        //iResult = shutdown(ServerConnectionAcceptSocket, SD_BOTH);
+        //if (iResult == SOCKET_ERROR) 
+        //{
+        //    std::string errorString = "server listen shutdown failed: " + std::to_string(WSAGetLastError());
+        //    Engine::Error(errorString);
+        //}
+
+        for (auto& SocketPair : ServerConnectionSockets)
         {
-            iResult = shutdown(ServerConnectionSocket, SD_SEND);
-            if (iResult == SOCKET_ERROR) {
+            auto Socket = SocketPair.second;
+
+            iResult = shutdown(Socket, SD_BOTH);
+            if (iResult == SOCKET_ERROR) 
+            {
                 std::string errorString = "server shutdown failed: " + std::to_string(WSAGetLastError());
                 Engine::Error(errorString);
             }
+            closesocket(Socket);
+
+        }
+        
+        ServerConnectionSockets.clear();
+
+        iResult = closesocket(ServerConnectionAcceptSocket);
+        if (iResult == SOCKET_ERROR)
+        {
+            std::string errorString = "server listen closesocket failed: " + std::to_string(WSAGetLastError());
+            Engine::Error(errorString);
         }
 
         m_ServerRunning = false;
     }
-    closesocket(ServerListenSocket);
-    closesocket(ServerConnectionSocket);
 
     if (m_ClientRunning)
     {
@@ -296,16 +343,17 @@ void NetworkInterface::DisconnectAll()
     }
     closesocket(ClientConnectionSocket);
 
-    ServerHasConnection = false;
-
-    if (ConnectionAcceptThread.joinable())
+    if (ServerConnectionAcceptThread.joinable())
     {
-        ConnectionAcceptThread.join();
+        ServerConnectionAcceptThread.join();
     }
 
-    if (ServerReceiveThread.joinable())
+    for (auto& ConnectionThread : ServerConnectionThreads)
     {
-        ServerReceiveThread.join();
+        if (ConnectionThread.joinable())
+        {
+            ConnectionThread.join();
+        }
     }
 
     if (ClientReceiveThread.joinable())
@@ -313,32 +361,44 @@ void NetworkInterface::DisconnectAll()
         ClientReceiveThread.join();
     }
 
-    closesocket(ServerListenSocket);
 }
 
 void NetworkInterface::AcceptServerConnections()
 {
-    while (m_ServerRunning )
+    while (m_ServerRunning)
     {
-        ServerConnectionSocket = INVALID_SOCKET;
+        SOCKET NewServerConnectionSocket = INVALID_SOCKET;
 
         // Accept a client socket
-        ServerConnectionSocket = accept(ServerListenSocket, NULL, NULL);
-        if (ServerConnectionSocket == INVALID_SOCKET) {
-            std::string errorString = "accept failed: " + std::to_string(WSAGetLastError());
+        NewServerConnectionSocket = accept(ServerConnectionAcceptSocket, NULL, NULL);
+        if (NewServerConnectionSocket == INVALID_SOCKET) {
+
+            int lastError = WSAGetLastError();
+
+            if (lastError == WSAEINTR)
+            {
+                // accept is interrupted when closing, this is normal
+                closesocket(NewServerConnectionSocket);
+                m_ServerRunning = false;
+                return;
+            }
+
+            std::string errorString = "accept failed: " + std::to_string(lastError);
             Engine::Error(errorString);
-            closesocket(ServerListenSocket);
+            closesocket(ServerConnectionAcceptSocket);
             m_ServerRunning = false;
             return;
         }
-        Engine::Error("Client connected.");
-        ServerHasConnection = true;
-        ServerReceiveThread = std::thread(&NetworkInterface::ServerReceiveData, this);
-        break;
+        //Engine::Error("Client connected.");
+
+        ClientID newClientID = ServerNumConnections++;
+
+        ServerConnectionSockets[newClientID] = NewServerConnectionSocket;
+        ServerConnectionThreads.push_back(std::thread(&NetworkInterface::ServerReceiveData, this, newClientID));
     }
 }
 
-void NetworkInterface::ServerReceiveData()
+void NetworkInterface::ServerReceiveData(ClientID clientID)
 {
     int iResult;
     char recvbuf[DEFAULT_BUFLEN];
@@ -346,13 +406,17 @@ void NetworkInterface::ServerReceiveData()
 
     while (m_ServerRunning)
     {
-        iResult = recv(ServerConnectionSocket, recvbuf, recvbuflen, 0);
+        iResult = recv(ServerConnectionSockets[clientID], recvbuf, recvbuflen, 0);
 
         if (iResult <= 0)
         {
             Engine::Error("Client closed connection.");
-            closesocket(ServerConnectionSocket);
-            ServerHasConnection = false;
+            closesocket(ServerConnectionSockets[clientID]);
+
+            ServerConnectionSockets.erase(clientID);
+            //auto thisSocketIter = std::find(ServerConnectionSockets.begin(), ServerConnectionSockets.end(), )
+            //ServerConnectionSockets.erase()
+             
             break;
         }
         else
@@ -368,8 +432,9 @@ void NetworkInterface::ServerReceiveData()
             }
             else
             {
-                Packet NewPacket;
-                NewPacket.Data = ReceivedData;
+                ClientPacket NewPacket;
+                NewPacket.packet.Data = ReceivedData;
+                NewPacket.id = clientID;
                 ServerPacketQueue.push(NewPacket);
             }
         }
@@ -388,12 +453,17 @@ void NetworkInterface::ClientReceiveData()
     
         if (iResult <= 0)
         {
-            Engine::Error("Server closed connection.");
+            Engine::Error("Connection closed.");
             break;
         }
         else
         {
-            std::string ReceivedData = recvbuf;
+            std::string ReceivedData;
+            for (int i = 0; i < iResult; ++i)
+            {
+                ReceivedData += recvbuf[i];
+            }
+
             if (ReceivedData == "PING")
             {
                 Engine::Error("Received ping from server.");

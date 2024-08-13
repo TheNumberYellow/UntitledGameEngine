@@ -220,12 +220,12 @@ void Scene::InitializeBehaviours()
     }
 }
 
-void Scene::Update(float DeltaTime)
+void Scene::Update(double DeltaTime)
 {
     UpdateBehaviours(DeltaTime);
 }
 
-void Scene::UpdateBehaviours(float DeltaTime)
+void Scene::UpdateBehaviours(double DeltaTime)
 {
     BehaviourRegistry* Registry = BehaviourRegistry::Get();
     for (auto& it : m_UntrackedModels)

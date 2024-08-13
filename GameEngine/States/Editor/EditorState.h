@@ -3,8 +3,9 @@
 
 #include "GameEngine.h"
 
-#include <filesystem>
 #include "CursorState.h"
+#include <iostream>
+//#include <filesystem>
 
 class EditorState;
 
@@ -25,16 +26,16 @@ public:
     void OnUninitialized() override;
     void OnEnter() override;
     void OnExit() override;
-    void Update(float DeltaTime) override;
+    void Update(double DeltaTime) override;
     void OnResize() override;
 
     //--------------------
     // Private Member Functions
     //--------------------
 private:
-    void UpdateEditor(float DeltaTime);
+    void UpdateEditor(double DeltaTime);
 
-    void UpdateGame(float DeltaTime);
+    void UpdateGame(double DeltaTime);
 
     Rect GetEditorSceneViewportRect();
 
@@ -47,7 +48,7 @@ private:
 
     void MoveCamera(Camera* Camera, float PixelToRadians, double DeltaTime);
 
-    void DrawLevelEditor(GraphicsModule* Graphics, UIModule* UI, float DeltaTime);
+    void DrawLevelEditor(GraphicsModule* Graphics, UIModule* UI, double DeltaTime);
 
     void DrawEditorUI();
 
@@ -68,8 +69,6 @@ private:
     Camera ModelCamera;
 
     bool CursorLocked = false;
-
-    std::filesystem::path CurrentResourceDirectoryPath;
 
     std::vector<float> RandomSizes;
     std::vector<Vec3f> RandomColours;
@@ -191,7 +190,7 @@ private:
 
     // TEMP
     int PrevFrameTimeCount = 0;
-    float PrevFrameTimeSum = 0.0f;
+    double PrevFrameTimeSum = 0.0f;
     int PrevAveFPS = 0;
 
     Font TestFont;

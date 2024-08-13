@@ -4,7 +4,7 @@
 
 REGISTER_BEHAVIOUR(Ghost);
 
-void Ghost::Update(Scene* Scene, float DeltaTime)
+void Ghost::Update(Scene* Scene, double DeltaTime)
 {
     if (!Started)
     {
@@ -46,7 +46,7 @@ void Ghost::Update(Scene* Scene, float DeltaTime)
 
         Vec3f GhostToTargetHorizontal = Math::normalize(Vec3f(GhostToTarget.x, GhostToTarget.y, 0.0f));
 
-        m_Model->GetTransform().Move(GhostToTargetHorizontal * GhostSpeed * DeltaTime);
+        m_Model->GetTransform().Move(GhostToTargetHorizontal * GhostSpeed * (float)DeltaTime);
 
 
     }

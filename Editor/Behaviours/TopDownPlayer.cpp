@@ -5,7 +5,7 @@
 
 REGISTER_BEHAVIOUR(TopDownPlayer);
 
-void TopDownPlayer::Update(Scene* Scene, float DeltaTime)
+void TopDownPlayer::Update(Scene* Scene, double DeltaTime)
 {
     if (Health <= 0)
     {

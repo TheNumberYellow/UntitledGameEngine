@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <unordered_map>
 #include "Utils/FilePath.h"
 #include "Platform/RendererPlatform.h"
 

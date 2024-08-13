@@ -6,7 +6,7 @@ class TopDownBullet : public Behaviour
 public:
     DEFINE_BEHAVIOUR(TopDownBullet);
 
-    void Update(Scene* Scene, float DeltaTime) override;
+    void Update(Scene* Scene, double DeltaTime) override;
 
     Vec3f Direction = Vec3f(1.0f, 0.0f, 0.0f);
 private:

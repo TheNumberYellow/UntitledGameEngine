@@ -10,7 +10,7 @@ public:
     virtual void OnUninitialized();
     virtual void OnEnter();
     virtual void OnExit();
-    virtual void Update(float DeltaTime);
+    virtual void Update(double DeltaTime);
     virtual void OnResize();
 
     void SetOwningStateMachine(StateMachine* StateMachinePtr);

@@ -81,8 +81,8 @@ public:
     void Initialize();
     void InitializeBehaviours();
 
-    void Update(float DeltaTime);
-    void UpdateBehaviours(float DeltaTime);
+    void Update(double DeltaTime);
+    void UpdateBehaviours(double DeltaTime);
 
     void Draw(GraphicsModule& graphics, GBuffer gBuffer, size_t camIndex = 0);
     void EditorDraw(GraphicsModule& graphics, GBuffer gBuffer, Camera* editorCam);

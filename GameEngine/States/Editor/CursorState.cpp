@@ -242,7 +242,7 @@ CursorState::CursorState(EditorState* InEditorState, Scene* InEditorScene)
     ZAxisScale = &EditorStatePtr->zScaleWidget;
 }
 
-void CursorState::Update(float DeltaTime)
+void CursorState::Update(double DeltaTime)
 {
     InputModule* Input = InputModule::Get();
     UIModule* UI = UIModule::Get();
@@ -738,7 +738,7 @@ void CursorState::UpdateVertexTool()
 {
 }
 
-void CursorState::UpdateSculptTool(float DeltaTime)
+void CursorState::UpdateSculptTool(double DeltaTime)
 {
     InputModule* Input = InputModule::Get();
     CollisionModule* Collisions = CollisionModule::Get();

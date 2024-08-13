@@ -65,7 +65,7 @@ void BehaviourRegistry::InitializeModelBehaviours(Model* Model, Scene* Scene)
     }
 }
 
-void BehaviourRegistry::UpdateModelBehaviours(Model* Model, Scene* Scene, float DeltaTime)
+void BehaviourRegistry::UpdateModelBehaviours(Model* Model, Scene* Scene, double DeltaTime)
 {
     auto it = m_AttachedBehaviours.find(Model);
     if (it != m_AttachedBehaviours.end())

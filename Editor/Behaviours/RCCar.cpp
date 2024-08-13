@@ -2,7 +2,7 @@
 
 REGISTER_BEHAVIOUR(RCCar);
 
-void RCCar::Update(Scene* Scene, float DeltaTime)
+void RCCar::Update(Scene* Scene, double DeltaTime)
 {
     if (!Started)
     {
@@ -21,12 +21,12 @@ void RCCar::Update(Scene* Scene, float DeltaTime)
 
     if (Input->GetKeyState(Key::Left))
     {
-        AimingDirection = Math::rotate(AimingDirection, RotSpeed * DeltaTime, Vec3f(0.0f, 0.0f, 1.0f));
+        AimingDirection = Math::rotate(AimingDirection, RotSpeed * (float)DeltaTime, Vec3f(0.0f, 0.0f, 1.0f));
         //m_Model->GetTransform().Rotate(Quaternion(Vec3f(0.0f, 0.0f, 1.0f), 0.02f));
     }
     if (Input->GetKeyState(Key::Right))
     {
-        AimingDirection = Math::rotate(AimingDirection, -RotSpeed * DeltaTime, Vec3f(0.0f, 0.0f, 1.0f));
+        AimingDirection = Math::rotate(AimingDirection, -RotSpeed * (float)DeltaTime, Vec3f(0.0f, 0.0f, 1.0f));
         //m_Model->GetTransform().Rotate(Quaternion(Vec3f(0.0f, 0.0f, 1.0f), -0.02f));
     }
 
@@ -37,7 +37,7 @@ void RCCar::Update(Scene* Scene, float DeltaTime)
 
     if (Input->GetKeyState(Key::Up))
     {
-        Displacement += AimingDirection * Speed * DeltaTime;
+        Displacement += AimingDirection * Speed * (float)DeltaTime;
     }
 
     GraphicsModule* Graphics = GraphicsModule::Get();

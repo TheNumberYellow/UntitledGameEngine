@@ -1,0 +1,14 @@
+Textures:
+textures\159-compr-1024x1024.jpg
+textures\bottom.jpg
+textures\groundTexture.png
+textures\right.jpg
+StaticMeshes:
+models\CornyCamera.obj
+models\Fire.obj
+models\PlayerSpawn.obj
+models\RotationHoop.obj
+Entity: T:0 M:0 Trans:-0.960614 0.277886 0 0 -0.277886 -0.960614 0 0 0 0 1 0 -5.89533 8.73414 0.17347 1  Behaviours: RCCar 
+Entity: T:1 M:1 Trans:1 0 0 0 0 1 0 0 0 0 1 0 2.96462 1.53368 -0.65732 1  Behaviours: 
+Entity: T:2 M:2 Trans:1 0 0 0 0 1 0 0 0 0 1 0 6.92406 -1.34726 -1.19711 1  Behaviours: 
+Entity: T:3 M:3 Trans:1 0 0 0 0 1 0 0 0 0 1 0 9.63645 -4.063 0.0301738 1  Behaviours: 

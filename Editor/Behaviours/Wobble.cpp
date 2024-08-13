@@ -6,7 +6,7 @@ Wobble::Wobble()
 {
 }
 
-void Wobble::Update(Scene* Scene, float DeltaTime)
+void Wobble::Update(Scene* Scene, double DeltaTime)
 {
     if (WobblingLeft)
     {

@@ -5,24 +5,30 @@
 //#include "..\GUID.hpp"
 
 struct Packet;
+struct ClientPacket;
+
+using ClientID = size_t;
 
 class NetworkInterface
 {
+
 public:
     NetworkInterface();
     ~NetworkInterface();
 
     void StartServer();
 
-    void StartClient(std::string ip);
+    bool StartClient(std::string ip);
 
     void ServerPing();
     void ClientPing();
 
-    void ServerSendData(std::string data);
+    void ServerSendData(std::string data, ClientID clientID);
+    void ServerSendDataAll(std::string data);
+
     void ClientSendData(std::string data);
 
-    bool ServerPollData(Packet& packet);
+    bool ServerPollData(ClientPacket& packet);
     bool ClientPollData(Packet& packet);
 
     void DisconnectAll();
@@ -30,7 +36,7 @@ public:
 private:
     void AcceptServerConnections();
 
-    void ServerReceiveData();
+    void ServerReceiveData(ClientID clientID);
     void ClientReceiveData();
 
     bool m_ServerRunning = false;

@@ -540,7 +540,9 @@ int WinMain(_In_ HINSTANCE InInstance, _In_opt_ HINSTANCE InPreviousInstance, _I
     cursorCenter.x = screenSize.x / 2;
     cursorCenter.y = screenSize.y / 2;
 
-    Initialize();
+    std::string args = CommandLine;
+
+    Initialize(args);
     Resize(screenSize);
 
     while (running)

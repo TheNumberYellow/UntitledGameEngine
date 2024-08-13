@@ -2570,7 +2570,7 @@ void Resize(Vec2i newSize)
 
 StateMachine Machine;
 
-void Initialize()
+void Initialize(ArgsList args)
 {
     EditorState* EdState = new EditorState();
     Machine.PushState(EdState);
@@ -2590,18 +2590,16 @@ void Resize(Vec2i newSize)
 
 #include "GameEngine.h"
 
-#include "States/GameState.h"
+#include "States/Game/GameState.h"
 #include "State/StateMachine.h"
 
 StateMachine Machine;
 
 // CHANGE THIS TO SET INITIAL LEVEL
-const std::string InitialLevelName = "levels\\Survival.lvl";
-const std::string TitleBarText = "Survival";
+const std::string InitialLevelName = "levels\\Bouncy.lvl";
+const std::string TitleBarText = "Bounce";
 
-Scene* GameScene;
-
-void Initialize()
+void Initialize(ArgsList args)
 {
     Engine::SetWindowTitleText(TitleBarText);
 
@@ -2611,13 +2609,11 @@ void Initialize()
     GameState* GState = new GameState();
     
     Graphics->SetRenderMode(RenderMode::DEFAULT);
-
-    GameScene = new Scene();
-
-    GameScene->SetDirectionalLight(DirectionalLight{ Math::normalize(Vec3f(0.5f, 1.0f, -1.0f)), Vec3f(1.0f, 1.0f, 1.0f) });
-
-    GameScene->Load(InitialLevelName);
-    GState->LoadScene(*GameScene);
+   
+    //GameScene->SetDirectionalLight(DirectionalLight{ Math::normalize(Vec3f(0.5f, 1.0f, -1.0f)), Vec3f(1.0f, 1.0f, 1.0f) });
+    
+    GState->LoadScene(InitialLevelName);
+    
     Machine.PushState(GState);
 }
 

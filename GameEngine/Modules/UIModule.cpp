@@ -224,6 +224,9 @@ void UIModule::BufferPanel(Framebuffer_ID fBuffer, Rect rect)
 
     m_Renderer.UpdateMeshData(m_RectMesh, UIElementFormat, vertexData.first, vertexData.second);
 
+    //auto testIndices = m_Renderer.MapMeshElements(m_RectMesh);
+    //
+    //m_Renderer.UnmapMeshElements(m_RectMesh);
     m_Renderer.SetActiveFBufferTexture(fBuffer, "Texture");
 
     m_Renderer.SetActiveShader(m_UIShader);

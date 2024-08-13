@@ -184,7 +184,7 @@ public:
 
     CursorState(EditorState* InEditorState, Scene* InEditorScene);
 
-    void Update(float DeltaTime);
+    void Update(double DeltaTime);
 
     void ResetAllState();
     void UnselectAll();
@@ -219,7 +219,7 @@ private:
     void UpdateTransformTool();
     void UpdateGeometryTool();
     void UpdateVertexTool();
-    void UpdateSculptTool(float DeltaTime);
+    void UpdateSculptTool(double DeltaTime);
     void UpdateBrushTool();
 
     void UpdateModelSelectTool();

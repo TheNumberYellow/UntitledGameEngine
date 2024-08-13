@@ -1,11 +1,11 @@
 #include "EditorState.h"
 
-#include "States/GameState.h"
+#include "States/Game/GameState.h"
 
 #include <filesystem>
 #include <ctime>
 
-
+static std::filesystem::path CurrentResourceDirectoryPath;
 
 void EditorState::OnInitialized()
 {
@@ -78,7 +78,7 @@ void EditorState::OnExit()
 {
 }
 
-void EditorState::Update(float DeltaTime)
+void EditorState::Update(double DeltaTime)
 {
 #if 0
     UIModule* UI = UIModule::Get();
@@ -130,7 +130,7 @@ void EditorState::OnResize()
     input->SetMouseCenter(ViewportRect.Center());
 }
 
-void EditorState::UpdateEditor(float DeltaTime)
+void EditorState::UpdateEditor(double DeltaTime)
 {
     GraphicsModule* Graphics = GraphicsModule::Get();
     CollisionModule* Collisions = CollisionModule::Get();
@@ -252,7 +252,7 @@ void EditorState::UpdateEditor(float DeltaTime)
 
 }
 
-void EditorState::UpdateGame(float DeltaTime)
+void EditorState::UpdateGame(double DeltaTime)
 {
 }
 
@@ -564,7 +564,7 @@ void EditorState::MoveCamera(Camera* Camera, float PixelToRadians, double DeltaT
     Camera->RotateCamBasedOnDeltaMouse(Input->GetMouseState().GetDeltaMousePos(), PixelToRadians);
 }
 
-void EditorState::DrawLevelEditor(GraphicsModule* Graphics, UIModule* UI, float DeltaTime)
+void EditorState::DrawLevelEditor(GraphicsModule* Graphics, UIModule* UI, double DeltaTime)
 {
     Vec2i ViewportSize = Engine::GetClientAreaSize();
 
@@ -619,7 +619,8 @@ void EditorState::DrawLevelEditor(GraphicsModule* Graphics, UIModule* UI, float 
     }
 
     EditorScene.EditorDraw(*Graphics, ViewportBuffer, &ViewportCamera);
-    
+    //EditorScene.Update(DeltaTime);
+
     Graphics->SetActiveFrameBuffer(WidgetBuffer);
     {
         Graphics->SetCamera(&ViewportCamera);
@@ -816,6 +817,28 @@ void EditorState::DrawTopPanel()
             {
                 EditorScene.Save(FileName);
             }
+        }
+
+        NetworkModule* Network = NetworkModule::Get();
+        
+        static std::string ipString = "";
+
+        UI->TextEntry("IP", ipString, Vec2f(240.0f, 40.0f));
+
+        if (UI->TextButton("Host", Vec2f(80.0f, 40.0f), 8.0f))
+        {
+            Network->StartServer();
+        }
+
+        if (UI->TextButton("Connect", Vec2f(80.0f, 40.0f), 8.0f))
+        {
+            Network->StartClient(ipString);
+        }
+
+        if (UI->TextButton("Ping", Vec2f(80.0f, 40.0f), 8.0f))
+        {
+            Network->ClientPing();
+            Network->ServerPing();
         }
     }
     UI->EndFrame();

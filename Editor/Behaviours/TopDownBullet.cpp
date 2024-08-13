@@ -2,7 +2,7 @@
 
 REGISTER_BEHAVIOUR(TopDownBullet);
 
-void TopDownBullet::Update(Scene* Scene, float DeltaTime)
+void TopDownBullet::Update(Scene* Scene, double DeltaTime)
 {
     if (!Initialized)
     {
@@ -24,6 +24,7 @@ void TopDownBullet::Update(Scene* Scene, float DeltaTime)
     {
         Scene->DeletePointLight(Light);
         Scene->DeleteModel(m_Model);
+        return;
     }
 
     std::vector<Model*> Ghosts = Scene->GetModelsByTag("Ghost");
@@ -32,8 +33,10 @@ void TopDownBullet::Update(Scene* Scene, float DeltaTime)
 
     //Engine::DEBUGPrint(DebugOutput);
 
-    for (auto& G : Ghosts)
+    for (int i = Ghosts.size() - 1; i >= 0; i--)
+    //for (auto& G : Ghosts)
     {
+        auto& G = Ghosts[i];
         Vec3f GhostPos = G->GetTransform().GetPosition();
         Vec3f MyPos = m_Model->GetTransform().GetPosition();
 

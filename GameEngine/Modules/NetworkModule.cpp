@@ -17,9 +17,9 @@ void NetworkModule::StartServer()
     m_NetworkInterface.StartServer();
 }
 
-void NetworkModule::StartClient(std::string ip)
+bool NetworkModule::StartClient(std::string ip)
 {
-    m_NetworkInterface.StartClient(ip);
+    return m_NetworkInterface.StartClient(ip);
 }
 
 void NetworkModule::ServerPing()
@@ -32,9 +32,14 @@ void NetworkModule::ClientPing()
     m_NetworkInterface.ClientPing();
 }
 
-void NetworkModule::ServerSendData(std::string data)
+void NetworkModule::ServerSendData(std::string data, ClientID id)
 {
-    m_NetworkInterface.ServerSendData(data);
+    m_NetworkInterface.ServerSendData(data, id);
+}
+
+void NetworkModule::ServerSendDataAll(std::string data)
+{
+    m_NetworkInterface.ServerSendDataAll(data);
 }
 
 void NetworkModule::ClientSendData(std::string data)
@@ -42,7 +47,7 @@ void NetworkModule::ClientSendData(std::string data)
     m_NetworkInterface.ClientSendData(data);
 }
 
-bool NetworkModule::ServerPollData(Packet& packet)
+bool NetworkModule::ServerPollData(ClientPacket& packet)
 {
     return m_NetworkInterface.ServerPollData(packet);
 }

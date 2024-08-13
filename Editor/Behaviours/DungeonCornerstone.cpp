@@ -38,7 +38,7 @@ void DungeonCornerstone::Initialize(Scene* Scene)
     //NewBlockPos.x += 4.0f;
 }
 
-void DungeonCornerstone::Update(Scene* Scene, float DeltaTime)
+void DungeonCornerstone::Update(Scene* Scene, double DeltaTime)
 {
     //GraphicsModule* Graphics = GraphicsModule::Get();
 

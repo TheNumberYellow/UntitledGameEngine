@@ -12,7 +12,7 @@ public:
     SphereController();
 
     void Initialize(Scene* Scene) override;
-    void Update(Scene* Scene, float DeltaTime) override;
+    void Update(Scene* Scene, double DeltaTime) override;
 
 
 private:

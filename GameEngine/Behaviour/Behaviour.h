@@ -20,7 +20,7 @@ public:
     virtual Behaviour* Clone() const = 0;
 
     virtual void Initialize(Scene* Scene) {}
-    virtual void Update(Scene* Scene, float DeltaTime) {}
+    virtual void Update(Scene* Scene, double DeltaTime) {}
 
     std::string BehaviourName;
     Model* m_Model = nullptr;
@@ -40,7 +40,7 @@ public:
     Behaviour* AttachNewBehaviour(std::string BehaviourName, Model* Model);
 
     void InitializeModelBehaviours(Model* Model, Scene* Scene);
-    void UpdateModelBehaviours(Model* Model, Scene* Scene, float DeltaTime);
+    void UpdateModelBehaviours(Model* Model, Scene* Scene, double DeltaTime);
     
     Behaviour* GetBehaviourAttachedToEntity(Model* Model);
     std::vector<std::string> GetBehavioursAttachedToEntity(Model* Model);

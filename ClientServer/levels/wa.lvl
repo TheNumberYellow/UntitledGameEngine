@@ -1,0 +1,6 @@
+Textures:
+textures/PlayerSpawn.png textures/default_norm.png
+StaticMeshes:
+models/PlayerSpawn.obj
+Entities:
+0 0 1 0 0 0 0 1 0 0 0 0 1 0 -0.985705 0.525821 -2.38682 1 

@@ -7,7 +7,7 @@ public:
     DEFINE_BEHAVIOUR(DungeonCornerstone);
 
     virtual void Initialize(Scene* Scene) override;
-    virtual void Update(Scene* Scene, float DeltaTime) override;
+    virtual void Update(Scene* Scene, double DeltaTime) override;
 
 private:
 
