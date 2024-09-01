@@ -4,6 +4,11 @@
 
 void ClientGameState::OnInitialized()
 {
+    GraphicsModule* graphics = GraphicsModule::Get();
+
+    ViewportBuffer = graphics->CreateGBuffer(Vec2i(800, 600));
+    graphics->InitializeDebugDraw(ViewportBuffer.FinalOutput);
+
 }
 
 void ClientGameState::OnUninitialized()
@@ -22,6 +27,7 @@ void ClientGameState::Update(double DeltaTime)
 {
     UIModule* ui = UIModule::Get();
     NetworkModule* network = NetworkModule::Get();
+    GraphicsModule* graphics = GraphicsModule::Get();
 
     if (!Connected)
     {
@@ -73,6 +79,15 @@ void ClientGameState::Update(double DeltaTime)
         }
 
     }
+
+    if (InScene)
+    {
+        CurrentScene.Update(DeltaTime);
+        CurrentScene.Draw(*graphics, ViewportBuffer);
+        graphics->ResetFrameBuffer();
+    }
+
+    ui->BufferPanel(ViewportBuffer.FinalOutput, Rect(Vec2f(1000.0f, 0.0f), Vec2f(800.0f, 600.0f)));
 }
 
 void ClientGameState::OnResize()
@@ -89,7 +104,15 @@ void ClientGameState::ProcessPacketData(const std::string& data)
 
         if (typeStr == "LvlChange")
         {
-            Engine::Alert("Changing level to " + PacketData["Lvl"].get<std::string>());
+            CurrentScene.Load(PacketData["Lvl"].get<std::string>());
+            CurrentScene.Initialize();
+            ViewportCamera = CurrentScene.GetCamera();
+
+            ViewportCamera->SetScreenSize(Vec2f(800.0f, 600.0f));
+
+            CurrentScene.SetDirectionalLight(DirectionalLight{ Math::normalize(Vec3f(0.5f, 1.0f, -1.0f)), Vec3f(1.0f, 1.0f, 1.0f) });
+
+            InScene = true;
         }
     }
     // Temp to support unstructured packets

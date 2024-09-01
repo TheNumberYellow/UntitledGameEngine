@@ -378,13 +378,15 @@ Model* Scene::MenuListEntities(UIModule& ui, Font& font)
 
 void Scene::Save(std::string FileName)
 {
-    std::ofstream File(FileName);
+    std::ofstream File(FileName, std::ofstream::out | std::ofstream::trunc);
 
     if (!File.is_open())
     {
         Engine::DEBUGPrint("Failed to save scene :(");
         return;
     }
+
+
 
     // Set of all textures used in the scene
     std::set<Material> Materials;
@@ -502,8 +504,10 @@ void Scene::Save(std::string FileName)
     SceneJson["Brushes"] = BrushList;
 
     // Uncomment to beautify json - makes it easier to debug but makes files much larger
-    //File << std::setw(4) << SceneJson;
-    File << SceneJson;
+    File << std::setw(4) << SceneJson;
+
+    // Uncomment to normalness
+    //File << SceneJson;
 
     File.close();
 }
@@ -560,15 +564,11 @@ void Scene::Load(std::string FileName)
         Model* AddedModel;
         if (ModelJson.contains("Buffer"))
         {
-            AddedModel = AddModel(new Model(LoadRawModel(ModelJson, MaterialVec)));
+            AddedModel = AddModel(LoadRawModel(ModelJson, MaterialVec));
         }
         else
         {
-            AddedModel = AddModel(new Model(LoadModel(ModelJson, MaterialVec, StaticMeshVec)));
-        }
-        for (std::string Behaviour : ModelJson["Behaviours"])
-        {
-            BehaviourRegistry::Get()->AttachNewBehaviour(Behaviour, AddedModel);
+            AddedModel = AddModel(LoadModel(ModelJson, MaterialVec, StaticMeshVec));
         }
     }
     
@@ -577,7 +577,7 @@ void Scene::Load(std::string FileName)
         // TODO: Brushes can't have behaviours (for now anyway)
 
         Brush* AddedBrush;
-        AddedBrush = AddBrush(new Brush(LoadBrush(BrushJson, MaterialVec)));
+        AddedBrush = AddBrush(LoadBrush(BrushJson, MaterialVec));
     }
 
 }
@@ -1112,7 +1112,7 @@ PointLight Scene::LoadPointLight(json& JsonObject)
     return PLight;
 }
 
-Model Scene::LoadModel(json& JsonObject, std::vector<Material>& MaterialVector, std::vector<StaticMesh>& StaticMeshVector)
+Model* Scene::LoadModel(json& JsonObject, std::vector<Material>& MaterialVector, std::vector<StaticMesh>& StaticMeshVector)
 {
     Material ModelMat = MaterialVector[JsonObject["MatID"]];
     StaticMesh ModelMesh = StaticMeshVector[JsonObject["MeshID"]];
@@ -1125,23 +1125,23 @@ Model Scene::LoadModel(json& JsonObject, std::vector<Material>& MaterialVector, 
     TransMat[2] = { Trans[8], Trans[9], Trans[10], Trans[11] };
     TransMat[3] = { Trans[12], Trans[13], Trans[14], Trans[15] };
 
-    Model NewModel = Model(TexturedMesh(ModelMesh, ModelMat));
-    NewModel.GetTransform().SetTransformMatrix(TransMat);
+    Model* NewModel = new Model(TexturedMesh(ModelMesh, ModelMat));
+    NewModel->GetTransform().SetTransformMatrix(TransMat);
 
     for (std::string Behaviour : JsonObject["Behaviours"])
     {
-        BehaviourRegistry::Get()->AttachNewBehaviour(Behaviour, &NewModel);
+        BehaviourRegistry::Get()->AttachNewBehaviour(Behaviour, NewModel);
     }
 
     if (JsonObject.contains("Type"))
     {
-        NewModel.Type = JsonObject["Type"];
+        NewModel->Type = JsonObject["Type"];
     }
 
     return NewModel;
 }
 
-Model Scene::LoadRawModel(json& JsonObject, std::vector<Material>& MaterialVector)
+Model* Scene::LoadRawModel(json& JsonObject, std::vector<Material>& MaterialVector)
 {
     Material ModelMat = MaterialVector[JsonObject["MatID"]];
     std::vector<float> MeshBuffer = JsonObject["Buffer"][0];
@@ -1157,24 +1157,24 @@ Model Scene::LoadRawModel(json& JsonObject, std::vector<Material>& MaterialVecto
 
     GraphicsModule* Graphics = GraphicsModule::Get();
 
-    Model NewModel = Graphics->LoadModel(MeshBuffer, IndexBuffer, ModelMat);
+    Model* NewModel = new Model(Graphics->LoadModel(MeshBuffer, IndexBuffer, ModelMat));
 
-    NewModel.GetTransform().SetTransformMatrix(TransMat);
+    NewModel->GetTransform().SetTransformMatrix(TransMat);
 
     for (std::string Behaviour : JsonObject["Behaviours"])
     {
-        BehaviourRegistry::Get()->AttachNewBehaviour(Behaviour, &NewModel);
+        BehaviourRegistry::Get()->AttachNewBehaviour(Behaviour, NewModel);
     }
 
     if (JsonObject.contains("Type"))
     {
-        NewModel.Type = JsonObject["Type"];
+        NewModel->Type = JsonObject["Type"];
     }
 
     return NewModel;
 }
 
-Brush Scene::LoadBrush(json& JsonObject, std::vector<Material>& MaterialVector)
+Brush* Scene::LoadBrush(json& JsonObject, std::vector<Material>& MaterialVector)
 {
     std::vector<float> ReadVerts = JsonObject["Verts"];
 
@@ -1191,9 +1191,9 @@ Brush Scene::LoadBrush(json& JsonObject, std::vector<Material>& MaterialVector)
 
     GraphicsModule* Graphics = GraphicsModule::Get();
     
-    Brush NewBrush = Brush(Vertices, ReadFaces);
+    Brush* NewBrush = new Brush(Vertices, ReadFaces);
 
-    Graphics->UpdateBrushModel(&NewBrush);
+    Graphics->UpdateBrushModel(NewBrush);
 
     return NewBrush;
 }

@@ -211,7 +211,7 @@ void UIModule::BufferPanel(Framebuffer_ID fBuffer, Rect rect)
     if (!IsActive())
         return;
 
-    rect.location += GetFrame().location;
+    //rect.location += GetFrame().location;
     
     if (!ShouldDraw(rect))
     {
@@ -238,6 +238,16 @@ void UIModule::BufferPanel(Framebuffer_ID fBuffer, Rect rect)
     m_Renderer.DrawMesh(m_RectMesh);
 
     m_Renderer.EnableDepthTesting();
+}
+
+void UIModule::BufferPanel(Framebuffer_ID fBuffer, Vec2f size)
+{
+    if (!IsActive())
+        return;
+
+    Rect BufferRect = PlaceElement(size);
+
+    BufferPanel(fBuffer, BufferRect);
 }
 
 Click UIModule::TextButton(std::string text, Vec2f size, float borderWidth, Vec3f colour, Vec3f textColour)

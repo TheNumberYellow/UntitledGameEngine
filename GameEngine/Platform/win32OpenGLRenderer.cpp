@@ -827,7 +827,7 @@ namespace
             useElementArray = false;
 
             // TODO: option for dynamic vs static draw (profile difference too)
-            glBufferData(GL_ARRAY_BUFFER, bufferSize, vertexData.data(), GL_STATIC_DRAW);
+            glBufferData(GL_ARRAY_BUFFER, bufferSize, vertexData.data(), GL_DYNAMIC_DRAW);
 
             vertBufFormat.EnableVertexAttributes();
 
@@ -840,8 +840,6 @@ namespace
 
         OpenGLMesh(const VertexBufferFormat& vertBufFormat, std::vector<float> vertexData, std::vector<ElementIndex> indices)
         {
-            // TODO: Bunch of options for VAOs, VBOs, etc. Could use one VBO for all meshes using the same shader, 
-            // could use same VAO with multiple VBOs with the functions in new opengl versions etc.
             glGenVertexArrays(1, &VAO);
             glBindVertexArray(VAO);
 
@@ -855,8 +853,8 @@ namespace
             useElementArray = true;
 
             // TODO: option for dynamic vs static draw (profile difference too)
-            glBufferData(GL_ARRAY_BUFFER, bufferSize, vertexData.data(), GL_STATIC_DRAW);
-            glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(ElementIndex), indices.data(), GL_STATIC_DRAW);
+            glNamedBufferData(VBO, bufferSize, vertexData.data(), GL_DYNAMIC_DRAW);
+            glNamedBufferData(EBO, indices.size() * sizeof(ElementIndex), indices.data(), GL_DYNAMIC_DRAW);
 
             vertBufFormat.EnableVertexAttributes();
 
@@ -866,6 +864,10 @@ namespace
 
             numElements = (int)indices.size();
             numVertices = (int)vertexData.size() / (vertBufFormat.GetVertexStride() / sizeof(float));
+
+            //Engine::DEBUGPrint("Created mesh with " + std::to_string(numElements) + " elements and " + std::to_string(numVertices) + " vertices.");
+            //Engine::DEBUGPrint("VBO: " + std::to_string(VBO) + ", EBO: " + std::to_string(EBO) + ", VAO: " + std::to_string(VAO));
+
         }
 
         OpenGLMesh(const VertexBufferFormat& vertBufFormat, bool useElementArray)
@@ -1265,6 +1267,7 @@ StaticMesh_ID Renderer::LoadMesh(const VertexBufferFormat& vertBufFormat, std::v
     StaticMesh_ID newID = GUIDGen::Generate();
 
     meshMap.insert(std::pair<StaticMesh_ID, OpenGLMesh>(newID, std::move(newMesh)));
+        
     return newID;
 }
 
@@ -1750,6 +1753,8 @@ std::vector<Vertex*> Renderer::MapMeshVertices(StaticMesh_ID meshID)
     {
         vertices.push_back(&vertexBuffer[i]);
     }
+
+    glFinish();
     return vertices;
 }
 
@@ -1757,6 +1762,7 @@ void Renderer::UnmapMeshVertices(StaticMesh_ID meshID)
 {
     OpenGLMesh mesh = *GetGLMeshFromMeshID(meshID);
     glUnmapNamedBuffer(mesh.VBO);
+    glFinish();
 }
 
 std::vector<unsigned int*> Renderer::MapMeshElements(StaticMesh_ID meshID)
@@ -1771,11 +1777,21 @@ std::vector<unsigned int*> Renderer::MapMeshElements(StaticMesh_ID meshID)
     size /= sizeof(ElementIndex);
 
     unsigned int* elementBuffer = (unsigned int*)glMapBufferRange(GL_ELEMENT_ARRAY_BUFFER, 0, size, GL_MAP_READ_BIT);
+    //unsigned int* elementBuffer = (unsigned int*)glMapNamedBufferRange(mesh.EBO, 0, mesh.numElements, GL_MAP_READ_BIT);
+    GLenum error = glGetError();
+
+    if (error != GL_NO_ERROR)
+    {
+        Engine::DEBUGPrint(std::to_string(error));
+    }
+
     std::vector<unsigned int*> elements;
     for (int i = 0; i < size; ++i)
     {
         elements.push_back(&elementBuffer[i]);
     }
+
+    glFinish();
     return elements;
 }
 
@@ -1783,6 +1799,7 @@ void Renderer::UnmapMeshElements(StaticMesh_ID meshID)
 {
     OpenGLMesh mesh = *GetGLMeshFromMeshID(meshID);
     glUnmapNamedBuffer(mesh.EBO);
+    glFinish();
 }
 
 void Renderer::ClearScreenAndDepthBuffer()

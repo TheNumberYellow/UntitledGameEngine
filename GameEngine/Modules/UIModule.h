@@ -91,7 +91,9 @@ public:
 
     void ImgPanel(Texture texture, Rect rect);
     void ImgPanel(Texture_ID texture, Rect rect);
+
     void BufferPanel(Framebuffer_ID fBuffer, Rect rect);
+    void BufferPanel(Framebuffer_ID fBuffer, Vec2f size);
 
     Click TextButton(std::string text, Vec2f size, float borderWidth, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f), Vec3f textColour = Vec3f(0.0f, 0.0f, 0.0f));
     Click ImgButton(std::string name, Texture texture, Vec2f size, float borderWidth, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));

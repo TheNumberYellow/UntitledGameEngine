@@ -25,9 +25,11 @@ private:
 
     void ProcessPacketData(const std::string& data);
 
+    bool InScene = false;
+
     Scene CurrentScene;
     GBuffer ViewportBuffer;
-
+    Camera* ViewportCamera;
 
     std::string NameEntry = "";
     std::string IPEntry = "";

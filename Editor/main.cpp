@@ -2596,7 +2596,11 @@ void Resize(Vec2i newSize)
 StateMachine Machine;
 
 // CHANGE THIS TO SET INITIAL LEVEL
-const std::string InitialLevelName = "levels\\Bouncy.lvl";
+//const std::string InitialLevelName = "levels\\BullTest.lvl";
+//const std::string InitialLevelName = "levels\\Bouncy.lvl";
+//const std::string InitialLevelName = "levels\\PhysWorld1Ball.lvl";
+const std::string InitialLevelName = "levels\\PhysWorld.lvl";
+//const std::string InitialLevelName = "levels\\2BallsPlat.lvl";
 const std::string TitleBarText = "Bounce";
 
 void Initialize(ArgsList args)
@@ -2610,6 +2614,11 @@ void Initialize(ArgsList args)
     
     Graphics->SetRenderMode(RenderMode::DEFAULT);
    
+    AssetRegistry* Registry = AssetRegistry::Get();
+
+    Registry->LoadStaticMesh("models/ArrowSmooth.obj"),
+    Registry->LoadStaticMesh("models/RotationHoop.obj");
+
     //GameScene->SetDirectionalLight(DirectionalLight{ Math::normalize(Vec3f(0.5f, 1.0f, -1.0f)), Vec3f(1.0f, 1.0f, 1.0f) });
     
     GState->LoadScene(InitialLevelName);

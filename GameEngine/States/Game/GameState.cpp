@@ -13,6 +13,8 @@ void GameState::OnInitialized()
     Input->SetMouseCenter(ViewportRect.Center());
 
     TestFont = TextModule::Get()->LoadFont("fonts/ARLRDBD.TTF", 30);
+
+    RuntimeScene.Initialize();
 }
 
 void GameState::OnUninitialized()
@@ -44,6 +46,7 @@ void GameState::Update(double DeltaTime)
     Graphics->ResetFrameBuffer();
 
     UI->BufferPanel(ViewportBuffer.FinalOutput, GetViewportRect());
+    //UI->BufferButton("Wee", ViewportBuffer.FinalOutput, Vec2f(500.0f, 500.0f), 12.0f);
 
     TextModule::Get()->DrawText("Frame Time: " + std::to_string(DeltaTime), &TestFont, Vec2f(0.0f, 0.0f));
 
@@ -80,7 +83,7 @@ void GameState::OnResize()
 void GameState::LoadScene(Scene& InScene)
 {
     RuntimeScene = Scene(InScene);
-    RuntimeScene.Initialize();
+    //RuntimeScene.Initialize();
 
     ViewportCamera = RuntimeScene.GetCamera();
     ViewportCamera->SetScreenSize(GetViewportRect().size);
@@ -89,7 +92,7 @@ void GameState::LoadScene(Scene& InScene)
 void GameState::LoadScene(FilePath path)
 {
     RuntimeScene.Load(path.GetFullPath());
-    RuntimeScene.Initialize();
+    //RuntimeScene.Initialize();
 
     ViewportCamera = RuntimeScene.GetCamera();
     ViewportCamera->SetScreenSize(GetViewportRect().size);

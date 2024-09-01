@@ -792,6 +792,7 @@ void EditorState::DrawTopPanel()
             Cursor.ResetAllState();
             GameState* NewGameState = new GameState();
             NewGameState->LoadScene(EditorScene);
+            //NewGameState->LoadScene();
 
             Machine->PushState(NewGameState);
         }

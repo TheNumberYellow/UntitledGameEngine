@@ -136,9 +136,9 @@ private:
     Material LoadMaterial(json& JsonObject);
     StaticMesh LoadStaticMesh(json& JsonObject);
     PointLight LoadPointLight(json& JsonObject);
-    Model LoadModel(json& JsonObject, std::vector<Material>& MaterialVector, std::vector<StaticMesh>& StaticMeshVector);
-    Model LoadRawModel(json& JsonObject, std::vector<Material>& MaterialVector);
-    Brush LoadBrush(json& JsonObject, std::vector<Material>& MaterialVector);
+    Model* LoadModel(json& JsonObject, std::vector<Material>& MaterialVector, std::vector<StaticMesh>& StaticMeshVector);
+    Model* LoadRawModel(json& JsonObject, std::vector<Material>& MaterialVector);
+    Brush* LoadBrush(json& JsonObject, std::vector<Material>& MaterialVector);
 
     // Editor specific rendering stuff
     static Texture* LightBillboardTexture;

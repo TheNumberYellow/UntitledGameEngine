@@ -1672,6 +1672,13 @@ StaticMesh GraphicsModule::LoadMesh(std::string filePath)
     // todo(Fraser): Switch here on different file types? (If I ever want something that's not .obj)
     StaticMesh_ID Id = FileLoader::LoadOBJFile(filePath, m_Renderer);
 
+    //auto elements = m_Renderer.MapMeshElements(Id);
+    //auto vertices = m_Renderer.MapMeshVertices(Id);
+
+
+    //m_Renderer.UnmapMeshElements(Id);
+    //m_Renderer.UnmapMeshVertices(Id);
+
     StaticMesh Result;
     Result.Id = Id;
     Result.LoadedFromFile = true;

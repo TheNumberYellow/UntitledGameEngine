@@ -7,7 +7,7 @@ void ServerGameState::OnInitialized()
     NetworkModule* network = NetworkModule::Get();
     GraphicsModule* graphics = GraphicsModule::Get();
 
-    //network->StartServer();
+    network->StartServer();
 
     ViewportBuffer = graphics->CreateGBuffer(Vec2i(800, 600));
     graphics->InitializeDebugDraw(ViewportBuffer.FinalOutput);
@@ -33,20 +33,22 @@ void ServerGameState::Update(double DeltaTime)
     GraphicsModule* graphics = GraphicsModule::Get();
 
     ClientPacket packet;
-    //while (network->ServerPollData(packet))
-    //{
-    //    if (packet.packet.Data._Starts_with("Name:"))
-    //    {
-    //        ClientNames[packet.id] = packet.packet.Data.substr(5);
-    //    }
-    //    else
-    //    {
-    //        std::string NamedMessage = ClientNames[packet.id] + ": " + packet.packet.Data;
-    //        ReceivedMessages.push_back(NamedMessage);
-    //        network->ServerSendDataAll(NamedMessage);
-    //    }
-    //}
+    while (network->ServerPollData(packet))
+    {
+        if (packet.packet.Data._Starts_with("Name:"))
+        {
+            ClientNames[packet.id] = packet.packet.Data.substr(5);
+        }
+        else
+        {
+            std::string NamedMessage = ClientNames[packet.id] + ": " + packet.packet.Data;
+            ReceivedMessages.push_back(NamedMessage);
+            network->ServerSendDataAll(NamedMessage);
+        }
+    }
 
+    ui->BufferPanel(ViewportBuffer.FinalOutput, Vec2f(800.0f, 600.0f));
+    
     if (true)
     {
         ui->StartFrame("Levels", Vec2f(500.0f, 800.0f), 12.0f, MakeColour(125, 200, 255));
@@ -96,7 +98,6 @@ void ServerGameState::Update(double DeltaTime)
         graphics->ResetFrameBuffer();
     }
 
-    ui->BufferPanel(ViewportBuffer.FinalOutput, Rect(Vec2f(1000.0f, 0.0f), Vec2f(800.0f, 600.0f)));
 }
 
 void ServerGameState::OnResize()

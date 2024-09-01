@@ -10,6 +10,13 @@ void Initialize(ArgsList args)
 {
     Engine::DEBUGPrint(args);
 
+    // ??????????????
+    //AssetRegistry* Registry = AssetRegistry::Get();
+
+    //Registry->LoadStaticMesh("models/ArrowSmooth.obj"),
+    //Registry->LoadStaticMesh("models/RotationHoop.obj");
+
+
     if (args == "-server")
     {
         ServerGameState* ServerState = new ServerGameState();
