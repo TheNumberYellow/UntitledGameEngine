@@ -1,7 +1,0 @@
-Textures:
-textures/debugTexture0.png textures/debugTexture0.norm.png textures/default_roughness.png textures/default_metallic.png textures/default_ao.png
-StaticMeshes:
-Entities:
-0 B -1 -1.5 -0.5 1 1.5 0.5 1 0 0 0 0 1 0 0 0 0 1 0 9 -0.5 0.5 1 
-0 B -1 -2.5 -0.5 1 2.5 0.5 1 0 0 0 0 1 0 0 0 0 1 0 15 1.5 0.5 1 
-0 B 0 0 -0.5 0 0 0.5 1 0 0 0 0 1 0 0 0 0 1 0 16 0 1.5 1 

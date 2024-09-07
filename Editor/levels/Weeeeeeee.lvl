@@ -1,9 +1,0 @@
-Textures:
-textures/bamboo-wood-semigloss.png textures/bamboo-wood-semigloss.norm.png textures/bamboo-wood-semigloss.rough.png textures/bamboo-wood-semigloss.metal.png textures/bamboo-wood-semigloss.ao.png
-textures/DirtyGold.png textures/DirtyGold.norm.png textures/DirtyGold.rough.png textures/DirtyGold.metal.png textures/DirtyGold.ao.png
-textures/Ghost.png textures/default_norm.png textures/default_roughness.png textures/default_metallic.png textures/default_ao.png
-StaticMeshes:
-Entities:
-1 B -5.5 -4 -1 5.5 4 1 1 0 0 0 0 1 0 0 0 0 1 0 -6.5 2 1 1 
-2 B -3.5 -2.5 -1 3.5 2.5 1 1 0 0 0 0 1 0 0 0 0 1 0 -10.5 -0.5 3 1 
-0 B -5 -2 -1 5 2 1 1 0 0 0 0 1 0 0 0 0 1 0 1 -3 3 1 
