@@ -41,4 +41,6 @@ namespace Engine
 
     extern void CreateNewWindow();
 
+    extern void RunCommand(std::string Command);
+
 }

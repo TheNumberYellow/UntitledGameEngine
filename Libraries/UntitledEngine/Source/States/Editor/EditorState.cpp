@@ -14,6 +14,8 @@ void EditorState::OnInitialized()
     TextModule* Text = TextModule::Get();
     InputModule* Input = InputModule::Get();
 
+    Engine::SetWindowTitleText(CurrentLevelName);
+
     LoadEditorResources();
 
     // Load user resources
@@ -808,7 +810,18 @@ void EditorState::DrawTopPanel()
             std::string FileName;
             if (Engine::FileOpenDialog(FileName))
             {
+                std::filesystem::path LevelPath = FileName;
                 EditorScene.Load(FileName);
+            
+                std::filesystem::path CurrentDir = std::filesystem::current_path();
+
+                LevelPath = std::filesystem::relative(LevelPath, CurrentDir);
+
+                CurrentLevelName = LevelPath.string();
+
+                std::replace(CurrentLevelName.begin(), CurrentLevelName.end(), '\\', '/');
+
+                Engine::SetWindowTitleText(CurrentLevelName);
             }
         }
         if (UI->TextButton("Save", Vec2f(40.0f, 40.0f), 8.0f, c_TopButton, Vec3f(1.0f, 1.0f, 1.0f)))
@@ -818,6 +831,12 @@ void EditorState::DrawTopPanel()
             {
                 EditorScene.Save(FileName);
             }
+        }
+        if (UI->TextButton("Build", Vec2f(40.0f, 40.0f), 8.0f, c_TopButton, Vec3f(1.0f, 1.0f, 1.0f)))
+        {
+            std::string BuildCommand = "BuildGame.bat " + CurrentLevelName;
+        
+            Engine::RunCommand(BuildCommand);
         }
 
         NetworkModule* Network = NetworkModule::Get();

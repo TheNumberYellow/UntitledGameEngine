@@ -624,3 +624,27 @@ void Engine::CreateNewWindow()
 
     ShowWindow(NewWindowHandle, SW_SHOW);
 }
+
+void Engine::RunCommand(std::string Command)
+{
+    STARTUPINFOA si;
+    PROCESS_INFORMATION pi;
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+    ZeroMemory(&pi, sizeof(pi));
+
+    char* strCommand = new char[Command.size() + 1];
+    strncpy(strCommand, Command.c_str(), Command.size());
+    strCommand[Command.size()] = '\0';
+    // Start the child process. 
+    bool result = CreateProcessA(NULL, strCommand, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);
+    assert(result != false);
+    // Wait until child process exits.
+    WaitForSingleObject(pi.hProcess, INFINITE);
+    DWORD exitCode = 0;
+    GetExitCodeProcess(pi.hProcess, &exitCode);
+    // Close process and thread handles. 
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+
+}

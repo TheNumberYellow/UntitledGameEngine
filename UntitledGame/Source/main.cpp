@@ -2597,7 +2597,7 @@ StateMachine Machine;
 
 // CHANGE THIS TO SET INITIAL LEVEL
 //const std::string InitialLevelName = "levels\\BullTest.lvl";
-const std::string InitialLevelName = "Assets/levels/Bouncy.lvl";
+std::string InitialLevelName = "Assets/levels/Bouncy.lvl";
 //const std::string InitialLevelName = "Assets/levels/PhysWorld1Ball.lvl";
 //const std::string InitialLevelName = "Assets/levels/PhysWorld.lvl";
 //const std::string InitialLevelName = "levels\\2BallsPlat.lvl";
@@ -2605,6 +2605,11 @@ const std::string TitleBarText = "Bounce";
 
 void Initialize(ArgsList args)
 {
+    if (std::string(START_SCENE) != "")
+    {
+        InitialLevelName = START_SCENE;
+    }
+
     Engine::SetWindowTitleText(TitleBarText);
 
     GraphicsModule* Graphics = GraphicsModule::Get();
