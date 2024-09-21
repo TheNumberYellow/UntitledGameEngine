@@ -634,7 +634,7 @@ void Engine::RunCommand(std::string Command)
     ZeroMemory(&pi, sizeof(pi));
 
     char* strCommand = new char[Command.size() + 1];
-    strncpy(strCommand, Command.c_str(), Command.size());
+    strncpy_s(strCommand, Command.size() + 1, Command.c_str(), Command.size());
     strCommand[Command.size()] = '\0';
     // Start the child process. 
     bool result = CreateProcessA(NULL, strCommand, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);

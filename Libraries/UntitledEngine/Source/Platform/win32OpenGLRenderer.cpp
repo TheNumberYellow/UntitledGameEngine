@@ -1312,7 +1312,7 @@ void Renderer::DeleteMesh(StaticMesh_ID meshID)
 
     if (mesh)
     {
-        glDeleteBuffers(1, &mesh->VAO);
+        glDeleteVertexArrays(1, &mesh->VAO);
         glDeleteBuffers(1, &mesh->VBO);
         glDeleteBuffers(1, &mesh->EBO);
 
@@ -1776,14 +1776,7 @@ std::vector<unsigned int*> Renderer::MapMeshElements(StaticMesh_ID meshID)
 
     size /= sizeof(ElementIndex);
 
-    unsigned int* elementBuffer = (unsigned int*)glMapBufferRange(GL_ELEMENT_ARRAY_BUFFER, 0, size, GL_MAP_READ_BIT);
-    //unsigned int* elementBuffer = (unsigned int*)glMapNamedBufferRange(mesh.EBO, 0, mesh.numElements, GL_MAP_READ_BIT);
-    GLenum error = glGetError();
-
-    if (error != GL_NO_ERROR)
-    {
-        Engine::DEBUGPrint(std::to_string(error));
-    }
+    unsigned int* elementBuffer = (unsigned int*)glMapNamedBufferRange(mesh.EBO, 0, mesh.numElements, GL_MAP_READ_BIT);
 
     std::vector<unsigned int*> elements;
     for (int i = 0; i < size; ++i)
@@ -1791,15 +1784,16 @@ std::vector<unsigned int*> Renderer::MapMeshElements(StaticMesh_ID meshID)
         elements.push_back(&elementBuffer[i]);
     }
 
-    glFinish();
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
     return elements;
 }
 
 void Renderer::UnmapMeshElements(StaticMesh_ID meshID)
 {
     OpenGLMesh mesh = *GetGLMeshFromMeshID(meshID);
+
     glUnmapNamedBuffer(mesh.EBO);
-    glFinish();
 }
 
 void Renderer::ClearScreenAndDepthBuffer()

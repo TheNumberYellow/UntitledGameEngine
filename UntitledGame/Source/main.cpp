@@ -2597,7 +2597,7 @@ StateMachine Machine;
 
 // CHANGE THIS TO SET INITIAL LEVEL
 //const std::string InitialLevelName = "levels\\BullTest.lvl";
-std::string InitialLevelName = "Assets/levels/Bouncy.lvl";
+std::string InitialLevelName = "Assets/levels/Survival.lvl";
 //const std::string InitialLevelName = "Assets/levels/PhysWorld1Ball.lvl";
 //const std::string InitialLevelName = "Assets/levels/PhysWorld.lvl";
 //const std::string InitialLevelName = "levels\\2BallsPlat.lvl";
