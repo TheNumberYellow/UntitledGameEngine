@@ -3,6 +3,7 @@
 #include "States/Game/GameState.h"
 
 #include <filesystem>
+#include <future>
 #include <ctime>
 
 static std::filesystem::path CurrentResourceDirectoryPath;
@@ -439,6 +440,8 @@ std::vector<Material> EditorState::LoadMaterials(GraphicsModule& graphics)
 
     std::string path = "Assets/textures";
 
+    std::vector<std::future<void>> textureFutures;
+
     for (const auto& entry : std::filesystem::directory_iterator(path))
     {
         std::filesystem::path ext = entry.path().extension();
@@ -464,55 +467,10 @@ std::vector<Material> EditorState::LoadMaterials(GraphicsModule& graphics)
                 continue;
             }
 
-            Engine::DEBUGPrint(fileName);
 
-            Texture newTexture = *Registry->LoadTexture(fileName);
+            Material newMaterial = LoadMaterial(entry);
 
-            std::string NormalMapString = entry.path().parent_path().generic_string() + "/" + entry.path().stem().generic_string() + ".norm" + extensionString;
-            std::string RoughnessMapString = entry.path().parent_path().generic_string() + "/" + entry.path().stem().generic_string() + ".rough" + extensionString;
-            std::string MetallicMapString = entry.path().parent_path().generic_string() + "/" + entry.path().stem().generic_string() + ".metal" + extensionString;
-            std::string AOMapString = entry.path().parent_path().generic_string() + "/" + entry.path().stem().generic_string() + ".ao" + extensionString;
-
-            if (std::filesystem::exists(NormalMapString))
-            {
-                if (std::filesystem::exists(RoughnessMapString))
-                {
-                    if (std::filesystem::exists(MetallicMapString))
-                    {
-                        if (std::filesystem::exists(AOMapString))
-                        {
-                            Texture newNormal = *Registry->LoadTexture(NormalMapString);
-                            Texture newRoughness = *Registry->LoadTexture(RoughnessMapString);
-                            Texture newMetal = *Registry->LoadTexture(MetallicMapString);
-                            Texture newAO = *Registry->LoadTexture(AOMapString);
-                            LoadedMaterials.push_back(graphics.CreateMaterial(newTexture, newNormal, newRoughness, newMetal, newAO));
-                        }
-                        else
-                        {
-                            Texture newNormal = *Registry->LoadTexture(NormalMapString);
-                            Texture newRoughness = *Registry->LoadTexture(RoughnessMapString);
-                            Texture newMetal = *Registry->LoadTexture(MetallicMapString);
-                            LoadedMaterials.push_back(graphics.CreateMaterial(newTexture, newNormal, newRoughness, newMetal));
-                        }
-                    }
-                    else
-                    {
-                        Texture newNormal = *Registry->LoadTexture(NormalMapString);
-                        Texture newRoughness = *Registry->LoadTexture(RoughnessMapString);
-                        LoadedMaterials.push_back(graphics.CreateMaterial(newTexture, newNormal, newRoughness));
-                    }
-                }
-                else
-                {
-                    Texture newNormal = *Registry->LoadTexture(NormalMapString);
-                    LoadedMaterials.push_back(graphics.CreateMaterial(newTexture, newNormal));
-                }
-            }
-            else
-            {
-                LoadedMaterials.push_back(graphics.CreateMaterial(newTexture));
-            }
-
+            LoadedMaterials.push_back(newMaterial);
         }
     }
 
@@ -522,6 +480,68 @@ std::vector<Material> EditorState::LoadMaterials(GraphicsModule& graphics)
 
     return LoadedMaterials;
 
+}
+
+Material EditorState::LoadMaterial(std::filesystem::path materialPath)
+{
+    AssetRegistry* Registry = AssetRegistry::Get();
+    GraphicsModule* Graphics = GraphicsModule::Get();
+
+    Material newMaterial;
+
+    std::filesystem::path ext = materialPath.extension();
+    std::string extensionString = ext.string();
+
+    std::string NormalMapString = materialPath.parent_path().generic_string() + "/" + materialPath.stem().generic_string() + ".norm" + extensionString;
+    std::string RoughnessMapString = materialPath.parent_path().generic_string() + "/" + materialPath.stem().generic_string() + ".rough" + extensionString;
+    std::string MetallicMapString = materialPath.parent_path().generic_string() + "/" + materialPath.stem().generic_string() + ".metal" + extensionString;
+    std::string AOMapString = materialPath.parent_path().generic_string() + "/" + materialPath.stem().generic_string() + ".ao" + extensionString;
+
+    std::string fileName = materialPath.generic_string();
+
+    Texture newTexture = *Registry->LoadTexture(fileName);
+
+    if (std::filesystem::exists(NormalMapString))
+    {
+        if (std::filesystem::exists(RoughnessMapString))
+        {
+            if (std::filesystem::exists(MetallicMapString))
+            {
+                if (std::filesystem::exists(AOMapString))
+                {
+                    Texture newNormal = *Registry->LoadTexture(NormalMapString);
+                    Texture newRoughness = *Registry->LoadTexture(RoughnessMapString);
+                    Texture newMetal = *Registry->LoadTexture(MetallicMapString);
+                    Texture newAO = *Registry->LoadTexture(AOMapString);
+                    newMaterial = Graphics->CreateMaterial(newTexture, newNormal, newRoughness, newMetal, newAO);
+                }
+                else
+                {
+                    Texture newNormal = *Registry->LoadTexture(NormalMapString);
+                    Texture newRoughness = *Registry->LoadTexture(RoughnessMapString);
+                    Texture newMetal = *Registry->LoadTexture(MetallicMapString);
+                    newMaterial = Graphics->CreateMaterial(newTexture, newNormal, newRoughness, newMetal);
+                }
+            }
+            else
+            {
+                Texture newNormal = *Registry->LoadTexture(NormalMapString);
+                Texture newRoughness = *Registry->LoadTexture(RoughnessMapString);
+                newMaterial = Graphics->CreateMaterial(newTexture, newNormal, newRoughness);
+            }
+        }
+        else
+        {
+            Texture newNormal = *Registry->LoadTexture(NormalMapString);
+            newMaterial = Graphics->CreateMaterial(newTexture, newNormal);
+        }
+    }
+    else
+    {
+        newMaterial = Graphics->CreateMaterial(newTexture);
+    }
+
+    return newMaterial;
 }
 
 void EditorState::MoveCamera(Camera* Camera, float PixelToRadians, double DeltaTime)

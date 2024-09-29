@@ -44,7 +44,9 @@ private:
     void LoadEditorResources();
 
     std::vector<Model> LoadModels(GraphicsModule& graphics);
+
     std::vector<Material> LoadMaterials(GraphicsModule& graphics);
+    Material LoadMaterial(std::filesystem::path materialPath);
 
     void MoveCamera(Camera* Camera, float PixelToRadians, double DeltaTime);
 

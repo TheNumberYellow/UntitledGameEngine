@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 
 ### Configure UntitledEngine ###
-file( GLOB_RECURSE EngineSourceFiles 
+file( GLOB_RECURSE EngineSourceFiles CONGIGURE_DEPENDS
     Source/*.cpp
     Source/*.h
 )

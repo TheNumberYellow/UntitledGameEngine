@@ -72,8 +72,8 @@ public:
     // Any per-frame update that needs to be done while this object is selected
     virtual void Update() {};
 
-    // Fill the UI panel with object-specific data
-    virtual void DrawInspectorPanel() = 0;
+    // Fill the UI panel with object-specific data, returns true if data was changed
+    virtual bool DrawInspectorPanel() = 0;
 
     virtual Transform* GetTransform() = 0;
     virtual void DeleteObject() = 0;
@@ -92,7 +92,7 @@ public:
 
     virtual void Draw() override;
 
-    virtual void DrawInspectorPanel() override;
+    virtual bool DrawInspectorPanel() override;
 
     virtual Transform* GetTransform() override;
     virtual void DeleteObject() override;
@@ -114,7 +114,7 @@ public:
 
     virtual void Update() override;
 
-    virtual void DrawInspectorPanel() override;
+    virtual bool DrawInspectorPanel() override;
 
     virtual Transform* GetTransform() override;
 
@@ -139,7 +139,7 @@ public:
 
     virtual void Update() override;
 
-    virtual void DrawInspectorPanel() override;
+    virtual bool DrawInspectorPanel() override;
 
     virtual Transform* GetTransform() override;
     virtual void DeleteObject() override;
@@ -162,7 +162,7 @@ public:
 
     virtual void Update() override;
 
-    virtual void DrawInspectorPanel() override;
+    virtual bool DrawInspectorPanel() override;
 
     virtual Transform* GetTransform() override;
     virtual void DeleteObject() override;

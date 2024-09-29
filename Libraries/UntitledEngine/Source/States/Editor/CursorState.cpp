@@ -18,7 +18,7 @@ void SelectedModel::Draw()
     Graphics->DebugDrawAABB(Collision->GetCollisionMeshFromMesh(ModelPtr->m_TexturedMeshes[0].m_Mesh)->boundingBox, c_SelectedBoxColour, ModelPtr->GetTransform().GetTransformMatrix());
 }
 
-void SelectedModel::DrawInspectorPanel()
+bool SelectedModel::DrawInspectorPanel()
 {
     UIModule* UI = UIModule::Get();
 
@@ -37,8 +37,9 @@ void SelectedModel::DrawInspectorPanel()
     if (newX != oldX || newY != oldY || newZ != oldZ)
     {
         ModelPtr->GetTransform().SetPosition(Vec3f(newX, newY, newZ));
-        
+        return true;
     }
+    return false;
 }
 
 Transform* SelectedModel::GetTransform()
@@ -96,8 +97,9 @@ void SelectedVertex::Update()
     }
 }
 
-void SelectedVertex::DrawInspectorPanel()
+bool SelectedVertex::DrawInspectorPanel()
 {
+    return false;
 }
 
 Transform* SelectedVertex::GetTransform()
@@ -148,7 +150,7 @@ void SelectedLight::Update()
     PointLightPtr->position = Trans.GetPosition();
 }
 
-void SelectedLight::DrawInspectorPanel()
+bool SelectedLight::DrawInspectorPanel()
 {
     UIModule* UI = UIModule::Get();
 
@@ -167,6 +169,8 @@ void SelectedLight::DrawInspectorPanel()
     UI->TextEntry("Intensity", IntensityString, Vec2f(250.0f, 20.0f), c_InspectorColour);
 
     UI->FloatSlider("Intensity", Vec2f(400.0f, 20.0f), PointLightPtr->intensity, 0.0f, 10.0f);
+
+    return false;
 }
 
 Transform* SelectedLight::GetTransform()
@@ -205,8 +209,9 @@ void SelectedDirectionalLight::Update()
 {
 }
 
-void SelectedDirectionalLight::DrawInspectorPanel()
+bool SelectedDirectionalLight::DrawInspectorPanel()
 {
+    return false;
 }
 
 Transform* SelectedDirectionalLight::GetTransform()
@@ -1571,13 +1576,17 @@ void CursorState::DrawSelectedObjects()
 
 void CursorState::DrawSelectedInspectorPanels()
 {
+    bool selectedObjectStateChanged = false;
     for (auto& Object : SelectedObjects)
     {
-        Object.second->DrawInspectorPanel();
+        selectedObjectStateChanged |= Object.second->DrawInspectorPanel();
     }
 
     // The objects' transforms may have been changed by sliders in the inspector panel, so re-calculate proxy and offsets
-    RecalculateProxyAndObjectOffsets();
+    if (selectedObjectStateChanged)
+    {
+        RecalculateProxyAndObjectOffsets();
+    }
 }
 
 void CursorState::DeleteSelectedObjects()
