@@ -67,6 +67,11 @@ void EditorState::OnInitialized()
         Vec3f Colour = Vec3f(Math::RandomFloat(0.0f, 1.0f), Math::RandomFloat(0.0f, 1.0f), Math::RandomFloat(0.0f, 1.0f));
         RandomColours.push_back(Colour);
     }
+
+    he::HalfEdgeMesh* newHeMesh = new he::HalfEdgeMesh();
+    newHeMesh->MakeQuad();
+
+    EditorScene.AddHalfEdgeMesh(newHeMesh);
 }
 
 void EditorState::OnUninitialized()
@@ -592,53 +597,53 @@ void EditorState::DrawLevelEditor(GraphicsModule* Graphics, UIModule* UI, double
 
     auto BrushVec = EditorScene.GetBrushes();
 
-    for (Brush* B : BrushVec)
-    {
-        B->UpdatedThisFrame = false;
-        for (auto& Face : B->Faces)
-        {
-            Vec3f PlanePoint = Vec3f(0.0f, 0.0f, 0.0f);
+    //for (Brush* B : BrushVec)
+    //{
+    //    B->UpdatedThisFrame = false;
+    //    for (auto& Face : B->Faces)
+    //    {
+    //        Vec3f PlanePoint = Vec3f(0.0f, 0.0f, 0.0f);
 
-            for (int i = 0; i < Face.size(); i++)
-            {
-                PlanePoint += B->Vertices[Face[i]];
-            }
-            PlanePoint = PlanePoint / (float)Face.size();
+    //        for (int i = 0; i < Face.size(); i++)
+    //        {
+    //            PlanePoint += B->Vertices[Face[i]];
+    //        }
+    //        PlanePoint = PlanePoint / (float)Face.size();
 
-            for (int i = 0; i < Face.size() - 1; i++)
-            {
-                //Graphics->DebugDrawLine(*Face[i], *Face[i + 1]);
-            }
-            //Graphics->DebugDrawLine(*Face[Face.size() - 1], *Face[0]);
+    //        for (int i = 0; i < Face.size() - 1; i++)
+    //        {
+    //            //Graphics->DebugDrawLine(*Face[i], *Face[i + 1]);
+    //        }
+    //        //Graphics->DebugDrawLine(*Face[Face.size() - 1], *Face[0]);
 
-            Vec3f u = B->Vertices[Face[1]] - B->Vertices[Face[0]];
-            Vec3f v = B->Vertices[Face[2]] - B->Vertices[Face[0]];
+    //        Vec3f u = B->Vertices[Face[1]] - B->Vertices[Face[0]];
+    //        Vec3f v = B->Vertices[Face[2]] - B->Vertices[Face[0]];
 
-            Vec3f PlaneNorm = -Math::cross(u, v);
-            PlaneNorm = Math::normalize(PlaneNorm);
+    //        Vec3f PlaneNorm = -Math::cross(u, v);
+    //        PlaneNorm = Math::normalize(PlaneNorm);
 
-            Vec3f UpProjection = Math::ProjectVecOnPlane(Vec3f(0.0f, 0.0f, 1.0f), Plane(PlanePoint, PlaneNorm));
+    //        Vec3f UpProjection = Math::ProjectVecOnPlane(Vec3f(0.0f, 0.0f, 1.0f), Plane(PlanePoint, PlaneNorm));
 
-            if (UpProjection.IsNearlyZero())
-            {
-                if (PlaneNorm.z > 0.0f)
-                {
-                    UpProjection = u;
-                }
-                else
-                {
-                    UpProjection = -u;
-                }
-            }
+    //        if (UpProjection.IsNearlyZero())
+    //        {
+    //            if (PlaneNorm.z > 0.0f)
+    //            {
+    //                UpProjection = u;
+    //            }
+    //            else
+    //            {
+    //                UpProjection = -u;
+    //            }
+    //        }
 
-            UpProjection = Math::normalize(UpProjection);
+    //        UpProjection = Math::normalize(UpProjection);
 
-            //Graphics->DebugDrawLine(PlanePoint, PlanePoint + UpProjection, c_VegasGold);
+    //        //Graphics->DebugDrawLine(PlanePoint, PlanePoint + UpProjection, c_VegasGold);
 
-            //Graphics->DebugDrawLine(PlanePoint, PlanePoint + PlaneNorm, c_LightGoldenRodYellow);
-        }
+    //        //Graphics->DebugDrawLine(PlanePoint, PlanePoint + PlaneNorm, c_LightGoldenRodYellow);
+    //    }
 
-    }
+    //}
 
     EditorScene.EditorDraw(*Graphics, ViewportBuffer, &ViewportCamera);
     //EditorScene.Update(DeltaTime);

@@ -64,6 +64,7 @@ struct Vec3f
     };
 
     Vec3f(float x, float y, float z) : x(x), y(y), z(z) {}
+    Vec3f(float xyz) : x(xyz), y(xyz), z(xyz) {}
     Vec3f() : x(0.0f), y(0.0f), z(0.0f) {}
 
     float& operator[] (int index);
@@ -78,6 +79,10 @@ struct Vec3f
 
     bool IsZero();
     bool IsNearlyZero();
+
+    float LenSquared();
+    float Magnitude();
+    Vec3f GetNormalized();
 
     Vec3f operator+(Vec3f rhs);
     Vec3f& operator+=(const Vec3f& rhs);

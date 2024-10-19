@@ -148,6 +148,29 @@ bool Vec3f::IsNearlyZero()
     return abs(x) < 0.0001f && abs(y) < 0.0001f && abs(z) < 0.0001f;
 }
 
+float Vec3f::LenSquared()
+{
+    return x * x + y * y + z * z;
+}
+
+float Vec3f::Magnitude()
+{
+    return sqrt(LenSquared());
+}
+
+Vec3f Vec3f::GetNormalized()
+{
+    float mag = Magnitude();
+
+    //if (mag == 0.0f)
+    //{
+    //    return Vec3f(0.0f, 0.0f, 0.0f);
+    //}
+
+    float mag_inv = 1.0f / mag;
+    return *this * mag_inv;
+}
+
 Vec3f Vec3f::operator+(Vec3f rhs)
 {
     return Vec3f(this->x + rhs.x, this->y + rhs.y, this->z + rhs.z);

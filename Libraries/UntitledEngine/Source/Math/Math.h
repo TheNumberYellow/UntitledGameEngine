@@ -50,7 +50,7 @@ public:
     }
 
     template<typename T>
-    static T Lerp(T a, T b, T t)
+    static T Lerp(T a, T b, float t)
     {
         return (1.0f - t) * a + b * t;
     }

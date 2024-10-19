@@ -2468,21 +2468,35 @@ void GraphicsModule::DebugDrawSphere(Vec3f p, float radius /*= 1.0f*/, Vec3f col
     //DebugDrawPoint(Back, colour);
     //DebugDrawPoint(Front, colour);
 
-    //DebugDrawLine(Top, Left, colour);
-    //DebugDrawLine(Top, Right, colour);
-    //DebugDrawLine(Top, Back, colour);
-    //DebugDrawLine(Top, Front, colour);
+    DebugDrawLine(Top, Left, colour);
+    DebugDrawLine(Top, Right, colour);
+    DebugDrawLine(Top, Back, colour);
+    DebugDrawLine(Top, Front, colour);
 
-    //DebugDrawLine(Bot, Left, colour);
-    //DebugDrawLine(Bot, Right, colour);
-    //DebugDrawLine(Bot, Back, colour);
-    //DebugDrawLine(Bot, Front, colour);
+    DebugDrawLine(Bot, Left, colour);
+    DebugDrawLine(Bot, Right, colour);
+    DebugDrawLine(Bot, Back, colour);
+    DebugDrawLine(Bot, Front, colour);
 
-    //DebugDrawLine(Back, Left, colour);
-    //DebugDrawLine(Left, Front, colour);
-    //DebugDrawLine(Front, Right, colour);
-    //DebugDrawLine(Right, Back, colour);
+    DebugDrawLine(Back, Left, colour);
+    DebugDrawLine(Left, Front, colour);
+    DebugDrawLine(Front, Right, colour);
+    DebugDrawLine(Right, Back, colour);
 
+}
+
+void GraphicsModule::DebugDrawArrow(Vec3f a, Vec3f b, Vec3f colour)
+{
+    DebugDrawLine(a, b, colour);
+
+    Vec3f dir = Math::normalize(a - b);
+
+    Vec3f head = Math::Lerp(b, a, 0.1f);
+
+    DebugDrawLine(b, Math::rotate(head, 0.08f, Math::cross(dir, Vec3f(0.0f, 0.0f, 1.0f))), colour);
+    DebugDrawLine(b, Math::rotate(head, -0.08f, Math::cross(dir, Vec3f(0.0f, 0.0f, 1.0f))), colour);
+
+    // TODO: not correct, come back to this
 }
 
 Vec2i GraphicsModule::GetViewportSize()
@@ -2560,4 +2574,3 @@ Texture_ID GraphicsModule::GetLightTexture()
 {
     return m_LightTexture;
 }
-

@@ -1,9 +1,14 @@
 #pragma once
 
 #include "Scene.h"
+#include "Interfaces/EditorClickable_i.h"
 
 class EditorState;
-
+class Brush;
+class DirectionalLight;
+class Model;
+class PointLight;
+class Material;
 
 //--------------------
 // Enums
@@ -62,53 +67,10 @@ struct OffsetInfo
     Quaternion RotationDiff;
 };
 
-class ISelectedObject
-{
-public:
-
-    // Any editor specific drawing that needs to be done for this selected object
-    virtual void Draw() {};
-
-    // Any per-frame update that needs to be done while this object is selected
-    virtual void Update() {};
-
-    // Fill the UI panel with object-specific data, returns true if data was changed
-    virtual bool DrawInspectorPanel() = 0;
-
-    virtual Transform* GetTransform() = 0;
-    virtual void DeleteObject() = 0;
-
-    virtual bool operator==(const ISelectedObject& Other) = 0;
-
-protected:
-    const Vec3f c_SelectedBoxColour = Vec3f(0.f / 255.f, 255.f / 255.f, 255.f / 255.f);
-    const Vec3f c_InspectorColour = Vec3f(175.f / 255.f, 225.f / 255.f, 175.f / 255.f);
-};
-
-class SelectedModel : public ISelectedObject
-{
-public:
-    SelectedModel(Model* InModel, Scene* InScene);
-
-    virtual void Draw() override;
-
-    virtual bool DrawInspectorPanel() override;
-
-    virtual Transform* GetTransform() override;
-    virtual void DeleteObject() override;
-
-    virtual bool operator==(const ISelectedObject& Other) override;
-
-private:
-
-    Model* ModelPtr;
-    Scene* ScenePtr;
-};
-
 class SelectedVertex : public ISelectedObject
 {
 public:
-    SelectedVertex(Vec3f* InVertPtr, Brush* InBrushPtr, Scene* InScene);
+    SelectedVertex(Vec3f* InVertPtr, Brush* InBrushPtr);
 
     virtual void Draw() override;
 
@@ -120,43 +82,19 @@ public:
 
     virtual void DeleteObject() override;
 
-    virtual bool operator==(const ISelectedObject& Other) override;
-
 private:
+
+    virtual bool IsEqual(const ISelectedObject& Other) const override;
 
     Vec3f* VertPtr = nullptr;
     Brush* BrushPtr = nullptr;
-    Scene* ScenePtr = nullptr;
-    Transform Trans;
-};
-
-class SelectedLight : public ISelectedObject
-{
-public:
-    SelectedLight(PointLight* InPointLight, Scene* InScene);
-
-    virtual void Draw() override;
-
-    virtual void Update() override;
-
-    virtual bool DrawInspectorPanel() override;
-
-    virtual Transform* GetTransform() override;
-    virtual void DeleteObject() override;
-
-    virtual bool operator==(const ISelectedObject& Other) override;
-
-private:
-
-    PointLight* PointLightPtr;
-    Scene* ScenePtr;
     Transform Trans;
 };
 
 class SelectedDirectionalLight : public ISelectedObject
 {
 public:
-    SelectedDirectionalLight(DirectionalLight* InDirLight, Scene* InScene);
+    SelectedDirectionalLight(DirectionalLight* InDirLight);
 
     virtual void Draw() override;
 
@@ -167,13 +105,13 @@ public:
     virtual Transform* GetTransform() override;
     virtual void DeleteObject() override;
 
-    virtual bool operator==(const ISelectedObject& Other) override;
-
 private:
 
+    bool IsEqual(const ISelectedObject& other) const override;
+    
     DirectionalLight* DirLightPtr;
-    Scene* ScenePtr;
     Transform Trans;
+
 };
 
 class CursorState
@@ -244,7 +182,7 @@ private:
     void UpdateSelectedTransformsBasedOnProxy();
     void RotateSelectedTransforms(Quaternion Rotation);
 
-    //RayCastHit EditorRayCast()
+    ISelectedObject* ClickCast(Ray mouseRay);
 
     ToolMode Tool = ToolMode::Select;
     DraggingMode Dragging = DraggingMode::None;
@@ -274,6 +212,7 @@ private:
     // Rotate
     Quaternion ObjectInitialRotation;
     float InitialAngle;
+    float RotSnap = M_PI_2 / 8.0f;
 
     // Models
     Model* XAxisTrans;

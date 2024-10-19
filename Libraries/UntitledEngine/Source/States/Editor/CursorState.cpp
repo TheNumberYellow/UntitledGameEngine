@@ -1,75 +1,15 @@
 #include "CursorState.h"
 
+#include "Modules/GraphicsModule.h"
 #include "EditorState.h"
+#include "Graphics/Model.h"
+#include "Graphics/PointLight.h"
+#include "Graphics/Material.h"
 
-
-SelectedModel::SelectedModel(Model* InModel, Scene* InScene)
-{
-    ModelPtr = InModel;
-    ScenePtr = InScene;
-
-}
-
-void SelectedModel::Draw()
-{
-    GraphicsModule* Graphics = GraphicsModule::Get();
-    CollisionModule* Collision = CollisionModule::Get();
-
-    Graphics->DebugDrawAABB(Collision->GetCollisionMeshFromMesh(ModelPtr->m_TexturedMeshes[0].m_Mesh)->boundingBox, c_SelectedBoxColour, ModelPtr->GetTransform().GetTransformMatrix());
-}
-
-bool SelectedModel::DrawInspectorPanel()
-{
-    UIModule* UI = UIModule::Get();
-
-    float oldX = ModelPtr->GetTransform().GetPosition().x;
-    float oldY = ModelPtr->GetTransform().GetPosition().y;
-    float oldZ = ModelPtr->GetTransform().GetPosition().z;
-
-    float newX = oldX;
-    float newY = oldY;
-    float newZ = oldZ;
-
-    UI->FloatSlider("X", Vec2f(400.0f, 20.0f), newX, -10.0f, 10.0f);
-    UI->FloatSlider("Y", Vec2f(400.0f, 20.0f), newY, -10.0f, 10.0f);
-    UI->FloatSlider("Z", Vec2f(400.0f, 20.0f), newZ, -10.0f, 10.0f);
-
-    if (newX != oldX || newY != oldY || newZ != oldZ)
-    {
-        ModelPtr->GetTransform().SetPosition(Vec3f(newX, newY, newZ));
-        return true;
-    }
-    return false;
-}
-
-Transform* SelectedModel::GetTransform()
-{
-    return &ModelPtr->GetTransform();
-}
-
-void SelectedModel::DeleteObject()
-{
-    ScenePtr->DeleteModel(ModelPtr);
-}
-
-bool SelectedModel::operator==(const ISelectedObject& Other)
-{
-    const SelectedModel* OtherPtr = dynamic_cast<const SelectedModel*>(&Other);
-    if (!OtherPtr)
-    {
-        return false;
-    }
-    else
-    {
-        return ModelPtr == OtherPtr->ModelPtr;
-    }
-}
-
-SelectedVertex::SelectedVertex(Vec3f* InVertPtr, Brush* InBrushPtr, Scene* InScenePtr)
+SelectedVertex::SelectedVertex(Vec3f* InVertPtr, Brush* InBrushPtr)
 {
     VertPtr = InVertPtr;
     BrushPtr = InBrushPtr;
-    ScenePtr = InScenePtr;
 
     Trans.SetPosition(*VertPtr);
 }
@@ -113,91 +53,12 @@ void SelectedVertex::DeleteObject()
     ScenePtr->DeleteBrush(BrushPtr);
 }
 
-bool SelectedVertex::operator==(const ISelectedObject& Other)
+bool SelectedVertex::IsEqual(const ISelectedObject& Other) const
 {
-    const SelectedVertex* OtherPtr = dynamic_cast<const SelectedVertex*>(&Other);
-
-    if (!OtherPtr)
-    {
-        return false;
-    }
-    else
-    {
-        return VertPtr == OtherPtr->VertPtr;
-    }
+    return VertPtr == static_cast<const SelectedVertex&>(Other).VertPtr;
 }
 
-
-SelectedLight::SelectedLight(PointLight* InPointLight, Scene* InScene)
-{
-    PointLightPtr = InPointLight;
-    ScenePtr = InScene;
-
-    Trans.SetPosition(PointLightPtr->position);
-}
-
-void SelectedLight::Draw()
-{
-    GraphicsModule* Graphics = GraphicsModule::Get();
-
-    AABB LightAABB = AABB(PointLightPtr->position - Vec3f(0.35f, 0.35f, 0.35f), PointLightPtr->position + Vec3f(0.35f, 0.35f, 0.35f));
-
-    Graphics->DebugDrawAABB(LightAABB, c_SelectedBoxColour);
-}
-
-void SelectedLight::Update()
-{
-    PointLightPtr->position = Trans.GetPosition();
-}
-
-bool SelectedLight::DrawInspectorPanel()
-{
-    UIModule* UI = UIModule::Get();
-
-    Vec3f Pos = PointLightPtr->position;
-    Vec3f Col = PointLightPtr->colour;
-
-    static std::string ColourString = "Colour";
-    static std::string IntensityString = "Intensity";
-
-    UI->TextEntry("Colour", ColourString, Vec2f(250.0f, 20.0f), c_InspectorColour);
-
-    UI->FloatSlider("R", Vec2f(400.0f, 20.0f), PointLightPtr->colour.r);
-    UI->FloatSlider("G", Vec2f(400.0f, 20.0f), PointLightPtr->colour.g);
-    UI->FloatSlider("B", Vec2f(400.0f, 20.0f), PointLightPtr->colour.b);
-
-    UI->TextEntry("Intensity", IntensityString, Vec2f(250.0f, 20.0f), c_InspectorColour);
-
-    UI->FloatSlider("Intensity", Vec2f(400.0f, 20.0f), PointLightPtr->intensity, 0.0f, 10.0f);
-
-    return false;
-}
-
-Transform* SelectedLight::GetTransform()
-{
-    return &Trans;
-}
-
-void SelectedLight::DeleteObject()
-{
-    ScenePtr->DeletePointLight(PointLightPtr);
-}
-
-bool SelectedLight::operator==(const ISelectedObject& Other)
-{
-    const SelectedLight* OtherPtr = dynamic_cast<const SelectedLight*>(&Other);
-    if (!OtherPtr)
-    {
-        return false;
-    }
-    else
-    {
-        return PointLightPtr == OtherPtr->PointLightPtr;
-    }
-
-}
-
-SelectedDirectionalLight::SelectedDirectionalLight(DirectionalLight* InDirLight, Scene* InScene)
+SelectedDirectionalLight::SelectedDirectionalLight(DirectionalLight* InDirLight)
 {
 }
 
@@ -223,7 +84,7 @@ void SelectedDirectionalLight::DeleteObject()
 {
 }
 
-bool SelectedDirectionalLight::operator==(const ISelectedObject& Other)
+bool SelectedDirectionalLight::IsEqual(const ISelectedObject& other) const
 {
     return false;
 }
@@ -283,6 +144,7 @@ void CursorState::Update(double DeltaTime)
                 NewDraggingModelPos = MouseRay.point + MouseRay.direction * 8.0f;
                 DraggingModelPtr->GetTransform().SetRotation(Quaternion());
             }
+
             DraggingModelPtr->GetTransform().SetPosition(NewDraggingModelPos);
 
             int DeltaMouseWheel = Input->GetMouseState().GetDeltaMouseWheel();
@@ -345,15 +207,16 @@ void CursorState::Update(double DeltaTime)
         {
             Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
 
-            auto SceneHit = EditorScenePtr->RayCast(MouseRay);
+            ISelectedObject* hitSelectedObject = ClickCast(MouseRay);
 
-            if (SceneHit.rayCastHit.hit)
+            if (hitSelectedObject)
             {
-                SceneHit.hitModel->SetMaterial(*DraggingMaterialPtr);
+                hitSelectedObject->SetScene(EditorScenePtr);
+                hitSelectedObject->ApplyMaterial(*DraggingMaterialPtr);
+                delete hitSelectedObject;
             }
 
             DraggingMaterialPtr = nullptr;
-
             Dragging = DraggingMode::None;
         }
     }
@@ -364,6 +227,7 @@ void CursorState::Update(double DeltaTime)
 
         if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).pressed)
         {
+
         }
         else
         {
@@ -805,8 +669,9 @@ void CursorState::UpdateSculptTool(double DeltaTime)
                     //{
                     float Strength = Math::SmoothStep(Dist, SculptRadius, 0.5f) * VerticalDir * (SculptRadius * 0.25f);
                     
-                    Vec3f hitNorm = FinalHit.rayCastHit.hitNormal;
-                    Vert->position += Strength * hitNorm * (float)DeltaTime;
+                    //Vec3f hitNorm = FinalHit.rayCastHit.hitNormal;
+                    //Vert->position += Strength * hitNorm * (float)DeltaTime;
+                    Vert->position += Strength * Vec3f(0.0f, 0.0f, 1.0f) * (float)DeltaTime;
                     //}
                 }
 
@@ -852,8 +717,6 @@ void CursorState::UpdateSculptTool(double DeltaTime)
                 Graphics->RecalculateTerrainModelNormals(*PlaneModel);
 
             }
-
-
         }
     }
 }
@@ -974,56 +837,24 @@ void CursorState::UpdateModelSelectTool()
     {
         Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
 
-        CollisionModule* Collisions = CollisionModule::Get();
-        GraphicsModule* Graphics = GraphicsModule::Get();
-
-        RayCastHit PointLightHit;
-
-        PointLight* HitLight = nullptr;
-
-        auto& Lights = EditorScenePtr->GetPointLights();
-
-        for (PointLight* Light : Lights)
-        {
-            AABB LightAABB = AABB(Light->position - Vec3f(0.35f, 0.35f, 0.35f), Light->position + Vec3f(0.35f, 0.35f, 0.35f));
-            RayCastHit NewPointLightHit = Collisions->RayCast(MouseRay, LightAABB);
-
-            if (NewPointLightHit.hit && NewPointLightHit.hitDistance < PointLightHit.hitDistance)
-            {
-                PointLightHit = NewPointLightHit;
-                HitLight = Light;
-            }
-        }
-
-        auto ModelHit = EditorScenePtr->RayCast(MouseRay);
+        ISelectedObject* hitSelectedObject = ClickCast(MouseRay);
 
         bool HoldingShift = Input->GetKeyState(Key::Shift).pressed;
 
-        if (ModelHit.rayCastHit.hit || PointLightHit.hit)
+        if (hitSelectedObject)
         {
+            hitSelectedObject->SetScene(EditorScenePtr);
+
             if (!HoldingShift)
             {
                 UnselectSelectedObjects();
             }
 
-            if (ModelHit.rayCastHit.hitDistance < PointLightHit.hitDistance)
-            {
-                if (ModelHit.hitModel != DraggingModelPtr)
-                {
-                    SelectedModel* EdModel = new SelectedModel(ModelHit.hitModel, EditorScenePtr);
-
-                    AddToSelectedObjects(EdModel);
-                }
-            }
-            else
-            {
-                if (HitLight != DraggingPointLightPtr)
-                {
-                    SelectedLight* EdLight = new SelectedLight(HitLight, EditorScenePtr);
-
-                    AddToSelectedObjects(EdLight);
-                }
-            }
+            AddToSelectedObjects(hitSelectedObject);
+        }
+        else if (!HoldingShift)
+        {
+            UnselectSelectedObjects();
         }
     }
 }
@@ -1082,7 +913,7 @@ void CursorState::UpdateVertexSelectTool()
                 UnselectSelectedObjects();
             }
 
-            SelectedVertex* ClickedVert = new SelectedVertex(HitVert, HitBrush, EditorScenePtr);
+            SelectedVertex* ClickedVert = new SelectedVertex(HitVert, HitBrush);
 
             AddToSelectedObjects(ClickedVert);
 
@@ -1093,7 +924,7 @@ void CursorState::UpdateVertexSelectTool()
                 {
                     if (Math::magnitude(*HitVert - Vert) < 0.00001f)
                     {
-                        SelectedVertex* CloseVert = new SelectedVertex(&Vert, B, EditorScenePtr);
+                        SelectedVertex* CloseVert = new SelectedVertex(&Vert, B);
 
                         AddToSelectedObjects(CloseVert);
                     }
@@ -1320,7 +1151,7 @@ void CursorState::UpdateRotateTool()
 
         float DeltaAngle = InitialAngle - CurrentAngle;
 
-        //DeltaAngle = Math::Round(deltaAngle, RotSnap);
+        DeltaAngle = Math::Round(DeltaAngle, RotSnap);
 
         Quaternion axisQuat = Quaternion(AxisPlane.normal, DeltaAngle);
 
@@ -1616,7 +1447,7 @@ void CursorState::AddToSelectedObjects(ISelectedObject* NewSelectedObject)
     {
         ISelectedObject* itObject = Obj.second;
 
-        if (itObject == NewSelectedObject)
+        if (*itObject == *NewSelectedObject)
         {
             delete NewSelectedObject;
             return;
@@ -1675,5 +1506,36 @@ void CursorState::RotateSelectedTransforms(Quaternion Rotation)
 {
     Vec3f ProxyPos = SelectedProxyTransform.GetPosition();
 
+
 }
 
+ISelectedObject* CursorState::ClickCast(Ray mouseRay)
+{
+    std::vector<IEditorClickable*>& clickables = EditorScenePtr->GetEditorClickables();
+
+    ISelectedObject* closestSelectedObject = nullptr;
+    RayCastHit closestHit;
+
+    for (IEditorClickable* clickable : clickables)
+    {
+        ISelectedObject* newSelectedObject = nullptr;
+        RayCastHit newHit = clickable->ClickCast(mouseRay, newSelectedObject);
+
+        if (newHit.hit && newHit.hitDistance < closestHit.hitDistance)
+        {
+            if (closestSelectedObject)
+            {
+                delete closestSelectedObject;
+            }
+
+            closestHit = newHit;
+            closestSelectedObject = newSelectedObject;
+        }
+        else if (newSelectedObject)
+        {
+            delete newSelectedObject;
+        }
+    }
+
+    return closestSelectedObject;
+}

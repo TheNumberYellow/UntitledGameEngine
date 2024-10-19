@@ -1,6 +1,8 @@
 #pragma once
 #include "State/BaseState.h"
 
+#include "HalfEdge/HalfEdge.h"
+
 #include "GameEngine.h"
 
 #include "CursorState.h"

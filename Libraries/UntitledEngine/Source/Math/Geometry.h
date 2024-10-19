@@ -1,7 +1,16 @@
 #pragma once
 
+// :/
+#ifdef max
+#undef max
+#endif
+#ifdef min
+#undef min
+#endif
+
 #include "Math.h"
 
+#include <limits> 
 #include <sstream>  
 
 struct Ray
@@ -179,4 +188,18 @@ struct AABB
 
     Vec3f min;
     Vec3f max;
+};
+
+struct RayCastHit
+{
+    bool hit = false;
+    Vec3f hitPoint;
+    float hitDistance = std::numeric_limits<float>::max();
+    Vec3f hitNormal;
+
+    friend bool operator==(const RayCastHit& lhs, const RayCastHit& rhs)
+    {
+        return (lhs.hit == rhs.hit && lhs.hitPoint == rhs.hitPoint &&
+            lhs.hitDistance == rhs.hitDistance && lhs.hitNormal == rhs.hitNormal);
+    }
 };

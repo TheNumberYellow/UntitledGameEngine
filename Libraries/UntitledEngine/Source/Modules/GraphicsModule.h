@@ -7,6 +7,10 @@
 #include "Math/Transform.h"
 #include "Platform/RendererPlatform.h"
 
+#include "Graphics/Material.h"
+#include "Graphics/Model.h"
+#include "Graphics/PointLight.h"
+
 #include <unordered_map>
 #include <vector>
 
@@ -57,41 +61,6 @@ struct GBuffer
     Framebuffer_ID FinalOutput;
 };
 
-struct Material
-{
-    Material() {}
-    Material(Texture Albedo, Texture Normal, Texture Roughness, Texture Metallic, Texture AO);
-
-    Texture m_Albedo;
-    Texture m_Normal;
-    Texture m_Metallic;
-    Texture m_Roughness;
-    Texture m_AO;
-    Texture m_Height;
-
-    friend bool operator<(const Material& lhs, const Material& rhs)
-    {
-        return lhs.m_Albedo < rhs.m_Albedo
-            || lhs.m_Normal < rhs.m_Normal;
-    }
-
-    friend bool operator==(const Material& lhs, const Material& rhs)
-    {
-        return lhs.m_Albedo == rhs.m_Albedo
-            && lhs.m_Normal == rhs.m_Normal
-            && lhs.m_Metallic == rhs.m_Metallic
-            && lhs.m_Roughness == rhs.m_Roughness
-            && lhs.m_AO == rhs.m_AO;
-    }
-};
-
-enum class ModelType
-{
-    BLOCK,
-    PLANE,
-    MODEL
-};
-
 enum class Vis
 {
     SHADOW_CAST = 1,
@@ -105,77 +74,10 @@ enum class RenderMode
     DEFAULT
 };
 
-struct TexturedMesh
-{
-    TexturedMesh() {}
-
-    TexturedMesh(StaticMesh mesh, Material material)
-        : m_Mesh(mesh)
-        , m_Material(material)
-    {}
-
-    StaticMesh m_Mesh;
-
-    Material m_Material;
-};
-
-class Model
-{
-public:
-    Model()
-        : m_Transform()
-    {}
-    Model(TexturedMesh texturedMesh)
-        : m_Transform()
-    {
-        m_TexturedMeshes.push_back(texturedMesh);
-    }
-
-    Transform& GetTransform()
-    {
-        return m_Transform;
-    }
-
-    void SetMaterial(Material material)
-    {
-        m_TexturedMeshes[0].m_Material = material;
-    }
-
-    std::vector<TexturedMesh> m_TexturedMeshes;
-
-    std::string m_Name = "";
-
-    ModelType Type = ModelType::MODEL;
-private:
-    Transform m_Transform;
-};
-
 struct DirectionalLight
 {
     Vec3f direction;
     Vec3f colour;
-};
-
-struct PointLight
-{
-    Vec3f position = Vec3f(0.0f, 0.0f, 0.0f);
-    Colour colour = Colour(1.0f, 1.0f, 1.0f);
-    float intensity = 1.0f;
-};
-
-struct StaticMeshRenderCommand
-{
-    StaticMesh_ID m_Mesh;
-    Material m_Material;
-    Mat4x4f m_TransMat;
-};
-
-struct BillboardRenderCommand
-{
-    Texture_ID m_Texture;
-    Vec3f m_Position;
-    Vec3f m_Colour = Vec3f(1.0f, 1.0f, 1.0f);
-    float m_Size = 1.0f;
 };
 
 struct DirectionalLightRenderCommand
@@ -184,11 +86,12 @@ struct DirectionalLightRenderCommand
     Vec3f m_Colour;
 };
 
-struct PointLightRenderCommand
+struct BillboardRenderCommand
 {
-    Vec3f m_Colour;
+    Texture_ID m_Texture;
     Vec3f m_Position;
-    float m_Intensity;
+    Vec3f m_Colour = Vec3f(1.0f, 1.0f, 1.0f);
+    float m_Size = 1.0f;
 };
 
 class GraphicsModule
@@ -278,6 +181,7 @@ public:
     void DebugDrawAABB(AABB box, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f), Mat4x4f transform = Mat4x4f());
     void DebugDrawPoint(Vec3f p, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
     void DebugDrawSphere(Vec3f p, float radius = 1.0f, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
+    void DebugDrawArrow(Vec3f a, Vec3f b, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
 
     Vec2i GetViewportSize();
 

@@ -103,19 +103,23 @@ struct KeyState
 	{
 		if (this->pressed && pressed)
 		{
+			justReleased = false;
 			justPressed = false;
 		}
 		if (!this->pressed && pressed)
 		{
+			justReleased = false;
 			justPressed = true;
 		}
 		if (this->pressed && !pressed)
 		{
 			justReleased = true;
+			justPressed = false;
 		}
 		if (!this->pressed && !pressed)
 		{
 			justReleased = false;
+			justPressed = false;
 		}
 
 		this->pressed = pressed;

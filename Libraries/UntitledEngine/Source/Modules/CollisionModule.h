@@ -1,15 +1,7 @@
 #pragma once
 
-// :/
-#ifdef max
-#undef max
-#endif
-#ifdef min
-#undef min
-#endif
-
-#include "..\Platform\RendererPlatform.h"
-#include "..\Math\Geometry.h"
+#include "Platform/RendererPlatform.h"
+#include "Math/Geometry.h"
 
 #include "GraphicsModule.h"
 
@@ -50,20 +42,6 @@ struct OctreeNode
     void AddLevel(int tempDepth);
 };
 
-struct RayCastHit
-{
-    bool hit = false;
-    Vec3f hitPoint;
-    float hitDistance = std::numeric_limits<float>::max();
-    Vec3f hitNormal;
-
-    friend bool operator==(const RayCastHit& lhs, const RayCastHit& rhs)
-    {
-        return (lhs.hit == rhs.hit && lhs.hitPoint == rhs.hitPoint &&
-            lhs.hitDistance == rhs.hitDistance && lhs.hitNormal == rhs.hitNormal);
-    }
-};
-
 struct Intersection
 {
     bool hit = false;
@@ -101,6 +79,8 @@ public:
     RayCastHit RayCast(Ray ray, AABB aabb);
     RayCastHit RayCast(Ray ray, Plane plane);
     RayCastHit RayCast(Ray ray, Triangle tri);
+    RayCastHit RayCast(Ray ray, Triangle tri, Vec3f& outBarycentric);
+    RayCastHit RayCast(Ray ray, Sphere sphere);
     RayCastHit RayCast(Ray ray, OctreeNode* node, const Mat4x4f& tempTrans);
 
     Intersection SphereIntersection(Sphere sphere, Sphere other);

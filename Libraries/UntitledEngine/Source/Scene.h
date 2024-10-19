@@ -1,9 +1,12 @@
 #pragma once
 
+
 #include "Modules/ModuleManager.h"
 #include "Modules/CollisionModule.h"
 #include "Modules/GraphicsModule.h"
 #include "Modules/UIModule.h"
+
+#include "Interfaces/EditorClickable_i.h"
 
 #include <string>
 
@@ -12,6 +15,11 @@
 using json = nlohmann::json;
 
 typedef uint64_t Entity_ID;
+
+namespace he
+{
+    struct HalfEdgeMesh;
+}
 
 // TODO(Fraser): Move this to some reader/asset manager file
 enum FileReaderState
@@ -69,6 +77,11 @@ public:
     Brush* AddBrush(Brush* newBrush);
     void DeleteBrush(Brush* brush);
 
+    void AddHalfEdgeMesh(he::HalfEdgeMesh* newMesh);
+    void DeleteHalfEdgeMesh(he::HalfEdgeMesh* mesh);
+
+    std::vector<IEditorClickable*>& GetEditorClickables();
+
     std::vector<PointLight*>& GetPointLights();
 
     std::vector<Brush*>& GetBrushes();
@@ -114,10 +127,13 @@ private:
     
     std::vector<PointLight*> m_PointLights;
     std::vector<Brush*> m_Brushes;
-    
+    std::vector<he::HalfEdgeMesh*> m_HEMeshes;
+
     std::unordered_map<Model*, Brush*> m_ModelBrushMap;
 
     std::vector<Camera> m_Cameras;
+
+    std::vector<IEditorClickable*> m_EditorClickables;
 
     bool m_Paused = false;
 

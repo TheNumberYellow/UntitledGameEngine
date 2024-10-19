@@ -316,7 +316,6 @@ RayCastHit CollisionModule::RayCast(Ray ray, AABB aabb)
 RayCastHit CollisionModule::RayCast(Ray ray, Plane plane)
 {
     RayCastHit result;
-    result.hit = false;
 
     float denom = Math::dot(plane.normal, ray.direction);
     if (abs(denom) > 0.0001f)
@@ -327,6 +326,7 @@ RayCastHit CollisionModule::RayCast(Ray ray, Plane plane)
             result.hit = true;
             result.hitDistance = t;
             result.hitPoint = ray.point + (ray.direction * t);
+            result.hitNormal = plane.normal;
         }
     }
 
@@ -336,6 +336,43 @@ RayCastHit CollisionModule::RayCast(Ray ray, Plane plane)
 RayCastHit CollisionModule::RayCast(Ray ray, Triangle tri)
 {
     return RayCastTri(ray, tri.a, tri.b, tri.c);
+}
+
+RayCastHit CollisionModule::RayCast(Ray ray, Triangle tri, Vec3f& outBarycentric)
+{
+    return RayCastHit();
+}
+
+RayCastHit CollisionModule::RayCast(Ray ray, Sphere sphere)
+{
+    RayCastHit result;
+
+    float t0, t1;
+
+    Vec3f L = sphere.position - ray.point;
+    float tca = Math::dot(L, ray.direction);
+    float d2 = Math::dot(L, L) - tca * tca;
+
+    if (d2 > sphere.radius * sphere.radius) return result;
+    float thc = sqrt(sphere.radius * sphere.radius - d2);
+    t0 = tca - thc;
+    t1 = tca + thc;
+
+    if (t0 > t1) std::swap(t0, t1);
+
+    if (t0 < 0) {
+        t0 = t1;
+        if (t0 < 0) return result;
+    }
+
+    float t = t0;
+
+    result.hit = true;
+    result.hitPoint = ray.point + (ray.direction * t);
+    result.hitDistance = t;
+    result.hitNormal = (sphere.position - result.hitPoint).GetNormalized();
+
+    return result;
 }
 
 RayCastHit CollisionModule::RayCast(Ray ray, OctreeNode* node, const Mat4x4f& tempTrans)

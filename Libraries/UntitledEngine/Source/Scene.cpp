@@ -1,6 +1,7 @@
 #include "Scene.h"
 
 #include "Behaviour/Behaviour.h"
+#include "HalfEdge/HalfEdge.h"
 
 #include <iostream>
 #include <fstream>
@@ -94,6 +95,11 @@ bool Scene::IsPaused()
 Model* Scene::AddModel(Model* model)
 {
     m_UntrackedModels.push_back(model);
+
+#ifdef USE_EDITOR
+    m_EditorClickables.push_back(model);
+#endif
+
     return m_UntrackedModels.back();
 }
 
@@ -124,12 +130,26 @@ std::vector<Model*> Scene::GetModelsByTag(std::string tag)
 
 PointLight* Scene::AddPointLight(PointLight newLight)
 {
-    m_PointLights.push_back(new PointLight(newLight));
+    PointLight* newLightPtr = new PointLight(newLight);
+    m_PointLights.push_back(newLightPtr);
+
+#ifdef USE_EDITOR
+    m_EditorClickables.push_back(newLightPtr);
+#endif
+    
     return m_PointLights.back();
 }
 
 void Scene::DeletePointLight(PointLight* light)
 {
+#ifdef USE_EDITOR
+    auto clickableIt = std::find(m_EditorClickables.begin(), m_EditorClickables.end(), light);
+    if (clickableIt != m_EditorClickables.end())
+    {
+        m_EditorClickables.erase(clickableIt);
+    }
+#endif
+
     auto it = std::find(m_PointLights.begin(), m_PointLights.end(), light);
     if (it != m_PointLights.end())
     {
@@ -159,6 +179,38 @@ void Scene::DeleteBrush(Brush* brush)
     }
 }
 
+void Scene::AddHalfEdgeMesh(he::HalfEdgeMesh* newMesh)
+{
+#ifdef USE_EDITOR
+    m_EditorClickables.push_back(newMesh);
+#endif
+
+    m_HEMeshes.push_back(newMesh);
+}
+
+void Scene::DeleteHalfEdgeMesh(he::HalfEdgeMesh* mesh)
+{
+#ifdef USE_EDITOR
+    auto clickableIt = std::find(m_EditorClickables.begin(), m_EditorClickables.end(), mesh);
+    if (clickableIt != m_EditorClickables.end())
+    {
+        m_EditorClickables.erase(clickableIt);
+    }
+#endif
+    auto it = std::find(m_HEMeshes.begin(), m_HEMeshes.end(), mesh);
+    if (it != m_HEMeshes.end())
+    {
+        m_HEMeshes.erase(it);
+
+        delete mesh;
+    }
+}
+
+std::vector<IEditorClickable*>& Scene::GetEditorClickables()
+{
+    return m_EditorClickables;
+}
+
 std::vector<PointLight*>& Scene::GetPointLights()
 {
     return m_PointLights;
@@ -171,6 +223,14 @@ std::vector<Brush*>& Scene::GetBrushes()
 
 void Scene::DeleteModel(Model* model)
 {
+#ifdef USE_EDITOR
+    auto clickableIt = std::find(m_EditorClickables.begin(), m_EditorClickables.end(), model);
+    if (clickableIt != m_EditorClickables.end())
+    {
+        m_EditorClickables.erase(clickableIt);
+    }
+#endif
+
     auto it = std::find(m_UntrackedModels.begin(), m_UntrackedModels.end(), model);
     if (it != m_UntrackedModels.end())
     {
@@ -241,6 +301,7 @@ void Scene::Draw(GraphicsModule& graphics, GBuffer gBuffer, size_t camIndex)
     assert(camIndex < m_Cameras.size());
 
     graphics.Render(gBuffer, m_Cameras[camIndex], m_DirLight);
+
 }
 
 void Scene::EditorDraw(GraphicsModule& graphics, GBuffer gBuffer, Camera* editorCam)
@@ -928,6 +989,11 @@ bool Scene::IsIgnored(Model* model, std::vector<Model*> ignoredModels)
 
 void Scene::PushSceneRenderCommandsInternal(GraphicsModule& graphics)
 {
+    for (auto& heMesh : m_HEMeshes)
+    {
+        heMesh->Draw();
+    }
+
     for (auto& it : m_UntrackedModels)
     {
         StaticMeshRenderCommand command;
