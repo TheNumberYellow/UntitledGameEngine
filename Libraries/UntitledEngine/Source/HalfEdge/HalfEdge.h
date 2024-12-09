@@ -46,21 +46,41 @@ namespace he
 
         SelectedHalfEdgeVertex(HalfEdgeMesh* inMeshPtr, VertIndex inVertIndex);
 
-        virtual void Draw();
+        virtual void Draw() override;
+        virtual void Update() override;
 
-        virtual void Update();
-
-        // Inherited via ISelectedObject
-        bool DrawInspectorPanel() override;
-        Transform* GetTransform() override;
-        void DeleteObject() override;
+        virtual bool DrawInspectorPanel() override;
+        virtual Transform* GetTransform() override;
+        virtual void DeleteObject() override;
 
     private:
 
-        bool IsEqual(const ISelectedObject& other) const override;
+        virtual bool IsEqual(const ISelectedObject& other) const override;
 
         HalfEdgeMesh* m_HalfEdgeMesh;
         VertIndex m_VertIndex;
+        Transform m_Transform;
+    };
+
+    class SelectedHalfEdgeFace : public ISelectedObject
+    {
+    public:
+
+        SelectedHalfEdgeFace(HalfEdgeMesh* inMeshPtr, FaceIndex inFaceIndex);
+
+        virtual void Draw() override;
+        virtual void Update() override;
+
+        virtual bool DrawInspectorPanel() override;
+        virtual Transform* GetTransform() override;
+        virtual void DeleteObject() override;
+
+    private:
+
+        virtual bool IsEqual(const ISelectedObject& other) const override;
+
+        HalfEdgeMesh* m_HalfEdgeMesh;
+        FaceIndex m_FaceIndex;
         Transform m_Transform;
     };
 

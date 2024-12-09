@@ -818,6 +818,8 @@ void EditorState::DrawTopPanel()
             Cursor.UnselectAll();
             Cursor.ResetAllState();
             GameState* NewGameState = new GameState();
+            
+            //NewGameState->LoadScene(CurrentLevelName);
             NewGameState->LoadScene(EditorScene);
             //NewGameState->LoadScene();
 
@@ -1074,9 +1076,20 @@ void EditorState::DrawInspectorPanel()
     Rect InspectorPanelRect = Rect( Vec2f(ViewportRect.location.x + ViewportRect.size.x, ViewportRect.location.y), 
                                     Vec2f(ScreenSize.x - (ViewportRect.location.x + ViewportRect.size.x), ScreenSize.y - ViewportRect.location.y));
 
-    UI->StartFrame("Inspector", InspectorPanelRect, 16.0f, c_Inspector);
+    UI->StartFrame("Settings", InspectorPanelRect, 16.0f, c_Inspector);
     {
-        Cursor.DrawInspectorPanel();
+        if (UI->StartTab("Inspector"))
+        {
+            Cursor.DrawInspectorPanel();
+        }
+        UI->EndTab();
+
+        if (UI->StartTab("Scene"))
+        {
+            EditorScene.DrawSettingsPanel();
+        }
+        UI->EndTab();
+
     }
     UI->EndFrame();
 

@@ -1,5 +1,6 @@
 #include "Model.h"
 
+#include "Behaviour/Behaviour.h"
 #include "Modules/CollisionModule.h"
 #include "Modules/UIModule.h"
 #include "Scene.h"
@@ -38,6 +39,10 @@ bool SelectedModel::DrawInspectorPanel()
         ModelPtr->GetTransform().SetPosition(Vec3f(newX, newY, newZ));
         return true;
     }
+
+    UI->NewLine();
+
+    BehaviourRegistry::Get()->DrawEntityInspectorPanel(ModelPtr);
 
     return false;
 }

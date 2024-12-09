@@ -46,7 +46,6 @@ void GameState::Update(double DeltaTime)
     Graphics->ResetFrameBuffer();
 
     UI->BufferPanel(ViewportBuffer.FinalOutput, GetViewportRect());
-    //UI->BufferButton("Wee", ViewportBuffer.FinalOutput, Vec2f(500.0f, 500.0f), 12.0f);
 
     TextModule::Get()->DrawText("Frame Time: " + std::to_string(DeltaTime), &TestFont, Vec2f(0.0f, 0.0f));
 
@@ -96,8 +95,6 @@ void GameState::LoadScene(FilePath path)
 
     ViewportCamera = RuntimeScene.GetCamera();
     ViewportCamera->SetScreenSize(GetViewportRect().size);
-
-    RuntimeScene.SetDirectionalLight(DirectionalLight{ Math::normalize(Vec3f(0.5f, 1.0f, -1.0f)), Vec3f(1.0f, 1.0f, 1.0f) });
 }
 
 Rect GameState::GetViewportRect()

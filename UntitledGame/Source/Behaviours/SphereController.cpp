@@ -35,7 +35,7 @@ void SphereController::Update(Scene* Scene, double DeltaTime)
     {
         InputForce = Math::normalize(InputForce);
 
-        InputForce *= 30.0f;
+        InputForce *= ImpulseForce;
 
         Velocity += InputForce * (float)DeltaTime;
     }
@@ -66,6 +66,16 @@ void SphereController::Update(Scene* Scene, double DeltaTime)
 
     Scene->GetCamera()->SetPosition(m_Model->GetTransform().GetPosition() + Vec3f(0.0f, -5.0f, 7.5f));
     Scene->GetCamera()->SetDirection(Math::normalize(m_Model->GetTransform().GetPosition() - Scene->GetCamera()->GetPosition()));
+}
+
+void SphereController::DrawInspectorPanel()
+{
+    UIModule* UI = UIModule::Get();
+
+    UI->TextButton("Sphere Controller Settings", Vec2f(300.0f, 20.0f), 2.0f);
+    UI->NewLine();
+
+    UI->FloatSlider("Impulse", Vec2f(300.0f, 20.0f), ImpulseForce, 0.0f, 100.0f);
 }
 
 void SphereController::Initialize(Scene* Scene)

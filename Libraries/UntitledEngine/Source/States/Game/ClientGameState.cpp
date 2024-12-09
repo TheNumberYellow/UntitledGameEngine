@@ -82,7 +82,7 @@ void ClientGameState::Update(double DeltaTime)
 
     if (InScene)
     {
-        CurrentScene.Update(DeltaTime);
+        //CurrentScene.Update(DeltaTime);
         CurrentScene.Draw(*graphics, ViewportBuffer);
         graphics->ResetFrameBuffer();
     }
@@ -110,9 +110,37 @@ void ClientGameState::ProcessPacketData(const std::string& data)
 
             ViewportCamera->SetScreenSize(Vec2f(800.0f, 600.0f));
 
-            CurrentScene.SetDirectionalLight(DirectionalLight{ Math::normalize(Vec3f(0.5f, 1.0f, -1.0f)), Vec3f(1.0f, 1.0f, 1.0f) });
-
             InScene = true;
+        }
+        if (typeStr == "SceneUpdate" && InScene)
+        {
+            json ModelList = PacketData["Models"];
+
+            for (auto& ModelInfo : ModelList)
+            {
+                GUID modelID = ModelInfo["ID"];
+
+                auto& Trans = ModelInfo["Transform"];
+                
+                Mat4x4f TransMat;
+                TransMat[0] = { Trans[0], Trans[1], Trans[2], Trans[3] };
+                TransMat[1] = { Trans[4], Trans[5], Trans[6], Trans[7] };
+                TransMat[2] = { Trans[8], Trans[9], Trans[10], Trans[11] };
+                TransMat[3] = { Trans[12], Trans[13], Trans[14], Trans[15] };
+
+                CurrentScene.m_Models[modelID]->GetTransform().SetTransformMatrix(TransMat);
+            }
+        }
+        if (typeStr == "Cam" && InScene)
+        {
+            json CamPos = PacketData["CamPos"];
+            json CamDir = PacketData["CamDir"];
+
+            Vec3f PosVec = Vec3f(CamPos[0], CamPos[1], CamPos[2]);
+            Vec3f DirVec = Vec3f(CamDir[0], CamDir[1], CamDir[2]);
+
+            CurrentScene.GetCamera()->SetPosition(PosVec);
+            CurrentScene.GetCamera()->SetDirection(DirVec);
         }
     }
     // Temp to support unstructured packets

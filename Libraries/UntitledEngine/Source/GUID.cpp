@@ -1,9 +1,16 @@
 #include "GUID.hpp"
 
-GUID GUIDGen::currentGUID = 0;
-std::stack<GUID> GUIDGen::freedGUIDs;
+GUIDGenerator::GUIDGenerator()
+{
+    currentGUID = 0;
+}
 
-GUID GUIDGen::Generate()
+GUIDGenerator::GUIDGenerator(GUID initialGUID)
+{
+    currentGUID = initialGUID;
+}
+
+GUID GUIDGenerator::Generate()
 {
     if (freedGUIDs.empty())
     {
@@ -17,7 +24,17 @@ GUID GUIDGen::Generate()
     }
 }
 
-void GUIDGen::FreeID(GUID inID)
+void GUIDGenerator::FreeID(GUID inID)
 {
     freedGUIDs.push(inID);
+}
+
+void GUIDGenerator::Reset()
+{
+    while (!freedGUIDs.empty())
+    {
+        freedGUIDs.pop();
+    }
+
+    currentGUID = 0;
 }

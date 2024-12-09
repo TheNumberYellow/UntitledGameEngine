@@ -108,6 +108,8 @@ public:
 
     Model* MenuListEntities(UIModule& ui, Font& font);
 
+    void DrawSettingsPanel();
+
     void Save(std::string FileName);
 
     void Load(std::string FileName);
@@ -123,8 +125,12 @@ private:
 
     bool IsIgnored(Model* model, std::vector<Model*> ignoredModels);
 
-    std::vector<Model*> m_UntrackedModels;
-    
+    // Temp
+public:
+    std::unordered_map<GUID, Model*> m_Models;
+    //std::vector<Model*> m_UntrackedModels;
+private:
+
     std::vector<PointLight*> m_PointLights;
     std::vector<Brush*> m_Brushes;
     std::vector<he::HalfEdgeMesh*> m_HEMeshes;
@@ -145,6 +151,7 @@ private:
     void SaveMaterial(json& JsonObject, Material& Mat);
     void SaveStaticMesh(json& JsonObject, StaticMesh& Mesh);
     void SavePointLight(json& JsonObject, PointLight& PointLight);
+    void SaveDirectionalLight(json& JsonObject, DirectionalLight& DirLight);
     void SaveModel(json& JsonObject, Model& Mod, int64_t MeshIndex, int64_t MatIndex);
     void SaveRawModel(json& JsonObject, Model& Mod, int64_t MatIndex);
     void SaveBrush(json& JsonObject, Brush& B, int64_t MatIndex);
@@ -152,6 +159,7 @@ private:
     Material LoadMaterial(json& JsonObject);
     StaticMesh LoadStaticMesh(json& JsonObject);
     PointLight LoadPointLight(json& JsonObject);
+    DirectionalLight LoadDirectionalLight(json& JsonObject);
     Model* LoadModel(json& JsonObject, std::vector<Material>& MaterialVector, std::vector<StaticMesh>& StaticMeshVector);
     Model* LoadRawModel(json& JsonObject, std::vector<Material>& MaterialVector);
     Brush* LoadBrush(json& JsonObject, std::vector<Material>& MaterialVector);
@@ -160,4 +168,6 @@ private:
     static Texture* LightBillboardTexture;
     static StaticMesh* CameraMesh;
     static Material* CameraMaterial;
+
+    GUIDGenerator m_ModelIDGenerator;
 };

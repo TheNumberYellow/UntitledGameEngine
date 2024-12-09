@@ -22,6 +22,8 @@ private:
 
     void SendLevelChangePacket(std::string levelName);
 
+    void SendSceneUpdatePacket();
+
     bool InScene = false;
     Scene CurrentScene;
     Camera* ViewportCamera;

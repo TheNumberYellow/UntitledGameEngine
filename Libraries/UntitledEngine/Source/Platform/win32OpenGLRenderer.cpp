@@ -1138,7 +1138,7 @@ Framebuffer_ID Renderer::CreateFrameBuffer(Vec2i size, FBufferFormat format)
 {
     OpenGLFBuffer newBuffer = OpenGLFBuffer(size, format);
 
-    Framebuffer_ID newID = GUIDGen::Generate();
+    Framebuffer_ID newID = frameBufferIDGenerator.Generate();
 
     fBufferMap.insert(std::pair<Framebuffer_ID, OpenGLFBuffer>(newID, newBuffer));
     return newID;
@@ -1150,7 +1150,7 @@ Framebuffer_ID Renderer::CreateFBufferWithExistingDepthBuffer(Framebuffer_ID exi
 
     OpenGLFBuffer newBuffer = OpenGLFBuffer(size, format, fBuffer.rbo);
     
-    Framebuffer_ID newID = GUIDGen::Generate();
+    Framebuffer_ID newID = frameBufferIDGenerator.Generate();
 
     fBufferMap.insert(std::pair<Framebuffer_ID, OpenGLFBuffer>(newID, newBuffer));
     return newID;
@@ -1190,7 +1190,7 @@ Texture_ID Renderer::AttachColourAttachmentToFrameBuffer(Framebuffer_ID buffer, 
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-    Texture_ID newID = GUIDGen::Generate();
+    Texture_ID newID = textureIDGenerator.Generate();
     textureMap.insert(std::pair<Texture_ID, OpenGLTexture>(newID, newTexture));
     
     return newID;
@@ -1200,7 +1200,7 @@ Texture_ID Renderer::LoadTexture(Vec2i size, std::vector<unsigned char> textureD
 {
     OpenGLTexture newTexture = OpenGLTexture(size, textureData, format, minTexMode, magTexMode);
 
-    Texture_ID newID = GUIDGen::Generate();
+    Texture_ID newID = textureIDGenerator.Generate();
 
     textureMap.insert(std::pair<Texture_ID, OpenGLTexture>(newID, newTexture));
     return newID;
@@ -1210,7 +1210,7 @@ Texture_ID Renderer::LoadTexture(std::string filePath, TextureMode minTexMode, T
 {
     OpenGLTexture newTexture = OpenGLTexture(filePath, minTexMode, magTexMode);
 
-    Texture_ID newID = GUIDGen::Generate();
+    Texture_ID newID = textureIDGenerator.Generate();
 
     textureMap.insert(std::pair<Texture_ID, OpenGLTexture>(newID, newTexture));
     return newID;
@@ -1234,7 +1234,7 @@ Cubemap_ID Renderer::LoadCubemap(std::string filepath)
 {
     OpenGLCubemap newCubemap = OpenGLCubemap(filepath);
 
-    Cubemap_ID newID = GUIDGen::Generate();
+    Cubemap_ID newID = cubemapIDGenerator.Generate();
 
     cubemapMap.insert(std::pair<Cubemap_ID, OpenGLCubemap>(newID, newCubemap));
     return newID;
@@ -1244,7 +1244,7 @@ Shader_ID Renderer::LoadShader(std::string vertShaderSource, std::string fragSha
 {
     OpenGLShader newShader = OpenGLShader(vertShaderSource, fragShaderSource);
 
-    Shader_ID newID = GUIDGen::Generate();
+    Shader_ID newID = shaderIDGenerator.Generate();
 
     shaderMap.insert(std::pair<Shader_ID, OpenGLShader>(newID, newShader));
     return newID;
@@ -1254,7 +1254,7 @@ StaticMesh_ID Renderer::LoadMesh(const VertexBufferFormat& vertBufFormat, std::v
 {
     OpenGLMesh newMesh = OpenGLMesh(vertBufFormat, vertexData);
 
-    StaticMesh_ID newID = GUIDGen::Generate();
+    StaticMesh_ID newID = staticMeshIDGenerator.Generate();
 
     meshMap.insert(std::pair<StaticMesh_ID, OpenGLMesh>(newID, std::move(newMesh)));
     return newID;
@@ -1264,7 +1264,7 @@ StaticMesh_ID Renderer::LoadMesh(const VertexBufferFormat& vertBufFormat, std::v
 {
     OpenGLMesh newMesh = OpenGLMesh(vertBufFormat, vertexData, indices);
 
-    StaticMesh_ID newID = GUIDGen::Generate();
+    StaticMesh_ID newID = staticMeshIDGenerator.Generate();
 
     meshMap.insert(std::pair<StaticMesh_ID, OpenGLMesh>(newID, std::move(newMesh)));
         
@@ -1288,7 +1288,7 @@ void Renderer::DeleteFrameBuffer(Framebuffer_ID fBufferID)
         fBufferMap.erase(fBufferID);
     }
 
-    GUIDGen::FreeID(fBufferID);
+    frameBufferIDGenerator.FreeID(fBufferID);
 }
 #pragma optimize("", on)
 
@@ -1303,7 +1303,7 @@ void Renderer::DeleteTexture(Texture_ID textureID)
         textureMap.erase(textureID);
     }
 
-    GUIDGen::FreeID(textureID);
+    textureIDGenerator.FreeID(textureID);
 }
 
 void Renderer::DeleteMesh(StaticMesh_ID meshID)
@@ -1319,14 +1319,14 @@ void Renderer::DeleteMesh(StaticMesh_ID meshID)
         meshMap.erase(meshID);
     }
 
-    GUIDGen::FreeID(meshID);
+    staticMeshIDGenerator.FreeID(meshID);
 }
 
 Texture_ID Renderer::CreateEmptyTexture(Vec2i size, ColourFormat format)
 {
     OpenGLTexture newTexture = OpenGLTexture(size, format);
 
-    Texture_ID newID = GUIDGen::Generate();
+    Texture_ID newID = textureIDGenerator.Generate();
 
     textureMap.insert(std::pair<Texture_ID, OpenGLTexture>(newID, newTexture));
     return newID;
@@ -1334,9 +1334,9 @@ Texture_ID Renderer::CreateEmptyTexture(Vec2i size, ColourFormat format)
 
 StaticMesh_ID Renderer::CreateEmptyMesh(const VertexBufferFormat& vertBufFormat, bool useElementArray)
 {
+    StaticMesh_ID newID = staticMeshIDGenerator.Generate();
+    
     OpenGLMesh newMesh = OpenGLMesh(vertBufFormat, useElementArray);
-
-    StaticMesh_ID newID = GUIDGen::Generate();
 
     meshMap.insert(std::pair<StaticMesh_ID, OpenGLMesh>(newID, newMesh));
     return newID;
@@ -1346,9 +1346,6 @@ void Renderer::ClearMesh(StaticMesh_ID meshID)
 {
     OpenGLMesh mesh = *GetGLMeshFromMeshID(meshID);
 
-    //glBindVertexArray(mesh.VAO);
-
-    //glBindBuffer(GL_ARRAY_BUFFER, mesh.VBO);
     glInvalidateBufferData(mesh.VBO);
     glInvalidateBufferData(mesh.EBO);
     

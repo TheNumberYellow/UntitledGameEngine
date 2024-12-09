@@ -2591,19 +2591,23 @@ void Resize(Vec2i newSize)
 #include "GameEngine.h"
 
 #include "States/Game/GameState.h"
+#include "States/Game/ServerGameState.h"
+#include "States/Game/ClientGameState.h"
+
 #include "State/StateMachine.h"
 
 StateMachine Machine;
 
 // CHANGE THIS TO SET INITIAL LEVEL
-//const std::string InitialLevelName = "levels\\BullTest.lvl";
-std::string InitialLevelName = "Assets/levels/Survival.lvl";
+
+std::string InitialLevelName = "Assets/levels/WhyTho.lvl";
+//std::string InitialLevelName = "Assets/levels/Why.lvl";
+//std::string InitialLevelName = "Assets/levels/Survival.lvl";
 //const std::string InitialLevelName = "Assets/levels/PhysWorld1Ball.lvl";
-//const std::string InitialLevelName = "Assets/levels/PhysWorld.lvl";
-//const std::string InitialLevelName = "levels\\2BallsPlat.lvl";
+//sstd::string InitialLevelName = "Assets/levels/PhysWorld1Ball.lvl";
 const std::string TitleBarText = "Bounce";
 
-void Initialize(ArgsList args)
+void InitializeSinglePlayer(ArgsList args)
 {
     if (std::string(START_SCENE) != "")
     {
@@ -2616,19 +2620,40 @@ void Initialize(ArgsList args)
     CollisionModule* Collisions = CollisionModule::Get();
 
     GameState* GState = new GameState();
-    
+
     Graphics->SetRenderMode(RenderMode::DEFAULT);
-   
-    AssetRegistry* Registry = AssetRegistry::Get();
 
-    Registry->LoadStaticMesh("Assets/models/ArrowSmooth.obj"),
-    Registry->LoadStaticMesh("Assets/models/RotationHoop.obj");
-
-    //GameScene->SetDirectionalLight(DirectionalLight{ Math::normalize(Vec3f(0.5f, 1.0f, -1.0f)), Vec3f(1.0f, 1.0f, 1.0f) });
-    
     GState->LoadScene(InitialLevelName);
-    
+
     Machine.PushState(GState);
+}
+
+void InitializeClient(ArgsList args)
+{
+    ClientGameState* ClientState = new ClientGameState();
+    Machine.PushState(ClientState);
+}
+
+void InitializeServer(ArgsList args)
+{
+    ServerGameState* ServerState = new ServerGameState();
+    Machine.PushState(ServerState);
+}
+
+void Initialize(ArgsList args)
+{
+    if (args == "-server")
+    {
+        InitializeServer(args);
+    }
+    else if (args == "-client")
+    {
+        InitializeClient(args);
+    }
+    else
+    {
+        InitializeSinglePlayer(args);
+    }
 }
 
 void Update(double deltaTime)

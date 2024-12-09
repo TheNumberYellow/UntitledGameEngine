@@ -271,5 +271,12 @@ public:
 
     Vec2i GetViewportSize();
 
+private:
+
+    GUIDGenerator textureIDGenerator;
+    GUIDGenerator cubemapIDGenerator;
+    GUIDGenerator frameBufferIDGenerator;
+    GUIDGenerator shaderIDGenerator;
+    GUIDGenerator staticMeshIDGenerator;
     //TODO(fraser): functions for deleting/freeing memory of fbuffers/textures/meshes/shaders/etc
 };

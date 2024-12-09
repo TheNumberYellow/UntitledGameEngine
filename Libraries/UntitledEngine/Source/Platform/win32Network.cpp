@@ -175,22 +175,7 @@ bool NetworkInterface::StartClient(std::string ip)
 
 void NetworkInterface::ServerPing()
 {
-    if (m_ServerRunning)
-    {
-        for (auto& SocketPair : ServerConnectionSockets)
-        {
-            auto Socket = SocketPair.second;
-
-            const char* sendbuf = "PING";
-            int iResult;
-            iResult = send(Socket, sendbuf, (int)strlen(sendbuf), 0);
-            if (iResult == SOCKET_ERROR) {
-                std::string errorString = "send failed: " + std::to_string(WSAGetLastError());
-                Engine::Error(errorString);
-                return;
-            }
-        }
-    }
+    ServerSendDataAll("PING");
 }
 
 void NetworkInterface::ClientPing()
@@ -212,15 +197,45 @@ void NetworkInterface::ServerSendData(std::string data, ClientID clientID)
 {
     if (m_ServerRunning)
     {
+        uint32_t dataSize = data.size();
+
+        // Store message size in first 4 bytes
+        char sizeAsChars[4];
+
+        // TODO: Potential bug, endianness
+        sizeAsChars[0] = (dataSize >> 24) & 0xFF;
+        sizeAsChars[1] = (dataSize >> 16) & 0xFF;
+        sizeAsChars[2] = (dataSize >> 8) & 0xFF;
+        sizeAsChars[3] = dataSize & 0xFF;
+
+        uint32_t headerDataSize = 4;
+        uint32_t totalDataSize = headerDataSize + dataSize;
+
+        const char* cData = data.c_str();
+        char* sendBuf = new char[totalDataSize];
+
+        std::copy(sizeAsChars, sizeAsChars + headerDataSize, sendBuf);
+        std::copy(cData, cData + dataSize, sendBuf + headerDataSize);
+
+
         if (ServerConnectionSockets.find(clientID) != ServerConnectionSockets.end())
         {
-            const char* sendbuf = data.c_str();
-            int iResult;
-            iResult = send(ServerConnectionSockets[clientID], sendbuf, (int)strlen(sendbuf), 0);
-            if (iResult == SOCKET_ERROR) {
-                std::string errorString = "send failed: " + std::to_string(WSAGetLastError());
-                Engine::Error(errorString);
-                return;
+            auto Socket = ServerConnectionSockets[clientID];
+
+            uint32_t totalBytesToSend = totalDataSize;
+            uint32_t bytesSent = 0;
+
+            while (totalBytesToSend - bytesSent > 0)
+            {
+                int iResult;
+                iResult = send(Socket, sendBuf + bytesSent, totalBytesToSend - bytesSent, 0);
+                if (iResult == SOCKET_ERROR) {
+                    std::string errorString = "send all failed: " + std::to_string(WSAGetLastError());
+                    Engine::Error(errorString);
+                    return;
+                }
+
+                bytesSent += iResult;
             }
         }
     }
@@ -232,16 +247,7 @@ void NetworkInterface::ServerSendDataAll(std::string data)
     {
         for (auto SocketPair : ServerConnectionSockets)
         {
-            auto Socket = SocketPair.second;
-
-            const char* sendbuf = data.c_str();
-            int iResult;
-            iResult = send(Socket, sendbuf, (int)strlen(sendbuf), 0);
-            if (iResult == SOCKET_ERROR) {
-                std::string errorString = "send all failed: " + std::to_string(WSAGetLastError());
-                Engine::Error(errorString);
-                return;
-            }
+            ServerSendData(data, SocketPair.first);
         }
     }
 }
@@ -251,12 +257,21 @@ void NetworkInterface::ClientSendData(std::string data)
     if (m_ClientRunning)
     {
         const char* sendbuf = data.c_str();
-        int iResult;
-        iResult = send(ClientConnectionSocket, sendbuf, (int)strlen(sendbuf), 0);
-        if (iResult == SOCKET_ERROR) {
-            std::string errorString = "send failed: " + std::to_string(WSAGetLastError());
-            Engine::Error(errorString);
-            return;
+
+        int totalBytesToSend = (int)strlen(sendbuf);
+        int bytesSent = 0;
+
+        while (totalBytesToSend - bytesSent > 0)
+        {
+            int iResult;
+            iResult = send(ClientConnectionSocket, sendbuf + bytesSent, totalBytesToSend - bytesSent, 0);
+            if (iResult == SOCKET_ERROR) {
+                std::string errorString = "send failed: " + std::to_string(WSAGetLastError());
+                Engine::Error(errorString);
+                return;
+            }
+
+            bytesSent += iResult;
         }
     }
 }
@@ -416,7 +431,7 @@ void NetworkInterface::ServerReceiveData(ClientID clientID)
             ServerConnectionSockets.erase(clientID);
             //auto thisSocketIter = std::find(ServerConnectionSockets.begin(), ServerConnectionSockets.end(), )
             //ServerConnectionSockets.erase()
-             
+            
             break;
         }
         else
@@ -444,36 +459,48 @@ void NetworkInterface::ServerReceiveData(ClientID clientID)
 void NetworkInterface::ClientReceiveData()
 {
     int iResult;
-    char recvbuf[DEFAULT_BUFLEN];
-    int recvbuflen = DEFAULT_BUFLEN;
 
     while (m_ClientRunning)
     {
-        iResult = recv(ClientConnectionSocket, recvbuf, recvbuflen, 0);
-    
-        if (iResult <= 0)
+        // Read 4 byte header for message size
+        char headerBuf[4];
+        iResult = recv(ClientConnectionSocket, headerBuf, 4, 0);
+
+        // TODO: Not handling disconnect on above recv for now
+        // TODO: endianness
+        uint32_t messageSizeBytes;
+        messageSizeBytes = 
+            (((headerBuf[0]         ) << 24) |
+            ((headerBuf[1] & 0xff   ) << 16) |
+            ((headerBuf[2] & 0xff   ) << 8) |
+            ((headerBuf[3] & 0xff   )));
+
+        char* messageBuf = new char[messageSizeBytes + 1];
+        messageBuf[messageSizeBytes] = '\0';
+
+        uint32_t messageBytesReceived = 0;
+
+        while (messageBytesReceived < messageSizeBytes)
         {
-            Engine::Error("Connection closed.");
-            break;
-        }
-        else
-        {
-            std::string ReceivedData;
-            for (int i = 0; i < iResult; ++i)
+            iResult = recv(ClientConnectionSocket, messageBuf + messageBytesReceived, (messageSizeBytes - messageBytesReceived), 0);
+
+            if (iResult <= 0)
             {
-                ReceivedData += recvbuf[i];
+                m_ClientRunning = false;
+                Engine::Error("Connection closed.");
+                break;
             }
 
-            if (ReceivedData == "PING")
-            {
-                Engine::Error("Received ping from server.");
-            }
-            else
-            {
-                Packet NewPacket;
-                NewPacket.Data = ReceivedData;
-                ClientPacketQueue.push(NewPacket);
-            }
+            messageBytesReceived += iResult;
+
+        }
+        if (m_ClientRunning)
+        {
+            std::string ReceivedMessage = std::string(messageBuf);
+            
+            Packet NewPacket;
+            NewPacket.Data = ReceivedMessage;
+            ClientPacketQueue.push(NewPacket);
         }
     }
 }

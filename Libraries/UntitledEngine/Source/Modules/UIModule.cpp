@@ -539,18 +539,16 @@ void UIModule::StartFrame(std::string name, Vec2f size, float borderWidth, Vec3f
     StartFrame(name, FrameRect, borderWidth, colour);
 }
 
-void UIModule::StartTab(std::string text, Vec3f colour)
+bool UIModule::StartTab(std::string text, Vec3f colour)
 {
     if (!IsActive())
     {
-        return;
+        return false;
     }
-
-    //Engine::DEBUGPrint("Start tab " + text);
 
     if (m_FrameStateStack.empty())
     {
-        return;
+        return false;
     }
     else
     {
@@ -575,6 +573,8 @@ void UIModule::StartTab(std::string text, Vec3f colour)
         m_InTabStack.back() = true;
         //m_InTabStack.top() = true;
     }
+
+    return true;
     //m_InTab = true;
 }
 
@@ -612,6 +612,18 @@ void UIModule::FloatSlider(std::string name, Vec2f size, float& outNum, float mi
     Rect TotalSize = PlaceElement(size);
 
     FloatSliderInternal(name, TotalSize, outNum, min, max, vertical, drawText, colour);
+}
+
+void UIModule::NewLine(float lineHeight)
+{
+    Rect CurrentFrame = GetFrame();
+    CursorInfo& CurrentCursor = CursorStack.top();
+
+    CurrentCursor.Top.x = CurrentFrame.location.x;
+
+    CurrentCursor.Top.y = CurrentCursor.Bottom.y + lineHeight;
+
+    CurrentCursor.Bottom.y = CurrentCursor.Top.y;
 }
 
 void UIModule::OnFrameStart()

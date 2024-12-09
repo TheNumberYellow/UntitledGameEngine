@@ -53,7 +53,7 @@ void ServerGameState::Update(double DeltaTime)
     {
         ui->StartFrame("Levels", Vec2f(500.0f, 800.0f), 12.0f, MakeColour(125, 200, 255));
         {
-            std::string path = "levels";
+            std::string path = "Assets/levels";
 
             for (const auto& entry : std::filesystem::directory_iterator(path))
             {
@@ -70,8 +70,6 @@ void ServerGameState::Update(double DeltaTime)
                         ViewportCamera = CurrentScene.GetCamera();
 
                         ViewportCamera->SetScreenSize(Vec2f(800.0f, 600.0f));
-
-                        CurrentScene.SetDirectionalLight(DirectionalLight{ Math::normalize(Vec3f(0.5f, 1.0f, -1.0f)), Vec3f(1.0f, 1.0f, 1.0f) });
 
                         InScene = true;
                     }
@@ -94,6 +92,9 @@ void ServerGameState::Update(double DeltaTime)
     if (InScene)
     {
         CurrentScene.Update(DeltaTime);
+
+        SendSceneUpdatePacket();
+
         CurrentScene.Draw(*graphics, ViewportBuffer);
         graphics->ResetFrameBuffer();
     }
@@ -116,5 +117,55 @@ void ServerGameState::SendLevelChangePacket(std::string levelName)
     std::string packetStr = PacketData.dump();
 
     network->ServerSendDataAll(packetStr);
+
+}
+
+void ServerGameState::SendSceneUpdatePacket()
+{
+    NetworkModule* network = NetworkModule::Get();
+
+
+    json PacketData;
+    PacketData["Type"] = "SceneUpdate";
+    
+    json ModelList;
+    
+    for (auto& it : CurrentScene.m_Models)
+    {
+        //for (auto& it : CurrentScene.m_Models)
+        {
+            json ModelInfo;
+            ModelInfo["ID"] = it.first;
+
+            Mat4x4f ModTrans = it.second->GetTransform().GetTransformMatrix();
+
+            ModelInfo["Transform"] = {
+                ModTrans[0].x, ModTrans[0].y, ModTrans[0].z, ModTrans[0].w,
+                ModTrans[1].x, ModTrans[1].y, ModTrans[1].z, ModTrans[1].w,
+                ModTrans[2].x, ModTrans[2].y, ModTrans[2].z, ModTrans[2].w,
+                ModTrans[3].x, ModTrans[3].y, ModTrans[3].z, ModTrans[3].w,
+            };
+
+            ModelList.push_back(ModelInfo);
+        }
+
+    }
+
+    PacketData["Models"] = ModelList;
+
+    std::string packetStr = PacketData.dump();
+
+    network->ServerSendDataAll(packetStr);
+
+
+    json CamPacket;
+    CamPacket["Type"] = "Cam";
+
+    CamPacket["CamPos"] = { ViewportCamera->GetPosition().x, ViewportCamera->GetPosition().y, ViewportCamera->GetPosition().z };
+    CamPacket["CamDir"] = { ViewportCamera->GetDirection().x, ViewportCamera->GetDirection().y, ViewportCamera->GetDirection().z };
+
+    std::string camPacketStr = CamPacket.dump();
+
+    network->ServerSendDataAll(camPacketStr);
 
 }

@@ -69,11 +69,12 @@ Scene& Scene::operator=(const Scene& other)
 
 Scene::~Scene()
 {
-    for (auto& model : m_UntrackedModels)
+    for (auto it : m_Models)
     {
-        BehaviourRegistry::Get()->ClearBehavioursOnEntity(model);
+        BehaviourRegistry::Get()->ClearBehavioursOnEntity(it.second);
+        delete it.second;
     }
-    m_UntrackedModels.clear();
+    m_Models.clear();
     m_PointLights.clear();
 }
 
@@ -94,22 +95,24 @@ bool Scene::IsPaused()
 
 Model* Scene::AddModel(Model* model)
 {
-    m_UntrackedModels.push_back(model);
+    GUID newModelID = m_ModelIDGenerator.Generate();
+
+    m_Models[newModelID] = model;
 
 #ifdef USE_EDITOR
     m_EditorClickables.push_back(model);
 #endif
 
-    return m_UntrackedModels.back();
+    return m_Models[newModelID];
 }
 
 Model* Scene::GetModelByTag(std::string tag)
 {
-    for (auto& model : m_UntrackedModels)
+    for (auto it : m_Models)
     {
-        if (model->m_Name == tag)
+        if (it.second->m_Name == tag)
         {
-            return model;
+            return it.second;
         }
     }
     return nullptr;
@@ -118,11 +121,11 @@ Model* Scene::GetModelByTag(std::string tag)
 std::vector<Model*> Scene::GetModelsByTag(std::string tag)
 {
     std::vector<Model*> result;
-    for (auto& model : m_UntrackedModels)
+    for (auto it : m_Models)
     {
-        if (model->m_Name == tag)
+        if (it.second->m_Name == tag)
         {
-            result.push_back(model);
+            result.push_back(it.second);
         }
     }
     return result;
@@ -231,13 +234,16 @@ void Scene::DeleteModel(Model* model)
     }
 #endif
 
-    auto it = std::find(m_UntrackedModels.begin(), m_UntrackedModels.end(), model);
-    if (it != m_UntrackedModels.end())
+    auto it = std::find_if(std::begin(m_Models), std::end(m_Models),
+        [&model](auto&& p) { return p.second == model; });
+
+    if (it != std::end(m_Models))
     {
-        m_UntrackedModels.erase(it);
+        m_Models.erase(it);
 
         BehaviourRegistry::Get()->ClearBehavioursOnEntity(model);
-        
+        m_ModelIDGenerator.FreeID(it->first);
+
         delete model;
     }
 }
@@ -247,7 +253,6 @@ void Scene::AddCamera(Camera* camera)
     m_Cameras.push_back(Camera(*camera));
 
     // If in editor
-
 
 }
 
@@ -274,9 +279,9 @@ void Scene::Initialize()
 void Scene::InitializeBehaviours()
 {
     BehaviourRegistry* Registry = BehaviourRegistry::Get();
-    for (auto& it : m_UntrackedModels)
+    for (auto it : m_Models)
     {
-        Registry->InitializeModelBehaviours(it, this);
+        Registry->InitializeModelBehaviours(it.second, this);
     }
 }
 
@@ -288,9 +293,9 @@ void Scene::Update(double DeltaTime)
 void Scene::UpdateBehaviours(double DeltaTime)
 {
     BehaviourRegistry* Registry = BehaviourRegistry::Get();
-    for (auto& it : m_UntrackedModels)
+    for (auto it : m_Models)
     {
-        Registry->UpdateModelBehaviours(it, this, DeltaTime);
+        Registry->UpdateModelBehaviours(it.second, this, DeltaTime);
     }
 }
 
@@ -354,15 +359,15 @@ SceneRayCastHit Scene::RayCast(Ray ray, std::vector<Model*> IgnoredModels)
 
     SceneRayCastHit finalHit;
 
-    for (auto& it : m_UntrackedModels)
+    for (auto it : m_Models)
     {
-        if (std::count(IgnoredModels.begin(), IgnoredModels.end(), it) > 0)
+        if (std::count(IgnoredModels.begin(), IgnoredModels.end(), it.second) > 0)
         {
             continue;
         }
-        CollisionMesh& colMesh = *Collision.GetCollisionMeshFromMesh(it->m_TexturedMeshes[0].m_Mesh);
+        CollisionMesh& colMesh = *Collision.GetCollisionMeshFromMesh(it.second->m_TexturedMeshes[0].m_Mesh);
         
-        finalHit = Closer(finalHit, SceneRayCastHit{ Collision.RayCast(ray, colMesh, it->GetTransform()), it });
+        finalHit = Closer(finalHit, SceneRayCastHit{ Collision.RayCast(ray, colMesh, it.second->GetTransform()), it.second });
     }
 
     return finalHit;
@@ -374,16 +379,16 @@ Intersection Scene::SphereIntersect(Sphere sphere, std::vector<Model*> IgnoredMo
 
     Intersection Result;
 
-    for (auto& it : m_UntrackedModels)
+    for (auto it : m_Models)
     {
-        if (std::count(IgnoredModels.begin(), IgnoredModels.end(), it) > 0)
+        if (std::count(IgnoredModels.begin(), IgnoredModels.end(), it.second) > 0)
         {
             continue;
         }
 
-        CollisionMesh& colMesh = *Collision.GetCollisionMeshFromMesh(it->m_TexturedMeshes[0].m_Mesh);
+        CollisionMesh& colMesh = *Collision.GetCollisionMeshFromMesh(it.second->m_TexturedMeshes[0].m_Mesh);
 
-        Intersection ModelIntersection = Collision.SphereIntersection(sphere, colMesh, it->GetTransform());
+        Intersection ModelIntersection = Collision.SphereIntersection(sphere, colMesh, it.second->GetTransform());
 
         if (ModelIntersection.hit && ModelIntersection.penetrationDepth > Result.penetrationDepth)
         {
@@ -416,9 +421,9 @@ Model* Scene::MenuListEntities(UIModule& ui, Font& font)
     Vec2f cursor = Vec2f(0.0f, 0.0f);
 
     Model* result = nullptr;
-    for (int i = 0; i < m_UntrackedModels.size(); ++i)
+    for (auto it : m_Models)
     {
-        Model* model = m_UntrackedModels[i];
+        Model* model = it.second;
         Vec3f pos = model->GetTransform().GetPosition();
 
         std::string modelDesc = model->m_Name.empty() ? "<unnamed>" : model->m_Name;
@@ -429,12 +434,28 @@ Model* Scene::MenuListEntities(UIModule& ui, Font& font)
 
         if (ui.TextButton(modelDesc, rect.size, 5.0f))
         {
-            result = m_UntrackedModels[i];
+            result = model;
         }
         cursor.y += 20.0f;
     }
 
     return result;
+}
+
+void Scene::DrawSettingsPanel()
+{
+    UIModule* UI = UIModule::Get();
+
+    // Directional light colour setting
+    Colour dirLightColour = m_DirLight.colour;
+    Colour invDirlightColour = Colour(1.0f - dirLightColour.r, 1.0f - dirLightColour.g, 1.0f - dirLightColour.b);
+    UI->TextButton("Directional Light Colour", Vec2f(250.0f, 20.0f), 8.0f, dirLightColour, invDirlightColour);
+
+    UI->FloatSlider("R", Vec2f(400.0f, 20.0f), m_DirLight.colour.r);
+    UI->FloatSlider("G", Vec2f(400.0f, 20.0f), m_DirLight.colour.g);
+    UI->FloatSlider("B", Vec2f(400.0f, 20.0f), m_DirLight.colour.b);
+
+
 }
 
 void Scene::Save(std::string FileName)
@@ -447,24 +468,24 @@ void Scene::Save(std::string FileName)
         return;
     }
 
-
-
     // Set of all textures used in the scene
     std::set<Material> Materials;
     // Set of all Static Meshes used in the scene
     std::set<StaticMesh> StaticMeshes;
 
-    for (auto& it : m_UntrackedModels)
+    for (auto it : m_Models)
     {
-        Texture tex = it->m_TexturedMeshes[0].m_Material.m_Albedo;
-        StaticMesh mesh = it->m_TexturedMeshes[0].m_Mesh;
+        Model* model = it.second;
+
+        Texture tex = model->m_TexturedMeshes[0].m_Material.m_Albedo;
+        StaticMesh mesh = model->m_TexturedMeshes[0].m_Mesh;
         
-        Material mat = it->m_TexturedMeshes[0].m_Material;
+        Material mat = model->m_TexturedMeshes[0].m_Material;
 
         Materials.insert(mat);
         if (mesh.LoadedFromFile)
         {
-            StaticMeshes.insert(it->m_TexturedMeshes[0].m_Mesh);
+            StaticMeshes.insert(model->m_TexturedMeshes[0].m_Mesh);
         }
     }
     for (auto& it : m_Brushes)
@@ -482,6 +503,7 @@ void Scene::Save(std::string FileName)
     json TextureList;
     json StaticMeshList;
     json PointLightList;
+    json DirLightList;
     json ModelList;
     json BrushList;
 
@@ -503,13 +525,19 @@ void Scene::Save(std::string FileName)
     {
         SavePointLight(PointLightList[Index++], *PLight);
     }
+    
+    // Saving only 1 directional light for now
+    SaveDirectionalLight(DirLightList[0], m_DirLight);
+
     Index = 0;
-    for (Model* Mod : m_UntrackedModels)
+    for (auto it : m_Models)
     {
+        Model* model = it.second;
+
         int64_t StaticMeshIndex = 0;
         bool GeneratedMesh = false;
 
-        auto MeshIt = std::find(MeshVec.begin(), MeshVec.end(), Mod->m_TexturedMeshes[0].m_Mesh);
+        auto MeshIt = std::find(MeshVec.begin(), MeshVec.end(), model->m_TexturedMeshes[0].m_Mesh);
         if (MeshIt != MeshVec.end())
         {
             StaticMeshIndex = MeshIt - MeshVec.begin();
@@ -521,7 +549,7 @@ void Scene::Save(std::string FileName)
         
         int64_t MaterialIndex = 0;
 
-        auto MatIt = std::find(MatVec.begin(), MatVec.end(), Mod->m_TexturedMeshes[0].m_Material);
+        auto MatIt = std::find(MatVec.begin(), MatVec.end(), model->m_TexturedMeshes[0].m_Material);
         if (MatIt != MatVec.end())
         {
             MaterialIndex = MatIt - MatVec.begin();
@@ -533,11 +561,11 @@ void Scene::Save(std::string FileName)
 
         if (GeneratedMesh)
         {
-            SaveRawModel(ModelList[Index++], *Mod, MaterialIndex);
+            SaveRawModel(ModelList[Index++], *model, MaterialIndex);
         }
         else
         {
-            SaveModel(ModelList[Index++], *Mod, StaticMeshIndex, MaterialIndex);
+            SaveModel(ModelList[Index++], *model, StaticMeshIndex, MaterialIndex);
         }
     }
     Index = 0;
@@ -561,6 +589,7 @@ void Scene::Save(std::string FileName)
     SceneJson["Textures"] = TextureList;
     SceneJson["StaticMeshes"] = StaticMeshList;
     SceneJson["PointLights"] = PointLightList;
+    SceneJson["DirLights"] = DirLightList;
     SceneJson["Models"] = ModelList;
     SceneJson["Brushes"] = BrushList;
 
@@ -604,6 +633,7 @@ void Scene::Load(std::string FileName)
     json TexturesJson = SceneJson["Textures"];
     json StaticMeshesJson = SceneJson["StaticMeshes"];
     json PointLightsJson = SceneJson["PointLights"];
+    json DirLightsJson = SceneJson["DirLights"];
     json ModelsJson = SceneJson["Models"];
     json BrushesJson = SceneJson["Brushes"];
 
@@ -615,10 +645,14 @@ void Scene::Load(std::string FileName)
     {
         StaticMeshVec.push_back(LoadStaticMesh(StaticMeshJson));
     }
-    ///
     for (json& PointLightJson : PointLightsJson)
     {
         AddPointLight(LoadPointLight(PointLightJson));
+    }
+    for (json& DirLightJson : DirLightsJson)
+    {
+        // Only 1 directional light for now
+        SetDirectionalLight(LoadDirectionalLight(DirLightJson));
     }
     for (json& ModelJson : ModelsJson)
     {
@@ -882,7 +916,9 @@ void Scene::LegacyLoad(std::string FileName)
                 BehaviourRegistry::Get()->AttachNewBehaviour(BehaviourName, NewModel);
             }
 
-            m_UntrackedModels.push_back(NewModel);
+            GUID newModelID = m_ModelIDGenerator.Generate();
+
+            m_Models[newModelID] = NewModel;
 
             break;
         }
@@ -895,14 +931,12 @@ void Scene::LegacyLoad(std::string FileName)
 
 void Scene::Clear()
 {
-    for (auto& model : m_UntrackedModels)
-    {
-        BehaviourRegistry::Get()->ClearBehavioursOnEntity(model);
-    }
+    m_ModelIDGenerator.Reset();
 
-    for (auto& Model : m_UntrackedModels)
+    for (auto it : m_Models)
     {
-        delete Model;
+        BehaviourRegistry::Get()->ClearBehavioursOnEntity(it.second);
+        delete it.second;
     }
     for (auto& PointLight : m_PointLights)
     {
@@ -917,10 +951,14 @@ void Scene::Clear()
         delete B;
     }
 
-    m_UntrackedModels.clear();
+    m_Models.clear();
     m_PointLights.clear();
     m_Cameras.clear();
     m_Brushes.clear();
+
+#ifdef USE_EDITOR
+    m_EditorClickables.clear();
+#endif
 
     // Set camera to default TODO: (want to load camera info from file)
     m_Cameras.push_back(Camera());
@@ -934,12 +972,14 @@ void Scene::CopyInternal(const Scene& other)
     m_DirLight = other.m_DirLight;
     m_Cameras = other.m_Cameras;
 
-    for (auto& model : other.m_UntrackedModels)
+    for (auto it : other.m_Models)
     {
-        Model* newModel = new Model(*model);
-        m_UntrackedModels.push_back(newModel);
+        Model* newModel = new Model(*it.second);
+        AddModel(newModel);
 
-        Behaviour* oldBehaviour = BehaviourRegistry::Get()->GetBehaviourAttachedToEntity(model);
+        // TODO: Copy actual behaviour so parameter changes are picked up
+
+        Behaviour* oldBehaviour = BehaviourRegistry::Get()->GetBehaviourAttachedToEntity(it.second);
         if (oldBehaviour)
         {
             BehaviourRegistry::Get()->AttachNewBehaviour(oldBehaviour->BehaviourName, newModel);
@@ -959,7 +999,7 @@ void Scene::CopyInternal(const Scene& other)
 
         GraphicsModule::Get()->UpdateBrushModel(newBrush);
 
-        m_Brushes.push_back(newBrush);
+        AddBrush(newBrush);
 
         Behaviour* oldBehaviour = BehaviourRegistry::Get()->GetBehaviourAttachedToEntity(brush->RepModel);
         if (oldBehaviour)
@@ -970,8 +1010,7 @@ void Scene::CopyInternal(const Scene& other)
 
     for (auto& pointLight : other.m_PointLights)
     {
-        PointLight* newPointLight = new PointLight(*pointLight);
-        m_PointLights.push_back(newPointLight);
+        AddPointLight(*pointLight);
     }
 }
 
@@ -994,15 +1033,14 @@ void Scene::PushSceneRenderCommandsInternal(GraphicsModule& graphics)
         heMesh->Draw();
     }
 
-    for (auto& it : m_UntrackedModels)
+    for (auto it : m_Models)
     {
         StaticMeshRenderCommand command;
-        command.m_Material = it->m_TexturedMeshes[0].m_Material;
-        command.m_Mesh = it->m_TexturedMeshes[0].m_Mesh.Id;
-        command.m_TransMat = it->GetTransform().GetTransformMatrix();
+        command.m_Material = it.second->m_TexturedMeshes[0].m_Material;
+        command.m_Mesh = it.second->m_TexturedMeshes[0].m_Mesh.Id;
+        command.m_TransMat = it.second->GetTransform().GetTransformMatrix();
 
         graphics.AddRenderCommand(command);
-
     }
 
     for (auto& it : m_Brushes)
@@ -1073,6 +1111,12 @@ void Scene::SavePointLight(json& JsonObject, PointLight& PointLight)
     JsonObject["Position"] = { PointLight.position.x, PointLight.position.y, PointLight.position.z };
     JsonObject["Colour"] = { PointLight.colour.x, PointLight.colour.y, PointLight.colour.z };
     JsonObject["Intensity"] = PointLight.intensity;
+}
+
+void Scene::SaveDirectionalLight(json& JsonObject, DirectionalLight& DirLight)
+{
+    JsonObject["Direction"] = { DirLight.direction.x, DirLight.direction.y, DirLight.direction.z };
+    JsonObject["Colour"] = { DirLight.colour.x, DirLight.colour.y, DirLight.colour.z };
 }
 
 void Scene::SaveModel(json& JsonObject, Model& Mod, int64_t MeshIndex, int64_t MatIndex)
@@ -1146,18 +1190,34 @@ void Scene::SaveBrush(json& JsonObject, Brush& B, int64_t MatIndex)
 
 Material Scene::LoadMaterial(json& JsonObject)
 {
-    Texture* Albedo = AssetRegistry::Get()->LoadTexture("Assets/" + JsonObject[0].get<std::string>());
-    Texture* Normal = AssetRegistry::Get()->LoadTexture("Assets/" + JsonObject[1].get<std::string>());
-    Texture* Roughness = AssetRegistry::Get()->LoadTexture("Assets/" + JsonObject[2].get<std::string>());
-    Texture* Metallic = AssetRegistry::Get()->LoadTexture("Assets/" + JsonObject[3].get<std::string>());
-    Texture* AO = AssetRegistry::Get()->LoadTexture("Assets/" + JsonObject[4].get<std::string>());
+    std::string albedoPath = JsonObject[0].get<std::string>();
+    std::string normalPath = JsonObject[1].get<std::string>();
+    std::string roughPath = JsonObject[2].get<std::string>();
+    std::string metalPath = JsonObject[3].get<std::string>();
+    std::string aoPath = JsonObject[4].get<std::string>();
+
+    if (albedoPath.find("Assets") == std::string::npos) albedoPath = "Assets/" + albedoPath;
+    if (normalPath.find("Assets") == std::string::npos) normalPath = "Assets/" + normalPath;
+    if (roughPath.find("Assets") == std::string::npos) roughPath = "Assets/" + roughPath;
+    if (metalPath.find("Assets") == std::string::npos) metalPath = "Assets/" + metalPath;
+    if (aoPath.find("Assets") == std::string::npos) aoPath = "Assets/" + aoPath;
+
+    Texture* Albedo = AssetRegistry::Get()->LoadTexture(albedoPath);
+    Texture* Normal = AssetRegistry::Get()->LoadTexture(normalPath);
+    Texture* Roughness = AssetRegistry::Get()->LoadTexture(roughPath);
+    Texture* Metallic = AssetRegistry::Get()->LoadTexture(metalPath);
+    Texture* AO = AssetRegistry::Get()->LoadTexture(aoPath);
 
     return Material(*Albedo, *Normal, *Roughness, *Metallic, *AO);
 }
 
 StaticMesh Scene::LoadStaticMesh(json& JsonObject)
 {
-    return *AssetRegistry::Get()->LoadStaticMesh("Assets/" + JsonObject[0].get<std::string>());
+    std::string path = JsonObject[0].get<std::string>();
+
+    if (path.find("Assets") == std::string::npos) path = "Assets/" + path;
+
+    return *AssetRegistry::Get()->LoadStaticMesh(path);
 }
 
 PointLight Scene::LoadPointLight(json& JsonObject)
@@ -1176,6 +1236,21 @@ PointLight Scene::LoadPointLight(json& JsonObject)
     PLight.intensity = Intensity;
 
     return PLight;
+}
+
+DirectionalLight Scene::LoadDirectionalLight(json& JsonObject)
+{
+    auto Dir = JsonObject["Direction"];
+    auto Clr = JsonObject["Colour"];
+
+    Vec3f VecDir = Vec3f(Dir[0], Dir[1], Dir[2]);
+    Vec3f VecColour = Colour(Clr[0], Clr[1], Clr[2]);
+
+    DirectionalLight DLight;
+    DLight.direction = VecDir;
+    DLight.colour = VecColour;
+
+    return DLight;
 }
 
 Model* Scene::LoadModel(json& JsonObject, std::vector<Material>& MaterialVector, std::vector<StaticMesh>& StaticMeshVector)

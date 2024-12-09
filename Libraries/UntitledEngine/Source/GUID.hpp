@@ -4,14 +4,18 @@
 
 #define GUID unsigned int
 
-class GUIDGen
+class GUIDGenerator
 {
-
 public:
-    static GUID Generate();
-    static void FreeID(GUID inID);
-private:
-    static GUID currentGUID;
+    GUIDGenerator();
+    GUIDGenerator(GUID initialGUID);
 
-    static std::stack<GUID> freedGUIDs;
+    GUID Generate();
+    void FreeID(GUID inID);
+
+    void Reset();
+private:
+    GUID currentGUID;
+
+    std::stack<GUID> freedGUIDs;
 };

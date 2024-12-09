@@ -9,6 +9,7 @@
                                virtual Behaviour* Clone() const { return new Type(*this); }
 #define REGISTER_BEHAVIOUR(Type) Behaviour* Type::Type ## _Prototype = BehaviourRegistry::Get()->AddBehaviourPrototype(#Type, new Type()); \
 
+
 class Model;
 
 class Behaviour
@@ -21,6 +22,8 @@ public:
 
     virtual void Initialize(Scene* Scene) {}
     virtual void Update(Scene* Scene, double DeltaTime) {}
+
+    virtual void DrawInspectorPanel() {}
 
     std::string BehaviourName;
     Model* m_Model = nullptr;
@@ -43,6 +46,7 @@ public:
     void UpdateModelBehaviours(Model* Model, Scene* Scene, double DeltaTime);
     
     Behaviour* GetBehaviourAttachedToEntity(Model* Model);
+    void DrawEntityInspectorPanel(Model* model);
     std::vector<std::string> GetBehavioursAttachedToEntity(Model* Model);
     void ClearBehavioursOnEntity(Model* Model);
 

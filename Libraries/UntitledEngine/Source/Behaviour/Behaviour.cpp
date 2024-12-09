@@ -37,6 +37,14 @@ Behaviour* BehaviourRegistry::AttachNewBehaviour(std::string BehaviourName, Mode
     auto it = m_BehaviourPrototypes.find(BehaviourName);
     if (it != m_BehaviourPrototypes.end())
     {
+        for (auto AttachedBehaviour : m_AttachedBehaviours[Model])
+        {
+            if (AttachedBehaviour->BehaviourName == BehaviourName)
+            {
+                Engine::Alert(BehaviourName + " already exists on model.");
+            }
+        }
+
         Behaviour* NewBehaviour = it->second->Clone();
         NewBehaviour->m_Model = Model;
         NewBehaviour->BehaviourName = BehaviourName;
@@ -85,6 +93,18 @@ Behaviour* BehaviourRegistry::GetBehaviourAttachedToEntity(Model* Model)
         return it->second[0];
     }
     return nullptr;
+}
+
+void BehaviourRegistry::DrawEntityInspectorPanel(Model* model)
+{
+    auto it = m_AttachedBehaviours.find(model);
+    if (it != m_AttachedBehaviours.end())
+    {
+        for (auto& Behaviour : it->second)
+        {
+            Behaviour->DrawInspectorPanel();
+        }
+    }
 }
 
 std::vector<std::string> BehaviourRegistry::GetBehavioursAttachedToEntity(Model* Model)

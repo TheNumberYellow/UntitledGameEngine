@@ -110,10 +110,12 @@ public:
 
     void StartFrame(std::string name, Vec2f size, float borderWidth, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
 
-    void StartTab(std::string text = "", Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
+    bool StartTab(std::string text = "", Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
     void EndTab();
 
     void FloatSlider(std::string name, Vec2f size, float& outNum, float min = 0.0f, float max = 1.0f, bool vertical = false, bool drawText = true, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
+
+    void NewLine(float lineHeight = 10.0f);
 
     void OnFrameStart();
     void OnFrameEnd();

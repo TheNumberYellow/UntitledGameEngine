@@ -531,15 +531,6 @@ void CursorState::DrawInspectorPanel()
 {
     UIModule* UI = UIModule::Get();
 
-    // TEMP: edit directional light colour
-    Colour dirLightColour = EditorScenePtr->m_DirLight.colour;
-    Colour invDirlightColour = Colour(1.0f - dirLightColour.r, 1.0f - dirLightColour.g, 1.0f - dirLightColour.b);
-    UI->TextButton("Directional Light Colour", Vec2f(250.0f, 20.0f), 8.0f, dirLightColour, invDirlightColour);
-
-    UI->FloatSlider("R", Vec2f(400.0f, 20.0f), EditorScenePtr->m_DirLight.colour.r);
-    UI->FloatSlider("G", Vec2f(400.0f, 20.0f), EditorScenePtr->m_DirLight.colour.g);
-    UI->FloatSlider("B", Vec2f(400.0f, 20.0f), EditorScenePtr->m_DirLight.colour.b);
-
     if (SelectedObjects.empty())
     {
     }
@@ -1407,10 +1398,13 @@ void CursorState::DrawSelectedObjects()
 
 void CursorState::DrawSelectedInspectorPanels()
 {
+    UIModule* UI = UIModule::Get();
+
     bool selectedObjectStateChanged = false;
     for (auto& Object : SelectedObjects)
     {
         selectedObjectStateChanged |= Object.second->DrawInspectorPanel();
+        UI->NewLine(30.0f);
     }
 
     // The objects' transforms may have been changed by sliders in the inspector panel, so re-calculate proxy and offsets
