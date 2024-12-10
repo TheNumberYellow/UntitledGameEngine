@@ -244,13 +244,19 @@ void EditorState::UpdateEditor(double DeltaTime)
 
     UI->StartFrame("EditorFrame", Rect(Vec2f(0.0f, 0.0f), ViewportSize), 0.0f, c_FrameDark);
     {
-        UI->StartTab("Level Editor");
+        if (UI->StartTab("Level"))
         {
             DrawLevelEditor(Graphics, UI, DeltaTime);
         }
         UI->EndTab();
 
-        UI->StartTab("Material Editor");
+        if (UI->StartTab("Project"))
+        {
+            DrawProjectSettings();
+        }
+        UI->EndTab();
+
+        if (UI->StartTab("Materials"))
         {
 
         }
@@ -679,6 +685,34 @@ void EditorState::DrawLevelEditor(GraphicsModule* Graphics, UIModule* UI, double
     DrawEditorUI();
 }
 
+void EditorState::DrawProjectSettings()
+{
+    UIModule* UI = UIModule::Get();
+    
+    UI->StartFrame("Project Build Settings", Vec2f(420.0f, 400.0f), 20.0f, c_NiceLighterBlue);
+
+
+    std::string GameTypeButtonString;
+    if (CurrentGameType == GameType::SINGLEPLAYER) GameTypeButtonString = "Singleplayer";
+    else if (CurrentGameType == GameType::MULTIPLAYER) GameTypeButtonString = "Multiplayer";
+
+    if (UI->TextButton(GameTypeButtonString, Vec2f(380.0f, 60.0f), 10.0f, c_Button))
+    {
+        if (CurrentGameType == GameType::SINGLEPLAYER) CurrentGameType = GameType::MULTIPLAYER;
+        else if (CurrentGameType == GameType::MULTIPLAYER) CurrentGameType = GameType::SINGLEPLAYER;
+    }
+
+    UI->NewLine(240.0f);
+
+    if (UI->TextButton("Build", Vec2f(380.0f, 60.0f), 10.0f, c_TopButton, Vec3f(1.0f, 1.0f, 1.0f)))
+    {
+        std::string BuildCommand = "BuildGame.bat " + CurrentLevelName + " " + GameTypeButtonString;
+
+        Engine::RunCommand(BuildCommand);
+    }
+    UI->EndFrame();
+}
+
 void EditorState::DrawEditorUI()
 {
     GraphicsModule* Graphics = GraphicsModule::Get();
@@ -858,12 +892,6 @@ void EditorState::DrawTopPanel()
             {
                 EditorScene.Save(FileName);
             }
-        }
-        if (UI->TextButton("Build", Vec2f(40.0f, 40.0f), 8.0f, c_TopButton, Vec3f(1.0f, 1.0f, 1.0f)))
-        {
-            std::string BuildCommand = "BuildGame.bat " + CurrentLevelName;
-        
-            Engine::RunCommand(BuildCommand);
         }
 
         NetworkModule* Network = NetworkModule::Get();

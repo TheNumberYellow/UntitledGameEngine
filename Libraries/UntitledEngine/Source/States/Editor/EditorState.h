@@ -11,6 +11,11 @@
 
 class EditorState;
 
+enum class GameType
+{
+    SINGLEPLAYER,
+    MULTIPLAYER
+};
 
 enum class DrawerMode
 {
@@ -53,6 +58,7 @@ private:
     void MoveCamera(Camera* Camera, float PixelToRadians, double DeltaTime);
 
     void DrawLevelEditor(GraphicsModule* Graphics, UIModule* UI, double DeltaTime);
+    void DrawProjectSettings();
 
     void DrawEditorUI();
 
@@ -80,6 +86,8 @@ private:
     DrawerMode Drawer = DrawerMode::CONTENT;
 
     std::string CurrentLevelName = "Untitled Level";
+
+    GameType CurrentGameType = GameType::SINGLEPLAYER;
 
     //--------------------
     // Editor Textures

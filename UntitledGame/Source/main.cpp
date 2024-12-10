@@ -2642,13 +2642,29 @@ void InitializeServer(ArgsList args)
 
 void Initialize(ArgsList args)
 {
-    if (args == "-server")
+    if (std::string(GAME_TYPE) != "")
     {
-        InitializeServer(args);
-    }
-    else if (args == "-client")
-    {
-        InitializeClient(args);
+        std::string GameTypeStr = GAME_TYPE;
+
+        if (GameTypeStr == "Singleplayer")
+        {
+            InitializeSinglePlayer(args);
+        }
+        else if (GameTypeStr == "Multiplayer")
+        {
+            if (args == "-server")
+            {
+                InitializeServer(args);
+            }
+            else
+            {
+                InitializeClient(args);
+            }
+        }
+        else
+        {
+            Engine::FatalError("Invalid Game Type: " + GameTypeStr);
+        }
     }
     else
     {

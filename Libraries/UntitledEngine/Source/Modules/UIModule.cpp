@@ -572,9 +572,10 @@ bool UIModule::StartTab(std::string text, Vec3f colour)
         m_CurrentTabIndexStack.back()++;
         m_InTabStack.back() = true;
         //m_InTabStack.top() = true;
+    
+        return IsActiveTab;
     }
 
-    return true;
     //m_InTab = true;
 }
 

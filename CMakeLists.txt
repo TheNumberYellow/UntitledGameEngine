@@ -59,6 +59,8 @@ set_property( TARGET UntitledGame PROPERTY INTERPROCEDURAL_OPTIMIZATION_OPENGLGA
 set_property( TARGET UntitledGame PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}" )
 
 target_compile_definitions( UntitledGame PRIVATE START_SCENE="$(StartScene)" )
+target_compile_definitions( UntitledGame PRIVATE GAME_TYPE="$(GameType)" )
+
 
 target_include_directories( UntitledGame PRIVATE
     UntitledGame/Source
