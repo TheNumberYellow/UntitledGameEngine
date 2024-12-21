@@ -1,5 +1,7 @@
 #pragma once
 
+#include "GameEngine.h"
+
 #include <stack> 
 
 class BaseState;
@@ -11,6 +13,8 @@ class StateMachine
     //--------------------
 public:
     StateMachine();
+
+    void Initialize(ArgsList args);
 
     void Update(double DeltaTime);
 
@@ -31,4 +35,6 @@ private:
     //--------------------
 private:
     std::stack<BaseState*> StateStack;
+
+    ArgsList Arguments;
 };

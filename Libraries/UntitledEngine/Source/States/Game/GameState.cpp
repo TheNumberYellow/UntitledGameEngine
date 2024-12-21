@@ -1,6 +1,6 @@
 #include "GameState.h"
 
-void GameState::OnInitialized()
+void GameState::OnInitialized(ArgsList args)
 {
     GraphicsModule* Graphics = GraphicsModule::Get();
     InputModule* Input = InputModule::Get();

@@ -133,6 +133,8 @@ struct KeyState
 class MouseState
 {
 public:
+	MouseState();
+
 	MouseState(Vec2i initPos);
 	void UpdateMousePos(Vec2i newPos, bool mouseLocked, Vec2i center);
 	void UpdateMouseWheel(int delta);
@@ -147,8 +149,6 @@ public:
 	void ResetMouseState();
 
 private:
-	//bool m_LeftMouseButtonDown = false;
-	//bool m_RightMouseButtonDown = false;
 
 	int m_DeltaMouseWheel = 0;
 
@@ -193,6 +193,24 @@ private:
 	KeyState m_Buttons[static_cast<size_t>(Button::Count)];
 };
 
+class SystemInputState
+{
+public:
+
+	SystemInputState();
+
+	KeyState& GetKeyState(Key key);
+	bool IsKeyDown(Key key) const;
+	void SetKeyDown(Key key, bool pressed);
+
+private:
+
+	KeyState m_Keys[static_cast<size_t>(Key::Count)];
+    MouseState m_MouseState;
+	GamepadState m_GamepadState[4];
+
+};
+
 class InputModule : public IResizeable
 {
 public:
@@ -223,8 +241,16 @@ public:
 	// Inherited via IResizeable
 	virtual void Resize(Vec2i newSize) override;
 
+	// TEMP
+	void DisableLocalInputs();
+	bool m_LocalInputsDisabled = false;
+
 	static InputModule* Get() { return s_Instance; };
+	
+	SystemInputState m_LocalSystemInputState;
+
 private:
+
 
 	KeyState m_Keys[static_cast<size_t>(Key::Count)];
 	MouseState m_MouseState;
@@ -234,6 +260,7 @@ private:
 
 	bool m_MouseLocked;
 	Vec2i m_MouseCenter;
+
 
 	static InputModule* s_Instance;
 };

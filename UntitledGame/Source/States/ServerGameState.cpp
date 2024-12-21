@@ -1,16 +1,23 @@
 #include "ServerGameState.h"
+#include "Behaviours/SphereController.h"
 
 #include <json.hpp>
 
-void ServerGameState::OnInitialized()
+void ServerGameState::OnInitialized(ArgsList args)
 {
     NetworkModule* network = NetworkModule::Get();
     GraphicsModule* graphics = GraphicsModule::Get();
+    InputModule* input = InputModule::Get();
+
+    input->DisableLocalInputs();
 
     network->StartServer();
 
     ViewportBuffer = graphics->CreateGBuffer(Vec2i(800, 600));
     graphics->InitializeDebugDraw(ViewportBuffer.FinalOutput);
+
+    AssetRegistry* Registry = AssetRegistry::Get();
+    SphereModelPrototype = graphics->CreateModel(TexturedMesh(*Registry->LoadStaticMesh("Assets/models/UVBall.obj"), graphics->CreateMaterial(*Registry->LoadTexture("Assets/textures/marble.jpg"))));
 }
 
 void ServerGameState::OnUninitialized()
@@ -35,12 +42,48 @@ void ServerGameState::Update(double DeltaTime)
     ClientPacket packet;
     while (network->ServerPollData(packet))
     {
-        if (packet.packet.Data._Starts_with("Name:"))
+        ClientID id = packet.id;
+
+        if (json::accept(packet.packet.Data))
         {
+            json PacketData = json::parse(packet.packet.Data);
+
+            std::string typeStr = PacketData["Type"];
+            if (typeStr == "Input")
+            {
+                json DataPacket = PacketData["Data"];
+
+                for (json& InputData : DataPacket)
+                {
+                    std::string inputString = InputData;
+
+                    SystemInputState& clientInputState = ClientInputStates[packet.id];
+
+                    if (inputString == "W+") clientInputState.SetKeyDown(Key::W, true);
+                    if (inputString == "W-") clientInputState.SetKeyDown(Key::W, false);
+                    if (inputString == "A+") clientInputState.SetKeyDown(Key::A, true);
+                    if (inputString == "A-") clientInputState.SetKeyDown(Key::A, false);
+                    if (inputString == "S+") clientInputState.SetKeyDown(Key::S, true);
+                    if (inputString == "S-") clientInputState.SetKeyDown(Key::S, false);
+                    if (inputString == "D+") clientInputState.SetKeyDown(Key::D, true);
+                    if (inputString == "D-") clientInputState.SetKeyDown(Key::D, false);
+                }
+            }
+        }
+        else if (packet.packet.Data._Starts_with("Name:"))
+        {
+            // New client
             ClientNames[packet.id] = packet.packet.Data.substr(5);
+            ClientInputStates[packet.id] = SystemInputState();
+
+            if (InScene)
+            {
+                SpawnSphere(packet.id);
+            }
         }
         else
         {
+            // Client message (TODO: handle this as json)
             std::string NamedMessage = ClientNames[packet.id] + ": " + packet.packet.Data;
             ReceivedMessages.push_back(NamedMessage);
             network->ServerSendDataAll(NamedMessage);
@@ -72,6 +115,11 @@ void ServerGameState::Update(double DeltaTime)
                         ViewportCamera->SetScreenSize(Vec2f(800.0f, 600.0f));
 
                         InScene = true;
+
+                        for (auto& it : ClientInputStates)
+                        {
+                            SpawnSphere(it.first);
+                        }
                     }
                 }
             }
@@ -124,7 +172,6 @@ void ServerGameState::SendSceneUpdatePacket()
 {
     NetworkModule* network = NetworkModule::Get();
 
-
     json PacketData;
     PacketData["Type"] = "SceneUpdate";
     
@@ -148,7 +195,6 @@ void ServerGameState::SendSceneUpdatePacket()
 
             ModelList.push_back(ModelInfo);
         }
-
     }
 
     PacketData["Models"] = ModelList;
@@ -161,11 +207,43 @@ void ServerGameState::SendSceneUpdatePacket()
     json CamPacket;
     CamPacket["Type"] = "Cam";
 
-    CamPacket["CamPos"] = { ViewportCamera->GetPosition().x, ViewportCamera->GetPosition().y, ViewportCamera->GetPosition().z };
-    CamPacket["CamDir"] = { ViewportCamera->GetDirection().x, ViewportCamera->GetDirection().y, ViewportCamera->GetDirection().z };
+    //CamPacket["CamPos"] = { ViewportCamera->GetPosition().x, ViewportCamera->GetPosition().y, ViewportCamera->GetPosition().z };
+    //CamPacket["CamDir"] = { ViewportCamera->GetDirection().x, ViewportCamera->GetDirection().y, ViewportCamera->GetDirection().z };
+
+    CamPacket["CamPos"] = { 0.0f, -16.0f, 22.0f };
+    CamPacket["CamDir"] = { 0.0f, 0.35f, -0.7f };
 
     std::string camPacketStr = CamPacket.dump();
 
     network->ServerSendDataAll(camPacketStr);
+}
 
+void ServerGameState::SpawnSphere(ClientID id)
+{
+    GraphicsModule* graphics = GraphicsModule::Get();
+    NetworkModule* network = NetworkModule::Get();
+
+    Model* NewSphereModel = new Model(graphics->CloneModel(SphereModelPrototype));
+    NewSphereModel->GetTransform().SetPosition(Vec3f(0.0f, 0.0f, 5.0f));
+
+    NewSphereModel = CurrentScene.AddModel(NewSphereModel);
+
+    SphereController* NewBehaviour = static_cast<SphereController*>(BehaviourRegistry::Get()->AttachNewBehaviour("SphereController", NewSphereModel));
+    NewBehaviour->Initialize(&CurrentScene);
+
+    NewBehaviour->SetSystemInputState(&ClientInputStates[id]);
+
+    //SphereController* SphereBehaviour = static_cast<SphereController*>(BehaviourRegistry::Get()->AttachNewBehaviour("SphereController", NewSphereModel));
+
+    //CurrentScene.AddMo
+
+
+    // Notify clients of new model
+    json NewModelPacket;
+    NewModelPacket["Type"] = "NewModel";
+
+    NewModelPacket["Mesh"] = "Assets/models/UVBall.obj";
+    NewModelPacket["Texture"] = "Assets/textures/marble.jpg";
+
+    network->ServerSendDataAll(NewModelPacket.dump());
 }

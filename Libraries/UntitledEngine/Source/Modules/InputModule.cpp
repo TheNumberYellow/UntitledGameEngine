@@ -4,12 +4,32 @@
 
 InputModule* InputModule::s_Instance = nullptr;
 
+SystemInputState::SystemInputState()
+{
+}
+
+KeyState& SystemInputState::GetKeyState(Key key)
+{
+	return m_Keys[static_cast<size_t>(key)];
+}
+
+bool SystemInputState::IsKeyDown(Key key) const
+{
+	return m_Keys[static_cast<size_t>(key)].pressed;
+}
+
+void SystemInputState::SetKeyDown(Key key, bool pressed)
+{
+	m_Keys[static_cast<size_t>(key)].UpdateState(pressed);
+}
+
 InputModule::InputModule()
 	: m_Keys{ false }
 	, m_MouseState(Engine::GetMousePosition())
 	, m_MouseCenter(Vec2i(Engine::GetClientAreaSize().x / 2, Engine::GetClientAreaSize().y / 2))
 	, m_MouseLocked(false)
 	, m_GamepadState{ GamepadState(), GamepadState(), GamepadState(), GamepadState() }
+	, m_LocalSystemInputState(SystemInputState())
 {
 	s_Instance = this;
 }
@@ -107,6 +127,15 @@ void InputModule::OnFrameEnd()
 }
 
 void InputModule::Resize(Vec2i newSize)
+{
+}
+
+void InputModule::DisableLocalInputs()
+{
+	m_LocalInputsDisabled = true;
+}
+
+MouseState::MouseState()
 {
 }
 
@@ -230,3 +259,4 @@ KeyState GamepadState::GetButtonState(Button button)
 {
 	return m_Buttons[static_cast<size_t>(button)];
 }
+

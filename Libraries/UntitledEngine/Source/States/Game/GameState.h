@@ -9,7 +9,7 @@ class GameState : public BaseState
     // BaseState Implementation
     //--------------------
 public:
-    virtual void OnInitialized() override;
+    virtual void OnInitialized(ArgsList args) override;
     virtual void OnUninitialized() override;
     virtual void OnEnter() override;
     virtual void OnExit() override;

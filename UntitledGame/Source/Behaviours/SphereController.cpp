@@ -4,29 +4,30 @@ REGISTER_BEHAVIOUR(SphereController);
 
 SphereController::SphereController()
 {
+    InputState = new SystemInputState();
 }
 
 void SphereController::Update(Scene* Scene, double DeltaTime)
 {
     DeltaTime = Math::Min(DeltaTime, 0.015);
 
-    InputModule* Inputs = InputModule::Get();
+    //InputModule* Inputs = InputModule::Get();
 
     Vec3f InputForce = Vec3f(0.0f, 0.0f, 0.0f);
 
-    if (Inputs->GetKeyState(Key::W))
+    if (InputState->GetKeyState(Key::W))
     {
         InputForce.y += 1.0f;
     }
-    if (Inputs->GetKeyState(Key::S))
+    if (InputState->GetKeyState(Key::S))
     {
         InputForce.y -= 1.0f;
     }
-    if (Inputs->GetKeyState(Key::A))
+    if (InputState->GetKeyState(Key::A))
     {
         InputForce.x -= 1.0f;
     }
-    if (Inputs->GetKeyState(Key::D))
+    if (InputState->GetKeyState(Key::D))
     {
         InputForce.x += 1.0f;
     }
@@ -42,7 +43,7 @@ void SphereController::Update(Scene* Scene, double DeltaTime)
 
     Velocity.z -= 140.0f * (float)DeltaTime;
 
-    if (Inputs->GetKeyState(Key::Space).justPressed)
+    if (InputState->GetKeyState(Key::Space).justPressed)
     {
         Velocity.z = 50.f;
     }

@@ -2591,18 +2591,22 @@ void Resize(Vec2i newSize)
 #include "GameEngine.h"
 
 #include "States/Game/GameState.h"
-#include "States/Game/ServerGameState.h"
-#include "States/Game/ClientGameState.h"
+#include "States/ServerGameState.h"
+#include "States/ClientGameState.h"
 
 #include "State/StateMachine.h"
+
+#include "State/StateRegistry.h"
+
+#include "States/BallsWithFriendsState.h"
 
 StateMachine Machine;
 
 // CHANGE THIS TO SET INITIAL LEVEL
 
-std::string InitialLevelName = "Assets/levels/WhyTho.lvl";
+//std::string InitialLevelName = "Assets/levels/WhyTho.lvl";
 //std::string InitialLevelName = "Assets/levels/Why.lvl";
-//std::string InitialLevelName = "Assets/levels/Survival.lvl";
+std::string InitialLevelName = "Assets/levels/Survival.lvl";
 //const std::string InitialLevelName = "Assets/levels/PhysWorld1Ball.lvl";
 //sstd::string InitialLevelName = "Assets/levels/PhysWorld1Ball.lvl";
 const std::string TitleBarText = "Bounce";
@@ -2642,33 +2646,50 @@ void InitializeServer(ArgsList args)
 
 void Initialize(ArgsList args)
 {
-    if (std::string(GAME_TYPE) != "")
-    {
-        std::string GameTypeStr = GAME_TYPE;
+    Machine.Initialize(args);
 
-        if (GameTypeStr == "Singleplayer")
+    // Non-default game state set
+    if (std::string(GAME_STATE) != "")
+    {
+        std::string GameStateStr = GAME_STATE;
+        BaseState* CustomState = StateRegistry::Get()->GetState(GameStateStr);
+
+        Machine.PushState(CustomState);
+    }
+    else
+    {
+        if (std::string(GAME_TYPE) != "")
         {
-            InitializeSinglePlayer(args);
-        }
-        else if (GameTypeStr == "Multiplayer")
-        {
-            if (args == "-server")
+            std::string GameTypeStr = GAME_TYPE;
+
+            if (GameTypeStr == "Singleplayer")
             {
-                InitializeServer(args);
+                InitializeSinglePlayer(args);
+            }
+            else if (GameTypeStr == "Multiplayer")
+            {
+                if (args == "-server")
+                {
+                    InitializeServer(args);
+                }
+                else
+                {
+                    InitializeClient(args);
+                }
             }
             else
             {
-                InitializeClient(args);
+                Engine::FatalError("Invalid Game Type: " + GameTypeStr);
             }
         }
         else
         {
-            Engine::FatalError("Invalid Game Type: " + GameTypeStr);
+            BallsWithFriendsState* S = new BallsWithFriendsState();
+            Machine.PushState(S);
+            
+            //InitializeClient(args);
+            //InitializeSinglePlayer(args);
         }
-    }
-    else
-    {
-        InitializeSinglePlayer(args);
     }
 }
 

@@ -1,7 +1,9 @@
 #pragma once
 
 #include "GameEngine.h"
+#include "Modules/InputModule.h"
 #include "Scene.h"
+
 #include <unordered_map>
 #include <string>
 
@@ -18,6 +20,8 @@ public:
     Behaviour();
     Behaviour(Model* transform);
 
+    void SetSystemInputState(SystemInputState* InSystemInputState);
+
     virtual Behaviour* Clone() const = 0;
 
     virtual void Initialize(Scene* Scene) {}
@@ -28,8 +32,8 @@ public:
     std::string BehaviourName;
     Model* m_Model = nullptr;
 
-private:
-
+protected:
+    SystemInputState* InputState;
 };
 
 class BehaviourRegistry

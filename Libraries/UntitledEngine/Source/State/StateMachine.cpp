@@ -6,6 +6,11 @@ StateMachine::StateMachine()
 {
 }
 
+void StateMachine::Initialize(ArgsList args)
+{
+    Arguments = args;
+}
+
 void StateMachine::Update(double DeltaTime)
 {
     if (!StateStack.empty())
@@ -19,7 +24,7 @@ void StateMachine::PushState(BaseState* State)
     //TODO: Should probably delay push/pop state to end of frame so states have the chance to complete their frame...
     State->SetOwningStateMachine(this);
 
-    State->OnInitialized();
+    State->OnInitialized(Arguments);
     State->OnEnter();
 
     StateStack.push(State);

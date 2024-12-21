@@ -1,12 +1,12 @@
 #pragma once
 
+#include "GameEngine.h"
 #include "StateMachine.h"
-//class StateMachine;
 
 class BaseState
 {
 public:
-    virtual void OnInitialized();
+    virtual void OnInitialized(ArgsList args);
     virtual void OnUninitialized();
     virtual void OnEnter();
     virtual void OnExit();

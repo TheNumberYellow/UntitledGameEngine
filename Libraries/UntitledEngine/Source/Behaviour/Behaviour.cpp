@@ -4,11 +4,17 @@ BehaviourRegistry* BehaviourRegistry::Instance = nullptr;
 
 Behaviour::Behaviour()
 {
+    
 }
 
 Behaviour::Behaviour(Model* transform)
 {
     m_Model = transform;
+}
+
+void Behaviour::SetSystemInputState(SystemInputState* InSystemInputState)
+{
+    InputState = InSystemInputState;
 }
 
 BehaviourRegistry* BehaviourRegistry::Get()

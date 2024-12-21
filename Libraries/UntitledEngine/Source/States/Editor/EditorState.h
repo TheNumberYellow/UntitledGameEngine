@@ -29,7 +29,7 @@ class EditorState : public BaseState
     // BaseState Implementation
     //--------------------
 public:
-    void OnInitialized() override;
+    void OnInitialized(ArgsList) override;
     void OnUninitialized() override;
     void OnEnter() override;
     void OnExit() override;
@@ -85,9 +85,13 @@ private:
 
     DrawerMode Drawer = DrawerMode::CONTENT;
 
-    std::string CurrentLevelName = "Untitled Level";
+    std::string CurrentLevelName = "Untitled_Level";
 
     GameType CurrentGameType = GameType::SINGLEPLAYER;
+    
+    std::vector<std::string> CustomGameStateNames;
+    int CurrentCustomStateIndex = 0;
+    bool UsingCustomGameState = false;
 
     //--------------------
     // Editor Textures

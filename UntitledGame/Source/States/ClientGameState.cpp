@@ -2,7 +2,7 @@
 
 #include <json.hpp>
 
-void ClientGameState::OnInitialized()
+void ClientGameState::OnInitialized(ArgsList args)
 {
     GraphicsModule* graphics = GraphicsModule::Get();
 
@@ -82,6 +82,9 @@ void ClientGameState::Update(double DeltaTime)
 
     if (InScene)
     {
+        // Send inputs
+        SendInputPacket();
+
         //CurrentScene.Update(DeltaTime);
         CurrentScene.Draw(*graphics, ViewportBuffer);
         graphics->ResetFrameBuffer();
@@ -92,6 +95,40 @@ void ClientGameState::Update(double DeltaTime)
 
 void ClientGameState::OnResize()
 {
+}
+
+void ClientGameState::SendInputPacket()
+{
+    NetworkModule* network = NetworkModule::Get();
+    InputModule* input = InputModule::Get();
+
+    json PacketData;
+    PacketData["Type"] = "Input";
+
+    json KeyData;
+
+    std::vector<std::string> keys;
+
+    KeyState wKeyState = input->GetKeyState(Key::W);
+    KeyState aKeyState = input->GetKeyState(Key::A);
+    KeyState sKeyState = input->GetKeyState(Key::S);
+    KeyState dKeyState = input->GetKeyState(Key::D);
+
+    if (wKeyState.justPressed) KeyData.push_back("W+");
+    else if (wKeyState.justReleased) KeyData.push_back("W-");
+
+    if (aKeyState.justPressed) KeyData.push_back("A+");
+    else if (aKeyState.justReleased) KeyData.push_back("A-");
+
+    if (sKeyState.justPressed) KeyData.push_back("S+");
+    else if (sKeyState.justReleased) KeyData.push_back("S-");
+
+    if (dKeyState.justPressed) KeyData.push_back("D+");
+    else if (dKeyState.justReleased) KeyData.push_back("D-");
+
+    PacketData["Data"] = KeyData;
+
+    network->ClientSendData(PacketData.dump());
 }
 
 void ClientGameState::ProcessPacketData(const std::string& data)
@@ -141,6 +178,16 @@ void ClientGameState::ProcessPacketData(const std::string& data)
 
             CurrentScene.GetCamera()->SetPosition(PosVec);
             CurrentScene.GetCamera()->SetDirection(DirVec);
+        }
+        if (typeStr == "NewModel" && InScene)
+        {
+            AssetRegistry* Registry = AssetRegistry::Get();
+            GraphicsModule* Graphics = GraphicsModule::Get();
+
+            Model NewModel = Graphics->CreateModel(TexturedMesh(*Registry->LoadStaticMesh(PacketData["Mesh"].get<std::string>()), Graphics->CreateMaterial(*Registry->LoadTexture(PacketData["Texture"].get<std::string>()))));
+
+            CurrentScene.AddModel(new Model(NewModel));
+
         }
     }
     // Temp to support unstructured packets

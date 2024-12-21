@@ -559,8 +559,12 @@ int WinMain(_In_ HINSTANCE InInstance, _In_opt_ HINSTANCE InPreviousInstance, _I
 
         if (Engine::IsWindowFocused())
         {
-            GetKeyboardState(Input);
-            GetControllerState(Input);
+            // TEMP(fraser)
+            if (!Input.m_LocalInputsDisabled)
+            {
+                GetKeyboardState(Input);
+                GetControllerState(Input);
+            }
             if (cursorLocked)
             {
                 WarpMouseToWindowCenter();
@@ -568,7 +572,11 @@ int WinMain(_In_ HINSTANCE InInstance, _In_opt_ HINSTANCE InPreviousInstance, _I
         }
         else
         {
-            Input.ResetAllInputState();
+            // TEMP(fraser)
+            if (!Input.m_LocalInputsDisabled)
+            {
+                Input.ResetAllInputState();
+            }
         }
 
         Graphics.OnFrameStart();

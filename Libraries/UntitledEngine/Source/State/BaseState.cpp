@@ -2,9 +2,8 @@
 
 //#include "StateMachine.h"
 
-void BaseState::OnInitialized()
+void BaseState::OnInitialized(ArgsList args)
 {
-
 }
 
 void BaseState::OnUninitialized()

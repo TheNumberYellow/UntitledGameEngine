@@ -34,8 +34,9 @@ call "%vsDevCmdDir%"
 
 set startingScene=%1
 set gameType=%2
+set gameState=%3
 
-msbuild "..\build\UntitledSolution.sln" /property:Configuration=OpenGLGameRelease /property:StartScene=%startingScene% /property:GameType=%gameType%
+msbuild "..\build\UntitledSolution.sln" /property:Configuration=OpenGLGameRelease /property:StartScene=%startingScene% /property:GameType=%gameType% /property:GameState=%gameState%
 
 mkdir Assets
 robocopy "..\Assets" "Assets" /E
@@ -43,6 +44,7 @@ robocopy "..\Assets" "Assets" /E
 copy "..\build\OpenGLGameRelease\UntitledGame.exe" "."
 
 :end
+pause
 exit
 
 :errorend

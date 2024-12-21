@@ -9,7 +9,7 @@ class ClientGameState
 
 
 public:
-    virtual void OnInitialized() override;
+    virtual void OnInitialized(ArgsList args) override;
     virtual void OnUninitialized() override;
 
 
@@ -23,6 +23,7 @@ public:
 
 private:
 
+    void SendInputPacket();
     void ProcessPacketData(const std::string& data);
 
     bool InScene = false;

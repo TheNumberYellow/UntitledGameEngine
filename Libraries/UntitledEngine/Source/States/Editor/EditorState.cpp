@@ -2,13 +2,15 @@
 
 #include "States/Game/GameState.h"
 
+#include "State/StateRegistry.h"
+
 #include <filesystem>
 #include <future>
 #include <ctime>
 
 static std::filesystem::path CurrentResourceDirectoryPath;
 
-void EditorState::OnInitialized()
+void EditorState::OnInitialized(ArgsList args)
 {
     GraphicsModule* Graphics = GraphicsModule::Get();
     CollisionModule* Collisions = CollisionModule::Get();
@@ -60,6 +62,8 @@ void EditorState::OnInitialized()
     CurrentResourceDirectoryPath = std::filesystem::current_path();
 
     TestFont = TextModule::Get()->LoadFont("Assets/fonts/ARLRDBD.TTF", 30);
+
+    CustomGameStateNames = StateRegistry::Get()->GetStateNames();
 
     for (int i = 0; i < 1000; i++)
     {
@@ -701,12 +705,36 @@ void EditorState::DrawProjectSettings()
         if (CurrentGameType == GameType::SINGLEPLAYER) CurrentGameType = GameType::MULTIPLAYER;
         else if (CurrentGameType == GameType::MULTIPLAYER) CurrentGameType = GameType::SINGLEPLAYER;
     }
+    UI->NewLine(40.0f);
 
-    UI->NewLine(240.0f);
+    std::string GameStateUsingString = "Using custom game state: ";
+    if (UsingCustomGameState) GameStateUsingString += " True";
+    else GameStateUsingString += " False";
+
+    if (UI->TextButton(GameStateUsingString, Vec2f(UsingCustomGameState ? 190.0f : 380.0f, 60.0f), 10.0f, c_Button))
+    {
+        UsingCustomGameState = !UsingCustomGameState;
+    }
+
+    if (UsingCustomGameState)
+    {
+        if (UI->TextButton(CustomGameStateNames[CurrentCustomStateIndex], Vec2f(190.0f, 60.0f), 10.0f, c_NiceBrightGreen))
+        {
+            CurrentCustomStateIndex++;
+            if (CurrentCustomStateIndex >= CustomGameStateNames.size())
+            {
+                CurrentCustomStateIndex = 0;
+            }
+        }
+    }
+
+    UI->NewLine(40.0f);
 
     if (UI->TextButton("Build", Vec2f(380.0f, 60.0f), 10.0f, c_TopButton, Vec3f(1.0f, 1.0f, 1.0f)))
     {
         std::string BuildCommand = "BuildGame.bat " + CurrentLevelName + " " + GameTypeButtonString;
+        
+        if (UsingCustomGameState) BuildCommand += " " + CustomGameStateNames[CurrentCustomStateIndex];
 
         Engine::RunCommand(BuildCommand);
     }
