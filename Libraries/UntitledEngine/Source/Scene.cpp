@@ -17,6 +17,8 @@ const std::string Separator = " ";
 Texture* Scene::LightBillboardTexture = nullptr;
 StaticMesh* Scene::CameraMesh = nullptr;
 Material* Scene::CameraMaterial = nullptr;
+StaticMesh* Scene::DirectionalLightMesh = nullptr;
+Material* Scene::DirectionalLightMaterial = nullptr;
 
 SceneRayCastHit Closer(const SceneRayCastHit& lhs, const SceneRayCastHit& rhs)
 {
@@ -27,17 +29,12 @@ Scene::Scene()
 {
     GraphicsModule* Graphics = GraphicsModule::Get();
 
-
     m_Cameras.resize(1);
-
-
-    m_DirLight.colour = Vec3f(1.0, 1.0, 1.0);
 
     if (!Graphics)
     {
         return;
     }
-
 
     AssetRegistry* Registry = AssetRegistry::Get();
 
@@ -52,6 +49,14 @@ Scene::Scene()
     if (!CameraMaterial)
     {
         CameraMaterial = new Material(Graphics->CreateMaterial(*(Registry->LoadTexture("Assets/textures/Camera.png"))));
+    }
+    if (!DirectionalLightMesh)
+    {
+        DirectionalLightMesh = Registry->LoadStaticMesh("Assets/models/DirLightBall.obj");
+    }
+    if (!DirectionalLightMaterial)
+    {
+        DirectionalLightMaterial = new Material(Graphics->CreateMaterial(*(Registry->LoadTexture("Assets/textures/whiteTexture.png"))));
     }
 }
 
@@ -71,11 +76,14 @@ Scene::~Scene()
 {
     for (auto it : m_Models)
     {
+        m_ModelIDGenerator.FreeID(it.first);
+        
         BehaviourRegistry::Get()->ClearBehavioursOnEntity(it.second);
         delete it.second;
     }
     m_Models.clear();
     m_PointLights.clear();
+    m_DirectionalLights.clear();
 }
 
 void Scene::Pause()
@@ -100,7 +108,7 @@ Model* Scene::AddModel(Model* model)
     m_Models[newModelID] = model;
 
 #ifdef USE_EDITOR
-    m_EditorClickables.push_back(model);
+    m_GenericEditorClickables.push_back(model);
 #endif
 
     return m_Models[newModelID];
@@ -137,7 +145,7 @@ PointLight* Scene::AddPointLight(PointLight newLight)
     m_PointLights.push_back(newLightPtr);
 
 #ifdef USE_EDITOR
-    m_EditorClickables.push_back(newLightPtr);
+    m_GenericEditorClickables.push_back(newLightPtr);
 #endif
     
     return m_PointLights.back();
@@ -146,10 +154,10 @@ PointLight* Scene::AddPointLight(PointLight newLight)
 void Scene::DeletePointLight(PointLight* light)
 {
 #ifdef USE_EDITOR
-    auto clickableIt = std::find(m_EditorClickables.begin(), m_EditorClickables.end(), light);
-    if (clickableIt != m_EditorClickables.end())
+    auto clickableIt = std::find(m_GenericEditorClickables.begin(), m_GenericEditorClickables.end(), light);
+    if (clickableIt != m_GenericEditorClickables.end())
     {
-        m_EditorClickables.erase(clickableIt);
+        m_GenericEditorClickables.erase(clickableIt);
     }
 #endif
 
@@ -162,44 +170,44 @@ void Scene::DeletePointLight(PointLight* light)
     }
 }
 
-Brush* Scene::AddBrush(Brush* newBrush)
+DirectionalLight* Scene::AddDirectionalLight(DirectionalLight newLight)
 {
-    m_Brushes.push_back(newBrush);
-    return m_Brushes.back();
+    DirectionalLight* newLightPtr = new DirectionalLight(newLight);
+    m_DirectionalLights.push_back(newLightPtr);
+
+#ifdef USE_EDITOR
+    m_GenericEditorClickables.push_back(newLightPtr);
+#endif
+
+    return m_DirectionalLights.back();
 }
 
-void Scene::DeleteBrush(Brush* brush)
+void Scene::DeleteDirectionalLight(DirectionalLight* light)
 {
-    auto it = std::find(m_Brushes.begin(), m_Brushes.end(), brush);
-    if (it != m_Brushes.end())
+#ifdef USE_EDITOR
+    auto clickableIt = std::find(m_GenericEditorClickables.begin(), m_GenericEditorClickables.end(), light);
+    if (clickableIt != m_GenericEditorClickables.end())
     {
-        m_Brushes.erase(it);
+        m_GenericEditorClickables.erase(clickableIt);
+    }
+#endif
 
-        BehaviourRegistry::Get()->ClearBehavioursOnEntity(brush->RepModel);
+    auto it = std::find(m_DirectionalLights.begin(), m_DirectionalLights.end(), light);
+    if (it != m_DirectionalLights.end())
+    {
+        m_DirectionalLights.erase(it);
 
-        delete brush->RepModel;
-        delete brush;
+        delete light;
     }
 }
 
 void Scene::AddHalfEdgeMesh(he::HalfEdgeMesh* newMesh)
 {
-#ifdef USE_EDITOR
-    m_EditorClickables.push_back(newMesh);
-#endif
-
     m_HEMeshes.push_back(newMesh);
 }
 
 void Scene::DeleteHalfEdgeMesh(he::HalfEdgeMesh* mesh)
 {
-#ifdef USE_EDITOR
-    auto clickableIt = std::find(m_EditorClickables.begin(), m_EditorClickables.end(), mesh);
-    if (clickableIt != m_EditorClickables.end())
-    {
-        m_EditorClickables.erase(clickableIt);
-    }
-#endif
     auto it = std::find(m_HEMeshes.begin(), m_HEMeshes.end(), mesh);
     if (it != m_HEMeshes.end())
     {
@@ -209,28 +217,30 @@ void Scene::DeleteHalfEdgeMesh(he::HalfEdgeMesh* mesh)
     }
 }
 
-std::vector<IEditorClickable*>& Scene::GetEditorClickables()
+#ifdef USE_EDITOR
+std::vector<IEditorClickable*>& Scene::GetGenericEditorClickables()
 {
-    return m_EditorClickables;
+    return m_GenericEditorClickables;
 }
+#endif
 
 std::vector<PointLight*>& Scene::GetPointLights()
 {
     return m_PointLights;
 }
 
-std::vector<Brush*>& Scene::GetBrushes()
+std::vector<he::HalfEdgeMesh*>& Scene::GetHalfEdgeMeshes()
 {
-    return m_Brushes;
+    return m_HEMeshes;
 }
 
 void Scene::DeleteModel(Model* model)
 {
 #ifdef USE_EDITOR
-    auto clickableIt = std::find(m_EditorClickables.begin(), m_EditorClickables.end(), model);
-    if (clickableIt != m_EditorClickables.end())
+    auto clickableIt = std::find(m_GenericEditorClickables.begin(), m_GenericEditorClickables.end(), model);
+    if (clickableIt != m_GenericEditorClickables.end())
     {
-        m_EditorClickables.erase(clickableIt);
+        m_GenericEditorClickables.erase(clickableIt);
     }
 #endif
 
@@ -305,14 +315,17 @@ void Scene::Draw(GraphicsModule& graphics, GBuffer gBuffer, size_t camIndex)
 
     assert(camIndex < m_Cameras.size());
 
-    graphics.Render(gBuffer, m_Cameras[camIndex], m_DirLight);
-
+    graphics.Render(gBuffer, m_Cameras[camIndex]);
 }
 
-void Scene::EditorDraw(GraphicsModule& graphics, GBuffer gBuffer, Camera* editorCam)
+void Scene::EditorDraw(GraphicsModule& graphics, GBuffer gBuffer, Camera* editorCam, bool drawSceneCam)
 {
     PushSceneRenderCommandsInternal(graphics);
-
+    for (auto& heMesh : m_HEMeshes)
+    {
+        heMesh->EditorDraw();
+    }
+    
     assert(editorCam);
     for (PointLight* Light : m_PointLights)
     {
@@ -324,33 +337,50 @@ void Scene::EditorDraw(GraphicsModule& graphics, GBuffer gBuffer, Camera* editor
 
         graphics.AddRenderCommand(BillboardRC);
     }
-    for (Camera& Cam : m_Cameras)
+    for (DirectionalLight* Light : m_DirectionalLights)
     {
-        StaticMeshRenderCommand CamRC;
-        CamRC.m_Mesh = CameraMesh->Id;
-        CamRC.m_Material = *CameraMaterial;
+        StaticMeshRenderCommand RenderCommand;
+        RenderCommand.m_Mesh = DirectionalLightMesh->Id;
+        RenderCommand.m_Material = *DirectionalLightMaterial;
+        RenderCommand.m_CastShadows = false;
+
+        Transform DirLightTrans;
+        DirLightTrans.SetPosition(Light->position);
+        Quaternion q = Math::VecDiffToQuat(Light->direction, Vec3f::Up());
+
+        DirLightTrans.SetRotation(q);
         
-        Transform CamTrans;
-        CamTrans.SetTransformMatrix(Cam.GetCamTransMatrix());
+        RenderCommand.m_TransMat = DirLightTrans.GetTransformMatrix();
 
-        // *vomits on the floor*
-        Quaternion CamRot = Quaternion(Vec3f(0.0f, 0.0f, 1.0f), (float)M_PI);
-        CamRot = CamRot * Quaternion(Vec3f(1.0f, 0.0f, 0.0f), (float)M_PI_2);
-
-        CamTrans.Rotate(CamRot);
-        CamTrans.SetScale(0.1f);
-
-        CamRC.m_TransMat = CamTrans.GetTransformMatrix();
-
-        graphics.AddRenderCommand(CamRC);
+        graphics.AddRenderCommand(RenderCommand);
     }
 
-    graphics.Render(gBuffer, *editorCam, m_DirLight);
-}
+    if (drawSceneCam)
+    {
+        for (Camera& Cam : m_Cameras)
+        {
+            StaticMeshRenderCommand CamRC;
+            CamRC.m_Mesh = CameraMesh->Id;
+            CamRC.m_Material = *CameraMaterial;
+            CamRC.m_CastShadows = false;
 
-void Scene::SetDirectionalLight(DirectionalLight light)
-{
-    m_DirLight = light;
+            Transform CamTrans;
+            CamTrans.SetTransformMatrix(Cam.GetCamTransMatrix());
+
+            // *vomits on the floor*
+            Quaternion CamRot = Quaternion(Vec3f(0.0f, 0.0f, 1.0f), (float)M_PI);
+            CamRot = CamRot * Quaternion(Vec3f(1.0f, 0.0f, 0.0f), (float)M_PI_2);
+
+            CamTrans.Rotate(CamRot);
+            CamTrans.SetScale(0.1f);
+
+            CamRC.m_TransMat = CamTrans.GetTransformMatrix();
+
+            graphics.AddRenderCommand(CamRC);
+        }
+    }
+
+    graphics.Render(gBuffer, *editorCam);
 }
 
 SceneRayCastHit Scene::RayCast(Ray ray, std::vector<Model*> IgnoredModels)
@@ -365,7 +395,7 @@ SceneRayCastHit Scene::RayCast(Ray ray, std::vector<Model*> IgnoredModels)
         {
             continue;
         }
-        CollisionMesh& colMesh = *Collision.GetCollisionMeshFromMesh(it.second->m_TexturedMeshes[0].m_Mesh);
+        CollisionMesh& colMesh = *Collision.GetCollisionMeshFromMesh(it.second->m_StaticMesh);
         
         finalHit = Closer(finalHit, SceneRayCastHit{ Collision.RayCast(ray, colMesh, it.second->GetTransform()), it.second });
     }
@@ -386,26 +416,9 @@ Intersection Scene::SphereIntersect(Sphere sphere, std::vector<Model*> IgnoredMo
             continue;
         }
 
-        CollisionMesh& colMesh = *Collision.GetCollisionMeshFromMesh(it.second->m_TexturedMeshes[0].m_Mesh);
+        CollisionMesh& colMesh = *Collision.GetCollisionMeshFromMesh(it.second->m_StaticMesh);
 
         Intersection ModelIntersection = Collision.SphereIntersection(sphere, colMesh, it.second->GetTransform());
-
-        if (ModelIntersection.hit && ModelIntersection.penetrationDepth > Result.penetrationDepth)
-        {
-            Result = ModelIntersection;
-        }
-    }
-
-    for (auto& it : m_Brushes)
-    {
-        if (std::count(IgnoredModels.begin(), IgnoredModels.end(), it->RepModel) > 0)
-        {
-            continue;
-        }
-
-        CollisionMesh& colMesh = *Collision.GetCollisionMeshFromMesh(it->RepModel->m_TexturedMeshes[0].m_Mesh);
-
-        Intersection ModelIntersection = Collision.SphereIntersection(sphere, colMesh, it->RepModel->GetTransform());
 
         if (ModelIntersection.hit && ModelIntersection.penetrationDepth > Result.penetrationDepth)
         {
@@ -447,13 +460,13 @@ void Scene::DrawSettingsPanel()
     UIModule* UI = UIModule::Get();
 
     // Directional light colour setting
-    Colour dirLightColour = m_DirLight.colour;
-    Colour invDirlightColour = Colour(1.0f - dirLightColour.r, 1.0f - dirLightColour.g, 1.0f - dirLightColour.b);
-    UI->TextButton("Directional Light Colour", Vec2f(250.0f, 20.0f), 8.0f, dirLightColour, invDirlightColour);
+    //Colour dirLightColour = m_DirLight.colour;
+    //Colour invDirlightColour = Colour(1.0f - dirLightColour.r, 1.0f - dirLightColour.g, 1.0f - dirLightColour.b);
+    //UI->TextButton("Directional Light Colour", Vec2f(250.0f, 20.0f), 8.0f, dirLightColour, invDirlightColour);
 
-    UI->FloatSlider("R", Vec2f(400.0f, 20.0f), m_DirLight.colour.r);
-    UI->FloatSlider("G", Vec2f(400.0f, 20.0f), m_DirLight.colour.g);
-    UI->FloatSlider("B", Vec2f(400.0f, 20.0f), m_DirLight.colour.b);
+    //UI->FloatSlider("R", Vec2f(400.0f, 20.0f), m_DirLight.colour.r);
+    //UI->FloatSlider("G", Vec2f(400.0f, 20.0f), m_DirLight.colour.g);
+    //UI->FloatSlider("B", Vec2f(400.0f, 20.0f), m_DirLight.colour.b);
 
 
 }
@@ -477,22 +490,16 @@ void Scene::Save(std::string FileName)
     {
         Model* model = it.second;
 
-        Texture tex = model->m_TexturedMeshes[0].m_Material.m_Albedo;
-        StaticMesh mesh = model->m_TexturedMeshes[0].m_Mesh;
+        Texture tex = model->m_Material.m_Albedo;
+        StaticMesh mesh = model->m_StaticMesh;
         
-        Material mat = model->m_TexturedMeshes[0].m_Material;
+        Material mat = model->m_Material;
 
         Materials.insert(mat);
         if (mesh.LoadedFromFile)
         {
-            StaticMeshes.insert(model->m_TexturedMeshes[0].m_Mesh);
+            StaticMeshes.insert(model->m_StaticMesh);
         }
-    }
-    for (auto& it : m_Brushes)
-    {
-        Material mat = it->RepModel->m_TexturedMeshes[0].m_Material;
-
-        Materials.insert(mat);
     }
 
     std::vector<Material> MatVec(Materials.begin(), Materials.end());
@@ -505,7 +512,6 @@ void Scene::Save(std::string FileName)
     json PointLightList;
     json DirLightList;
     json ModelList;
-    json BrushList;
 
     int Index = 0;
     for (Material Mat : MatVec)
@@ -525,9 +531,11 @@ void Scene::Save(std::string FileName)
     {
         SavePointLight(PointLightList[Index++], *PLight);
     }
-    
-    // Saving only 1 directional light for now
-    SaveDirectionalLight(DirLightList[0], m_DirLight);
+    Index = 0;
+    for (DirectionalLight* DLight : m_DirectionalLights)
+    {
+        SaveDirectionalLight(DirLightList[Index++], *DLight);
+    }
 
     Index = 0;
     for (auto it : m_Models)
@@ -537,7 +545,7 @@ void Scene::Save(std::string FileName)
         int64_t StaticMeshIndex = 0;
         bool GeneratedMesh = false;
 
-        auto MeshIt = std::find(MeshVec.begin(), MeshVec.end(), model->m_TexturedMeshes[0].m_Mesh);
+        auto MeshIt = std::find(MeshVec.begin(), MeshVec.end(), model->m_StaticMesh);
         if (MeshIt != MeshVec.end())
         {
             StaticMeshIndex = MeshIt - MeshVec.begin();
@@ -549,7 +557,7 @@ void Scene::Save(std::string FileName)
         
         int64_t MaterialIndex = 0;
 
-        auto MatIt = std::find(MatVec.begin(), MatVec.end(), model->m_TexturedMeshes[0].m_Material);
+        auto MatIt = std::find(MatVec.begin(), MatVec.end(), model->m_Material);
         if (MatIt != MatVec.end())
         {
             MaterialIndex = MatIt - MatVec.begin();
@@ -568,30 +576,12 @@ void Scene::Save(std::string FileName)
             SaveModel(ModelList[Index++], *model, StaticMeshIndex, MaterialIndex);
         }
     }
-    Index = 0;
-    for (Brush* B : m_Brushes)
-    {
-        int64_t MaterialIndex = 0;
-
-        auto MatIt = std::find(MatVec.begin(), MatVec.end(), B->RepModel->m_TexturedMeshes[0].m_Material);
-        if (MatIt != MatVec.end())
-        {
-            MaterialIndex = MatIt - MatVec.begin();
-        }
-        else
-        {
-            Engine::FatalError("Could not find material while saving brush, this should never happen");
-        }
-
-        SaveBrush(BrushList[Index++], *B, MaterialIndex);
-    }
 
     SceneJson["Textures"] = TextureList;
     SceneJson["StaticMeshes"] = StaticMeshList;
     SceneJson["PointLights"] = PointLightList;
     SceneJson["DirLights"] = DirLightList;
     SceneJson["Models"] = ModelList;
-    SceneJson["Brushes"] = BrushList;
 
     // Uncomment to beautify json - makes it easier to debug but makes files much larger
     File << std::setw(4) << SceneJson;
@@ -635,7 +625,6 @@ void Scene::Load(std::string FileName)
     json PointLightsJson = SceneJson["PointLights"];
     json DirLightsJson = SceneJson["DirLights"];
     json ModelsJson = SceneJson["Models"];
-    json BrushesJson = SceneJson["Brushes"];
 
     for (json& TextureJson : TexturesJson)
     {
@@ -651,8 +640,7 @@ void Scene::Load(std::string FileName)
     }
     for (json& DirLightJson : DirLightsJson)
     {
-        // Only 1 directional light for now
-        SetDirectionalLight(LoadDirectionalLight(DirLightJson));
+        AddDirectionalLight(LoadDirectionalLight(DirLightJson));
     }
     for (json& ModelJson : ModelsJson)
     {
@@ -666,15 +654,6 @@ void Scene::Load(std::string FileName)
             AddedModel = AddModel(LoadModel(ModelJson, MaterialVec, StaticMeshVec));
         }
     }
-    
-    for (json& BrushJson : BrushesJson)
-    {
-        // TODO: Brushes can't have behaviours (for now anyway)
-
-        Brush* AddedBrush;
-        AddedBrush = AddBrush(LoadBrush(BrushJson, MaterialVec));
-    }
-
 }
 
 //void Scene::Save(std::string FileName)
@@ -897,7 +876,7 @@ void Scene::LegacyLoad(std::string FileName)
             else
             {
                 int StaticMeshIndex = std::stoi(LineTokens[1]);
-                NewModel = new Model(Graphics->CreateModel(TexturedMesh(SceneStaticMeshes[StaticMeshIndex], SceneMaterials[MaterialIndex])));
+                NewModel = new Model(Graphics->CreateModel(SceneStaticMeshes[StaticMeshIndex], SceneMaterials[MaterialIndex]));
             }
 
             Mat4x4f EntityTransform;
@@ -942,22 +921,14 @@ void Scene::Clear()
     {
         delete PointLight;
     }
-    for (auto& B : m_Brushes)
-    {
-        if (B->RepModel)
-        {
-            delete B->RepModel;
-        }
-        delete B;
-    }
 
     m_Models.clear();
     m_PointLights.clear();
+    m_DirectionalLights.clear();
     m_Cameras.clear();
-    m_Brushes.clear();
 
 #ifdef USE_EDITOR
-    m_EditorClickables.clear();
+    m_GenericEditorClickables.clear();
 #endif
 
     // Set camera to default TODO: (want to load camera info from file)
@@ -969,7 +940,6 @@ void Scene::CopyInternal(const Scene& other)
     Clear();
     m_Cameras.resize(1);
 
-    m_DirLight = other.m_DirLight;
     m_Cameras = other.m_Cameras;
 
     for (auto it : other.m_Models)
@@ -986,31 +956,13 @@ void Scene::CopyInternal(const Scene& other)
         }
     }
 
-    for (auto& brush : other.m_Brushes)
-    {
-        // Reminder to self: copied brush needs its own rep model ptr
-
-        // (TODO): BIGGER REMINDER TO SELF: COPYING A 2D VECTOR OF VEC3FS IN THE FACE ARRAY NEEDS ANOTHER LOOK 
-        // (THEY'RE STILL POINTING TO THE INITIAL VEC3F VECTOR ELEMENTS!!!!)
-
-        Brush* newBrush = new Brush(*brush);
-
-        newBrush->RepModel = nullptr;
-
-        GraphicsModule::Get()->UpdateBrushModel(newBrush);
-
-        AddBrush(newBrush);
-
-        Behaviour* oldBehaviour = BehaviourRegistry::Get()->GetBehaviourAttachedToEntity(brush->RepModel);
-        if (oldBehaviour)
-        {
-            BehaviourRegistry::Get()->AttachNewBehaviour(oldBehaviour->BehaviourName, brush->RepModel);
-        }
-    }
-
     for (auto& pointLight : other.m_PointLights)
     {
         AddPointLight(*pointLight);
+    }
+    for (auto& directionalLight : other.m_DirectionalLights)
+    {
+        AddDirectionalLight(*directionalLight);
     }
 }
 
@@ -1030,32 +982,24 @@ void Scene::PushSceneRenderCommandsInternal(GraphicsModule& graphics)
 {
     for (auto& heMesh : m_HEMeshes)
     {
-        heMesh->Draw();
-    }
+        graphics.UpdateHEMeshModel(heMesh);
 
-    for (auto it : m_Models)
-    {
-        StaticMeshRenderCommand command;
-        command.m_Material = it.second->m_TexturedMeshes[0].m_Material;
-        command.m_Mesh = it.second->m_TexturedMeshes[0].m_Mesh.Id;
-        command.m_TransMat = it.second->GetTransform().GetTransformMatrix();
-
-        graphics.AddRenderCommand(command);
-    }
-
-    for (auto& it : m_Brushes)
-    {
-        if (!it->RepModel)
+        for (auto& repModel : heMesh->m_RepModels)
         {
-            graphics.UpdateBrushModel(it);
-        }
+            StaticMeshRenderCommand command;
+            command.m_Material = repModel.m_Material;
+            command.m_Mesh = repModel.m_StaticMesh.Id;
+            command.m_TransMat = repModel.GetTransform().GetTransformMatrix();
 
-        Model* repModel = it->RepModel;
-        
+            graphics.AddRenderCommand(command);
+        }
+    }
+    for (auto& it : m_Models)
+    {
         StaticMeshRenderCommand command;
-        command.m_Material = repModel->m_TexturedMeshes[0].m_Material;
-        command.m_Mesh = repModel->m_TexturedMeshes[0].m_Mesh.Id;
-        command.m_TransMat = repModel->GetTransform().GetTransformMatrix();
+        command.m_Material = it.second->m_Material;
+        command.m_Mesh = it.second->m_StaticMesh.Id;
+        command.m_TransMat = it.second->GetTransform().GetTransformMatrix();
 
         graphics.AddRenderCommand(command);
     }
@@ -1068,6 +1012,14 @@ void Scene::PushSceneRenderCommandsInternal(GraphicsModule& graphics)
         LightRC.m_Intensity = Light->intensity;
 
         graphics.AddRenderCommand(LightRC);
+    }
+    for (DirectionalLight* Light : m_DirectionalLights)
+    {
+        DirectionalLightRenderCommand RC;
+        RC.m_Colour = Light->colour;
+        RC.m_Direction = Light->direction;
+
+        graphics.AddRenderCommand(RC);
     }
 }
 
@@ -1117,6 +1069,7 @@ void Scene::SaveDirectionalLight(json& JsonObject, DirectionalLight& DirLight)
 {
     JsonObject["Direction"] = { DirLight.direction.x, DirLight.direction.y, DirLight.direction.z };
     JsonObject["Colour"] = { DirLight.colour.x, DirLight.colour.y, DirLight.colour.z };
+    JsonObject["Position"] = { DirLight.position.x, DirLight.position.y, DirLight.position.z };
 }
 
 void Scene::SaveModel(json& JsonObject, Model& Mod, int64_t MeshIndex, int64_t MatIndex)
@@ -1163,29 +1116,6 @@ void Scene::SaveRawModel(json& JsonObject, Model& Mod, int64_t MatIndex)
     JsonObject["Behaviours"] = Behaviours;
 
     JsonObject["Type"] = Mod.Type;
-}
-
-void Scene::SaveBrush(json& JsonObject, Brush& B, int64_t MatIndex)
-{
-    JsonObject["MatID"] = MatIndex;
-
-    std::vector<float> VertVec;
-
-    for (auto& Vert : B.Vertices)
-    {
-        VertVec.insert(VertVec.end(),
-            {
-                Vert.x, Vert.y, Vert.z
-            }
-        );
-    }
-
-    JsonObject["Verts"] = VertVec;
-    
-    for (int i = 0; i < B.Faces.size(); i++)
-    {
-        JsonObject["Faces"][i] = B.Faces[i];
-    }
 }
 
 Material Scene::LoadMaterial(json& JsonObject)
@@ -1243,12 +1173,22 @@ DirectionalLight Scene::LoadDirectionalLight(json& JsonObject)
     auto Dir = JsonObject["Direction"];
     auto Clr = JsonObject["Colour"];
 
+
     Vec3f VecDir = Vec3f(Dir[0], Dir[1], Dir[2]);
     Vec3f VecColour = Colour(Clr[0], Clr[1], Clr[2]);
+
+    Vec3f VecPos;
+
+    if (JsonObject.contains("Position"))
+    {
+        auto Pos = JsonObject["Position"];
+        VecPos = Vec3f(Pos[0], Pos[1], Pos[2]);
+    }
 
     DirectionalLight DLight;
     DLight.direction = VecDir;
     DLight.colour = VecColour;
+    DLight.position = VecPos;
 
     return DLight;
 }
@@ -1266,7 +1206,7 @@ Model* Scene::LoadModel(json& JsonObject, std::vector<Material>& MaterialVector,
     TransMat[2] = { Trans[8], Trans[9], Trans[10], Trans[11] };
     TransMat[3] = { Trans[12], Trans[13], Trans[14], Trans[15] };
 
-    Model* NewModel = new Model(TexturedMesh(ModelMesh, ModelMat));
+    Model* NewModel = new Model(ModelMesh, ModelMat);
     NewModel->GetTransform().SetTransformMatrix(TransMat);
 
     for (std::string Behaviour : JsonObject["Behaviours"])
@@ -1313,28 +1253,4 @@ Model* Scene::LoadRawModel(json& JsonObject, std::vector<Material>& MaterialVect
     }
 
     return NewModel;
-}
-
-Brush* Scene::LoadBrush(json& JsonObject, std::vector<Material>& MaterialVector)
-{
-    std::vector<float> ReadVerts = JsonObject["Verts"];
-
-    // I'll see if this works...
-    std::vector<std::vector<unsigned int>> ReadFaces = JsonObject["Faces"];
-
-
-    std::vector<Vec3f> Vertices;
-
-    for (int i = 0; i < ReadVerts.size(); i += 3)
-    {
-        Vertices.emplace_back(ReadVerts[i], ReadVerts[i + 1], ReadVerts[i + 2]);
-    }
-
-    GraphicsModule* Graphics = GraphicsModule::Get();
-    
-    Brush* NewBrush = new Brush(Vertices, ReadFaces);
-
-    Graphics->UpdateBrushModel(NewBrush);
-
-    return NewBrush;
 }

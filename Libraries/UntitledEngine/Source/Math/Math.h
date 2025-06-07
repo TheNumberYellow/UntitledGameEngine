@@ -67,6 +67,8 @@ public:
 
     static float Clamp(float in, float lower = 0.0f, float upper = 1.0f);
 
+    static float ClampRadians(float in, float min, float max);
+
     static float RandomFloat(float min, float max);
     static int RandomInt(int min, int max);
 

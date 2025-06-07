@@ -6,89 +6,6 @@
 #include "Graphics/PointLight.h"
 #include "Graphics/Material.h"
 
-SelectedVertex::SelectedVertex(Vec3f* InVertPtr, Brush* InBrushPtr)
-{
-    VertPtr = InVertPtr;
-    BrushPtr = InBrushPtr;
-
-    Trans.SetPosition(*VertPtr);
-}
-
-void SelectedVertex::Draw()
-{
-    GraphicsModule* Graphics = GraphicsModule::Get();
-
-    AABB VertAABB = AABB(*VertPtr - Vec3f(0.35f, 0.35f, 0.35f), *VertPtr + Vec3f(0.35f, 0.35f, 0.35f));
-
-    Graphics->DebugDrawAABB(VertAABB, c_SelectedBoxColour);
-}
-
-void SelectedVertex::Update()
-{
-    GraphicsModule* Graphics = GraphicsModule::Get();
-
-    *VertPtr = Trans.GetPosition();
-
-
-    if (!BrushPtr->UpdatedThisFrame)
-    {
-        Graphics->UpdateBrushModel(BrushPtr);
-        //BrushPtr->UpdatedThisFrame = true;
-    }
-}
-
-bool SelectedVertex::DrawInspectorPanel()
-{
-    return false;
-}
-
-Transform* SelectedVertex::GetTransform()
-{
-    return &Trans;
-}
-
-void SelectedVertex::DeleteObject()
-{
-    // TODO: can't delete individual brush vertices for now
-    ScenePtr->DeleteBrush(BrushPtr);
-}
-
-bool SelectedVertex::IsEqual(const ISelectedObject& Other) const
-{
-    return VertPtr == static_cast<const SelectedVertex&>(Other).VertPtr;
-}
-
-SelectedDirectionalLight::SelectedDirectionalLight(DirectionalLight* InDirLight)
-{
-}
-
-void SelectedDirectionalLight::Draw()
-{
-}
-
-void SelectedDirectionalLight::Update()
-{
-}
-
-bool SelectedDirectionalLight::DrawInspectorPanel()
-{
-    return false;
-}
-
-Transform* SelectedDirectionalLight::GetTransform()
-{
-    return nullptr;
-}
-
-void SelectedDirectionalLight::DeleteObject()
-{
-}
-
-bool SelectedDirectionalLight::IsEqual(const ISelectedObject& other) const
-{
-    return false;
-}
-
 CursorState::CursorState(EditorState* InEditorState, Scene* InEditorScene)
     : EditorStatePtr(InEditorState)
     , EditorScenePtr(InEditorScene)
@@ -108,6 +25,16 @@ CursorState::CursorState(EditorState* InEditorState, Scene* InEditorScene)
     ZAxisScale = &EditorStatePtr->zScaleWidget;
 }
 
+void CursorState::SetScene(Scene* InScene)
+{
+    EditorScenePtr = InScene;
+}
+
+void CursorState::SetCamera(Camera* InCamera)
+{
+    CameraPtr = InCamera;
+}
+
 void CursorState::Update(double DeltaTime)
 {
     InputModule* Input = InputModule::Get();
@@ -118,7 +45,7 @@ void CursorState::Update(double DeltaTime)
         if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).pressed)
         {
             Vec2i MousePos = Input->GetMouseState().GetMousePos();
-            Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+            Ray MouseRay = EditorStatePtr->GetMouseRay(*CameraPtr, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
 
             Vec3f NewDraggingModelPos;
             if (Input->GetKeyState(Key::Ctrl).pressed)
@@ -173,7 +100,7 @@ void CursorState::Update(double DeltaTime)
         if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).pressed)
         {
             Vec2i MousePos = Input->GetMouseState().GetMousePos();
-            Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+            Ray MouseRay = EditorStatePtr->GetMouseRay(*CameraPtr, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
 
             DraggingPointLightPtr->position = MouseRay.point + MouseRay.direction * 8.0f;
 
@@ -196,6 +123,22 @@ void CursorState::Update(double DeltaTime)
             Dragging = DraggingMode::None;
         }
     }
+    else if (Dragging == DraggingMode::NewDirectionalLight)
+    {
+        if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).pressed)
+        {
+            Vec2i MousePos = Input->GetMouseState().GetMousePos();
+            Ray MouseRay = EditorStatePtr->GetMouseRay(*CameraPtr, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+
+            DraggingDirectionalLightPtr->position = MouseRay.point + MouseRay.direction * 8.0f;
+        }
+        else
+        {
+            DraggingDirectionalLightPtr = nullptr;
+
+            Dragging = DraggingMode::None;
+        }
+    }
     else if (Dragging == DraggingMode::NewTexture)
     {
         Vec2i MousePos = Input->GetMouseState().GetMousePos();
@@ -205,9 +148,9 @@ void CursorState::Update(double DeltaTime)
         }
         else
         {
-            Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+            Ray MouseRay = EditorStatePtr->GetMouseRay(*CameraPtr, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
 
-            ISelectedObject* hitSelectedObject = ClickCast(MouseRay);
+            ISelectedObject* hitSelectedObject = ClickCastGeneric(MouseRay);
 
             if (hitSelectedObject)
             {
@@ -223,7 +166,7 @@ void CursorState::Update(double DeltaTime)
     else if (Dragging == DraggingMode::NewBehaviour)
     {
         Vec2i MousePos = Input->GetMouseState().GetMousePos();
-        Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+        Ray MouseRay = EditorStatePtr->GetMouseRay(*CameraPtr, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
 
         if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).pressed)
         {
@@ -258,9 +201,6 @@ void CursorState::Update(double DeltaTime)
     case ToolMode::Sculpt:
         UpdateSculptTool(DeltaTime);
         break;
-    case ToolMode::Brush:
-        UpdateBrushTool();
-        break;
 
     default:
     {
@@ -275,7 +215,7 @@ void CursorState::Update(double DeltaTime)
         // Update widget positions
         Transform ObjTrans = SelectedProxyTransform;
 
-        float DistFromCam = Math::magnitude(ObjTrans.GetPosition() - EditorStatePtr->ViewportCamera.GetPosition());
+        float DistFromCam = Math::magnitude(ObjTrans.GetPosition() - CameraPtr->GetPosition());
 
         XAxisTrans->GetTransform().SetPosition(ObjTrans.GetPosition() + Vec3f(DistFromCam / 20.0f * 5.0f, 0.0f, 0.0f));
         YAxisTrans->GetTransform().SetPosition(ObjTrans.GetPosition() + Vec3f(0.0f, DistFromCam / 20.0f * 5.0f, 0.0f));
@@ -321,6 +261,7 @@ void CursorState::ResetAllState()
 
     DraggingModelPtr = nullptr;
     DraggingPointLightPtr = nullptr;
+    DraggingDirectionalLightPtr = nullptr;
     DraggingMaterialPtr = nullptr;
     DraggingBehaviourName = "";
 
@@ -352,12 +293,15 @@ void CursorState::CycleToolMode()
         Tool = ToolMode::Geometry;
         break;
     case ToolMode::Geometry:
+        UnselectAll();
         Tool = ToolMode::Vertex;
         break;
     case ToolMode::Vertex:
+        UnselectAll();
         Tool = ToolMode::Sculpt;
         break;
     case ToolMode::Sculpt:
+        UnselectAll();
         Tool = ToolMode::Select;
         break;
     default:
@@ -369,13 +313,17 @@ void CursorState::CycleToolMode()
 void CursorState::CycleSelectMode()
 {
     ResetAllState();
+    UnselectAll();
     switch (Select)
     {
-    case SelectMode::ModelSelect:
-        Select = SelectMode::VertexSelect;
+    case SelectMode::GenericSelect:
+        Select = SelectMode::FaceSelect;
         break;
-    case SelectMode::VertexSelect:
-        Select = SelectMode::ModelSelect;
+    case SelectMode::FaceSelect:
+        Select = SelectMode::VertSelect;
+        break;
+    case SelectMode::VertSelect:
+        Select = SelectMode::GenericSelect;
         break;
     default:
         Engine::FatalError("Invalid editor select tool mode.");
@@ -392,6 +340,9 @@ void CursorState::CycleGeometryMode()
         GeoMode = GeometryMode::Plane;
         break;
     case GeometryMode::Plane:
+        GeoMode = GeometryMode::HalfEdge;
+        break;
+    case GeometryMode::HalfEdge:
         GeoMode = GeometryMode::Box;
         break;
     default:
@@ -423,6 +374,14 @@ void CursorState::CycleTransformMode()
 void CursorState::SetToolMode(ToolMode InToolMode)
 {
     ResetAllState();
+    
+    if (InToolMode == ToolMode::Geometry
+        || InToolMode == ToolMode::Sculpt
+        )
+    {
+        UnselectAll();
+    }
+
     Tool = InToolMode;
 }
 
@@ -468,6 +427,18 @@ void CursorState::StartDraggingNewPointLight(PointLight* NewPointLight)
     Dragging = DraggingMode::NewPointLight;
 
     DraggingPointLightPtr = NewPointLight;
+}
+
+void CursorState::StartDraggingNewDirectionalLight(DirectionalLight* NewDirLight)
+{
+    if (Dragging != DraggingMode::None)
+    {
+        return;
+    }
+
+    Dragging = DraggingMode::NewDirectionalLight;
+
+    DraggingDirectionalLightPtr = NewDirLight;
 }
 
 void CursorState::StartDraggingNewMaterial(Material* NewMaterial)
@@ -549,11 +520,12 @@ void CursorState::UpdateSelectTool()
 {
     switch (Select)
     {
-    case SelectMode::ModelSelect:
-        UpdateModelSelectTool();
+    case SelectMode::GenericSelect:
+        UpdateGenericSelectTool();
         break;
-    case SelectMode::VertexSelect:
-        UpdateVertexSelectTool();
+    case SelectMode::FaceSelect:
+    case SelectMode::VertSelect:
+        UpdateHalfEdgeSelectTool();
         break;
     default:
         break;
@@ -588,7 +560,9 @@ void CursorState::UpdateGeometryTool()
     case GeometryMode::Plane:
         UpdatePlaneTool();
         break;
-
+    case GeometryMode::HalfEdge:
+        UpdateHalfEdgeTool();
+        break;
     default:
         break;
     }
@@ -631,7 +605,7 @@ void CursorState::UpdateSculptTool(double DeltaTime)
         }
     }
 
-    Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+    Ray MouseRay = EditorStatePtr->GetMouseRay(*CameraPtr, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
 
     SceneRayCastHit FinalHit = EditorScenePtr->RayCast(MouseRay);
 
@@ -649,7 +623,7 @@ void CursorState::UpdateSculptTool(double DeltaTime)
 
                 float VerticalDir = Input->GetMouseState().GetMouseButtonState(MouseButton::RMB) ? -SculptSpeed : SculptSpeed;
 
-                StaticMesh_ID Mesh = PlaneModel->m_TexturedMeshes[0].m_Mesh.Id;
+                StaticMesh_ID Mesh = PlaneModel->m_StaticMesh.Id;
 
                 std::vector<Vertex*> Vertices = Graphics->m_Renderer.MapMeshVertices(Mesh);
 
@@ -675,7 +649,7 @@ void CursorState::UpdateSculptTool(double DeltaTime)
                 Model* PlaneModel = FinalHit.hitModel;
                 Vec3f ModelSpaceVertPos = HitPoint * Math::inv(PlaneModel->GetTransform().GetTransformMatrix());
 
-                StaticMesh_ID Mesh = PlaneModel->m_TexturedMeshes[0].m_Mesh.Id;
+                StaticMesh_ID Mesh = PlaneModel->m_StaticMesh.Id;
 
                 std::vector<Vertex*> Vertices = Graphics->m_Renderer.MapMeshVertices(Mesh);
 
@@ -712,113 +686,7 @@ void CursorState::UpdateSculptTool(double DeltaTime)
     }
 }
 
-void CursorState::UpdateBrushTool()
-{
-    InputModule* Input = InputModule::Get();
-    CollisionModule* Collisions = CollisionModule::Get();
-    GraphicsModule* Graphics = GraphicsModule::Get();
-
-    KeyState ClickState = Input->GetMouseState().GetMouseButtonState(MouseButton::LMB);
-
-    if (Dragging != DraggingMode::None)
-    {
-        IsCreatingNewBox = false;
-    }
-
-    if (IsCreatingNewBox)
-    {
-        if (ClickState.justReleased)
-        {
-            IsCreatingNewBox = false;
-
-            if (BoxBeingCreated.XSize() <= 0.0001f
-                || BoxBeingCreated.YSize() <= 0.0001f
-                || BoxBeingCreated.ZSize() < 0.0001f)
-            {
-                // Box too smol
-            }
-            else
-            {
-                // Create the box model, add to scene
-                Brush* NewBrush = new Brush(BoxBeingCreated);
-
-                EditorScenePtr->AddBrush(NewBrush);
-                Graphics->UpdateBrushModel(NewBrush);
-
-                //EditorScenePtr->AddModel(NewBrush->RepModel);
-
-                //EditorScenePtr->AddModel(Graphics->CreateBoxModel(BoxBeingCreated));
-            }
-
-        }
-        else
-        {
-            Vec2i MousePos = Input->GetMouseState().GetMousePos();
-            Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
-
-            RayCastHit PlaneHit = Collisions->RayCast(MouseRay, Plane(NewBoxStartPoint, Vec3f(0.0f, 0.0f, 1.0f)));
-
-            if (PlaneHit.hit)
-            {
-                int DeltaMouseWheel = Input->GetMouseState().GetDeltaMouseWheel();
-                if (DeltaMouseWheel > 0 || Input->GetKeyState(Key::Plus).justPressed)
-                {
-                    NewBoxHeight += GeoPlaceSnap;
-                }
-                else if (DeltaMouseWheel < 0 || Input->GetKeyState(Key::Minus).justPressed)
-                {
-                    NewBoxHeight -= GeoPlaceSnap;
-                }
-
-                if (NewBoxHeight < GeoPlaceSnap) NewBoxHeight = GeoPlaceSnap;
-
-                Vec3f HitPoint = PlaneHit.hitPoint;
-
-                HitPoint.x = Math::Round(HitPoint.x, GeoPlaceSnap);
-                HitPoint.y = Math::Round(HitPoint.y, GeoPlaceSnap);
-                HitPoint.z = Math::Round(HitPoint.z, GeoPlaceSnap);
-
-                float minX = std::min(HitPoint.x, NewBoxStartPoint.x);
-                float minY = std::min(HitPoint.y, NewBoxStartPoint.y);
-
-                float maxX = std::max(HitPoint.x, NewBoxStartPoint.x);
-                float maxY = std::max(HitPoint.y, NewBoxStartPoint.y);
-
-                BoxBeingCreated.min = Vec3f(minX, minY, HitPoint.z);
-                BoxBeingCreated.max = Vec3f(maxX, maxY, HitPoint.z + NewBoxHeight);
-
-                Graphics->DebugDrawAABB(BoxBeingCreated, Vec3f(0.1f, 1.0f, 0.3f));
-            }
-        }
-    }
-    else
-    {
-        Vec2i MousePos = Input->GetMouseState().GetMousePos();
-        if (ClickState.justPressed && Dragging == DraggingMode::None && EditorStatePtr->GetEditorSceneViewportRect().Contains(MousePos))
-        {
-            Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
-
-            RayCastHit PlaneHit = Collisions->RayCast(MouseRay, Plane(Vec3f(0.0f, 0.0f, 0.0f), Vec3f(0.0f, 0.0f, 1.0f)));
-            RayCastHit SceneHit = EditorScenePtr->RayCast(MouseRay).rayCastHit;
-
-            RayCastHit FinalHit = PlaneHit.hitDistance < SceneHit.hitDistance ? PlaneHit : SceneHit;
-
-            if (FinalHit.hit)
-            {
-                Vec3f HitPoint = FinalHit.hitPoint;
-
-                HitPoint.x = Math::Round(HitPoint.x, GeoPlaceSnap);
-                HitPoint.y = Math::Round(HitPoint.y, GeoPlaceSnap);
-                HitPoint.z = Math::Round(HitPoint.z, GeoPlaceSnap);
-
-                IsCreatingNewBox = true;
-                NewBoxStartPoint = HitPoint;
-            }
-        }
-    }
-}
-
-void CursorState::UpdateModelSelectTool()
+void CursorState::UpdateGenericSelectTool()
 {
     InputModule* Input = InputModule::Get();
 
@@ -826,9 +694,9 @@ void CursorState::UpdateModelSelectTool()
 
     if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).justPressed && EditorStatePtr->GetEditorSceneViewportRect().Contains(MousePos))
     {
-        Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+        Ray MouseRay = EditorStatePtr->GetMouseRay(*CameraPtr, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
 
-        ISelectedObject* hitSelectedObject = ClickCast(MouseRay);
+        ISelectedObject* hitSelectedObject = ClickCastGeneric(MouseRay);
 
         bool HoldingShift = Input->GetKeyState(Key::Shift).pressed;
 
@@ -850,79 +718,82 @@ void CursorState::UpdateModelSelectTool()
     }
 }
 
-void CursorState::UpdateVertexSelectTool()
+void CursorState::UpdateHalfEdgeSelectTool()
 {
     InputModule* Input = InputModule::Get();
     GraphicsModule* Graphics = GraphicsModule::Get();
 
+    auto& HalfEdgeMeshVec = EditorScenePtr->GetHalfEdgeMeshes();
+    
     Vec2i MousePos = Input->GetMouseState().GetMousePos();
-
-    auto BrushVec = EditorScenePtr->GetBrushes();
-
-    for (auto& B : BrushVec)
-    {
-        for (auto& Vert : B->Vertices)
-        {
-            AABB BrushVertAABB = AABB(Vert - Vec3f(0.15f, 0.15f, 0.15f), Vert + Vec3f(0.15f, 0.15f, 0.15f));
-            Graphics->DebugDrawAABB(BrushVertAABB, Colour(0.7f, 0.9f, 0.3f));
-        }
-    }
 
     if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).justPressed && EditorStatePtr->GetEditorSceneViewportRect().Contains(MousePos))
     {
-        Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+        Ray MouseRay = EditorStatePtr->GetMouseRay(*CameraPtr, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
 
-        RayCastHit VertHit;
+        ISelectedObject* closestSelectedObject = nullptr;
+        RayCastHit closestHit;
 
-        Vec3f* HitVert = nullptr;
-        Brush* HitBrush = nullptr;
-
-        CollisionModule* Collisions = CollisionModule::Get();
-
-        for (auto& B : BrushVec)
+        for (auto& M : HalfEdgeMeshVec)
         {
-            for (auto& Vert : B->Vertices)
+            if (Select == SelectMode::VertSelect)
             {
-                AABB BrushVertAABB = AABB(Vert - Vec3f(0.15f, 0.15f, 0.15f), Vert + Vec3f(0.15f, 0.15f, 0.15f));
+                ISelectedObject* newSelectedObject = nullptr;
 
-                RayCastHit NewVertHit = Collisions->RayCast(MouseRay, BrushVertAABB);
-
-                if (NewVertHit.hit && NewVertHit.hitDistance < VertHit.hitDistance)
+                RayCastHit hit = M->ClickCastVerts(MouseRay, newSelectedObject);
+                if (hit.hit && hit.hitDistance < closestHit.hitDistance)
                 {
-                    VertHit = NewVertHit;
-                    HitBrush = B;
-                    HitVert = &Vert;
+                    if (closestSelectedObject)
+                    {
+                        delete closestSelectedObject;
+                        closestSelectedObject = nullptr;
+                    }
+                    closestHit = hit;
+                    closestSelectedObject = newSelectedObject;
                 }
-
+                else
+                {
+                    delete newSelectedObject;
+                }
+            }
+            else if (Select == SelectMode::FaceSelect)
+            {
+                ISelectedObject* newSelectedObject = nullptr;
+                RayCastHit hit = M->ClickCastFaces(MouseRay, newSelectedObject);
+                if (hit.hit && hit.hitDistance < closestHit.hitDistance)
+                {
+                    if (closestSelectedObject)
+                    {
+                        delete closestSelectedObject;
+                        closestSelectedObject = nullptr;
+                    }
+                    closestHit = hit;
+                    closestSelectedObject = newSelectedObject;
+                }
+                else
+                {
+                    delete newSelectedObject;
+                }
             }
         }
 
-        if (VertHit.hit && HitVert)
+        bool HoldingShift = Input->GetKeyState(Key::Shift).pressed;
+
+        if (closestSelectedObject)
         {
-            if (!Input->GetKeyState(Key::Shift).pressed)
+            closestSelectedObject->SetScene(EditorScenePtr);
+
+            if (!HoldingShift)
             {
                 UnselectSelectedObjects();
             }
 
-            SelectedVertex* ClickedVert = new SelectedVertex(HitVert, HitBrush);
-
-            AddToSelectedObjects(ClickedVert);
-
-            // Also add all vertices which were very close to the chosen vert
-            for (auto& B : BrushVec)
-            {
-                for (auto& Vert : B->Vertices)
-                {
-                    if (Math::magnitude(*HitVert - Vert) < 0.00001f)
-                    {
-                        SelectedVertex* CloseVert = new SelectedVertex(&Vert, B);
-
-                        AddToSelectedObjects(CloseVert);
-                    }
-                }
-            }
+            AddToSelectedObjects(closestSelectedObject);
         }
-
+        else if (!HoldingShift)
+        {
+            UnselectSelectedObjects();
+        }
     }
 }
 
@@ -938,7 +809,7 @@ void CursorState::UpdateTranslateTool()
     }
 
     Vec2i MousePos = Input->GetMouseState().GetMousePos();
-    Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+    Ray MouseRay = EditorStatePtr->GetMouseRay(*CameraPtr, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
 
     CollisionModule* Collisions = CollisionModule::Get();
 
@@ -971,7 +842,7 @@ void CursorState::UpdateTranslateTool()
             ClosestHit = OmniHit;
             Axis = EditingAxis::Omni;
             ObjectRelativeHitPoint = OmniHit.hitPoint - SelectedPos;
-            ObjectDistanceAtHit = Math::magnitude(OmniHit.hitPoint - EditorStatePtr->ViewportCamera.GetPosition());
+            ObjectDistanceAtHit = Math::magnitude(OmniHit.hitPoint - CameraPtr->GetPosition());
         }
     }
     else if (Axis == EditingAxis::Omni)
@@ -1056,7 +927,7 @@ void CursorState::UpdateRotateTool()
     CollisionModule* Collisions = CollisionModule::Get();
 
     Vec2i MousePos = Input->GetMouseState().GetMousePos();
-    Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+    Ray MouseRay = EditorStatePtr->GetMouseRay(*CameraPtr, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
 
     if (Axis == EditingAxis::None && Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).justPressed)
     {
@@ -1194,7 +1065,7 @@ void CursorState::UpdateBoxTool()
         else
         {
             Vec2i MousePos = Input->GetMouseState().GetMousePos();
-            Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+            Ray MouseRay = EditorStatePtr->GetMouseRay(*CameraPtr, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
 
             RayCastHit PlaneHit = Collisions->RayCast(MouseRay, Plane(NewBoxStartPoint, Vec3f(0.0f, 0.0f, 1.0f)));
 
@@ -1236,7 +1107,7 @@ void CursorState::UpdateBoxTool()
         Vec2i MousePos = Input->GetMouseState().GetMousePos();
         if (ClickState.justPressed && Dragging == DraggingMode::None && EditorStatePtr->GetEditorSceneViewportRect().Contains(MousePos))
         {
-            Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+            Ray MouseRay = EditorStatePtr->GetMouseRay(*CameraPtr, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
 
             RayCastHit PlaneHit = Collisions->RayCast(MouseRay, Plane(Vec3f(0.0f, 0.0f, 0.0f), Vec3f(0.0f, 0.0f, 1.0f)));
             RayCastHit SceneHit = EditorScenePtr->RayCast(MouseRay).rayCastHit;
@@ -1283,7 +1154,7 @@ void CursorState::UpdatePlaneTool()
         else
         {
             Vec2i MousePos = Input->GetMouseState().GetMousePos();
-            Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+            Ray MouseRay = EditorStatePtr->GetMouseRay(*CameraPtr, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
 
             RayCastHit PlaneHit = Collisions->RayCast(MouseRay, Plane{ NewPlaneStartPoint, Vec3f(0.0f, 0.0f, 1.0f) });
 
@@ -1358,7 +1229,7 @@ void CursorState::UpdatePlaneTool()
         Vec2i MousePos = Input->GetMouseState().GetMousePos();
         if (ClickState.justPressed && Dragging == DraggingMode::None && EditorStatePtr->GetEditorSceneViewportRect().Contains(MousePos))
         {
-            Ray MouseRay = EditorStatePtr->GetMouseRay(EditorStatePtr->ViewportCamera, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+            Ray MouseRay = EditorStatePtr->GetMouseRay(*CameraPtr, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
 
             RayCastHit PlaneHit = Collisions->RayCast(MouseRay, Plane(Vec3f(0.0f, 0.0f, 0.0f), Vec3f(0.0f, 0.0f, 1.0f)));
             RayCastHit SceneHit = EditorScenePtr->RayCast(MouseRay).rayCastHit;
@@ -1375,6 +1246,112 @@ void CursorState::UpdatePlaneTool()
 
                 IsCreatingNewPlane = true;
                 NewPlaneStartPoint = HitPoint;
+            }
+        }
+    }
+}
+
+void CursorState::UpdateHalfEdgeTool()
+{
+    // Copied from box create... likely buggy
+    InputModule* Input = InputModule::Get();
+    CollisionModule* Collisions = CollisionModule::Get();
+    GraphicsModule* Graphics = GraphicsModule::Get();
+
+    KeyState ClickState = Input->GetMouseState().GetMouseButtonState(MouseButton::LMB);
+
+    if (Dragging != DraggingMode::None)
+    {
+        IsCreatingNewBox = false;
+    }
+
+    if (IsCreatingNewBox)
+    {
+        if (ClickState.justReleased)
+        {
+            IsCreatingNewBox = false;
+
+            if (BoxBeingCreated.XSize() <= 0.0001f
+                || BoxBeingCreated.YSize() <= 0.0001f
+                || BoxBeingCreated.ZSize() < 0.0001f)
+            {
+                // Box too smol
+            }
+            else
+            {
+                // Create the box model, add to scene
+                //EditorScenePtr->AddModel(new Model(Graphics->CreateBoxModel(BoxBeingCreated)));
+                
+                he::HalfEdgeMesh* newHeMesh = new he::HalfEdgeMesh();
+                newHeMesh->MakeAABB(BoxBeingCreated);
+                //newHeMesh->MakeQuad();
+
+                EditorScenePtr->AddHalfEdgeMesh(newHeMesh);
+            }
+
+        }
+        else
+        {
+            Vec2i MousePos = Input->GetMouseState().GetMousePos();
+            Ray MouseRay = EditorStatePtr->GetMouseRay(*CameraPtr, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+
+            RayCastHit PlaneHit = Collisions->RayCast(MouseRay, Plane(NewBoxStartPoint, Vec3f(0.0f, 0.0f, 1.0f)));
+
+            if (PlaneHit.hit)
+            {
+                int DeltaMouseWheel = Input->GetMouseState().GetDeltaMouseWheel();
+                if (DeltaMouseWheel > 0 || Input->GetKeyState(Key::Plus).justPressed)
+                {
+                    NewBoxHeight += GeoPlaceSnap;
+                }
+                else if (DeltaMouseWheel < 0 || Input->GetKeyState(Key::Minus).justPressed)
+                {
+                    NewBoxHeight -= GeoPlaceSnap;
+                }
+
+                if (NewBoxHeight < GeoPlaceSnap) NewBoxHeight = GeoPlaceSnap;
+
+                Vec3f HitPoint = PlaneHit.hitPoint;
+
+                HitPoint.x = Math::Round(HitPoint.x, GeoPlaceSnap);
+                HitPoint.y = Math::Round(HitPoint.y, GeoPlaceSnap);
+                HitPoint.z = Math::Round(HitPoint.z, GeoPlaceSnap);
+
+                float minX = std::min(HitPoint.x, NewBoxStartPoint.x);
+                float minY = std::min(HitPoint.y, NewBoxStartPoint.y);
+
+                float maxX = std::max(HitPoint.x, NewBoxStartPoint.x);
+                float maxY = std::max(HitPoint.y, NewBoxStartPoint.y);
+
+                BoxBeingCreated.min = Vec3f(minX, minY, HitPoint.z);
+                BoxBeingCreated.max = Vec3f(maxX, maxY, HitPoint.z + NewBoxHeight);
+
+                Graphics->DebugDrawAABB(BoxBeingCreated, Vec3f(0.1f, 1.0f, 0.3f));
+            }
+        }
+    }
+    else
+    {
+        Vec2i MousePos = Input->GetMouseState().GetMousePos();
+        if (ClickState.justPressed && Dragging == DraggingMode::None && EditorStatePtr->GetEditorSceneViewportRect().Contains(MousePos))
+        {
+            Ray MouseRay = EditorStatePtr->GetMouseRay(*CameraPtr, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+
+            RayCastHit PlaneHit = Collisions->RayCast(MouseRay, Plane(Vec3f(0.0f, 0.0f, 0.0f), Vec3f(0.0f, 0.0f, 1.0f)));
+            RayCastHit SceneHit = EditorScenePtr->RayCast(MouseRay).rayCastHit;
+
+            RayCastHit FinalHit = PlaneHit.hitDistance < SceneHit.hitDistance ? PlaneHit : SceneHit;
+
+            if (FinalHit.hit)
+            {
+                Vec3f HitPoint = FinalHit.hitPoint;
+
+                HitPoint.x = Math::Round(HitPoint.x, GeoPlaceSnap);
+                HitPoint.y = Math::Round(HitPoint.y, GeoPlaceSnap);
+                HitPoint.z = Math::Round(HitPoint.z, GeoPlaceSnap);
+
+                IsCreatingNewBox = true;
+                NewBoxStartPoint = HitPoint;
             }
         }
     }
@@ -1503,9 +1480,9 @@ void CursorState::RotateSelectedTransforms(Quaternion Rotation)
 
 }
 
-ISelectedObject* CursorState::ClickCast(Ray mouseRay)
+ISelectedObject* CursorState::ClickCastGeneric(Ray mouseRay)
 {
-    std::vector<IEditorClickable*>& clickables = EditorScenePtr->GetEditorClickables();
+    std::vector<IEditorClickable*>& clickables = EditorScenePtr->GetGenericEditorClickables();
 
     ISelectedObject* closestSelectedObject = nullptr;
     RayCastHit closestHit;
@@ -1532,4 +1509,9 @@ ISelectedObject* CursorState::ClickCast(Ray mouseRay)
     }
 
     return closestSelectedObject;
+}
+
+std::vector<ISelectedObject*> CursorState::ClickCastHalfEdgeMesh(Ray mouseRay)
+{
+    return std::vector<ISelectedObject*>();
 }

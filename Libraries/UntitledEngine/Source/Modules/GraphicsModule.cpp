@@ -2,61 +2,10 @@
 
 #include "..\FileLoader.h"
 
-#include <random>
+#include "HalfEdge/HalfEdge.h"  
 #include "Scene.h"
 
-Brush::Brush(AABB InAABB)
-{
-    Vec3f BoxMin = InAABB.min;
-    Vec3f BoxMax = InAABB.max;
-
-    float BoxXSize = InAABB.XSize();
-    float BoxYSize = InAABB.YSize();
-
-    Vertices.insert(Vertices.end(),
-        {
-            BoxMin,
-            BoxMin + Vec3f(0.0f, BoxYSize, 0.0f),
-            BoxMin + Vec3f(BoxXSize, BoxYSize, 0.0f),
-            BoxMin + Vec3f(BoxXSize, 0.0f, 0.0f),
-
-            BoxMax - Vec3f(BoxXSize, BoxYSize, 0.0f),
-            BoxMax - Vec3f(BoxXSize, 0.0f, 0.0f),
-            BoxMax,
-            BoxMax - Vec3f(0.0f, BoxYSize, 0.0f),
-        }
-    );
-
-    Faces.push_back({ 3, 2, 1, 0 });
-    Faces.push_back({ 4, 5, 6, 7 });
-
-    Faces.push_back({ 0, 1, 5, 4 });
-    Faces.push_back({ 2, 3, 7, 6 });
-
-    Faces.push_back({ 3, 0, 4, 7 });
-    Faces.push_back({ 1, 2, 6, 5 });
-}
-
-Brush::Brush(Rect InRect)
-{
-    Vertices.insert( Vertices.end(),
-        { 
-            Vec3f(InRect.location.x, InRect.location.y, 0.0f), 
-            Vec3f(InRect.location.x, InRect.location.y + InRect.size.y, 0.0f),
-            Vec3f(InRect.location.x + InRect.size.x, InRect.location.y + InRect.size.y, 0.0f),
-            Vec3f(InRect.location.x + InRect.size.x, InRect.location.y, 0.0f),
-        }
-    );
-
-    Faces.push_back({ 0, 1, 2 });
-    Faces.push_back({ 0, 2, 3 });
-}
-
-Brush::Brush(std::vector<Vec3f>& InVerts, std::vector<std::vector<unsigned int>>& InFaces)
-{
-    Vertices = InVerts;
-    Faces = InFaces;
-}
+#include <random>
 
 GraphicsModule* GraphicsModule::s_Instance = nullptr;
 
@@ -1399,7 +1348,12 @@ void GraphicsModule::AddRenderCommand(PointLightRenderCommand Command)
     m_PointLightRenderCommands.push_back(Command);
 }
 
-void GraphicsModule::Render(GBuffer Buffer, Camera Cam, DirectionalLight DirLight)
+void GraphicsModule::AddRenderCommand(DirectionalLightRenderCommand Command)
+{
+    m_DirectionalLightRenderCommands.push_back(Command);
+}
+
+void GraphicsModule::Render(GBuffer Buffer, Camera Cam)
 {
     m_Renderer.SetActiveFBuffer(Buffer.Buffer);
 
@@ -1511,47 +1465,55 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam, DirectionalLight DirLigh
         // Directional lights
 
         // Loop through directional lights here
-        
-        // Create directional light shadow map
-        m_ShadowCamera.SetPosition(Cam.GetPosition() + (-m_ShadowCamera.GetDirection() * 40.0f));
-        m_ShadowCamera.SetDirection(DirLight.direction);
-        
-        m_Renderer.SetActiveShader(m_ShadowShader);
-        SetActiveFrameBuffer(m_ShadowBuffer);
-        //m_Renderer.ClearScreenAndDepthBuffer();
+
+        SetActiveFrameBuffer(Buffer.LightBuffer);
+        for (DirectionalLightRenderCommand& Command : m_DirectionalLightRenderCommands)
         {
-            m_Renderer.SetShaderUniformMat4x4f(m_ShadowShader, "LightSpaceMatrix", m_ShadowCamera.GetCamMatrix());
+            // Create directional light shadow map
+            m_ShadowCamera.SetDirection(Command.m_Direction);
+            m_ShadowCamera.SetPosition(Cam.GetPosition() + (-m_ShadowCamera.GetDirection() * 40.0f));
 
-            for (StaticMeshRenderCommand& Command : m_StaticMeshRenderCommands)
+
+            m_Renderer.SetActiveShader(m_ShadowShader);
+            SetActiveFrameBuffer(m_ShadowBuffer);
             {
-                // Set mesh-specific transform uniform
-                m_Renderer.SetShaderUniformMat4x4f(m_ShadowShader, "Transformation", Command.m_TransMat);
+                m_Renderer.SetShaderUniformMat4x4f(m_ShadowShader, "LightSpaceMatrix", m_ShadowCamera.GetCamMatrix());
 
-                // Draw mesh to shadow map
-                m_Renderer.DrawMesh(Command.m_Mesh);
+                for (StaticMeshRenderCommand& Command : m_StaticMeshRenderCommands)
+                {
+                    if (!Command.m_CastShadows)
+                    {
+                        continue;
+                    }
+                    // Set mesh-specific transform uniform
+                    m_Renderer.SetShaderUniformMat4x4f(m_ShadowShader, "Transformation", Command.m_TransMat);
+
+                    // Draw mesh to shadow map
+                    m_Renderer.DrawMesh(Command.m_Mesh);
+                }
+            }
+
+            m_Renderer.SetActiveShader(m_GBufferDirectionalLightShader);
+            SetActiveFrameBuffer(Buffer.LightBuffer, false);
+            {
+                m_Renderer.SetShaderUniformVec3f(m_GBufferDirectionalLightShader, "CameraPos", Cam.GetPosition());
+
+                m_Renderer.SetActiveTexture(Buffer.PositionTex, "gPosition");
+                m_Renderer.SetActiveTexture(Buffer.NormalTex, "gNormal");
+                m_Renderer.SetActiveTexture(Buffer.AlbedoTex, "gAlbedo");
+                m_Renderer.SetActiveTexture(Buffer.MetallicTex, "gMetallic");
+                m_Renderer.SetActiveTexture(Buffer.RoughnessTex, "gRoughness");
+                m_Renderer.SetActiveTexture(Buffer.AOTex, "gAO");
+
+                m_Renderer.SetActiveFBufferTexture(m_ShadowBuffer, "ShadowMap");
+                m_Renderer.SetShaderUniformMat4x4f(m_GBufferDirectionalLightShader, "LightSpaceMatrix", m_ShadowCamera.GetCamMatrix());
+
+                m_Renderer.SetShaderUniformVec3f(m_GBufferDirectionalLightShader, "SunDirection", Command.m_Direction);
+                m_Renderer.SetShaderUniformVec3f(m_GBufferDirectionalLightShader, "SunColour", Command.m_Colour);
+
+                m_Renderer.DrawMesh(Buffer.QuadMesh);
             }
         }
-
-        m_Renderer.SetActiveShader(m_GBufferDirectionalLightShader);
-        m_Renderer.SetActiveFBuffer(Buffer.LightBuffer);
-        m_Renderer.ClearScreenAndDepthBuffer();
-
-        m_Renderer.SetShaderUniformVec3f(m_GBufferDirectionalLightShader, "CameraPos", Cam.GetPosition());
-
-        m_Renderer.SetActiveTexture(Buffer.PositionTex, "gPosition");
-        m_Renderer.SetActiveTexture(Buffer.NormalTex, "gNormal");
-        m_Renderer.SetActiveTexture(Buffer.AlbedoTex, "gAlbedo");
-        m_Renderer.SetActiveTexture(Buffer.MetallicTex, "gMetallic");
-        m_Renderer.SetActiveTexture(Buffer.RoughnessTex, "gRoughness");
-        m_Renderer.SetActiveTexture(Buffer.AOTex, "gAO");
-
-        m_Renderer.SetActiveFBufferTexture(m_ShadowBuffer, "ShadowMap");
-        m_Renderer.SetShaderUniformMat4x4f(m_GBufferDirectionalLightShader, "LightSpaceMatrix", m_ShadowCamera.GetCamMatrix());
-
-        m_Renderer.SetShaderUniformVec3f(m_GBufferDirectionalLightShader, "SunDirection", DirLight.direction);
-        m_Renderer.SetShaderUniformVec3f(m_GBufferDirectionalLightShader, "SunColour", DirLight.colour);
-
-        m_Renderer.DrawMesh(Buffer.QuadMesh);
 
         // Point lights
         m_Renderer.SetActiveShader(m_GBufferPointLightShader);
@@ -1567,7 +1529,7 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam, DirectionalLight DirLigh
         m_Renderer.SetActiveTexture(Buffer.AOTex, "gAO");
 
         // Loop through point lights here
-
+        SetActiveFrameBuffer(Buffer.LightBuffer, false);
         for (PointLightRenderCommand& Command : m_PointLightRenderCommands)
         {
             m_Renderer.SetShaderUniformVec3f(m_GBufferPointLightShader, "LightPosition", Command.m_Position);
@@ -1618,8 +1580,11 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam, DirectionalLight DirLigh
     m_StaticMeshRenderCommands.clear();
     m_BillboardRenderCommands.clear();
     m_PointLightRenderCommands.clear();
+    m_DirectionalLightRenderCommands.clear();
 
     m_Renderer.EnableStencilTesting();
+
+    ResetFrameBuffer();
 }
 
 Shader_ID GraphicsModule::CreateShader(std::string vertShaderSource, std::string fragShaderSource)
@@ -1692,11 +1657,14 @@ void GraphicsModule::AttachTextureToFBuffer(Texture texture, Framebuffer_ID fBuf
     m_Renderer.AttachTextureToFramebuffer(texture.Id, fBufferID);
 }
 
-void GraphicsModule::SetActiveFrameBuffer(Framebuffer_ID fBufferID)
+void GraphicsModule::SetActiveFrameBuffer(Framebuffer_ID fBufferID, bool clearBuffer)
 {
     m_Renderer.DisableStencilTesting();
     m_Renderer.SetActiveFBuffer(fBufferID);
-    m_Renderer.ClearScreenAndDepthBuffer();
+    if (clearBuffer)
+    {
+        m_Renderer.ClearScreenAndDepthBuffer();
+    }
     m_ActiveFrameBuffer = fBufferID;
 
     if (m_IsSkyboxSet && fBufferID == m_DebugFBuffer)
@@ -1804,14 +1772,14 @@ Material GraphicsModule::CreateMaterial(Texture AlbedoMap)
     return Result;
 }
 
-Model GraphicsModule::CreateModel(TexturedMesh texturedMesh)
+Model GraphicsModule::CreateModel(StaticMesh inStaticMesh, Material inMaterial)
 {
-    return Model(texturedMesh);
+    return Model(inStaticMesh, inMaterial);
 }
 
 Model GraphicsModule::CloneModel(const Model& original)
 {
-    return Model(original.m_TexturedMeshes[0]);
+    return Model(original.m_StaticMesh, original.m_Material);
 }
 
 Model GraphicsModule::LoadModel(std::vector<float>& BufferData, std::vector<unsigned int>& IndexData, Material Mat)
@@ -1822,7 +1790,7 @@ Model GraphicsModule::LoadModel(std::vector<float>& BufferData, std::vector<unsi
     Mesh.Id = MeshID;
     Mesh.LoadedFromFile = false;
 
-    Model Result = Model(TexturedMesh(Mesh, Mat));
+    Model Result = Model(Mesh, Mat);
 
     return Result;
 }
@@ -1914,193 +1882,95 @@ Model GraphicsModule::CreateBoxModel(AABB box, Material material)
     boxMesh.Id = boxMeshId;
     boxMesh.LoadedFromFile = false;
 
-    Model result = Model(TexturedMesh(boxMesh, material));
+    Model result = Model(boxMesh, material);
     result.GetTransform().SetPosition(averagePoint);
     result.Type = ModelType::BLOCK;
 
     return result;
 }
 
-void GraphicsModule::UpdateBrushModel(Brush* brush)
+void GraphicsModule::UpdateHEMeshModel(he::HalfEdgeMesh* mesh)
 {
-    std::vector<float> Vertices;
-    std::vector<ElementIndex> Indices;
+    size_t numFaces = mesh->m_Faces.size();
 
-    ElementIndex CurrentIndex = 0;
-
-    for (auto& Face : brush->Faces)
+    for (auto& repModel : mesh->m_RepModels)
     {
-        // No n-gons for now
-        if (Face.size() == 3)
+        GraphicsModule::Get()->m_Renderer.DeleteMesh(repModel.m_StaticMesh.Id);
+    }
+    mesh->m_RepModels.clear();
+
+    for (auto& face : mesh->m_Faces)
+    {
+        std::vector<float> Vertices;
+        
+        std::vector<Vec3f> positions;
+        
+        he::HalfEdge* initialHalfEdge = face->halfEdge;
+
+        he::HalfEdge* currentHalfEdge = initialHalfEdge;
+
+        do
         {
-            // Tri face
+            he::Vertex* thisVert = currentHalfEdge->vert;
 
-            Vec3f A = brush->Vertices[Face[0]];
-            Vec3f B = brush->Vertices[Face[1]];
-            Vec3f C = brush->Vertices[Face[2]];
+            //mesh->m_Verts
+            positions.push_back(thisVert->vec);
 
-            Vec3f FaceNormal = -Math::cross(B - A, C - A);
-            FaceNormal = Math::normalize(FaceNormal);
+            currentHalfEdge = currentHalfEdge->next;
 
-            Vertices.insert(Vertices.end(), 
-                {
-                    // Positions    // Normals                                  // Colours                  // Texcoords
-                    A.x, A.y, A.z,  FaceNormal.x, FaceNormal.y, FaceNormal.z,   1.0f, 1.0f, 1.0f, 1.0f,     0.0f, 0.0f,
-                    B.x, B.y, B.z,  FaceNormal.x, FaceNormal.y, FaceNormal.z,   1.0f, 1.0f, 1.0f, 1.0f,     1.0f, 0.0f,
-                    C.x, C.y, C.z,  FaceNormal.x, FaceNormal.y, FaceNormal.z,   1.0f, 1.0f, 1.0f, 1.0f,     1.0f, 1.0f,
-                } 
-            );
+        } while (currentHalfEdge != initialHalfEdge);
+    
+        assert(positions.size() >= 3);
 
-            Indices.insert(Indices.end(),
-                {
-                    CurrentIndex++, CurrentIndex++, CurrentIndex++
-                }
-            );
-        }
-        else if (Face.size() == 4)
+        for (int i = 0; i < positions.size(); ++i)
         {
-            // Quad face
+            Vec3f pos = positions[i];
+            Vec3f normal;
 
-            Vec3f A = brush->Vertices[Face[0]];
-            Vec3f B = brush->Vertices[Face[1]];
-            Vec3f C = brush->Vertices[Face[2]];
-            Vec3f D = brush->Vertices[Face[3]];
-
-            Vec2f UVs[6];
-
-            Vec3f FaceNormal0 = -Math::cross(B - A, C - A);
-            FaceNormal0 = Math::normalize(FaceNormal0);
-
-            Vec3f FaceNormal1 = -Math::cross(C - A, D - A);
-            FaceNormal1 = Math::normalize(FaceNormal1);
-
-            Vec3f PlanePoint = (A + B + C + D) / 4;
-
-            Vec3f PlaneUp = Math::ProjectVecOnPlane(Vec3f(0.0f, 0.0f, 1.0f), Plane(PlanePoint, FaceNormal0));
-
-            if (PlaneUp.IsNearlyZero())
+            Vec3f a, b, c;
+            if (i <= 2)
             {
-                if (FaceNormal0.z > 0.0f)
-                {
-                    PlaneUp = B - A;
-                }
-                else
-                {
-                    PlaneUp = -(B - A);
-                }
+                a = positions[0];
+                b = positions[1];
+                c = positions[2];
+            }
+            else
+            {
+                a = positions[0];
+                b = positions[i - 1];
+                c = positions[i];
             }
 
-            PlaneUp = Math::normalize(PlaneUp);
+            Vec3f ba = b - a;
+            Vec3f ca = c - a;
 
-            Vec3f PlaneRight = Math::cross(FaceNormal0, PlaneUp);
+            ba = Math::normalize(ba);
+            ca = Math::normalize(ca);
 
-            for (int i = 0; i < 3; i++)
-            {
-                Vec3f P = brush->Vertices[Face[i]];
-
-                Vec3f AP = P - PlanePoint;
-
-                float x = Math::dot(PlaneRight, AP);
-                float y = Math::dot(PlaneUp, AP);
-
-                UVs[i] = Vec2f(x, y);
-            }
-
-            PlaneUp = Math::ProjectVecOnPlane(Vec3f(0.0f, 0.0f, 1.0f), Plane(PlanePoint, FaceNormal1));
-
-            if (PlaneUp.IsNearlyZero())
-            {
-                if (FaceNormal1.z > 0.0f)
-                {
-                    PlaneUp = B - A;
-                }
-                else
-                {
-                    PlaneUp = -(B - A);
-                }
-            }
-
-            PlaneUp = Math::normalize(PlaneUp);
-
-            PlaneRight = Math::cross(FaceNormal1, PlaneUp);
-
-            Vec3f Points[] = {A, C, D};
-
-            for (int i = 0; i < 3; i++)
-            {
-                Vec3f P = Points[i];
-
-                Vec3f AP = P - PlanePoint;
-
-                float x = Math::dot(PlaneRight, AP);
-                float y = Math::dot(PlaneUp, AP);
-
-                UVs[i + 3] = Vec2f(x, y);
-            }
-
-            Vec2f UVMin = UVs[0];
-            Vec2f UVMax = UVs[0];
-            
-            for (int i = 0; i < 6; i++)
-            {
-                if (UVs[i].x < UVMin.x) UVMin.x = UVs[i].x;
-                if (UVs[i].y < UVMin.y) UVMin.y = UVs[i].y;
-
-                if (UVs[i].x > UVMax.x) UVMax.x = UVs[i].x;
-                if (UVs[i].y > UVMax.y) UVMax.y = UVs[i].y;
-            }
-
-            Rect UVBounds = Rect(UVMin, UVMax - UVMin);
-
-            for (int i = 0; i < 6; i++)
-            {
-                UVs[i] = UVs[i] - UVBounds.location;
-            }
+            Vec3f cross = Math::cross(ca, ba);
+            normal = Math::normalize(cross);
 
             Vertices.insert(Vertices.end(),
                 {
-                    // Positions    // Normals                                      // Colours                  // Texcoords
-                    A.x, A.y, A.z,  FaceNormal0.x, FaceNormal0.y, FaceNormal0.z,    1.0f, 1.0f, 1.0f, 1.0f,     UVs[0].x, UVs[0].y,
-                    B.x, B.y, B.z,  FaceNormal0.x, FaceNormal0.y, FaceNormal0.z,    1.0f, 1.0f, 1.0f, 1.0f,     UVs[1].x, UVs[1].y,
-                    C.x, C.y, C.z,  FaceNormal0.x, FaceNormal0.y, FaceNormal0.z,    1.0f, 1.0f, 1.0f, 1.0f,     UVs[2].x, UVs[2].y,
-
-                    A.x, A.y, A.z,  FaceNormal1.x, FaceNormal1.y, FaceNormal1.z,    1.0f, 1.0f, 1.0f, 1.0f,     UVs[3].x, UVs[3].y,
-                    C.x, C.y, C.z,  FaceNormal1.x, FaceNormal1.y, FaceNormal1.z,    1.0f, 1.0f, 1.0f, 1.0f,     UVs[4].x, UVs[4].y,
-                    D.x, D.y, D.z,  FaceNormal1.x, FaceNormal1.y, FaceNormal1.z,    1.0f, 1.0f, 1.0f, 1.0f,     UVs[5].x, UVs[5].y,
-                }
-            );
-
-            Indices.insert(Indices.end(),
-                {
-                    CurrentIndex++, CurrentIndex++, CurrentIndex++, CurrentIndex++, CurrentIndex++, CurrentIndex++
-                }
-            );
+                    // Positions            // Normals (TBD)                // Colours                  // Texcoords
+                    pos.x, pos.y, pos.z,    normal.x, normal.y, normal.z,   1.0f, 1.0f, 1.0f, 1.0f,     pos.x + pos.z, pos.y + pos.z
+                });
         }
+
+        //StaticMesh_ID heMeshId = m_Renderer.LoadMesh(m_TexturedMeshFormat, Vertices, Indices);
+        StaticMesh_ID heMeshId = m_Renderer.LoadMesh(m_TexturedMeshFormat, Vertices);
+        m_Renderer.SetMeshDrawType(heMeshId, DrawType::TriangleFan);
+        //m_Renderer.SetMesh
+
+        StaticMesh heMesh;
+        heMesh.Id = heMeshId;
+        heMesh.LoadedFromFile = false;
+
+        //TODO: Create mesh
+
+        // TODO: Allow multiple textures as determined by half edge mesh structure
+        mesh->m_RepModels.push_back(Model(heMesh, m_DebugMaterial));
     }
-
-
-
-    if (brush->RepModel == nullptr)
-    {
-        StaticMesh_ID BrushMeshId = m_Renderer.LoadMesh(m_TexturedMeshFormat, Vertices, Indices);
-
-        StaticMesh BrushMesh;
-        BrushMesh.Id = BrushMeshId;
-        BrushMesh.LoadedFromFile = false;
-
-        brush->RepModel = new Model(TexturedMesh(BrushMesh, m_DebugMaterial));
-        //brush->Trans = &brush->RepModel->GetTransform();
-    }
-    else
-    {
-        m_Renderer.ClearMesh(brush->RepModel->m_TexturedMeshes[0].m_Mesh.Id);
-
-        m_Renderer.UpdateMeshData(brush->RepModel->m_TexturedMeshes[0].m_Mesh.Id, m_TexturedMeshFormat, Vertices, Indices);
-        CollisionModule::Get()->InvalidateMeshCollisionData(brush->RepModel->m_TexturedMeshes[0].m_Mesh.Id);
-
-        //brush->Trans = &brush->RepModel->GetTransform();
-    }
-
 }
 
 Model GraphicsModule::CreatePlaneModel(Vec2f min, Vec2f max, float elevation, int subsections)
@@ -2169,7 +2039,7 @@ Model GraphicsModule::CreatePlaneModel(Vec2f min, Vec2f max, Material material, 
     planeMesh.Id = planeMeshId;
     planeMesh.LoadedFromFile = false;
 
-    Model result = Model(TexturedMesh(planeMesh, material));
+    Model result = Model(planeMesh, material);
     result.GetTransform().SetPosition(AveragePoint);
     result.Type = ModelType::PLANE;
 
@@ -2184,7 +2054,7 @@ void GraphicsModule::RecalculateTerrainModelNormals(Model& model)
         return;
     }
 
-    StaticMesh_ID MeshId = model.m_TexturedMeshes[0].m_Mesh.Id;
+    StaticMesh_ID MeshId = model.m_StaticMesh.Id;
 
     std::vector<Vertex*> Vertices = m_Renderer.MapMeshVertices(MeshId);
 
@@ -2246,15 +2116,12 @@ void GraphicsModule::Draw(Model& model)
         m_Renderer.SetActiveShader(m_TexturedMeshShader);
         m_Renderer.SetShaderUniformMat4x4f(m_TexturedMeshShader, "Transformation", model.GetTransform().GetTransformMatrix());
 
-        for (int i = 0; i < model.m_TexturedMeshes.size(); ++i)
-        {
-            m_Renderer.SetActiveTexture(model.m_TexturedMeshes[i].m_Material.m_Normal.Id, "NormalMap");
-            m_Renderer.SetActiveTexture(model.m_TexturedMeshes[i].m_Material.m_Albedo.Id, "AlbedoMap");
-            m_Renderer.SetActiveTexture(model.m_TexturedMeshes[i].m_Material.m_Metallic.Id, "MetallicMap");
-            m_Renderer.SetActiveTexture(model.m_TexturedMeshes[i].m_Material.m_Roughness.Id, "RoughnessMap");
-            m_Renderer.SetActiveTexture(model.m_TexturedMeshes[i].m_Material.m_AO.Id, "AOMap");
-            m_Renderer.DrawMesh(model.m_TexturedMeshes[i].m_Mesh.Id);
-        }
+        m_Renderer.SetActiveTexture(model.m_Material.m_Normal.Id, "NormalMap");
+        m_Renderer.SetActiveTexture(model.m_Material.m_Albedo.Id, "AlbedoMap");
+        m_Renderer.SetActiveTexture(model.m_Material.m_Metallic.Id, "MetallicMap");
+        m_Renderer.SetActiveTexture(model.m_Material.m_Roughness.Id, "RoughnessMap");
+        m_Renderer.SetActiveTexture(model.m_Material.m_AO.Id, "AOMap");
+        m_Renderer.DrawMesh(model.m_StaticMesh.Id);
 
     }
     else if (m_RenderMode == RenderMode::FULLBRIGHT)
@@ -2269,11 +2136,8 @@ void GraphicsModule::Draw(Model& model)
         m_Renderer.SetActiveShader(m_UnlitShader);
         m_Renderer.SetShaderUniformMat4x4f(m_UnlitShader, "Transformation", model.GetTransform().GetTransformMatrix());
 
-        for (int i = 0; i < model.m_TexturedMeshes.size(); ++i)
-        {
-            m_Renderer.SetActiveTexture(model.m_TexturedMeshes[i].m_Material.m_Albedo.Id, "AlbedoMap");
-            m_Renderer.DrawMesh(model.m_TexturedMeshes[i].m_Mesh.Id);
-        }
+        m_Renderer.SetActiveTexture(model.m_Material.m_Albedo.Id, "AlbedoMap");
+        m_Renderer.DrawMesh(model.m_StaticMesh.Id);
     }
 }
 
@@ -2292,12 +2156,12 @@ void GraphicsModule::SetDirectionalLight(DirectionalLight dirLight)
 
 std::vector<float> GraphicsModule::GetModelVertexBuffer(Model& model)
 {
-    return m_Renderer.GetMeshVertexData(model.m_TexturedMeshes[0].m_Mesh.Id);
+    return m_Renderer.GetMeshVertexData(model.m_StaticMesh.Id);
 }
 
 std::vector<unsigned int> GraphicsModule::GetModelIndexBuffer(Model& model)
 {
-    return m_Renderer.GetMeshIndexData(model.m_TexturedMeshes[0].m_Mesh.Id);
+    return m_Renderer.GetMeshIndexData(model.m_StaticMesh.Id);
 }
 
 void GraphicsModule::OnFrameStart()
@@ -2362,21 +2226,18 @@ void GraphicsModule::DebugDrawModelMesh(Model model, Vec3f colour)
 
     Mat4x4f modelTransform = model.GetTransform().GetTransformMatrix();
 
-    for (int i = 0; i < model.m_TexturedMeshes.size(); ++i)
+    std::vector<Vertex*> vertices = m_Renderer.MapMeshVertices(model.m_StaticMesh.Id);
+    std::vector<unsigned int*> indices = m_Renderer.MapMeshElements(model.m_StaticMesh.Id);
+    for (int j = 0; j < indices.size(); j += 3)
     {
-        std::vector<Vertex*> vertices = m_Renderer.MapMeshVertices(model.m_TexturedMeshes[i].m_Mesh.Id);
-        std::vector<unsigned int*> indices = m_Renderer.MapMeshElements(model.m_TexturedMeshes[i].m_Mesh.Id);
-        for (int j = 0; j < indices.size(); j += 3)
-        {
-            DebugDrawLine(vertices[*indices[j]]->position * modelTransform, vertices[*indices[(size_t)j + 1]]->position * modelTransform, colour);
+        DebugDrawLine(vertices[*indices[j]]->position * modelTransform, vertices[*indices[(size_t)j + 1]]->position * modelTransform, colour);
 
-            DebugDrawLine(vertices[*indices[(size_t)j + 1]]->position * modelTransform, vertices[*indices[(size_t)j + 2]]->position * modelTransform, colour);
+        DebugDrawLine(vertices[*indices[(size_t)j + 1]]->position * modelTransform, vertices[*indices[(size_t)j + 2]]->position * modelTransform, colour);
 
-            DebugDrawLine(vertices[*indices[(size_t)j + 2]]->position * modelTransform, vertices[*indices[j]]->position * modelTransform, colour);
-        }
-        m_Renderer.UnmapMeshVertices(model.m_TexturedMeshes[i].m_Mesh.Id);
-        m_Renderer.UnmapMeshElements(model.m_TexturedMeshes[i].m_Mesh.Id);
+        DebugDrawLine(vertices[*indices[(size_t)j + 2]]->position * modelTransform, vertices[*indices[j]]->position * modelTransform, colour);
     }
+    m_Renderer.UnmapMeshVertices(model.m_StaticMesh.Id);
+    m_Renderer.UnmapMeshElements(model.m_StaticMesh.Id);
 }
 
 void GraphicsModule::DebugDrawAABB(AABB box, Vec3f colour, Mat4x4f transform)
@@ -2493,8 +2354,9 @@ void GraphicsModule::DebugDrawArrow(Vec3f a, Vec3f b, Vec3f colour)
 
     Vec3f head = Math::Lerp(b, a, 0.1f);
 
-    DebugDrawLine(b, Math::rotate(head, 0.08f, Math::cross(dir, Vec3f(0.0f, 0.0f, 1.0f))), colour);
-    DebugDrawLine(b, Math::rotate(head, -0.08f, Math::cross(dir, Vec3f(0.0f, 0.0f, 1.0f))), colour);
+    DebugDrawPoint(b, colour);
+    //DebugDrawLine(b, Math::rotate(head, 0.08f, Math::cross(dir, Vec3f(0.0f, 0.0f, 1.0f))), colour);
+    //DebugDrawLine(b, Math::rotate(head, -0.08f, Math::cross(dir, Vec3f(0.0f, 0.0f, 1.0f))), colour);
 
     // TODO: not correct, come back to this
 }

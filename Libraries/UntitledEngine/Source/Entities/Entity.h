@@ -1,6 +1,9 @@
 #pragma once
 
+#include "Math/Transform.h"
 #include "Scene.h"
+
+class Component;
 
 class Entity
 {
@@ -12,16 +15,24 @@ public:
 
     virtual void OnDestroy();
 
-
-    static void SetScene(Scene* scene);
-
-
-protected:
-
-    static Scene* GetScene();
+    virtual void DrawEditorInspector();
 
 private:
+    std::string m_Name;
 
-    static Scene* m_Scene;
+    Transform m_Transform;
+
+    std::vector<Component*> m_Components;
+
+//    static void SetScene(Scene* scene);
+//
+//
+//protected:
+//
+//    static Scene* GetScene();
+//
+//private:
+//
+//    static Scene* m_Scene;
 };
 

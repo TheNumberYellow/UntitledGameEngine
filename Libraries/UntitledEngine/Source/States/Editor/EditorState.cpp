@@ -4,6 +4,7 @@
 
 #include "State/StateRegistry.h"
 
+#include <fstream>
 #include <filesystem>
 #include <future>
 #include <ctime>
@@ -38,7 +39,7 @@ void EditorState::OnInitialized(ArgsList args)
     ModelCamera.Rotate(Quaternion(Vec3f(1.0f, 0.0f, 0.0f), -0.7f));
     
     // Set up empty editor scene
-    EditorScene.SetDirectionalLight(DirectionalLight{ Math::normalize(Vec3f(0.5f, 1.0f, -1.0f)), Vec3f(1.0f, 1.0f, 1.0f) });
+    //EditorScene.SetDirectionalLight(DirectionalLight{ Math::normalize(Vec3f(0.5f, 1.0f, -1.0f)), Vec3f(1.0f, 1.0f, 1.0f) });
     //EditorScene.SetCamera(&ViewportCamera);
     //EditorScene.SetCamera(&ModelCamera);
 
@@ -76,6 +77,20 @@ void EditorState::OnInitialized(ArgsList args)
     newHeMesh->MakeQuad();
 
     EditorScene.AddHalfEdgeMesh(newHeMesh);
+
+
+    // Set up entity editor stuff
+    EntityCamera = Camera(Projection::Perspective);
+
+    EntityCamera.SetPosition(Vec3f(0.0f, -4.0f, 0.0f));
+    //EntityEditorScene.SetDirectionalLight(DirectionalLight{ Math::normalize(Vec3f(0.5f, 1.0f, -1.0f)), Vec3f(1.0f, 1.0f, 1.0f) });
+
+
+    // Set up material editor preview stuff
+    MaterialPreviewCamera = Camera(Projection::Perspective);
+
+    
+
 }
 
 void EditorState::OnUninitialized()
@@ -140,6 +155,8 @@ void EditorState::OnResize()
     ViewportCamera.SetScreenSize(ViewportRect.size);
     graphics->ResizeGBuffer(ViewportBuffer, ViewportRect.size);
     input->SetMouseCenter(ViewportRect.Center());
+
+    EntityCamera.SetScreenSize(ViewportRect.size);
 }
 
 void EditorState::UpdateEditor(double DeltaTime)
@@ -157,9 +174,8 @@ void EditorState::UpdateEditor(double DeltaTime)
 
     if (Input->IsKeyDown(Key::Q))
     {
-
-        EditorScene.SetDirectionalLight(DirectionalLight{ ViewportCamera.GetDirection(), Vec3f(1.0f, 1.0f, 1.0f) });
-
+        //EditorScene.SetDirectionalLight(DirectionalLight{ ViewportCamera.GetDirection(), EditorScene.m_DirLight.colour });
+        //EntityEditorScene.SetDirectionalLight(DirectionalLight{ EntityCamera.GetDirection(), EntityEditorScene.m_DirLight.colour });
     }
 
     if (Engine::IsWindowFocused())
@@ -195,52 +211,6 @@ void EditorState::UpdateEditor(double DeltaTime)
         //EditorScene.GetCamera()->SetCamMatrix(ViewportCamera.GetInvCamMatrix());
     }
 
-    // Keyboard hotkeys for switching tools
-    if (Input->GetKeyState(Key::One).justPressed)
-    {
-        // If already in select tool, cycle sub-tool
-        if (Cursor.GetToolMode() == ToolMode::Select)
-        {
-            Cursor.CycleSelectMode();
-        }
-        else
-        {
-            Cursor.SetToolMode(ToolMode::Select);
-        }
-    }
-    if (Input->GetKeyState(Key::Two).justPressed)
-    {
-        // If already in transform tool, cycle sub-tool
-        if (Cursor.GetToolMode() == ToolMode::Transform)
-        {
-            Cursor.CycleTransformMode();
-        }
-        else
-        {
-            Cursor.SetToolMode(ToolMode::Transform);
-        }
-    }
-    if (Input->GetKeyState(Key::Three).justPressed)
-    {
-        // If already in geometry tool, cycle sub-tool
-        if (Cursor.GetToolMode() == ToolMode::Geometry)
-        {
-            Cursor.CycleGeometryMode();
-        }
-        else
-        {       
-            Cursor.SetToolMode(ToolMode::Geometry);
-        }
-    }
-    if (Input->GetKeyState(Key::Four).justPressed)
-    {
-        Cursor.SetToolMode(ToolMode::Sculpt);
-    }
-
-    if (Input->GetKeyState(Key::Five).justPressed)
-    {
-        Cursor.SetToolMode(ToolMode::Brush);
-    }
 
     Vec2i ViewportSize = Engine::GetClientAreaSize();
 
@@ -256,7 +226,13 @@ void EditorState::UpdateEditor(double DeltaTime)
 
         if (UI->StartTab("Project"))
         {
-            DrawProjectSettings();
+            DrawProjectSettingsEditor();
+        }
+        UI->EndTab();
+
+        if (UI->StartTab("Entities"))
+        {
+            DrawEntityEditor();
         }
         UI->EndTab();
 
@@ -331,10 +307,10 @@ void EditorState::LoadEditorResources()
     WhiteMaterial = Graphics->CreateMaterial(*Registry->LoadTexture("Assets/images/white.png"));
 
     // Create translation gizmo models
-    xAxisArrow = Graphics->CreateModel(TexturedMesh(
+    xAxisArrow = Graphics->CreateModel(
         *Registry->LoadStaticMesh("Assets/models/ArrowSmooth.obj"),
         Graphics->CreateMaterial(RedTexture)
-    ));
+    );
 
     yAxisArrow = Graphics->CloneModel(xAxisArrow);
     zAxisArrow = Graphics->CloneModel(xAxisArrow);
@@ -349,16 +325,16 @@ void EditorState::LoadEditorResources()
     yAxisArrow.SetMaterial(Graphics->CreateMaterial(GreenTexture));
     zAxisArrow.SetMaterial(Graphics->CreateMaterial(BlueTexture));
 
-    TranslateBall = Graphics->CreateModel(TexturedMesh(
+    TranslateBall = Graphics->CreateModel(
         *Registry->LoadStaticMesh("Assets/models/Buckyball.obj"),
         Graphics->CreateMaterial(PurpleTexture)
-    ));
+    );
 
     // Create rotation gizmo models
-    xAxisRing = Graphics->CreateModel(TexturedMesh(
+    xAxisRing = Graphics->CreateModel(
         *Registry->LoadStaticMesh("Assets/models/RotationHoop.obj"),
         Graphics->CreateMaterial(RedTexture)
-    ));
+    );
 
     yAxisRing = Graphics->CloneModel(xAxisRing);
     zAxisRing = Graphics->CloneModel(xAxisRing);
@@ -370,10 +346,10 @@ void EditorState::LoadEditorResources()
     zAxisRing.SetMaterial(Graphics->CreateMaterial(BlueTexture));
 
     // Create scaling gizmo models
-    xScaleWidget = Graphics->CreateModel(TexturedMesh(
+    xScaleWidget = Graphics->CreateModel(
         *Registry->LoadStaticMesh("Assets/models/ScaleWidget.obj"),
         Graphics->CreateMaterial(RedTexture)
-    ));
+    );
 
     yScaleWidget = Graphics->CloneModel(xScaleWidget);
     zScaleWidget = Graphics->CloneModel(xScaleWidget);
@@ -391,8 +367,9 @@ void EditorState::LoadEditorResources()
     // Load editor UI textures
     playButtonTexture = *Registry->LoadTexture("Assets/images/playButton.png");
 
-    modelSelectToolTexture = *Registry->LoadTexture("Assets/images/cursorTool.png");
-    vertexSelectToolTexture = *Registry->LoadTexture("Assets/images/vertexSelectTool.png");
+    genericSelectToolTexture = *Registry->LoadTexture("Assets/images/cursorTool.png");
+    vertexSelectToolTexture = *Registry->LoadTexture("Assets/images/vertSelectTool.png");
+    faceSelectToolTexture = *Registry->LoadTexture("Assets/images/faceSelectTool.png");
 
     boxToolTexture = *Registry->LoadTexture("Assets/images/boxTool.png");
     planeToolTexture = *Registry->LoadTexture("Assets/images/planeTool.png");
@@ -433,7 +410,7 @@ std::vector<Model> EditorState::LoadModels(GraphicsModule& graphics)
             StaticMesh newMesh = *Registry->LoadStaticMesh(fileName);
             
             // For now we load all models with a temporary white texture
-            Model newModel = graphics.CreateModel(TexturedMesh(newMesh, WhiteMaterial));
+            Model newModel = graphics.CreateModel(newMesh, WhiteMaterial);
 
             LoadedModels.push_back(newModel);
         }
@@ -603,57 +580,58 @@ void EditorState::MoveCamera(Camera* Camera, float PixelToRadians, double DeltaT
 
 void EditorState::DrawLevelEditor(GraphicsModule* Graphics, UIModule* UI, double DeltaTime)
 {
+    InputModule* Input = InputModule::Get();
+
+    Cursor.SetScene(&EditorScene);
+    Cursor.SetCamera(&ViewportCamera);
+    
     Vec2i ViewportSize = Engine::GetClientAreaSize();
 
-    auto BrushVec = EditorScene.GetBrushes();
+    // Keyboard hotkeys for switching tools
+    if (Input->GetKeyState(Key::One).justPressed)
+    {
+        // If already in select tool, cycle sub-tool
+        if (Cursor.GetToolMode() == ToolMode::Select)
+        {
+            Cursor.CycleSelectMode();
+        }
+        else
+        {
+            Cursor.SetToolMode(ToolMode::Select);
+        }
+    }
+    if (Input->GetKeyState(Key::Two).justPressed)
+    {
+        // If already in transform tool, cycle sub-tool
+        if (Cursor.GetToolMode() == ToolMode::Transform)
+        {
+            Cursor.CycleTransformMode();
+        }
+        else
+        {
+            Cursor.SetToolMode(ToolMode::Transform);
+        }
+    }
+    if (Input->GetKeyState(Key::Three).justPressed)
+    {
+        // If already in geometry tool, cycle sub-tool
+        if (Cursor.GetToolMode() == ToolMode::Geometry)
+        {
+            Cursor.CycleGeometryMode();
+        }
+        else
+        {
+            Cursor.SetToolMode(ToolMode::Geometry);
+        }
+    }
+    if (Input->GetKeyState(Key::Four).justPressed)
+    {
+        Cursor.SetToolMode(ToolMode::Sculpt);
+    }
 
-    //for (Brush* B : BrushVec)
-    //{
-    //    B->UpdatedThisFrame = false;
-    //    for (auto& Face : B->Faces)
-    //    {
-    //        Vec3f PlanePoint = Vec3f(0.0f, 0.0f, 0.0f);
-
-    //        for (int i = 0; i < Face.size(); i++)
-    //        {
-    //            PlanePoint += B->Vertices[Face[i]];
-    //        }
-    //        PlanePoint = PlanePoint / (float)Face.size();
-
-    //        for (int i = 0; i < Face.size() - 1; i++)
-    //        {
-    //            //Graphics->DebugDrawLine(*Face[i], *Face[i + 1]);
-    //        }
-    //        //Graphics->DebugDrawLine(*Face[Face.size() - 1], *Face[0]);
-
-    //        Vec3f u = B->Vertices[Face[1]] - B->Vertices[Face[0]];
-    //        Vec3f v = B->Vertices[Face[2]] - B->Vertices[Face[0]];
-
-    //        Vec3f PlaneNorm = -Math::cross(u, v);
-    //        PlaneNorm = Math::normalize(PlaneNorm);
-
-    //        Vec3f UpProjection = Math::ProjectVecOnPlane(Vec3f(0.0f, 0.0f, 1.0f), Plane(PlanePoint, PlaneNorm));
-
-    //        if (UpProjection.IsNearlyZero())
-    //        {
-    //            if (PlaneNorm.z > 0.0f)
-    //            {
-    //                UpProjection = u;
-    //            }
-    //            else
-    //            {
-    //                UpProjection = -u;
-    //            }
-    //        }
-
-    //        UpProjection = Math::normalize(UpProjection);
-
-    //        //Graphics->DebugDrawLine(PlanePoint, PlanePoint + UpProjection, c_VegasGold);
-
-    //        //Graphics->DebugDrawLine(PlanePoint, PlanePoint + PlaneNorm, c_LightGoldenRodYellow);
-    //    }
-
-    //}
+    if (Input->GetKeyState(Key::Five).justPressed)
+    {
+    }
 
     EditorScene.EditorDraw(*Graphics, ViewportBuffer, &ViewportCamera);
     //EditorScene.Update(DeltaTime);
@@ -689,7 +667,7 @@ void EditorState::DrawLevelEditor(GraphicsModule* Graphics, UIModule* UI, double
     DrawEditorUI();
 }
 
-void EditorState::DrawProjectSettings()
+void EditorState::DrawProjectSettingsEditor()
 {
     UIModule* UI = UIModule::Get();
     
@@ -741,6 +719,331 @@ void EditorState::DrawProjectSettings()
     UI->EndFrame();
 }
 
+void EditorState::DrawEntityEditor()
+{
+    Cursor.SetScene(&EntityEditorScene);
+    Cursor.SetCamera(&EntityCamera);
+
+    GraphicsModule* Graphics = GraphicsModule::Get();
+    UIModule* UI = UIModule::Get();
+    InputModule* Input = InputModule::Get();
+
+    //EntityEditorScene.SetDirectionalLight(DirectionalLight{ EntityCamera.GetDirection(), EntityEditorScene.m_DirLight.colour });
+
+    // Keyboard hotkeys for switching tools
+    if (Input->GetKeyState(Key::One).justPressed)
+    {
+        // If already in select tool, cycle sub-tool
+        if (Cursor.GetToolMode() == ToolMode::Select)
+        {
+            Cursor.CycleSelectMode();
+        }
+        else
+        {
+            Cursor.SetToolMode(ToolMode::Select);
+        }
+    }
+    if (Input->GetKeyState(Key::Two).justPressed)
+    {
+        // If already in transform tool, cycle sub-tool
+        if (Cursor.GetToolMode() == ToolMode::Transform)
+        {
+            Cursor.CycleTransformMode();
+        }
+        else
+        {
+            Cursor.SetToolMode(ToolMode::Transform);
+        }
+    }
+
+    //EditorScene.EditorDraw(*Graphics, ViewportBuffer, &ViewportCamera);
+    //
+
+    //// Do render commands
+
+    //DirectionalLight EntityLight;
+    //EntityLight.colour = MakeColour(255, 255, 255);
+    //EntityLight.direction = Vec3f(0.0f, 0.0f, -1.0f);
+
+    ////BillboardRenderCommand billboardRC;
+    ////billboardRC.m_Position = Vec3f(0.0f, 0.0f, 0.0f);
+    ////billboardRC.m_Colour = Vec3f(1.0f, 1.0f, 1.0f);
+    ////billboardRC.m_Size = 1.0f;
+    ////billboardRC.m_Texture = WhiteMaterial.m_Albedo.Id;
+
+    ////Graphics->AddRenderCommand(billboardRC);
+
+    Rect ViewportRect = GetEditorSceneViewportRect();
+
+    // Left toolbar buttons
+    Rect ToolbarButtonRect = Rect(Vec2f(0.0f, 60.0f), Vec2f(ViewportRect.location.x, ViewportRect.size.y));
+
+    if (UI->StartFrame("Tools", ToolbarButtonRect, 0.0f, c_FrameLight))
+    {
+        Vec3f SelectedColour = c_SelectedButton;
+        Vec3f UnSelectedColour = c_Button;
+
+        Texture SelectModeTexture = genericSelectToolTexture;
+        switch (Cursor.GetSelectMode())
+        {
+        case SelectMode::GenericSelect:
+            SelectModeTexture = genericSelectToolTexture;
+            break;
+        case SelectMode::FaceSelect:
+            SelectModeTexture = faceSelectToolTexture;
+            break;
+        case SelectMode::VertSelect:
+            SelectModeTexture = vertexSelectToolTexture;
+            break;
+        default:
+            break;
+        }
+
+        if (UI->ImgButton("SelectTool", SelectModeTexture, Vec2f(80.0f, 80.0f), 12.0f,
+            Cursor.GetToolMode() == ToolMode::Select ? SelectedColour : UnSelectedColour))
+        {
+            if (Cursor.GetToolMode() == ToolMode::Select)
+            {
+                Cursor.CycleSelectMode();
+            }
+            else
+            {
+                Cursor.SetToolMode(ToolMode::Select);
+            }
+        }
+
+        Texture TransModeTexture = translateToolTexture;
+        switch (Cursor.GetTransMode())
+        {
+        case TransformMode::Translate:
+            TransModeTexture = translateToolTexture;
+            break;
+        case TransformMode::Rotate:
+            TransModeTexture = rotateToolTexture;
+            break;
+        case TransformMode::Scale:
+            TransModeTexture = scaleToolTexture;
+            break;
+        default:
+            break;
+        }
+
+        if (UI->ImgButton("TransformTool", TransModeTexture, Vec2f(80.0f, 80.0f), 12.0f,
+            Cursor.GetToolMode() == ToolMode::Transform ? SelectedColour : UnSelectedColour))
+        {
+            if (Cursor.GetToolMode() == ToolMode::Transform)
+            {
+                Cursor.CycleTransformMode();
+            }
+            else
+            {
+                Cursor.SetToolMode(ToolMode::Transform);
+            }
+        }
+    }
+    UI->EndFrame();
+
+
+    // Begin entity camera stuff
+    int DeltaMouseWheel = Input->GetMouseState().GetDeltaMouseWheel();
+
+    EntityCamDistance -= ((float)DeltaMouseWheel * 0.25f);
+    EntityCamDistance = Math::Clamp(EntityCamDistance, 0.5f, 10.0f);
+
+    if (Input->GetMouseState().GetMouseButtonState(MouseButton::RMB).pressed)
+    {
+        Vec2f DeltaMouse = Input->GetMouseState().GetDeltaMousePos();
+
+        EntityCamXAxis -= DeltaMouse.x * 0.005f;
+        EntityCamYAxis -= DeltaMouse.y * 0.005f;
+
+        EntityCamYAxis = Math::ClampRadians(EntityCamYAxis, -M_PI_2 + 0.001f, M_PI_2 - 0.001f);
+    }
+
+    Quaternion Rotation = Quaternion::FromEuler(EntityCamYAxis, 0.0f, EntityCamXAxis);
+    Vec3f NegDistance = Vec3f(0.0f, -EntityCamDistance, 0.0f);
+
+    Vec3f NewCamPos = (NegDistance * Rotation) + EntityCamCenterPoint;
+    Vec3f NewCamDir = (EntityCamCenterPoint - NewCamPos).GetNormalized();
+
+    EntityCamera.SetPosition(NewCamPos);
+    EntityCamera.SetDirection(NewCamDir);
+
+    // End entity camera stuff
+
+    // Render entity in viewport
+    // TEMP (draw a ball)
+    //StaticMeshRenderCommand command;
+    //command.m_Material = TranslateBall.m_TexturedMeshes[0].m_Material;
+    //command.m_Mesh = TranslateBall.m_TexturedMeshes[0].m_Mesh.Id;
+    //command.m_TransMat = Mat4x4f();
+
+    //Graphics->AddRenderCommand(command);
+
+    //Graphics->Render(ViewportBuffer, EntityCamera, EntityLight);
+
+    EntityEditorScene.EditorDraw(*Graphics, ViewportBuffer, &EntityCamera, false);
+
+    Rect SceneViewportRect = GetEditorSceneViewportRect();
+    Graphics->SetActiveFrameBuffer(WidgetBuffer);
+    {
+        Graphics->SetCamera(&EntityCamera);
+
+        Graphics->SetRenderMode(RenderMode::FULLBRIGHT);
+
+        Cursor.DrawTransientModels();
+    }
+    Graphics->ResetFrameBuffer();
+
+    UI->BufferPanel(ViewportBuffer.FinalOutput, SceneViewportRect);
+    UI->BufferPanel(WidgetBuffer, SceneViewportRect);
+
+
+    Vec2f ViewportSize = Engine::GetClientAreaSize();
+    
+    // Save/Load/etc. toolbar
+    if (UI->TextButton("New", Vec2f(40.0f, 40.0f), 8.0f, c_TopButton, Vec3f(1.0f, 1.0f, 1.0f)))
+    {
+
+    }
+    if (UI->TextButton("Open", Vec2f(40.0f, 40.0f), 8.0f, c_TopButton, Vec3f(1.0f, 1.0f, 1.0f)))
+    {
+
+    }
+    if (UI->TextButton("Save", Vec2f(40.0f, 40.0f), 8.0f, c_TopButton, Vec3f(1.0f, 1.0f, 1.0f)))
+    {
+        std::string EntityName;
+        if (Engine::FileSaveDialog(EntityName, "Save Entity", "Entity", "ntt"))
+        {
+            SaveEntity(EntityName);
+        }
+    }
+
+    // Entity inspector panel
+    Rect InspectorPanelRect = Rect(Vec2f(SceneViewportRect.location.x + SceneViewportRect.size.x, SceneViewportRect.location.y),
+        Vec2f(ViewportSize.x - (SceneViewportRect.location.x + SceneViewportRect.size.x), ViewportSize.y - SceneViewportRect.location.y));
+
+    UI->StartFrame("Entity Inspector", InspectorPanelRect, 12.0f, c_NiceLighterBlue);
+    {
+        DrawEntityInspectorPanel();
+    }
+    UI->EndFrame();
+
+    // Entity resource drawer stuff
+    Vec2i ScreenSize = Engine::GetClientAreaSize();
+
+    Rect ResourcePanelRect = Rect(Vec2f(ViewportRect.location.x, ViewportRect.location.y + ViewportRect.size.y), Vec2f(ViewportRect.size.x, ScreenSize.y - (ViewportRect.location.y + ViewportRect.size.y)));
+    UI->StartFrame("Resources", ResourcePanelRect, 16.0f, c_FrameDark);
+    {
+        if (UI->StartTab("Models", c_Tab))
+        {
+            for (auto& AModel : LoadedModels)
+            {
+                if (UI->TextButton(AModel.m_StaticMesh.Path.GetFileNameNoExt(), Vec2f(120.0f, 40.0f), 10.0f, c_ResourceButton))
+                {
+                    EntityEditorScene.AddModel(new Model(AModel));
+                }
+            }
+        }
+        UI->EndTab();
+        
+        if (UI->StartTab("Materials", c_Tab))
+        {
+            for (auto& Mat : LoadedMaterials)
+            {
+                if (UI->ImgButton(Mat.m_Albedo.Path.GetFileNameNoExt(), Mat.m_Albedo, Vec2f(80, 80), 5.0f, c_ResourceButton).clicking)
+                {
+                    if (!Cursor.IsDraggingSomething())
+                    {
+                        Material* MatPtr = &Mat;
+                        Cursor.StartDraggingNewMaterial(MatPtr);
+                    }
+
+                }
+            }
+        }
+        UI->EndTab();
+    
+        if (UI->StartTab("Objects", c_Tab))
+        {
+            if (UI->ImgButton("LightEntity", lightEntityTexture, Vec2f(80.0f, 80.0f), 12.0f, c_ResourceButton))
+            {
+                EntityEditorScene.AddPointLight(PointLight());
+            }
+            if (UI->ImgButton("DirectionalLightEntity", directionalLightEntityTexture, Vec2f(80.0f, 80.0f), 12.0f, c_ResourceButton))
+            {
+
+            }
+            if (UI->ImgButton("CameraEntity", cameraEntityTexture, Vec2f(80.0f, 80.0f), 12.0f, c_ResourceButton))
+            {
+            }
+            if (UI->ImgButton("BrainEntity", brainEntityTexture, Vec2f(80.0f, 80.0f), 12.0f, c_ResourceButton))
+            {
+            }
+            if (UI->ImgButton("BillboardEntity", billboardEntityTexture, Vec2f(80.0f, 80.0f), 12.0f, c_ResourceButton))
+            {
+            }
+        }
+        UI->EndTab();
+    }
+    UI->EndFrame();
+
+    // End Entity resource drawer stuff
+
+    //DrawResourcesPanel(EntityEditorScene);
+}
+
+void EditorState::SaveEntity(std::string EntityName)
+{
+    std::ofstream File(EntityName, std::ofstream::out | std::ofstream::trunc);
+    
+    if (!File.is_open())
+    {
+        Engine::DEBUGPrint("Failed to save entity :(");
+        return;
+    }
+
+    json EntityJson;
+
+    auto& SceneModelMap = EntityEditorScene.m_Models;
+
+    json ModelsList;
+
+    for (auto& it : SceneModelMap)
+    {
+        Model& Mod = *it.second;
+        
+        json ModelJson;
+
+        ModelJson["Mesh"] = Mod.m_StaticMesh.Path.GetFullPath();
+
+        Mat4x4f ModTrans = Mod.GetTransform().GetTransformMatrix();
+        ModelJson["OffsetTrans"] = {
+            ModTrans[0].x, ModTrans[0].y, ModTrans[0].z, ModTrans[0].w,
+            ModTrans[1].x, ModTrans[1].y, ModTrans[1].z, ModTrans[1].w,
+            ModTrans[2].x, ModTrans[2].y, ModTrans[2].z, ModTrans[2].w,
+            ModTrans[3].x, ModTrans[3].y, ModTrans[3].z, ModTrans[3].w,
+        };
+
+        ModelsList.push_back(ModelJson);
+    }
+
+    EntityJson["Models"] = ModelsList;
+
+    // Uncomment to beautify json - makes it easier to debug but makes files much larger
+    File << std::setw(4) << EntityJson;
+
+    // Uncomment to normalness
+    //File << EntityJson;
+}
+
+void EditorState::DrawMaterialEditor()
+{
+
+
+
+}
+
 void EditorState::DrawEditorUI()
 {
     GraphicsModule* Graphics = GraphicsModule::Get();
@@ -752,18 +1055,21 @@ void EditorState::DrawEditorUI()
     // Left toolbar buttons
     Rect ToolbarButtonRect = Rect(Vec2f(0.0f, 60.0f), Vec2f(ViewportRect.location.x, ViewportRect.size.y));
 
-    UI->StartFrame("Tools", ToolbarButtonRect, 0.0f, c_FrameLight);
+    if (UI->StartFrame("Tools", ToolbarButtonRect, 0.0f, c_FrameLight))
     {
         Vec3f SelectedColour = c_SelectedButton;
         Vec3f UnSelectedColour = c_Button;
 
-        Texture SelectModeTexture = modelSelectToolTexture;
+        Texture SelectModeTexture = genericSelectToolTexture;
         switch (Cursor.GetSelectMode())
         {
-        case SelectMode::ModelSelect:
-            SelectModeTexture = modelSelectToolTexture;
+        case SelectMode::GenericSelect:
+            SelectModeTexture = genericSelectToolTexture;
             break;
-        case SelectMode::VertexSelect:
+        case SelectMode::FaceSelect:
+            SelectModeTexture = faceSelectToolTexture;
+            break;
+        case SelectMode::VertSelect:
             SelectModeTexture = vertexSelectToolTexture;
             break;
         default:
@@ -821,6 +1127,9 @@ void EditorState::DrawEditorUI()
         case GeometryMode::Plane:
             GeoModeTexture = planeToolTexture;
             break;
+        case GeometryMode::HalfEdge:
+            GeoModeTexture = playButtonTexture;
+            break;
         default:
             break;
         }
@@ -844,19 +1153,12 @@ void EditorState::DrawEditorUI()
             Cursor.SetToolMode(ToolMode::Sculpt);
         }
 
-        if (UI->ImgButton("BrushTool", vertexToolTexture, Vec2f(80.0f, 80.0f), 12.0f,
-            Cursor.GetToolMode() == ToolMode::Brush ? SelectedColour : UnSelectedColour))
-        {
-            Cursor.SetToolMode(ToolMode::Brush);
-        }
-
-
     }
     UI->EndFrame();
 
     DrawTopPanel();
     DrawDrawerSettingsPanel();
-    DrawResourcesPanel();
+    DrawResourcesPanel(EditorScene);
     DrawInspectorPanel();
 }
 
@@ -916,7 +1218,7 @@ void EditorState::DrawTopPanel()
         if (UI->TextButton("Save", Vec2f(40.0f, 40.0f), 8.0f, c_TopButton, Vec3f(1.0f, 1.0f, 1.0f)))
         {
             std::string FileName;
-            if (Engine::FileSaveDialog(FileName))
+            if (Engine::FileSaveDialog(FileName, "Save Level", "Level", "lvl"))
             {
                 EditorScene.Save(FileName);
             }
@@ -974,7 +1276,7 @@ void EditorState::DrawDrawerSettingsPanel()
     UI->EndFrame();
 }
 
-void EditorState::DrawResourcesPanel()
+void EditorState::DrawResourcesPanel(Scene& FocusedScene)
 {
     GraphicsModule* Graphics = GraphicsModule::Get();
     UIModule* UI = UIModule::Get();
@@ -996,11 +1298,11 @@ void EditorState::DrawResourcesPanel()
                 int index = 0;
                 for (auto& AModel : LoadedModels)
                 {
-                    if (UI->TextButton(AModel.m_TexturedMeshes[0].m_Mesh.Path.GetFileNameNoExt(), Vec2f(120.0f, 40.0f), 10.0f, c_ResourceButton).clicking)
+                    if (UI->TextButton(AModel.m_StaticMesh.Path.GetFileNameNoExt(), Vec2f(120.0f, 40.0f), 10.0f, c_ResourceButton).clicking)
                     {
                         if (!Cursor.IsDraggingSomething())
                         {
-                            Model* AddedModel = EditorScene.AddModel(new Model(AModel));
+                            Model* AddedModel = FocusedScene.AddModel(new Model(AModel));
                             Cursor.StartDraggingNewModel(AddedModel);
                         }
                     }
@@ -1026,7 +1328,7 @@ void EditorState::DrawResourcesPanel()
             }
             UI->EndTab();
 
-            UI->StartTab("Entities", c_Tab);
+            UI->StartTab("Objects", c_Tab);
             {
                 if (UI->ImgButton("LightEntity", lightEntityTexture, Vec2f(80.0f, 80.0f), 12.0f, c_ResourceButton).clicking)
                 {
@@ -1034,13 +1336,18 @@ void EditorState::DrawResourcesPanel()
                     {
                         PointLight NewLight = PointLight();
 
-                        PointLight* PointLightPtr = EditorScene.AddPointLight(NewLight);
+                        PointLight* PointLightPtr = FocusedScene.AddPointLight(NewLight);
                         Cursor.StartDraggingNewPointLight(PointLightPtr);
                     }
                 }
                 if (UI->ImgButton("DirectionalLightEntity", directionalLightEntityTexture, Vec2f(80.0f, 80.0f), 12.0f, c_ResourceButton).clicking)
                 {
-
+                    if (!Cursor.IsDraggingSomething())
+                    {
+                        DirectionalLight NewDirLight = DirectionalLight();
+                        DirectionalLight* DirLightPtr = FocusedScene.AddDirectionalLight(NewDirLight);
+                        Cursor.StartDraggingNewDirectionalLight(DirLightPtr);
+                    }
                 }
                 if (UI->ImgButton("CameraEntity", cameraEntityTexture, Vec2f(80.0f, 80.0f), 12.0f, c_ResourceButton))
                 {
@@ -1054,7 +1361,13 @@ void EditorState::DrawResourcesPanel()
             }
             UI->EndTab();
 
-            UI->StartTab("Behaviours", c_Tab);
+            if (UI->StartTab("Entities", c_Tab))
+            {
+
+            }
+            UI->EndTab();
+
+            if (UI->StartTab("Behaviours", c_Tab))
             {
                 auto BehaviourMap = BehaviourRegistry::Get()->GetBehaviours();
 
@@ -1071,7 +1384,7 @@ void EditorState::DrawResourcesPanel()
             }
             UI->EndTab();
 
-            UI->StartTab("1000 Buttons", c_Tab);
+            if (UI->StartTab("1000 Buttons", c_Tab))
             {
                 for (int i = 0; i < 1000; ++i)
                 {
@@ -1079,12 +1392,6 @@ void EditorState::DrawResourcesPanel()
                 }
             }
             UI->EndTab();
-
-            UI->StartTab("Experiment", c_Tab);
-            {
-            }
-            UI->EndTab();
-
         }
         UI->EndFrame();
     }
@@ -1118,7 +1425,6 @@ void EditorState::DrawResourcesPanel()
         }
         UI->EndFrame();
     }
-
 }
 
 void EditorState::DrawInspectorPanel()
@@ -1149,4 +1455,11 @@ void EditorState::DrawInspectorPanel()
     }
     UI->EndFrame();
 
+}
+
+void EditorState::DrawEntityInspectorPanel()
+{
+    UIModule* UI = UIModule::Get();
+
+    UI->TextButton("Add Component", Vec2f(120.0f, 60.0f), 12.0f, c_NiceYellow, c_FrameDark);
 }

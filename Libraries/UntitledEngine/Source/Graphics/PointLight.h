@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Components/Component.h"
 #include "Math/Vector.h"
 #include "Interfaces/EditorClickable_i.h"
 
@@ -12,7 +13,7 @@ struct PointLightRenderCommand
     float m_Intensity;
 };
 
-class SelectedPointLight : public ISelectedObject
+class SelectedPointLight : public ISelectedObject, public Component
 {
 public:
     SelectedPointLight(PointLight* InPointLight);

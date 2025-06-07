@@ -15,7 +15,7 @@ void SelectedModel::Draw()
     GraphicsModule* Graphics = GraphicsModule::Get();
     CollisionModule* Collision = CollisionModule::Get();
 
-    Graphics->DebugDrawAABB(Collision->GetCollisionMeshFromMesh(ModelPtr->m_TexturedMeshes[0].m_Mesh)->boundingBox, c_SelectedBoxColour, ModelPtr->GetTransform().GetTransformMatrix());
+    Graphics->DebugDrawAABB(Collision->GetCollisionMeshFromMesh(ModelPtr->m_StaticMesh)->boundingBox, c_SelectedBoxColour, ModelPtr->GetTransform().GetTransformMatrix());
 }
 
 bool SelectedModel::DrawInspectorPanel()

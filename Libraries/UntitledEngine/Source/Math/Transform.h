@@ -21,6 +21,8 @@ public:
 
     void RotateAroundPoint(Vec3f point, Quaternion rotation);
 
+    void SetParent(Transform* inParent);
+
     Mat4x4f GetTransformMatrix();
     void SetTransformMatrix(Mat4x4f mat);
 
@@ -31,6 +33,8 @@ private:
     Vec3f m_Position = Vec3f(0.0f, 0.0f, 0.0f);
     Vec3f m_Scale = Vec3f(1.0f, 1.0f, 1.0f);
     Quaternion m_Rotation;
+
+    Transform* m_Parent = nullptr;
 
     Mat4x4f m_Transform;
     bool m_TransformMatrixNeedsUpdate = false;

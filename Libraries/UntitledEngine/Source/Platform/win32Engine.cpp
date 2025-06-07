@@ -3,8 +3,11 @@
 
 #include <locale>
 #include <codecvt>
+#include <string_view>
 
 #include "..\GameEngine.h"
+
+using namespace std::literals;
 
 static bool running = true;
 static HWND WindowHandle;
@@ -190,27 +193,35 @@ bool Engine::FileOpenDialog(std::string& OutFileString)
     return false;
 }
 
-bool Engine::FileSaveDialog(std::string& OutFileString)
+bool Engine::FileSaveDialog(std::string& OutFileString, std::string DialogTitle, std::string FileTypeName, std::string FileTypeExt)
 {
     OPENFILENAME ofn;
     wchar_t szFileName[MAX_PATH];
+
+    // This can fail?
+    std::wstring wDialogTitle = std::wstring(DialogTitle.begin(), DialogTitle.end());
+    std::wstring wFileTypeName = std::wstring(FileTypeName.begin(), FileTypeName.end());
+    std::wstring wFileTypeExt = std::wstring(FileTypeExt.begin(), FileTypeExt.end());
+
+    std::wstring wFilter = std::format(L"{0} Files (*.{1})\0*.{1}\0All Files (*.*)\0*.*\0"sv, wFileTypeName, wFileTypeExt);
+
 
     ZeroMemory(&ofn, sizeof(ofn));
 
     ofn.lStructSize = sizeof(ofn);
     ofn.hwndOwner = WindowHandle;
-    ofn.lpstrFilter = L"Level Files (*.lvl)\0*.lvl\0All Files (*.*)\0*.*\0";
+
     ofn.lpstrFile = szFileName;
     ofn.lpstrFile[0] = '\0';
     ofn.nMaxFile = MAX_PATH;
     ofn.Flags = OFN_EXPLORER | OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
-    ofn.lpstrDefExt = L"lvl";
 
-    ofn.lpstrTitle = L"Save Level";
+    ofn.lpstrTitle = wDialogTitle.c_str();
+    ofn.lpstrDefExt = wFileTypeExt.c_str();
+    ofn.lpstrFilter = wFilter.c_str();
 
     if (GetSaveFileName(&ofn))
     {
-        // Do something useful with the filename stored in szFileName 
         std::wstring WideString(szFileName);
         OutFileString = utf8_encode(WideString);
         return true;
@@ -559,12 +570,9 @@ int WinMain(_In_ HINSTANCE InInstance, _In_opt_ HINSTANCE InPreviousInstance, _I
 
         if (Engine::IsWindowFocused())
         {
-            // TEMP(fraser)
-            if (!Input.m_LocalInputsDisabled)
-            {
-                GetKeyboardState(Input);
-                GetControllerState(Input);
-            }
+            GetKeyboardState(Input);
+            GetControllerState(Input);
+
             if (cursorLocked)
             {
                 WarpMouseToWindowCenter();
@@ -572,11 +580,7 @@ int WinMain(_In_ HINSTANCE InInstance, _In_opt_ HINSTANCE InPreviousInstance, _I
         }
         else
         {
-            // TEMP(fraser)
-            if (!Input.m_LocalInputsDisabled)
-            {
-                Input.ResetAllInputState();
-            }
+            Input.ResetAllInputState();
         }
 
         Graphics.OnFrameStart();

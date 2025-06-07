@@ -135,7 +135,9 @@ struct UVVertex
 
 enum class DrawType
 {
-    Triangle, Line
+    Triangle,
+    TriangleFan,
+    Line
 };
 
 enum class DepthFunc

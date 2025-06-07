@@ -11,9 +11,9 @@ namespace he
 {
     using Index = int64_t;
 
-    using VertIndex = Index;
-    using FaceIndex = Index;
-    using HalfEdgeIndex = Index;
+    //using VertIndex = Index;
+    //using FaceIndex = Index;
+    //using HalfEdgeIndex = Index;
 
 
     struct Vertex;
@@ -21,30 +21,52 @@ namespace he
 
     struct HalfEdge
     {
-        VertIndex vert = -1;
-        FaceIndex face = -1;
-        HalfEdgeIndex twin = -1;
-        HalfEdgeIndex next = -1;
+        HalfEdge() {}
+        //HalfEdge(VertIndex inVert, FaceIndex inFace, HalfEdgeIndex inNext, HalfEdgeIndex inTwin)
+        //    : vert(inVert)
+        //    , face(inFace)
+        //    , next(inNext)
+        //    , twin(inTwin)
+        //{}
+
+        //VertIndex vert = -1;
+        //FaceIndex face = -1;
+        //HalfEdgeIndex next = -1;
+        //HalfEdgeIndex twin = -1;
+
+        HalfEdge(Vertex* inVert, Face* inFace, HalfEdge* inNext, HalfEdge* inTwin)
+            : vert(inVert)
+            , face(inFace)
+            , next(inNext)
+            , twin(inTwin)
+        {}
+
+        Vertex* vert = nullptr;
+        Face* face = nullptr;
+        HalfEdge* next = nullptr;
+        HalfEdge* twin = nullptr;
+
+        auto operator<=>(const HalfEdge& rhs) const = default;
     };
 
     struct Vertex
     {
         Vertex(Vec3f inVec) : vec(inVec) {};
         Vec3f vec;
-        HalfEdgeIndex halfEdge = -1;
+        HalfEdge* halfEdge = nullptr;
     };
 
     struct Face
     {
         //TODO: store material + maybe normals/smoothing data
-        HalfEdgeIndex halfEdge = -1;
+        HalfEdge* halfEdge = nullptr;
     };
 
     class SelectedHalfEdgeVertex : public ISelectedObject
     {
     public:
 
-        SelectedHalfEdgeVertex(HalfEdgeMesh* inMeshPtr, VertIndex inVertIndex);
+        SelectedHalfEdgeVertex(HalfEdgeMesh* inMeshPtr, he::Vertex* inVertptr);
 
         virtual void Draw() override;
         virtual void Update() override;
@@ -58,15 +80,17 @@ namespace he
         virtual bool IsEqual(const ISelectedObject& other) const override;
 
         HalfEdgeMesh* m_HalfEdgeMesh;
-        VertIndex m_VertIndex;
+        he::Vertex* m_VertPtr = nullptr;
         Transform m_Transform;
+
+        bool m_Dirty = false;
     };
 
     class SelectedHalfEdgeFace : public ISelectedObject
     {
     public:
 
-        SelectedHalfEdgeFace(HalfEdgeMesh* inMeshPtr, FaceIndex inFaceIndex);
+        SelectedHalfEdgeFace(HalfEdgeMesh* inMeshPtr, he::Face* inFacePtr);
 
         virtual void Draw() override;
         virtual void Update() override;
@@ -80,29 +104,36 @@ namespace he
         virtual bool IsEqual(const ISelectedObject& other) const override;
 
         HalfEdgeMesh* m_HalfEdgeMesh;
-        FaceIndex m_FaceIndex;
+        he::Face* m_FacePtr = nullptr;
         Transform m_Transform;
     };
 
-    struct HalfEdgeMesh : public IEditorClickable
+    struct HalfEdgeMesh
     {
         void MakeQuad();
+        void MakeAABB(AABB inAABB);
 
         void SubDivide();
 
-        void Draw();
+        void SubDivideFace(Face* inFace);
+
+        void EditorDraw();
 
         void Clear();
 
-        std::vector<Vertex> m_Verts;
-        std::vector<Face> m_Faces;
-        std::vector<HalfEdge> m_HalfEdges;
+        std::vector<Vertex*> m_Verts;
+        std::vector<Face*> m_Faces;
+        std::vector<HalfEdge*> m_HalfEdges;
 
-        Model* m_Model = nullptr;
+        std::vector<Model> m_RepModels;
+
 
         // Inherited via IEditorClickable
-        RayCastHit ClickCast(Ray mouseRay, ISelectedObject*& outSelectedObject) override;
-    };
+        //RayCastHit ClickCast(Ray mouseRay, ISelectedObject*& outSelectedObject) override;
 
+        RayCastHit ClickCastFaces(Ray mouseRay, ISelectedObject*& outSelectedObject);
+        RayCastHit ClickCastVerts(Ray mouseRay, ISelectedObject*& outSelectedObject);
+
+    };
 
 }

@@ -73,18 +73,19 @@ public:
 
     PointLight* AddPointLight(PointLight newLight);
     void DeletePointLight(PointLight* light);
-    
-    Brush* AddBrush(Brush* newBrush);
-    void DeleteBrush(Brush* brush);
+
+    DirectionalLight* AddDirectionalLight(DirectionalLight newLight);
+    void DeleteDirectionalLight(DirectionalLight* light);
 
     void AddHalfEdgeMesh(he::HalfEdgeMesh* newMesh);
     void DeleteHalfEdgeMesh(he::HalfEdgeMesh* mesh);
 
-    std::vector<IEditorClickable*>& GetEditorClickables();
+#ifdef USE_EDITOR
+    std::vector<IEditorClickable*>& GetGenericEditorClickables();
+#endif
 
     std::vector<PointLight*>& GetPointLights();
-
-    std::vector<Brush*>& GetBrushes();
+    std::vector<he::HalfEdgeMesh*>& GetHalfEdgeMeshes();
 
     void AddCamera(Camera* camera);
 
@@ -98,9 +99,7 @@ public:
     void UpdateBehaviours(double DeltaTime);
 
     void Draw(GraphicsModule& graphics, GBuffer gBuffer, size_t camIndex = 0);
-    void EditorDraw(GraphicsModule& graphics, GBuffer gBuffer, Camera* editorCam);
-
-    void SetDirectionalLight(DirectionalLight light);
+    void EditorDraw(GraphicsModule& graphics, GBuffer gBuffer, Camera* editorCam, bool drawSceneCam = true);
 
     SceneRayCastHit RayCast(Ray ray, std::vector<Model*> IgnoredModels = std::vector<Model*>());
 
@@ -117,8 +116,6 @@ public:
 
     void Clear();
 
-    DirectionalLight m_DirLight;
-
 private:
 
     void CopyInternal(const Scene& other);
@@ -132,14 +129,16 @@ public:
 private:
 
     std::vector<PointLight*> m_PointLights;
-    std::vector<Brush*> m_Brushes;
-    std::vector<he::HalfEdgeMesh*> m_HEMeshes;
+    std::vector<DirectionalLight*> m_DirectionalLights;
 
-    std::unordered_map<Model*, Brush*> m_ModelBrushMap;
+    // TODO: these might only be in editor builds (might all be converted to regular models in non-editor builds)
+    std::vector<he::HalfEdgeMesh*> m_HEMeshes;
 
     std::vector<Camera> m_Cameras;
 
-    std::vector<IEditorClickable*> m_EditorClickables;
+#ifdef USE_EDITOR
+    std::vector<IEditorClickable*> m_GenericEditorClickables;
+#endif
 
     bool m_Paused = false;
 
@@ -154,7 +153,6 @@ private:
     void SaveDirectionalLight(json& JsonObject, DirectionalLight& DirLight);
     void SaveModel(json& JsonObject, Model& Mod, int64_t MeshIndex, int64_t MatIndex);
     void SaveRawModel(json& JsonObject, Model& Mod, int64_t MatIndex);
-    void SaveBrush(json& JsonObject, Brush& B, int64_t MatIndex);
 
     Material LoadMaterial(json& JsonObject);
     StaticMesh LoadStaticMesh(json& JsonObject);
@@ -162,12 +160,16 @@ private:
     DirectionalLight LoadDirectionalLight(json& JsonObject);
     Model* LoadModel(json& JsonObject, std::vector<Material>& MaterialVector, std::vector<StaticMesh>& StaticMeshVector);
     Model* LoadRawModel(json& JsonObject, std::vector<Material>& MaterialVector);
-    Brush* LoadBrush(json& JsonObject, std::vector<Material>& MaterialVector);
 
     // Editor specific rendering stuff
     static Texture* LightBillboardTexture;
     static StaticMesh* CameraMesh;
     static Material* CameraMaterial;
+    static StaticMesh* DirectionalLightMesh;
+    static Material* DirectionalLightMaterial;
 
     GUIDGenerator m_ModelIDGenerator;
+
+    // Special case just for saving scenes "as" entities in the editor - will likely come back to this
+    friend class EditorState;
 };

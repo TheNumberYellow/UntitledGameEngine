@@ -2,6 +2,7 @@
 
 #include "Asset/AssetRegistry.h"
 #include "Camera.h"
+
 #include "Interfaces/Resizeable_i.h"
 #include "Math/Geometry.h"
 #include "Math/Transform.h"
@@ -10,6 +11,7 @@
 #include "Graphics/Material.h"
 #include "Graphics/Model.h"
 #include "Graphics/PointLight.h"
+#include "Graphics/DirectionalLight.h"
 
 #include <unordered_map>
 #include <vector>
@@ -18,23 +20,10 @@ typedef std::pair<std::vector<float>, std::vector<ElementIndex>> MeshData;
 
 class GraphicsModule;
 
-// TODO(Fraser): Just putting brush stuff here because I don't know where else to put it for now
-struct Brush
+namespace he
 {
-    Brush(AABB InAABB);
-
-    Brush(Rect InRect);
-
-    Brush(std::vector<Vec3f>& InVerts, std::vector<std::vector<unsigned int>>& InFaces);
-    
-    std::vector<Vec3f> Vertices;
-
-    std::vector<std::vector<unsigned int>> Faces;
-
-    Model* RepModel = nullptr;
-
-    bool UpdatedThisFrame = false;
-};
+    struct HalfEdgeMesh;
+}
 
 struct GBuffer
 {
@@ -74,18 +63,6 @@ enum class RenderMode
     DEFAULT
 };
 
-struct DirectionalLight
-{
-    Vec3f direction;
-    Vec3f colour;
-};
-
-struct DirectionalLightRenderCommand
-{
-    Vec3f m_Direction;
-    Vec3f m_Colour;
-};
-
 struct BillboardRenderCommand
 {
     Texture_ID m_Texture;
@@ -109,11 +86,12 @@ public:
     void AddRenderCommand(StaticMeshRenderCommand Command);
     void AddRenderCommand(BillboardRenderCommand Command);
     void AddRenderCommand(PointLightRenderCommand Command);
+    void AddRenderCommand(DirectionalLightRenderCommand Command);
 
     // Render all submitted render commands into the specified buffer
     //void Render(Framebuffer_ID OutBuffer, Camera Cam, DirectionalLight DirLight);
 
-    void Render(GBuffer Buffer, Camera Cam, DirectionalLight DirLight);
+    void Render(GBuffer Buffer, Camera Cam);
 
     Shader_ID CreateShader(std::string vertShaderSource, std::string fragShaderSource);
 
@@ -128,7 +106,7 @@ public:
 
     StaticMesh LoadMesh(std::string filePath);
 
-    void SetActiveFrameBuffer(Framebuffer_ID fBufferID);
+    void SetActiveFrameBuffer(Framebuffer_ID fBufferID, bool clearBuffer = true);
     void ResizeFrameBuffer(Framebuffer_ID fBufferID, Vec2i size);
     void ResizeGBuffer(GBuffer& Buffer, Vec2i Size);
     void ResetFrameBuffer();
@@ -140,7 +118,7 @@ public:
     Material CreateMaterial(Texture AlbedoMap, Texture NormalMap);
     Material CreateMaterial(Texture AlbedoMap);
 
-    Model CreateModel(TexturedMesh texturedMesh);
+    Model CreateModel(StaticMesh inStaticMesh, Material inMaterial);
 
     Model CloneModel(const Model& original);
 
@@ -150,7 +128,7 @@ public:
     Model CreateBoxModel(AABB box);
     Model CreateBoxModel(AABB box, Material texture);
 
-    void UpdateBrushModel(Brush* brush);
+    void UpdateHEMeshModel(he::HalfEdgeMesh* mesh);
 
     Model CreatePlaneModel(Vec2f min, Vec2f max, float elevation = 0.0f, int subsections = 1);
     Model CreatePlaneModel(Vec2f min, Vec2f max, Material material, float elevation = 0.0f, int subsections = 1);
@@ -255,6 +233,7 @@ private:
     std::vector<StaticMeshRenderCommand> m_StaticMeshRenderCommands;
     std::vector<BillboardRenderCommand> m_BillboardRenderCommands;
     std::vector<PointLightRenderCommand> m_PointLightRenderCommands;
+    std::vector<DirectionalLightRenderCommand> m_DirectionalLightRenderCommands;
 
     // GBuffer stuff
     Shader_ID m_GBufferShader;

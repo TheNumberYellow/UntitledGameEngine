@@ -27,6 +27,7 @@ struct Quaternion
     Quaternion(float x, float y, float z, float w) : x(x), y(y), z(z), w(w) {}
     Quaternion(Vec3f axis, float rotation);
 
+
     Quaternion operator*(Quaternion rhs);
 
     Mat4x4f ToMatrix();
@@ -34,4 +35,8 @@ struct Quaternion
     Quaternion Conjugate();
     Quaternion Inverse();
 
+    float Norm();
+    Quaternion GetNormalized();
+
+    static Quaternion FromEuler(float x, float y, float z);
 };

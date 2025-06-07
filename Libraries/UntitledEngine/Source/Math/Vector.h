@@ -69,6 +69,9 @@ struct Vec3f
 
     float& operator[] (int index);
 
+    static Vec3f Up();
+    static Vec3f Down();
+
     Vec3f XOnly();
     Vec3f YOnly();
     Vec3f ZOnly();

@@ -9,10 +9,10 @@ void DungeonCornerstone::Initialize(Scene* Scene)
 
     ContainingScene = Scene;
 
-    GroundMat = m_Model->m_TexturedMeshes[0].m_Material;
+    GroundMat = m_Model->m_Material;
 
 
-    CornerstoneAABB = Collisions->GetCollisionMeshFromMesh(m_Model->m_TexturedMeshes[0].m_Mesh)->boundingBox;
+    CornerstoneAABB = Collisions->GetCollisionMeshFromMesh(m_Model->m_StaticMesh)->boundingBox;
     CornerstoneAABB.min += m_Model->GetTransform().GetPosition();
     CornerstoneAABB.max += m_Model->GetTransform().GetPosition();
 

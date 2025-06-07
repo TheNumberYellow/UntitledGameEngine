@@ -4,7 +4,6 @@ REGISTER_BEHAVIOUR(SphereController);
 
 SphereController::SphereController()
 {
-    InputState = new SystemInputState();
 }
 
 void SphereController::Update(Scene* Scene, double DeltaTime)
@@ -81,6 +80,8 @@ void SphereController::DrawInspectorPanel()
 
 void SphereController::Initialize(Scene* Scene)
 {
+    InputState = &InputModule::Get()->m_LocalSystemInputState;
+
     PointLight NewLight;
 
     NewLight.position = m_Model->GetTransform().GetPosition();

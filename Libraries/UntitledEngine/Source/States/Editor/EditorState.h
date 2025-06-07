@@ -2,14 +2,20 @@
 #include "State/BaseState.h"
 
 #include "HalfEdge/HalfEdge.h"
+#include "Entities/Entity.h"
 
 #include "GameEngine.h"
 
 #include "CursorState.h"
 #include <iostream>
-//#include <filesystem>
 
 class EditorState;
+
+// todo(fraser): move elsewhere?
+struct EntityCreateInfo
+{
+
+};
 
 enum class GameType
 {
@@ -58,14 +64,21 @@ private:
     void MoveCamera(Camera* Camera, float PixelToRadians, double DeltaTime);
 
     void DrawLevelEditor(GraphicsModule* Graphics, UIModule* UI, double DeltaTime);
-    void DrawProjectSettings();
+    void DrawProjectSettingsEditor();
+
+    void DrawEntityEditor();
+    void SaveEntity(std::string Entityname);
+
+    void DrawMaterialEditor();
 
     void DrawEditorUI();
 
     void DrawTopPanel();
     void DrawDrawerSettingsPanel();
-    void DrawResourcesPanel();
+    void DrawResourcesPanel(Scene& FocusedScene);
     void DrawInspectorPanel();
+
+    void DrawEntityInspectorPanel();
 
     //--------------------
     // Private member variables
@@ -98,7 +111,8 @@ private:
     //--------------------
     Texture playButtonTexture;
 
-    Texture modelSelectToolTexture;
+    Texture genericSelectToolTexture;
+    Texture faceSelectToolTexture;
     Texture vertexSelectToolTexture;
 
     Texture boxToolTexture;
@@ -157,6 +171,27 @@ private:
     GBuffer ViewportBuffer;
 
     Framebuffer_ID WidgetBuffer;
+
+    //--------------------
+    // Entity Editor Stuff (maybe want to move this elsewhere for organizational purposes)
+    //--------------------
+    Camera EntityCamera;
+    Vec3f EntityCamCenterPoint = Vec3f(0.0f, 0.0f, 0.0f);
+    float EntityCamDistance = 4.0f;
+    float EntityCamXAxis = 0.0f;
+    float EntityCamYAxis = 0.0f;
+
+    Scene EntityEditorScene;
+    Entity CurrentEntity;
+
+    //--------------------
+    // Material Editor Stuff (maybe want to move this elsewhere for organizational purposes)
+    //--------------------
+    Camera MaterialPreviewCamera;
+    Vec3f MaterialPreviewCamCenterPoint = Vec3f(0.0f, 0.0f, 0.0f);
+    float MaterialPreviewCamDistance = 4.0f;
+    float MaterialPreviewCamXAxis = 0.0f;
+    float MaterialPreviewCamYAxis = 0.0f;
 
     //--------------------
     // Constants

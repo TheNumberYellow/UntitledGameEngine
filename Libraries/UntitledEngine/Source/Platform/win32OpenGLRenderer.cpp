@@ -922,6 +922,7 @@ namespace
     std::unordered_map<Shader_ID, OpenGLShader> shaderMap;
     std::unordered_map<StaticMesh_ID, OpenGLMesh> meshMap;
     Shader_ID currentlyBoundShader;
+    OpenGLShader* currentlyBoundShaderPtr = nullptr;
 
     HDC deviceContext;
     HGLRC glContext;
@@ -1601,6 +1602,7 @@ void Renderer::SetActiveShader(Shader_ID shader)
     glUseProgram(shaderPtr->m_ProgramId);
 
     currentlyBoundShader = shader;
+    currentlyBoundShaderPtr = shaderPtr;
 }
 
 void Renderer::DrawMesh(StaticMesh_ID meshID)
@@ -1620,7 +1622,18 @@ void Renderer::DrawMesh(StaticMesh_ID meshID)
             glDrawArrays(GL_TRIANGLES, 0, mesh.numVertices);
         }
     }
-    if (mesh.drawType == DrawType::Line)
+    else if (mesh.drawType == DrawType::TriangleFan)
+    {
+        if (mesh.useElementArray)
+        {
+            glDrawElements(GL_TRIANGLE_FAN, mesh.numElements, GL_UNSIGNED_INT, 0);
+        }
+        else
+        {
+            glDrawArrays(GL_TRIANGLE_FAN, 0, mesh.numVertices);
+        }
+    }
+    else if (mesh.drawType == DrawType::Line)
     {
         if (mesh.useElementArray)
         {
@@ -1670,9 +1683,9 @@ void Renderer::SetShaderUniformMat4x4f(Shader_ID shaderID, std::string uniformNa
 {
     SetActiveShader(shaderID);
 
-    OpenGLShader shader = *GetGLShaderFromShaderID(shaderID);
+    //OpenGLShader shader = *GetGLShaderFromShaderID(shaderID);
     
-    GLint uniform = GetUniformLocation(shader.m_UniformLocations, uniformName);
+    GLint uniform = GetUniformLocation(currentlyBoundShaderPtr->m_UniformLocations, uniformName);
 
     if (uniform >= 0)
     {

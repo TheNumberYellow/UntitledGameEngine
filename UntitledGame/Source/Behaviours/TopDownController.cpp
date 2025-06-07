@@ -8,6 +8,8 @@ TopDownController::TopDownController()
 
 void TopDownController::Initialize(Scene* Scene)
 {
+    Sliding = false;
+    Grounded = false;
 }
 
 void TopDownController::Update(Scene* Scene, double DeltaTime)
@@ -15,8 +17,8 @@ void TopDownController::Update(Scene* Scene, double DeltaTime)
     InputModule* Inputs = InputModule::Get();
     UIModule* UI = UIModule::Get();
 
-    Grounded = false;
-    Sliding = false;
+    //Grounded = false;
+    //Sliding = false;
 
     // Apply input force
 
@@ -39,21 +41,36 @@ void TopDownController::Update(Scene* Scene, double DeltaTime)
     {
         // Check penetration normal closeness to up vector
         float UpCloseness = Math::dot(-SceneIntersection.penetrationNormal, Vec3f(0.0f, 0.0f, 1.0f));
-        if (UpCloseness > 0.8)
+        if (UpCloseness > 0.7)
         {
             Grounded = true;
+            Sliding = false;
             m_Model->GetTransform().Move((SceneIntersection.penetrationNormal * 0.001f) + (SceneIntersection.penetrationNormal * -SceneIntersection.penetrationDepth));
             Velocity.z = 0.0f;
         }
         else
         {
-            Sliding = true;
+            if (Sliding)
+            {
+                // Apply friction
+                //Velocity *= 0.7f;
+            }
+            else
+            {
+                Velocity.z = -10.0f;
+                Sliding = true;
+            }
             m_Model->GetTransform().Move((SceneIntersection.penetrationNormal * 0.001f) + (SceneIntersection.penetrationNormal * -SceneIntersection.penetrationDepth));
-            Velocity = Velocity - (2.f * (Math::dot(Velocity, SceneIntersection.penetrationNormal)) * SceneIntersection.penetrationNormal) * 0.9f;
+            //Velocity = Velocity - (2.f * (Math::dot(Velocity, SceneIntersection.penetrationNormal)) * SceneIntersection.penetrationNormal) * 0.8f;
         }
     }
+    else
+    {
+        Grounded = false;
+        Sliding = false;
+    }
 
-    if (Grounded && Inputs->GetKeyState(Key::Space).justPressed)
+    if (Grounded && !Sliding && Inputs->GetKeyState(Key::Space).justPressed)
     {
         Velocity.z = 10.f;
     }
@@ -96,6 +113,7 @@ void TopDownController::Update(Scene* Scene, double DeltaTime)
         }
     }
 
+    //if (Sliding)
 
     Scene->GetCamera()->SetPosition(m_Model->GetTransform().GetPosition() + Vec3f(0.0f, -5.0f, 7.5f));
     Scene->GetCamera()->SetDirection(Math::normalize(m_Model->GetTransform().GetPosition() - Scene->GetCamera()->GetPosition()));

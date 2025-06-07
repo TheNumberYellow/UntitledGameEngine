@@ -46,3 +46,23 @@ Quaternion Quaternion::Inverse()
     float Scale = Math::dot(*this, *this);
     return Quaternion(Result.x / Scale, Result.y / Scale, Result.z / Scale, Result.w / Scale);
 }
+
+float Quaternion::Norm()
+{
+    return sqrt(x * x + y * y + z * z + w * w);
+}
+
+Quaternion Quaternion::GetNormalized()
+{
+    float n = Norm();
+    return Quaternion(x / n, y / n, z / n, w / n);
+}
+
+Quaternion Quaternion::FromEuler(float x, float y, float z)
+{
+    Quaternion QuatAroundX = Quaternion(Vec3f(1.0, 0.0, 0.0), x);
+    Quaternion QuatAroundY = Quaternion(Vec3f(0.0, 1.0, 0.0), y);
+    Quaternion QuatAroundZ = Quaternion(Vec3f(0.0, 0.0, 1.0), z);
+
+    return QuatAroundZ * QuatAroundY * QuatAroundX;
+}

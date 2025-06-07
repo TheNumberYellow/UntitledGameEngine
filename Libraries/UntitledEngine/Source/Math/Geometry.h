@@ -66,6 +66,15 @@ struct Rect
         this->size = size;
     }
 
+    Rect(float posX, float posY, float sizeX, float sizeY)
+    {
+        this->location.x = posX;
+        this->location.y = posY;
+
+        this->size.x = sizeX;
+        this->size.y = sizeY;
+    }
+
     Rect(Vec2f size)
     {
         this->location = Vec2f(0.0f, 0.0f);

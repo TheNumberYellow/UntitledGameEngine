@@ -60,6 +60,11 @@ void Transform::RotateAroundPoint(Vec3f point, Quaternion rotation)
     SetTransformMatrix(TransMat * RotMat * RevTransMat * GetTransformMatrix());
 }
 
+void Transform::SetParent(Transform* inParent)
+{
+    m_Parent = inParent;
+}
+
 Mat4x4f Transform::GetTransformMatrix()
 {
     if (m_TransformMatrixNeedsUpdate)
@@ -67,6 +72,11 @@ Mat4x4f Transform::GetTransformMatrix()
         UpdateTransformMatrix();
         m_TransformMatrixNeedsUpdate = false;
     }
+    if (m_Parent)
+    {
+        m_Transform = m_Transform * m_Parent->GetTransformMatrix();
+    }
+
     return m_Transform;
 }
 

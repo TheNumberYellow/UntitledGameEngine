@@ -8,6 +8,7 @@
 
 class Scene;
 class ISelectedObject;
+struct EditorClickContext;
 
 class IEditorClickable
 {

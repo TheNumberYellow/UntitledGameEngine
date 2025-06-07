@@ -5,6 +5,9 @@
 InputModule* InputModule::s_Instance = nullptr;
 
 SystemInputState::SystemInputState()
+    : m_Keys{ false }
+    , m_MouseState(Engine::GetMousePosition())
+    , m_GamepadState{ GamepadState(), GamepadState(), GamepadState(), GamepadState() }
 {
 }
 
@@ -23,13 +26,72 @@ void SystemInputState::SetKeyDown(Key key, bool pressed)
 	m_Keys[static_cast<size_t>(key)].UpdateState(pressed);
 }
 
+MouseState& SystemInputState::GetMouseState()
+{
+	return m_MouseState;
+}
+
+void SystemInputState::UpdateMousePos(Vec2i newPos)
+{
+	m_MouseState.UpdateMousePos(newPos, m_MouseLocked, m_MouseCenter);
+}
+
+void SystemInputState::UpdateMouseWheel(int delta)
+{
+	m_MouseState.UpdateMouseWheel(delta);
+}
+
+void SystemInputState::SetMouseLocked(bool locked)
+{
+	m_MouseLocked = locked;
+}
+
+void SystemInputState::SetMouseCenter(Vec2i newCenter)
+{
+    Engine::SetCursorCenter(newCenter);
+    m_MouseCenter = newCenter;
+}
+
+GamepadState& SystemInputState::GetGamepadState(int controllerIndex)
+{
+	return m_GamepadState[static_cast<size_t>(controllerIndex)];
+}
+
+void SystemInputState::InputCharacter(char c)
+{
+	m_CharQueue.push(c);
+}
+
+bool SystemInputState::ConsumeCharacter(char& c)
+{
+    if (m_CharQueue.empty())
+    {
+        return false;
+    }
+
+    c = m_CharQueue.front();
+    m_CharQueue.pop();
+
+    return true;
+
+}
+
+void SystemInputState::ClearCharacters()
+{
+}
+
+void SystemInputState::Reset()
+{
+    for (KeyState& Key : m_Keys)
+    {
+        Key.UpdateState(false);
+    }
+
+    m_MouseState.ResetMouseState();
+}
+
 InputModule::InputModule()
-	: m_Keys{ false }
-	, m_MouseState(Engine::GetMousePosition())
-	, m_MouseCenter(Vec2i(Engine::GetClientAreaSize().x / 2, Engine::GetClientAreaSize().y / 2))
-	, m_MouseLocked(false)
-	, m_GamepadState{ GamepadState(), GamepadState(), GamepadState(), GamepadState() }
-	, m_LocalSystemInputState(SystemInputState())
+	: m_LocalSystemInputState(SystemInputState())
 {
 	s_Instance = this;
 }
@@ -40,99 +102,78 @@ InputModule::~InputModule()
 
 KeyState& InputModule::GetKeyState(Key key)
 {
-	return m_Keys[static_cast<size_t>(key)];
+	return m_LocalSystemInputState.GetKeyState(key);
 }
 
 bool InputModule::IsKeyDown(Key key) const
 {
-	return m_Keys[static_cast<size_t>(key)].pressed;
+	return m_LocalSystemInputState.IsKeyDown(key);
 }
 
 void InputModule::SetKeyDown(Key key, bool pressed)
 {
-	m_Keys[static_cast<size_t>(key)].UpdateState(pressed);
+	m_LocalSystemInputState.SetKeyDown(key, pressed);
 }
 
 MouseState& InputModule::GetMouseState()
 {
-	return m_MouseState;
+	return m_LocalSystemInputState.GetMouseState();
 }
 
 void InputModule::UpdateMousePos(Vec2i newPos)
 {
-	m_MouseState.UpdateMousePos(newPos, m_MouseLocked, m_MouseCenter);
+	m_LocalSystemInputState.UpdateMousePos(newPos);
 }
 
 void InputModule::UpdateMouseWheel(int delta)
 {
-	m_MouseState.UpdateMouseWheel(delta);
+	m_LocalSystemInputState.UpdateMouseWheel(delta);
 }
 
 void InputModule::SetMouseLocked(bool locked)
 {
-	m_MouseLocked = locked;
+    m_LocalSystemInputState.SetMouseLocked(locked);
+    
 }
 
 void InputModule::SetMouseCenter(Vec2i newCenter)
 {
-	Engine::SetCursorCenter(newCenter);
-	m_MouseCenter = newCenter;
+	m_LocalSystemInputState.SetMouseCenter(newCenter);
 }
 
 GamepadState& InputModule::GetGamepadState(int controllerIndex /*= 0*/)
 {
-	return m_GamepadState[controllerIndex];
+	return m_LocalSystemInputState.GetGamepadState(controllerIndex);
 }
 
 void InputModule::InputCharacter(char c)
 {
-	m_CharQueue.push(c);
+	m_LocalSystemInputState.InputCharacter(c);
 }
 
 bool InputModule::ConsumeCharacter(char& c)
 {
-	if (m_CharQueue.empty())
-	{
-		return false;
-	}
-
-	c = m_CharQueue.front();
-	m_CharQueue.pop();
-
-	return true;
+	return m_LocalSystemInputState.ConsumeCharacter(c);
 }
 
 void InputModule::ClearCharacters()
 {
-	while (!m_CharQueue.empty())
-	{
-		m_CharQueue.pop();
-	}
+	m_LocalSystemInputState.ClearCharacters();
 }
 
 void InputModule::ResetAllInputState()
 {
-	for (KeyState& Key : m_Keys)
-	{
-		Key.UpdateState(false);
-	}
-
-	m_MouseState.ResetMouseState();
+	m_LocalSystemInputState.Reset();
 }
 
 void InputModule::OnFrameEnd()
 {
-	m_MouseState.UpdateMouseWheel(0);
+	UpdateMouseWheel(0);
 	ClearCharacters();
 }
 
 void InputModule::Resize(Vec2i newSize)
 {
-}
-
-void InputModule::DisableLocalInputs()
-{
-	m_LocalInputsDisabled = true;
 }
 
 MouseState::MouseState()

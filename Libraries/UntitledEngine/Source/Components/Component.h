@@ -1,12 +1,10 @@
 #pragma once
 
-#include "Scene.h"
 
 class Component
 {
+public:
 
-
-protected:
-    Entity_ID m_Entity;
+    virtual void DrawEditorInspector();
 };
 

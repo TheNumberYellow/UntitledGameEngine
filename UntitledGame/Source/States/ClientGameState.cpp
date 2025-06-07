@@ -184,7 +184,7 @@ void ClientGameState::ProcessPacketData(const std::string& data)
             AssetRegistry* Registry = AssetRegistry::Get();
             GraphicsModule* Graphics = GraphicsModule::Get();
 
-            Model NewModel = Graphics->CreateModel(TexturedMesh(*Registry->LoadStaticMesh(PacketData["Mesh"].get<std::string>()), Graphics->CreateMaterial(*Registry->LoadTexture(PacketData["Texture"].get<std::string>()))));
+            Model NewModel = Graphics->CreateModel(*Registry->LoadStaticMesh(PacketData["Mesh"].get<std::string>()), Graphics->CreateMaterial(*Registry->LoadTexture(PacketData["Texture"].get<std::string>())));
 
             CurrentScene.AddModel(new Model(NewModel));
 

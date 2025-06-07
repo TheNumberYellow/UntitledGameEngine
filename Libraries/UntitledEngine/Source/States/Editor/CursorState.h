@@ -4,7 +4,6 @@
 #include "Interfaces/EditorClickable_i.h"
 
 class EditorState;
-class Brush;
 class DirectionalLight;
 class Model;
 class PointLight;
@@ -19,14 +18,14 @@ enum class ToolMode : uint8_t
     Transform,
     Geometry,
     Vertex,
-    Sculpt,
-    Brush,
+    Sculpt
 };
 
 enum class SelectMode : uint8_t
 {
-    ModelSelect,
-    VertexSelect
+    GenericSelect,
+    FaceSelect,
+    VertSelect
 };
 
 enum class TransformMode : uint8_t
@@ -40,6 +39,7 @@ enum class GeometryMode : uint8_t
 {
     Box,
     Plane,
+    HalfEdge
 };
 
 enum class DraggingMode : uint8_t
@@ -67,50 +67,8 @@ struct OffsetInfo
     Quaternion RotationDiff;
 };
 
-class SelectedVertex : public ISelectedObject
+struct EditorClickContext
 {
-public:
-    SelectedVertex(Vec3f* InVertPtr, Brush* InBrushPtr);
-
-    virtual void Draw() override;
-
-    virtual void Update() override;
-
-    virtual bool DrawInspectorPanel() override;
-
-    virtual Transform* GetTransform() override;
-
-    virtual void DeleteObject() override;
-
-private:
-
-    virtual bool IsEqual(const ISelectedObject& Other) const override;
-
-    Vec3f* VertPtr = nullptr;
-    Brush* BrushPtr = nullptr;
-    Transform Trans;
-};
-
-class SelectedDirectionalLight : public ISelectedObject
-{
-public:
-    SelectedDirectionalLight(DirectionalLight* InDirLight);
-
-    virtual void Draw() override;
-
-    virtual void Update() override;
-
-    virtual bool DrawInspectorPanel() override;
-
-    virtual Transform* GetTransform() override;
-    virtual void DeleteObject() override;
-
-private:
-
-    bool IsEqual(const ISelectedObject& other) const override;
-    
-    DirectionalLight* DirLightPtr;
-    Transform Trans;
 
 };
 
@@ -121,6 +79,9 @@ public:
     CursorState() {}
 
     CursorState(EditorState* InEditorState, Scene* InEditorScene);
+
+    void SetScene(Scene* InScene);
+    void SetCamera(Camera* InCamera);
 
     void Update(double DeltaTime);
 
@@ -143,6 +104,7 @@ public:
 
     void StartDraggingNewModel(Model* NewModel);
     void StartDraggingNewPointLight(PointLight* NewPointLight);
+    void StartDraggingNewDirectionalLight(DirectionalLight* NewDirLight);
     void StartDraggingNewMaterial(Material* NewMaterial);
     void StartDraggingNewBehaviour(std::string NewBehaviourName);
 
@@ -158,10 +120,9 @@ private:
     void UpdateGeometryTool();
     void UpdateVertexTool();
     void UpdateSculptTool(double DeltaTime);
-    void UpdateBrushTool();
 
-    void UpdateModelSelectTool();
-    void UpdateVertexSelectTool();
+    void UpdateGenericSelectTool();
+    void UpdateHalfEdgeSelectTool();
 
     void UpdateTranslateTool();
     void UpdateRotateTool();
@@ -169,6 +130,7 @@ private:
 
     void UpdateBoxTool();
     void UpdatePlaneTool();
+    void UpdateHalfEdgeTool();
 
     void UpdateSelectedObjects();
     void DrawSelectedObjects();
@@ -182,18 +144,20 @@ private:
     void UpdateSelectedTransformsBasedOnProxy();
     void RotateSelectedTransforms(Quaternion Rotation);
 
-    ISelectedObject* ClickCast(Ray mouseRay);
+    ISelectedObject* ClickCastGeneric(Ray mouseRay);
+    std::vector<ISelectedObject*> ClickCastHalfEdgeMesh(Ray mouseRay);
 
     ToolMode Tool = ToolMode::Select;
     DraggingMode Dragging = DraggingMode::None;
 
-    SelectMode Select = SelectMode::ModelSelect;
+    SelectMode Select = SelectMode::GenericSelect;
 
     TransformMode TransMode = TransformMode::Translate;
     GeometryMode GeoMode = GeometryMode::Box;
 
     Model* DraggingModelPtr = nullptr;
     PointLight* DraggingPointLightPtr = nullptr;
+    DirectionalLight* DraggingDirectionalLightPtr = nullptr;
 
     Material* DraggingMaterialPtr = nullptr;
     std::string DraggingBehaviourName;
@@ -245,7 +209,10 @@ private:
     float SculptSpeed = 3.0f;
     float SculptRadius = 1.0f;
 
+    EditorClickContext ClickContext;
+
     EditorState* EditorStatePtr;
     Scene* EditorScenePtr;
+    Camera* CameraPtr;
 };
 

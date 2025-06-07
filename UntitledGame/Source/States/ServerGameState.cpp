@@ -9,15 +9,13 @@ void ServerGameState::OnInitialized(ArgsList args)
     GraphicsModule* graphics = GraphicsModule::Get();
     InputModule* input = InputModule::Get();
 
-    input->DisableLocalInputs();
-
     network->StartServer();
 
     ViewportBuffer = graphics->CreateGBuffer(Vec2i(800, 600));
     graphics->InitializeDebugDraw(ViewportBuffer.FinalOutput);
 
     AssetRegistry* Registry = AssetRegistry::Get();
-    SphereModelPrototype = graphics->CreateModel(TexturedMesh(*Registry->LoadStaticMesh("Assets/models/UVBall.obj"), graphics->CreateMaterial(*Registry->LoadTexture("Assets/textures/marble.jpg"))));
+    SphereModelPrototype = graphics->CreateModel(*Registry->LoadStaticMesh("Assets/models/UVBall.obj"), graphics->CreateMaterial(*Registry->LoadTexture("Assets/textures/marble.jpg")));
 }
 
 void ServerGameState::OnUninitialized()

@@ -108,6 +108,16 @@ float& Vec3f::operator[](int index)
     }
 }
 
+Vec3f Vec3f::Up()
+{
+    return Vec3f(0.0f, 0.0f, 1.0f);
+}
+
+Vec3f Vec3f::Down()
+{
+    return Vec3f(0.0f, 0.0f, -1.0f);
+}
+
 Vec3f Vec3f::XOnly()
 {
     return Vec3f(x, 0.0f, 0.0f);

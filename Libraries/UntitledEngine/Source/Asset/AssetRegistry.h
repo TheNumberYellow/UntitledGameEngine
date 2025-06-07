@@ -12,6 +12,7 @@ class Asset
 public:
     FilePath Path;
     bool LoadedFromFile = false;
+    bool Loaded = false;
 };
 
 class Texture : public Asset

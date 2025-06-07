@@ -51,6 +51,18 @@ void Click::Update(Rect bounds, Rect frameRect)
     }
 }
 
+PlacementSettings::PlacementSettings(Vec2f inSize)
+    : size(inSize)
+{
+    type = PlacementType::SIZE;
+}
+
+PlacementSettings::PlacementSettings(Rect inRect)
+    : rect(inRect)
+{
+    type = PlacementType::RECT;
+}
+
 UIModule::UIModule(GraphicsModule& graphics, TextModule& text, InputModule& input, Renderer& renderer)
     : m_Graphics(graphics)
     , m_Text(text)
@@ -250,12 +262,14 @@ void UIModule::BufferPanel(Framebuffer_ID fBuffer, Vec2f size)
     BufferPanel(fBuffer, BufferRect);
 }
 
-Click UIModule::TextButton(std::string text, Vec2f size, float borderWidth, Vec3f colour, Vec3f textColour)
+Click UIModule::TextButton(std::string text, PlacementSettings placeSettings, float borderWidth, Vec3f colour, Vec3f textColour)
 {
     if (!IsActive())
     {
         return Click();
     }
+
+    Vec2f size = placeSettings.size;
 
     Rect BRect = SizeElement(size);
 
@@ -419,12 +433,12 @@ void UIModule::FloatTextEntry(std::string name, float& floatRef, Vec2f size, Col
 {
 }
 
-void UIModule::StartFrame(std::string name, Rect rect, float borderWidth, Vec3f colour)
+bool UIModule::StartFrame(std::string name, Rect rect, float borderWidth, Vec3f colour)
 {
     m_InTabStack.push_back(false);
 
     if (!IsActive())
-        return;
+        return false;
 
     //rect.location += GetFrame().location;
 
@@ -484,6 +498,8 @@ void UIModule::StartFrame(std::string name, Rect rect, float borderWidth, Vec3f 
     m_Renderer.EnableDepthTesting();
 
     m_Renderer.StartStencilTesting(StencilCompareFunc::EQUAL, (int)m_FrameStateStack.size());
+
+    return true;
 } 
 
 void UIModule::EndFrame()
@@ -846,7 +862,7 @@ void UIModule::FloatSliderInternal(std::string name, Rect rect, float& outNum, f
 
 }
 
-Rect UIModule::SizeElement(Vec2f size)
+Rect UIModule::SizeElement(PlacementSettings settings)
 {
     Rect ElementBounds;
 
@@ -855,7 +871,7 @@ Rect UIModule::SizeElement(Vec2f size)
 
     CursorInfo NewCursor = CurrentCursor;
 
-    ElementBounds.size = size;
+    ElementBounds.size = settings.size;
 
     if (CurrentCursor.Top.x + ElementBounds.size.x > CurrentFrame.location.x + CurrentFrame.size.x)
     {
@@ -894,14 +910,14 @@ Rect UIModule::SizeElement(Vec2f size)
     return ElementBounds;
 }
 
-Rect UIModule::PlaceElement(Vec2f size)
+Rect UIModule::PlaceElement(PlacementSettings settings)
 {
     Rect ElementBounds;
 
     Rect CurrentFrame = GetFrame();
     CursorInfo& CurrentCursor = CursorStack.top();
 
-    ElementBounds.size = size;
+    ElementBounds.size = settings.size;
 
     if (CurrentCursor.Top.x + ElementBounds.size.x > CurrentFrame.location.x + CurrentFrame.size.x)
     {

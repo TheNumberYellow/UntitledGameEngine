@@ -217,7 +217,19 @@ Mat4x4f Math::GenerateTransformMatrix(Vec3f position, Vec3f scale, Quaternion ro
 Mat4x4f Math::GenerateViewMatrix(Vec3f position, Vec3f direction, Vec3f up)
 {
     Vec3f f(normalize(direction));
-    Vec3f s(normalize(cross(f, up)));
+    Vec3f side = cross(f, up);
+    Vec3f s;
+    if (side.IsNearlyZero())
+    {
+        s = orthogonal(up);
+    }
+    else
+    {
+        s = side;
+    }
+
+    s = normalize(s);
+ 
     Vec3f u(cross(s, f));
 
     Mat4x4f result;
@@ -378,6 +390,15 @@ float Math::Clamp(float in, float lower, float upper)
     if (in < lower) return lower;
     if (in > upper) return upper;
     return in;
+}
+
+float Math::ClampRadians(float in, float min, float max)
+{
+    if (in < -(M_PI * 2.0f))
+        in += (M_PI * 2.0f);
+    if (in > M_PI * 2.0f)
+        in -= (M_PI * 2.0f);
+    return Clamp(in, min, max);
 }
 
 float Math::RandomFloat(float min, float max)

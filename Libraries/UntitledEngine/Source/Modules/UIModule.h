@@ -76,6 +76,30 @@ struct FloatSliderState : public ElementState
     bool dragging = false;
 };
 
+enum class PlacementType
+{
+    SIZE,
+    RECT,
+};
+
+struct PlacementSettings
+{
+    PlacementSettings(Vec2f inSize);
+    PlacementSettings(Rect inRect);
+
+    PlacementSettings(PlacementType inType, float f);
+    PlacementSettings(PlacementType inType, Vec2f v);
+    PlacementSettings(PlacementType inType, Rect r);
+
+    PlacementType type;
+    
+    union
+    {    
+        Vec2f size;
+        Rect rect;
+    };
+};
+
 class UIModule
     : public IResizeable
 {
@@ -95,7 +119,7 @@ public:
     void BufferPanel(Framebuffer_ID fBuffer, Rect rect);
     void BufferPanel(Framebuffer_ID fBuffer, Vec2f size);
 
-    Click TextButton(std::string text, Vec2f size, float borderWidth, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f), Vec3f textColour = Vec3f(0.0f, 0.0f, 0.0f));
+    Click TextButton(std::string text, PlacementSettings placeSettings, float borderWidth, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f), Vec3f textColour = Vec3f(0.0f, 0.0f, 0.0f));
     Click ImgButton(std::string name, Texture texture, Vec2f size, float borderWidth, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
     Click BufferButton(std::string name, Framebuffer_ID fBuffer, Vec2f size, float borderWidth, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
 
@@ -105,7 +129,7 @@ public:
     void TextEntry(std::string name, std::string& stringRef, Vec2f size, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
     void FloatTextEntry(std::string name, float& floatRef, Vec2f size, Colour colour = Vec3f(1.0f, 1.0f, 1.0f));
 
-    void StartFrame(std::string name, Rect rect, float borderWidth, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
+    bool StartFrame(std::string name, Rect rect, float borderWidth, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
     void EndFrame();
 
     void StartFrame(std::string name, Vec2f size, float borderWidth, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
@@ -133,11 +157,11 @@ private:
     void FloatSliderInternal(std::string name, Rect rect, float& outNum, float min = 0.0f, float max = 1.0f, bool vertical = false, bool drawText = true, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
 
 
-    // Returns the bounds of an element given a size, without advancing the cursor
-    Rect SizeElement(Vec2f size);
+    // Returns the bounds of an element given a placement setting, without advancing the cursor
+    Rect SizeElement(PlacementSettings settings);
 
-    // Returns bounds of an element given a size, and advances the cursor
-    Rect PlaceElement(Vec2f size);
+    // Returns bounds of an element given a placement setting, and advances the cursor
+    Rect PlaceElement(PlacementSettings settings);
 
     MeshData GetVertexDataForRect(Rect rect);
     MeshData GetVertexDataForBorderMesh(Rect rect, float borderWidth);   

@@ -203,11 +203,31 @@ public:
 	bool IsKeyDown(Key key) const;
 	void SetKeyDown(Key key, bool pressed);
 
+    MouseState& GetMouseState();
+    void UpdateMousePos(Vec2i newPos);
+    void UpdateMouseWheel(int delta);
+
+    void SetMouseLocked(bool locked);
+    void SetMouseCenter(Vec2i newCenter);
+
+    GamepadState& GetGamepadState(int controllerIndex = 0);
+
+    void InputCharacter(char c);
+    bool ConsumeCharacter(char& c);
+    void ClearCharacters();
+
+	void Reset();
+
 private:
 
 	KeyState m_Keys[static_cast<size_t>(Key::Count)];
     MouseState m_MouseState;
 	GamepadState m_GamepadState[4];
+
+	std::queue<char> m_CharQueue;
+
+    bool m_MouseLocked;
+    Vec2i m_MouseCenter;
 
 };
 
@@ -241,25 +261,12 @@ public:
 	// Inherited via IResizeable
 	virtual void Resize(Vec2i newSize) override;
 
-	// TEMP
-	void DisableLocalInputs();
-	bool m_LocalInputsDisabled = false;
-
 	static InputModule* Get() { return s_Instance; };
 	
 	SystemInputState m_LocalSystemInputState;
 
 private:
 
-
-	KeyState m_Keys[static_cast<size_t>(Key::Count)];
-	MouseState m_MouseState;
-	GamepadState m_GamepadState[4];
-
-	std::queue<char> m_CharQueue;
-
-	bool m_MouseLocked;
-	Vec2i m_MouseCenter;
 
 
 	static InputModule* s_Instance;

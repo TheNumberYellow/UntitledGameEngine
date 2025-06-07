@@ -198,7 +198,7 @@ void CollisionModule::InvalidateMeshCollisionData(StaticMesh_ID mesh)
 
 RayCastHit CollisionModule::RayCast(Ray ray, Model& model)
 {
-    return RayCast(ray, *GetCollisionMeshFromMesh(model.m_TexturedMeshes[0].m_Mesh), model.GetTransform().GetTransformMatrix());
+    return RayCast(ray, *GetCollisionMeshFromMesh(model.m_StaticMesh), model.GetTransform().GetTransformMatrix());
 }
 
 RayCastHit CollisionModule::RayCast(Ray ray, const CollisionMesh& mesh, Transform& transform)
@@ -574,7 +574,7 @@ Intersection CollisionModule::SphereIntersection(Sphere sphere, Triangle tri)
 
 Intersection CollisionModule::SphereIntersection(Sphere sphere, Model& model)
 {
-    return SphereIntersection(sphere, *GetCollisionMeshFromMesh(model.m_TexturedMeshes[0].m_Mesh), model.GetTransform());
+    return SphereIntersection(sphere, *GetCollisionMeshFromMesh(model.m_StaticMesh), model.GetTransform());
 }
 
 Intersection CollisionModule::SphereIntersection(Sphere sphere, const CollisionMesh& mesh, Transform& transform)

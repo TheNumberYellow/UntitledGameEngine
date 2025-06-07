@@ -43,7 +43,7 @@ add_definitions(-DUNICODE -D_UNICODE)
 
 add_subdirectory( Libraries/UntitledEngine )
 
-file( GLOB_RECURSE GameSourceFiles CONGIGURE_DEPENDS
+file( GLOB_RECURSE GameSourceFiles CONFIGURE_DEPENDS
 UntitledGame/Source/*.cpp
 UntitledGame/Source/*.h
 )
