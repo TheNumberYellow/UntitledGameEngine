@@ -14,11 +14,13 @@
 
 const std::string Separator = " ";
 
+#ifdef USE_EDITOR
 Texture* Scene::LightBillboardTexture = nullptr;
 StaticMesh* Scene::CameraMesh = nullptr;
 Material* Scene::CameraMaterial = nullptr;
 StaticMesh* Scene::DirectionalLightMesh = nullptr;
 Material* Scene::DirectionalLightMaterial = nullptr;
+#endif
 
 SceneRayCastHit Closer(const SceneRayCastHit& lhs, const SceneRayCastHit& rhs)
 {
@@ -36,6 +38,7 @@ Scene::Scene()
         return;
     }
 
+#ifdef USE_EDITOR
     AssetRegistry* Registry = AssetRegistry::Get();
 
     if (!LightBillboardTexture)
@@ -58,6 +61,8 @@ Scene::Scene()
     {
         DirectionalLightMaterial = new Material(Graphics->CreateMaterial(*(Registry->LoadTexture("Assets/textures/whiteTexture.png"))));
     }
+#endif
+
 }
 
 Scene::Scene(Scene& other)
@@ -956,6 +961,11 @@ void Scene::CopyInternal(const Scene& other)
         }
     }
 
+    for (auto& heMesh : other.m_HEMeshes)
+    {
+        AddHalfEdgeMesh(heMesh);
+    }
+
     for (auto& pointLight : other.m_PointLights)
     {
         AddPointLight(*pointLight);
@@ -966,7 +976,7 @@ void Scene::CopyInternal(const Scene& other)
     }
 }
 
-bool Scene::IsIgnored(Model* model, std::vector<Model*> ignoredModels)
+bool Scene::IsIgnored(Model* model, std::vector<Model*>& ignoredModels)
 {
     for (auto it : ignoredModels)
     {

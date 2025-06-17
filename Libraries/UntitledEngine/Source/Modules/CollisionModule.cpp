@@ -180,6 +180,7 @@ CollisionMesh* CollisionModule::GenerateCollisionMeshFromMesh(StaticMesh mesh)
 
     StaticMesh_ID Id = mesh.Id;
 
+    // TODO: collision mesh should be removed from this map when StaticMesh_ID is invalidated
     m_CollisionMeshMap[Id] = collMesh;
 
     return m_CollisionMeshMap[Id];
@@ -248,9 +249,6 @@ RayCastHit CollisionModule::RayCast(Ray ray, const CollisionMesh& mesh, const Ma
             }
         }
     }
-
-
-   
 
     resultHit.hitPoint = resultHit.hitPoint * meshTransform;
 

@@ -120,7 +120,7 @@ private:
 
     void CopyInternal(const Scene& other);
 
-    bool IsIgnored(Model* model, std::vector<Model*> ignoredModels);
+    bool IsIgnored(Model* model, std::vector<Model*>& ignoredModels);
 
     // Temp
 public:
@@ -161,12 +161,14 @@ private:
     Model* LoadModel(json& JsonObject, std::vector<Material>& MaterialVector, std::vector<StaticMesh>& StaticMeshVector);
     Model* LoadRawModel(json& JsonObject, std::vector<Material>& MaterialVector);
 
+#ifdef USE_EDITOR
     // Editor specific rendering stuff
     static Texture* LightBillboardTexture;
     static StaticMesh* CameraMesh;
     static Material* CameraMaterial;
     static StaticMesh* DirectionalLightMesh;
     static Material* DirectionalLightMaterial;
+#endif
 
     GUIDGenerator m_ModelIDGenerator;
 
