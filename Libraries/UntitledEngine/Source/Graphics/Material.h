@@ -4,14 +4,14 @@
 struct Material
 {
     Material() {}
-    Material(Texture Albedo, Texture Normal, Texture Roughness, Texture Metallic, Texture AO);
+    Material(Texture* Albedo, Texture* Normal, Texture* Roughness, Texture* Metallic, Texture* AO);
 
-    Texture m_Albedo;
-    Texture m_Normal;
-    Texture m_Metallic;
-    Texture m_Roughness;
-    Texture m_AO;
-    Texture m_Height;
+    Texture* m_Albedo;
+    Texture* m_Normal;
+    Texture* m_Metallic;
+    Texture* m_Roughness;
+    Texture* m_AO;
+    Texture* m_Height;
 
     friend bool operator<(const Material& lhs, const Material& rhs)
     {

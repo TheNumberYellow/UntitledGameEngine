@@ -1,5 +1,6 @@
 #pragma once
 
+#include <mutex>
 #include <stack>
 
 #define GUID unsigned int
@@ -18,4 +19,6 @@ private:
     GUID currentGUID;
 
     std::stack<GUID> freedGUIDs;
+
+    std::mutex guidMtx;
 };

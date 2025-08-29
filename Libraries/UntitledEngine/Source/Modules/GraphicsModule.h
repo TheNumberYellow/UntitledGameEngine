@@ -100,8 +100,10 @@ public:
 
     void AttachTextureToFBuffer(Texture texture, Framebuffer_ID fBufferID);
     
-    Texture CreateTexture(Vec2i size);
-    Texture LoadTexture(std::string filePath, TextureMode minFilter = TextureMode::LINEAR, TextureMode magFilter = TextureMode::LINEAR);
+    Texture* CreateTexture(Vec2i size);
+    Texture* LoadTexture(std::string filePath, TextureMode minFilter = TextureMode::LINEAR, TextureMode magFilter = TextureMode::LINEAR);
+    Texture* LoadTextureAsync(std::string filePath);
+
     void DeleteTexture(Texture_ID texID);
 
     StaticMesh LoadMesh(std::string filePath);
@@ -112,11 +114,11 @@ public:
     void ResetFrameBuffer();
 
     //Material CreateMaterial(Texture AlbedoMap, Texture NormalMap, Texture RoughnessMap, Texture MetallicMap, Texture AOMap, Texture HeightMap);
-    Material CreateMaterial(Texture AlbedoMap, Texture NormalMap, Texture RoughnessMap, Texture MetallicMap, Texture AOMap);
-    Material CreateMaterial(Texture AlbedoMap, Texture NormalMap, Texture RoughnessMap, Texture MetallicMap);
-    Material CreateMaterial(Texture AlbedoMap, Texture NormalMap, Texture RoughnessMap);
-    Material CreateMaterial(Texture AlbedoMap, Texture NormalMap);
-    Material CreateMaterial(Texture AlbedoMap);
+    Material CreateMaterial(Texture* AlbedoMap, Texture* NormalMap, Texture* RoughnessMap, Texture* MetallicMap, Texture* AOMap);
+    Material CreateMaterial(Texture* AlbedoMap, Texture* NormalMap, Texture* RoughnessMap, Texture* MetallicMap);
+    Material CreateMaterial(Texture* AlbedoMap, Texture* NormalMap, Texture* RoughnessMap);
+    Material CreateMaterial(Texture* AlbedoMap, Texture* NormalMap);
+    Material CreateMaterial(Texture* AlbedoMap);
 
     Model CreateModel(StaticMesh inStaticMesh, Material inMaterial);
 

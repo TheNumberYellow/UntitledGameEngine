@@ -1,5 +1,6 @@
 #pragma once
 
+#include <future>
 #include <string>
 #include <vector>
 #include <initializer_list>
@@ -186,6 +187,8 @@ public:
     Texture_ID LoadTexture(Vec2i size, std::vector<unsigned char> textureData, ColourFormat format, TextureMode minTexMode = TextureMode::LINEAR, TextureMode magTexMode = TextureMode::LINEAR);
     Texture_ID LoadTexture(std::string filePath, TextureMode minTexMode = TextureMode::LINEAR, TextureMode magTexMode = TextureMode::LINEAR);
     
+    std::future<Texture_ID> LoadTextureAsync(std::string filePath, TextureMode minTexMode = TextureMode::LINEAR, TextureMode magTexMode = TextureMode::LINEAR);
+
     bool IsTextureValid(Texture_ID texID);
     bool IsFBufferTextureValid(Framebuffer_ID bufID);
 
@@ -272,6 +275,9 @@ public:
     void SetCulling(Cull c);
 
     Vec2i GetViewportSize();
+
+    // TEMP
+
 
 private:
 

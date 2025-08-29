@@ -176,7 +176,7 @@ void UIModule::ImgPanel(Texture texture, Rect rect)
 
     m_Renderer.UpdateMeshData(m_RectMesh, UIElementFormat, vertexData.first, vertexData.second);
 
-    m_Renderer.SetActiveTexture(texture.Id, "Texture");
+    m_Renderer.SetActiveTexture(texture.GetID(), "Texture");
     m_Renderer.SetActiveShader(m_UIShader);
 
     m_Renderer.SetShaderUniformBool(m_UIShader, "Hovering", false);
@@ -320,7 +320,7 @@ Click UIModule::ImgButton(std::string name, Texture texture, Vec2f size, float b
 
     m_Renderer.SetShaderUniformVec3f(m_UIShader, "Colour", c_White);
 
-    m_Renderer.SetActiveTexture(texture.Id, "Texture");
+    m_Renderer.SetActiveTexture(texture.GetID(), "Texture");
 
     //TODO: come up with better depth testing solution for rendering UI
     m_Renderer.DrawMesh(m_RectMesh);

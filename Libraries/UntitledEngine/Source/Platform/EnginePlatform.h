@@ -32,6 +32,8 @@ namespace Engine
 
     extern void StopGame();
 
+    extern bool IsGameStopped();
+
     extern bool IsWindowFocused();
 
     extern bool FileOpenDialog(std::string& OutFileString);

@@ -160,6 +160,11 @@ void Engine::StopGame()
     running = false;
 }
 
+bool Engine::IsGameStopped()
+{
+    return !running;
+}
+
 bool Engine::IsWindowFocused()
 {
     return GetFocus() == WindowHandle;

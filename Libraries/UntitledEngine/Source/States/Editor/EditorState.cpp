@@ -299,12 +299,12 @@ void EditorState::LoadEditorResources()
     AssetRegistry* Registry = AssetRegistry::Get();
 
     // Load textures needed for editor gizmos
-    Texture RedTexture = *Registry->LoadTexture("Assets/textures/red.png");
-    Texture GreenTexture = *Registry->LoadTexture("Assets/textures/green.png");
-    Texture BlueTexture = *Registry->LoadTexture("Assets/textures/blue.png");
-    Texture PurpleTexture = *Registry->LoadTexture("Assets/textures/purple.png");
+    Texture* RedTexture = Registry->LoadTexture("Assets/textures/red.png");
+    Texture* GreenTexture = Registry->LoadTexture("Assets/textures/green.png");
+    Texture* BlueTexture = Registry->LoadTexture("Assets/textures/blue.png");
+    Texture* PurpleTexture = Registry->LoadTexture("Assets/textures/purple.png");
 
-    WhiteMaterial = Graphics->CreateMaterial(*Registry->LoadTexture("Assets/images/white.png"));
+    WhiteMaterial = Graphics->CreateMaterial(Registry->LoadTexture("Assets/images/white.png"));
 
     // Create translation gizmo models
     xAxisArrow = Graphics->CreateModel(
@@ -434,12 +434,20 @@ std::vector<Material> EditorState::LoadMaterials(GraphicsModule& graphics)
 
     std::vector<std::future<void>> textureFutures;
 
+    int i = 0;
     for (const auto& entry : std::filesystem::directory_iterator(path))
     {
+
+
         std::filesystem::path ext = entry.path().extension();
         std::string extensionString = ext.string();
         if (extensionString == ".png" || extensionString == ".jpg")
         {
+            if (i > 1)
+            {
+                break;
+            }
+            i++;
             std::string fileName = entry.path().generic_string();
 
             if (StringUtils::Contains(fileName, ".norm."))
@@ -491,7 +499,7 @@ Material EditorState::LoadMaterial(std::filesystem::path materialPath)
 
     std::string fileName = materialPath.generic_string();
 
-    Texture newTexture = *Registry->LoadTexture(fileName);
+    Texture* newTexture = Registry->LoadTexture(fileName, true);
 
     if (std::filesystem::exists(NormalMapString))
     {
@@ -501,30 +509,30 @@ Material EditorState::LoadMaterial(std::filesystem::path materialPath)
             {
                 if (std::filesystem::exists(AOMapString))
                 {
-                    Texture newNormal = *Registry->LoadTexture(NormalMapString);
-                    Texture newRoughness = *Registry->LoadTexture(RoughnessMapString);
-                    Texture newMetal = *Registry->LoadTexture(MetallicMapString);
-                    Texture newAO = *Registry->LoadTexture(AOMapString);
+                    Texture* newNormal = Registry->LoadTexture(NormalMapString, true);
+                    Texture* newRoughness = Registry->LoadTexture(RoughnessMapString, true);
+                    Texture* newMetal = Registry->LoadTexture(MetallicMapString, true);
+                    Texture* newAO = Registry->LoadTexture(AOMapString, true);
                     newMaterial = Graphics->CreateMaterial(newTexture, newNormal, newRoughness, newMetal, newAO);
                 }
                 else
                 {
-                    Texture newNormal = *Registry->LoadTexture(NormalMapString);
-                    Texture newRoughness = *Registry->LoadTexture(RoughnessMapString);
-                    Texture newMetal = *Registry->LoadTexture(MetallicMapString);
+                    Texture* newNormal = Registry->LoadTexture(NormalMapString, true);
+                    Texture* newRoughness = Registry->LoadTexture(RoughnessMapString, true);
+                    Texture* newMetal = Registry->LoadTexture(MetallicMapString, true);
                     newMaterial = Graphics->CreateMaterial(newTexture, newNormal, newRoughness, newMetal);
                 }
             }
             else
             {
-                Texture newNormal = *Registry->LoadTexture(NormalMapString);
-                Texture newRoughness = *Registry->LoadTexture(RoughnessMapString);
+                Texture* newNormal = Registry->LoadTexture(NormalMapString, true);
+                Texture* newRoughness = Registry->LoadTexture(RoughnessMapString, true);
                 newMaterial = Graphics->CreateMaterial(newTexture, newNormal, newRoughness);
             }
         }
         else
         {
-            Texture newNormal = *Registry->LoadTexture(NormalMapString);
+            Texture* newNormal = Registry->LoadTexture(NormalMapString, true);
             newMaterial = Graphics->CreateMaterial(newTexture, newNormal);
         }
     }
@@ -951,7 +959,7 @@ void EditorState::DrawEntityEditor()
         {
             for (auto& Mat : LoadedMaterials)
             {
-                if (UI->ImgButton(Mat.m_Albedo.Path.GetFileNameNoExt(), Mat.m_Albedo, Vec2f(80, 80), 5.0f, c_ResourceButton).clicking)
+                if (UI->ImgButton(Mat.m_Albedo->Path.GetFileNameNoExt(), *Mat.m_Albedo, Vec2f(80, 80), 5.0f, c_ResourceButton).clicking)
                 {
                     if (!Cursor.IsDraggingSomething())
                     {
@@ -1315,8 +1323,9 @@ void EditorState::DrawResourcesPanel(Scene& FocusedScene)
             {
                 for (auto& Mat : LoadedMaterials)
                 {
-                    if (UI->ImgButton(Mat.m_Albedo.Path.GetFileNameNoExt(), Mat.m_Albedo, Vec2f(80, 80), 5.0f, c_ResourceButton).clicking)
+                    if (UI->ImgButton(Mat.m_Albedo->Path.GetFileNameNoExt(), *Mat.m_Albedo, Vec2f(80, 80), 5.0f, c_ResourceButton).clicking)
                     {
+                        lastUsedMaterial = &Mat;
                         if (!Cursor.IsDraggingSomething())
                         {
                             Material* MatPtr = &Mat;
@@ -1324,6 +1333,15 @@ void EditorState::DrawResourcesPanel(Scene& FocusedScene)
                         }
 
                     }
+                }
+
+                if (lastUsedMaterial)
+                {
+                    UI->ImgButton(lastUsedMaterial->m_Albedo->Path.GetFileNameNoExt(), *lastUsedMaterial->m_Albedo, Vec2f(40, 40), 0.0f);
+                    UI->ImgButton(lastUsedMaterial->m_Normal->Path.GetFileNameNoExt(), *lastUsedMaterial->m_Normal, Vec2f(40, 40), 0.0f);
+                    UI->ImgButton(lastUsedMaterial->m_Roughness->Path.GetFileNameNoExt(), *lastUsedMaterial->m_Roughness, Vec2f(40, 40), 0.0f);
+                    UI->ImgButton(lastUsedMaterial->m_Metallic->Path.GetFileNameNoExt(), *lastUsedMaterial->m_Metallic, Vec2f(40, 40), 0.0f);
+                    UI->ImgButton(lastUsedMaterial->m_AO->Path.GetFileNameNoExt(), *lastUsedMaterial->m_AO, Vec2f(40, 40), 0.0f);
                 }
             }
             UI->EndTab();

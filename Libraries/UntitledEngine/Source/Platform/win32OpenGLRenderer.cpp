@@ -6,6 +6,9 @@
 
 #include <gl/gl.h>
 
+#include <queue>
+#include <future>
+#include <mutex>
 #include <vector>
 #include <string>
 #include <unordered_map>
@@ -36,6 +39,8 @@ VertexBufferFormat::VertexBufferFormat(std::initializer_list<VertAttribute> vert
 
 void VertexBufferFormat::EnableVertexAttributes() const
 {
+    //std::lock_guard<std::mutex> lock(glTextureLock);
+
     size_t offset = 0;
     for (int i = 0; i < _attributes.size(); ++i)
     {
@@ -916,6 +921,12 @@ namespace
         DrawType drawType = DrawType::Triangle;
     };
 
+    struct TextureLoadRequest
+    {
+        std::string filePath;
+        std::promise<Texture_ID> promise;
+    };
+
     std::unordered_map<Framebuffer_ID, OpenGLFBuffer> fBufferMap;
     std::unordered_map<Texture_ID, OpenGLTexture> textureMap;
     std::unordered_map<Cubemap_ID, OpenGLCubemap> cubemapMap;
@@ -926,10 +937,52 @@ namespace
 
     HDC deviceContext;
     HGLRC glContext;
+    HGLRC loadingContext;
+    // Fraser: necessary?
+    //HDC loadingDeviceContext;
+
+    // Loading thread stuff
+    bool useLoadingThread = false;
+    std::thread loadingThread;
+    std::queue<std::shared_ptr<TextureLoadRequest>> textureRequestStack;
+    std::mutex textureRequestMtx;
+
+    std::mutex textureMapMtx;
 
     //TEMP (fraser)
     Texture_ID whiteRenderTexture;
     bool renderDebugMesh = false;
+
+    void ResourceLoadThread(Renderer* renderer)
+    {
+        wglMakeCurrent(deviceContext, loadingContext);
+
+        while (!Engine::IsGameStopped())
+        {
+            // TODO: Make notify here
+            std::shared_ptr<TextureLoadRequest> request;
+            {
+                std::lock_guard<std::mutex> lock(textureRequestMtx);
+
+                if (!textureRequestStack.empty())
+                {
+                    request = textureRequestStack.front();
+                    textureRequestStack.pop();
+                }
+            }
+            if (request)
+            {
+                // Load texture
+                std::string filePath = request->filePath;
+
+                Texture_ID tex = renderer->LoadTexture(request->filePath);
+
+                request->promise.set_value(tex);
+            }
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+    }
 
     OpenGLFBuffer* GetGLFBufferFromFBufferID(Framebuffer_ID fBufferID)
     {
@@ -1025,6 +1078,8 @@ MessageCallback(GLenum source,
 
 Renderer::Renderer()
 {
+    //std::lock_guard<std::mutex> lock(glTextureLock);
+    
     HWND window = GetActiveWindow();
 
     deviceContext = GetDC(window);
@@ -1075,6 +1130,10 @@ Renderer::Renderer()
         wglMakeCurrent(deviceContext, 0);
         wglDeleteContext(tempGlContext);
         wglMakeCurrent(deviceContext, glContext);   
+    
+        loadingContext = wglCreateContextAttribsARB(deviceContext, 0, gl34_attribs);
+        useLoadingThread = true;
+        wglShareLists(glContext, loadingContext);
     }
     else
     {
@@ -1110,7 +1169,7 @@ Renderer::Renderer()
 
     // TODO(fraser): come up with a way for the .lib to store textures I want to be included in the engine (ie. white texture)
     // Will probably write something to load an image into a header file which can be included wherever it's needed
-    whiteRenderTexture = LoadTexture("images/white.png");
+    whiteRenderTexture = LoadTexture("Assets/images/white.png");
 
     // TEMP(fraser)
     glLineWidth(1.0f);
@@ -1127,12 +1186,24 @@ Renderer::Renderer()
     glGetIntegerv(GL_MINOR_VERSION, &minor);
     std::string debugStr = "OpenGL version: " + std::to_string(major) + "." + std::to_string(minor);
     //Engine::Alert(debugStr);
+
+    // Kick off loading thread
+    if (useLoadingThread)
+    {
+        loadingThread = std::thread(ResourceLoadThread, this);
+    }
 }
 
 Renderer::~Renderer()
 {
     wglMakeCurrent(deviceContext, nullptr);
     wglDeleteContext(glContext);
+
+    if (useLoadingThread)
+    {
+        wglDeleteContext(loadingContext);
+        loadingThread.join();
+    }
 }
 
 Framebuffer_ID Renderer::CreateFrameBuffer(Vec2i size, FBufferFormat format)
@@ -1215,6 +1286,21 @@ Texture_ID Renderer::LoadTexture(std::string filePath, TextureMode minTexMode, T
 
     textureMap.insert(std::pair<Texture_ID, OpenGLTexture>(newID, newTexture));
     return newID;
+}
+
+std::future<Texture_ID> Renderer::LoadTextureAsync(std::string filePath, TextureMode minTexMode, TextureMode magTexMode)
+{
+    std::shared_ptr<TextureLoadRequest> loadRequest = std::make_shared<TextureLoadRequest>();
+    loadRequest->filePath = filePath;
+
+    std::future<Texture_ID> texFuture = loadRequest->promise.get_future();
+    {
+        std::lock_guard<std::mutex> lock(textureRequestMtx);
+
+        textureRequestStack.push(loadRequest);
+    }
+
+    return texFuture;
 }
 
 bool Renderer::IsTextureValid(Texture_ID texID)

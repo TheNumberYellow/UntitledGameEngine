@@ -18,7 +18,10 @@ public:
 class Texture : public Asset
 {
 public:
-    Texture_ID Id;
+    
+    Texture_ID GetID();
+
+    void SetID(Texture_ID inId);
 
     friend bool operator<(const Texture& lhs, const Texture& rhs)
     {
@@ -29,6 +32,8 @@ public:
     {
         return lhs.Id == rhs.Id;
     }
+private:
+    Texture_ID Id;
 };
 
 class StaticMesh : public Asset
@@ -57,14 +62,16 @@ public:
     void LoadAsset(std::string Path);
     void LoadAsset(FilePath Path);
 
-    Texture* LoadTexture(FilePath Path);
+    Texture* LoadTexture(FilePath Path, bool LazyLoad = false);
     StaticMesh* LoadStaticMesh(FilePath Path);
+
+    Texture_ID DefaultTexture;
 
 private:
 
     AssetRegistry() = default;
 
-    std::unordered_map<std::string, Texture> m_LoadedTextures;
+    std::unordered_map<std::string, Texture*> m_LoadedTextures;
     std::unordered_map<std::string, StaticMesh> m_LoadedStaticMeshes;
 
     GraphicsModule* m_GraphicsModule;

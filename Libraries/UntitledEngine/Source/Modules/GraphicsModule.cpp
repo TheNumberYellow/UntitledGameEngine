@@ -5,11 +5,12 @@
 #include "HalfEdge/HalfEdge.h"  
 #include "Scene.h"
 
+#include <future>
 #include <random>
 
 GraphicsModule* GraphicsModule::s_Instance = nullptr;
 
-Material::Material(Texture Albedo, Texture Normal, Texture Roughness, Texture Metallic, Texture AO)
+Material::Material(Texture* Albedo, Texture* Normal, Texture* Roughness, Texture* Metallic, Texture* AO)
     : m_Albedo(Albedo)
     , m_Normal(Normal)
     , m_Roughness(Roughness)
@@ -1274,8 +1275,8 @@ void GraphicsModule::Initialize()
     m_DefaultAOMap = *Registry->LoadTexture("Assets/textures/default_ao.png");
     m_DefaultHeightMap = *Registry->LoadTexture("Assets/textures/default_height.png");
 
-    m_DebugMaterial = CreateMaterial(*Registry->LoadTexture("Assets/textures/debugTexture0.png"),
-        *Registry->LoadTexture("Assets/textures/debugTexture0.norm.png"));
+    m_DebugMaterial = CreateMaterial(Registry->LoadTexture("Assets/textures/debugTexture0.png"),
+        Registry->LoadTexture("Assets/textures/debugTexture0.norm.png"));
 }
 
 GBuffer GraphicsModule::CreateGBuffer(Vec2i Size)
@@ -1369,11 +1370,11 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam)
     {
         m_Renderer.SetShaderUniformMat4x4f(m_GBufferShader, "Transformation", Command.m_TransMat);
 
-        m_Renderer.SetActiveTexture(Command.m_Material.m_Albedo.Id, "AlbedoMap");
-        m_Renderer.SetActiveTexture(Command.m_Material.m_Normal.Id, "NormalMap");
-        m_Renderer.SetActiveTexture(Command.m_Material.m_Metallic.Id, "MetallicMap");
-        m_Renderer.SetActiveTexture(Command.m_Material.m_Roughness.Id, "RoughnessMap");
-        m_Renderer.SetActiveTexture(Command.m_Material.m_AO.Id, "AOMap");
+        m_Renderer.SetActiveTexture(Command.m_Material.m_Albedo->GetID(), "AlbedoMap");
+        m_Renderer.SetActiveTexture(Command.m_Material.m_Normal->GetID(), "NormalMap");
+        m_Renderer.SetActiveTexture(Command.m_Material.m_Metallic->GetID(), "MetallicMap");
+        m_Renderer.SetActiveTexture(Command.m_Material.m_Roughness->GetID(), "RoughnessMap");
+        m_Renderer.SetActiveTexture(Command.m_Material.m_AO->GetID(), "AOMap");
 
         m_Renderer.DrawMesh(Command.m_Mesh);
     }
@@ -1604,27 +1605,48 @@ void GraphicsModule::DeleteFBuffer(Framebuffer_ID Buffer)
     m_Renderer.DeleteFrameBuffer(Buffer);
 }
 
-Texture GraphicsModule::CreateTexture(Vec2i size)
+Texture* GraphicsModule::CreateTexture(Vec2i size)
 {
     Texture_ID Id = m_Renderer.CreateEmptyTexture(size);
 
     Texture Result;
-    Result.Id = Id;
+    Result.SetID(Id);
     Result.LoadedFromFile = false;
+    Result.Loaded = true;
 
-    return Result;
+    return new Texture(Result);
 }
 
-Texture GraphicsModule::LoadTexture(std::string filePath, TextureMode minFilter, TextureMode magFilter)
+Texture* GraphicsModule::LoadTexture(std::string filePath, TextureMode minFilter, TextureMode magFilter)
 {
     Texture_ID Id = m_Renderer.LoadTexture(filePath, minFilter, magFilter);
 
     Texture Result;
-    Result.Id = Id;
+    Result.SetID(Id);
     Result.LoadedFromFile = true;
     Result.Path = filePath;
+    Result.Loaded = true;
 
-    return Result;
+    return new Texture(Result);
+}
+
+Texture* GraphicsModule::LoadTextureAsync(std::string filePath)
+{
+    Texture* newTexture = new Texture();
+
+    newTexture->LoadedFromFile = true;
+    newTexture->Path = filePath;
+    newTexture->Loaded = false;
+
+    auto future = m_Renderer.LoadTextureAsync(filePath);
+
+    std::thread([newTexture, future = std::move(future)]() mutable
+        {
+            newTexture->SetID(future.get());
+            newTexture->Loaded = true;
+        }).detach();
+
+    return newTexture;
 }
 
 void GraphicsModule::DeleteTexture(Texture_ID texID)
@@ -1654,7 +1676,7 @@ StaticMesh GraphicsModule::LoadMesh(std::string filePath)
 
 void GraphicsModule::AttachTextureToFBuffer(Texture texture, Framebuffer_ID fBufferID)
 {
-    m_Renderer.AttachTextureToFramebuffer(texture.Id, fBufferID);
+    m_Renderer.AttachTextureToFramebuffer(texture.GetID(), fBufferID);
 }
 
 void GraphicsModule::SetActiveFrameBuffer(Framebuffer_ID fBufferID, bool clearBuffer)
@@ -1742,33 +1764,33 @@ void GraphicsModule::ResetFrameBuffer()
 //    return Result;
 //}
 
-Material GraphicsModule::CreateMaterial(Texture AlbedoMap, Texture NormalMap, Texture RoughnessMap, Texture MetallicMap, Texture AOMap)
+Material GraphicsModule::CreateMaterial(Texture* AlbedoMap, Texture* NormalMap, Texture* RoughnessMap, Texture* MetallicMap, Texture* AOMap)
 {
     Material Result = Material(AlbedoMap, NormalMap, RoughnessMap, MetallicMap, AOMap);
     return Result;
 }
 
-Material GraphicsModule::CreateMaterial(Texture AlbedoMap, Texture NormalMap, Texture RoughnessMap, Texture MetallicMap)
+Material GraphicsModule::CreateMaterial(Texture* AlbedoMap, Texture* NormalMap, Texture* RoughnessMap, Texture* MetallicMap)
 {
-    Material Result = Material(AlbedoMap, NormalMap, RoughnessMap, MetallicMap, m_DefaultAOMap);
+    Material Result = Material(AlbedoMap, NormalMap, RoughnessMap, MetallicMap, &m_DefaultAOMap);
     return Result;
 }
 
-Material GraphicsModule::CreateMaterial(Texture AlbedoMap, Texture NormalMap, Texture RoughnessMap)
+Material GraphicsModule::CreateMaterial(Texture* AlbedoMap, Texture* NormalMap, Texture* RoughnessMap)
 {
-    Material Result = Material(AlbedoMap, NormalMap, RoughnessMap, m_DefaultMetallicMap, m_DefaultAOMap);
+    Material Result = Material(AlbedoMap, NormalMap, RoughnessMap, &m_DefaultMetallicMap, &m_DefaultAOMap);
     return Result;
 }
 
-Material GraphicsModule::CreateMaterial(Texture AlbedoMap, Texture NormalMap)
+Material GraphicsModule::CreateMaterial(Texture* AlbedoMap, Texture* NormalMap)
 {
-    Material Result = Material(AlbedoMap, NormalMap, m_DefaultRoughnessMap, m_DefaultMetallicMap, m_DefaultAOMap);
+    Material Result = Material(AlbedoMap, NormalMap, &m_DefaultRoughnessMap, &m_DefaultMetallicMap, &m_DefaultAOMap);
     return Result;
 }
 
-Material GraphicsModule::CreateMaterial(Texture AlbedoMap)
+Material GraphicsModule::CreateMaterial(Texture* AlbedoMap)
 {
-    Material Result = Material(AlbedoMap, m_DefaultNormalMap, m_DefaultRoughnessMap, m_DefaultMetallicMap, m_DefaultAOMap);
+    Material Result = Material(AlbedoMap, &m_DefaultNormalMap, &m_DefaultRoughnessMap, &m_DefaultMetallicMap, &m_DefaultAOMap);
     return Result;
 }
 
@@ -2116,11 +2138,11 @@ void GraphicsModule::Draw(Model& model)
         m_Renderer.SetActiveShader(m_TexturedMeshShader);
         m_Renderer.SetShaderUniformMat4x4f(m_TexturedMeshShader, "Transformation", model.GetTransform().GetTransformMatrix());
 
-        m_Renderer.SetActiveTexture(model.m_Material.m_Normal.Id, "NormalMap");
-        m_Renderer.SetActiveTexture(model.m_Material.m_Albedo.Id, "AlbedoMap");
-        m_Renderer.SetActiveTexture(model.m_Material.m_Metallic.Id, "MetallicMap");
-        m_Renderer.SetActiveTexture(model.m_Material.m_Roughness.Id, "RoughnessMap");
-        m_Renderer.SetActiveTexture(model.m_Material.m_AO.Id, "AOMap");
+        m_Renderer.SetActiveTexture(model.m_Material.m_Normal->GetID(), "NormalMap");
+        m_Renderer.SetActiveTexture(model.m_Material.m_Albedo->GetID(), "AlbedoMap");
+        m_Renderer.SetActiveTexture(model.m_Material.m_Metallic->GetID(), "MetallicMap");
+        m_Renderer.SetActiveTexture(model.m_Material.m_Roughness->GetID(), "RoughnessMap");
+        m_Renderer.SetActiveTexture(model.m_Material.m_AO->GetID(), "AOMap");
         m_Renderer.DrawMesh(model.m_StaticMesh.Id);
 
     }
@@ -2136,7 +2158,7 @@ void GraphicsModule::Draw(Model& model)
         m_Renderer.SetActiveShader(m_UnlitShader);
         m_Renderer.SetShaderUniformMat4x4f(m_UnlitShader, "Transformation", model.GetTransform().GetTransformMatrix());
 
-        m_Renderer.SetActiveTexture(model.m_Material.m_Albedo.Id, "AlbedoMap");
+        m_Renderer.SetActiveTexture(model.m_Material.m_Albedo->GetID(), "AlbedoMap");
         m_Renderer.DrawMesh(model.m_StaticMesh.Id);
     }
 }

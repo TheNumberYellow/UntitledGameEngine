@@ -51,7 +51,7 @@ Scene::Scene()
     }
     if (!CameraMaterial)
     {
-        CameraMaterial = new Material(Graphics->CreateMaterial(*(Registry->LoadTexture("Assets/textures/Camera.png"))));
+        CameraMaterial = new Material(Graphics->CreateMaterial((Registry->LoadTexture("Assets/textures/Camera.png"))));
     }
     if (!DirectionalLightMesh)
     {
@@ -59,7 +59,7 @@ Scene::Scene()
     }
     if (!DirectionalLightMaterial)
     {
-        DirectionalLightMaterial = new Material(Graphics->CreateMaterial(*(Registry->LoadTexture("Assets/textures/whiteTexture.png"))));
+        DirectionalLightMaterial = new Material(Graphics->CreateMaterial((Registry->LoadTexture("Assets/textures/whiteTexture.png"))));
     }
 #endif
 
@@ -337,7 +337,7 @@ void Scene::EditorDraw(GraphicsModule& graphics, GBuffer gBuffer, Camera* editor
         BillboardRenderCommand BillboardRC;
         BillboardRC.m_Colour = Light->colour;
         BillboardRC.m_Position = Light->position;
-        BillboardRC.m_Texture = LightBillboardTexture->Id;
+        BillboardRC.m_Texture = LightBillboardTexture->GetID();
         BillboardRC.m_Size = 0.5f;
 
         graphics.AddRenderCommand(BillboardRC);
@@ -495,7 +495,7 @@ void Scene::Save(std::string FileName)
     {
         Model* model = it.second;
 
-        Texture tex = model->m_Material.m_Albedo;
+        //Texture tex = model->m_Material.m_Albedo;
         StaticMesh mesh = model->m_StaticMesh;
         
         Material mat = model->m_Material;
@@ -821,41 +821,41 @@ void Scene::LegacyLoad(std::string FileName)
         case TEXTURES:
             if (LineTokens.size() == 5)
             {
-                Texture DiffuseTex = *Registry->LoadTexture(LineTokens[0]);
-                Texture NormalTex = *Registry->LoadTexture(LineTokens[1]);
-                Texture RoughnessTex = *Registry->LoadTexture(LineTokens[2]);
-                Texture MetallicTex = *Registry->LoadTexture(LineTokens[3]);
-                Texture AOTex = *Registry->LoadTexture(LineTokens[4]);
+                Texture* DiffuseTex = Registry->LoadTexture(LineTokens[0]);
+                Texture* NormalTex = Registry->LoadTexture(LineTokens[1]);
+                Texture* RoughnessTex = Registry->LoadTexture(LineTokens[2]);
+                Texture* MetallicTex = Registry->LoadTexture(LineTokens[3]);
+                Texture* AOTex = Registry->LoadTexture(LineTokens[4]);
 
                 SceneMaterials.push_back(Graphics->CreateMaterial(DiffuseTex, NormalTex, RoughnessTex, MetallicTex, AOTex));
             }
             else if (LineTokens.size() == 4)
             {
-                Texture DiffuseTex = *Registry->LoadTexture(LineTokens[0]);
-                Texture NormalTex = *Registry->LoadTexture(LineTokens[1]);
-                Texture RoughnessTex = *Registry->LoadTexture(LineTokens[2]);
-                Texture MetallicTex = *Registry->LoadTexture(LineTokens[3]);
+                Texture* DiffuseTex = Registry->LoadTexture(LineTokens[0]);
+                Texture* NormalTex = Registry->LoadTexture(LineTokens[1]);
+                Texture* RoughnessTex = Registry->LoadTexture(LineTokens[2]);
+                Texture* MetallicTex = Registry->LoadTexture(LineTokens[3]);
 
                 SceneMaterials.push_back(Graphics->CreateMaterial(DiffuseTex, NormalTex, RoughnessTex, MetallicTex));
             }
             else if (LineTokens.size() == 3)
             {
-                Texture DiffuseTex = *Registry->LoadTexture(LineTokens[0]);
-                Texture NormalTex = *Registry->LoadTexture(LineTokens[1]);
-                Texture RoughnessTex = *Registry->LoadTexture(LineTokens[2]);
+                Texture* DiffuseTex = Registry->LoadTexture(LineTokens[0]);
+                Texture* NormalTex = Registry->LoadTexture(LineTokens[1]);
+                Texture* RoughnessTex = Registry->LoadTexture(LineTokens[2]);
 
                 SceneMaterials.push_back(Graphics->CreateMaterial(DiffuseTex, NormalTex, RoughnessTex));
             }
             else if (LineTokens.size() == 2)
             {
-                Texture DiffuseTex = *Registry->LoadTexture(LineTokens[0]);
-                Texture NormalTex = *Registry->LoadTexture(LineTokens[1]);
+                Texture* DiffuseTex = Registry->LoadTexture(LineTokens[0]);
+                Texture* NormalTex = Registry->LoadTexture(LineTokens[1]);
 
                 SceneMaterials.push_back(Graphics->CreateMaterial(DiffuseTex, NormalTex));
             }
             else
             {
-                Texture DiffuseTex = *Registry->LoadTexture(LineTokens[0]);
+                Texture* DiffuseTex = Registry->LoadTexture(LineTokens[0]);
                 SceneMaterials.push_back(Graphics->CreateMaterial(DiffuseTex));
             }
             break;
@@ -1056,11 +1056,11 @@ bool Scene::GetReaderStateFromToken(std::string Token, FileReaderState& OutState
 
 void Scene::SaveMaterial(json& JsonObject, Material& Mat)
 {
-    JsonObject[0] = Mat.m_Albedo.Path.GetFullPath();
-    JsonObject[1] = Mat.m_Normal.Path.GetFullPath();
-    JsonObject[2] = Mat.m_Roughness.Path.GetFullPath();
-    JsonObject[3] = Mat.m_Metallic.Path.GetFullPath();
-    JsonObject[4] = Mat.m_AO.Path.GetFullPath();
+    JsonObject[0] = Mat.m_Albedo->Path.GetFullPath();
+    JsonObject[1] = Mat.m_Normal->Path.GetFullPath();
+    JsonObject[2] = Mat.m_Roughness->Path.GetFullPath();
+    JsonObject[3] = Mat.m_Metallic->Path.GetFullPath();
+    JsonObject[4] = Mat.m_AO->Path.GetFullPath();
 }
 
 void Scene::SaveStaticMesh(json& JsonObject, StaticMesh& Mesh)
@@ -1148,7 +1148,7 @@ Material Scene::LoadMaterial(json& JsonObject)
     Texture* Metallic = AssetRegistry::Get()->LoadTexture(metalPath);
     Texture* AO = AssetRegistry::Get()->LoadTexture(aoPath);
 
-    return Material(*Albedo, *Normal, *Roughness, *Metallic, *AO);
+    return Material(Albedo, Normal, Roughness, Metallic, AO);
 }
 
 StaticMesh Scene::LoadStaticMesh(json& JsonObject)

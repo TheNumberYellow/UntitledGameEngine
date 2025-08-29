@@ -15,7 +15,7 @@ void ServerGameState::OnInitialized(ArgsList args)
     graphics->InitializeDebugDraw(ViewportBuffer.FinalOutput);
 
     AssetRegistry* Registry = AssetRegistry::Get();
-    SphereModelPrototype = graphics->CreateModel(*Registry->LoadStaticMesh("Assets/models/UVBall.obj"), graphics->CreateMaterial(*Registry->LoadTexture("Assets/textures/marble.jpg")));
+    SphereModelPrototype = graphics->CreateModel(*Registry->LoadStaticMesh("Assets/models/UVBall.obj"), graphics->CreateMaterial(Registry->LoadTexture("Assets/textures/marble.jpg")));
 }
 
 void ServerGameState::OnUninitialized()

@@ -12,6 +12,7 @@ GUIDGenerator::GUIDGenerator(GUID initialGUID)
 
 GUID GUIDGenerator::Generate()
 {
+    std::lock_guard<std::mutex> lock(guidMtx);
     if (freedGUIDs.empty())
     {
         return currentGUID++;
@@ -26,11 +27,14 @@ GUID GUIDGenerator::Generate()
 
 void GUIDGenerator::FreeID(GUID inID)
 {
+    std::lock_guard<std::mutex> lock(guidMtx);
     freedGUIDs.push(inID);
 }
 
 void GUIDGenerator::Reset()
 {
+    std::lock_guard<std::mutex> lock(guidMtx);
+
     while (!freedGUIDs.empty())
     {
         freedGUIDs.pop();

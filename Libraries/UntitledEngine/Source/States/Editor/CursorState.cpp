@@ -144,7 +144,7 @@ void CursorState::Update(double DeltaTime)
         Vec2i MousePos = Input->GetMouseState().GetMousePos();
         if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).pressed)
         {
-            UI->ImgPanel(DraggingMaterialPtr->m_Albedo, Rect(Vec2f(MousePos), Vec2f(40.0f, 40.0f)));
+            UI->ImgPanel(*DraggingMaterialPtr->m_Albedo, Rect(Vec2f(MousePos), Vec2f(40.0f, 40.0f)));
         }
         else
         {

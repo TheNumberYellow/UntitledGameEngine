@@ -25,8 +25,8 @@ void TopDownPlayer::Update(Scene* Scene, double DeltaTime)
     if (!Started)
     {
         AssetRegistry* Registry = AssetRegistry::Get();
-        GhostModelPrototype = Graphics.CreateModel(*Registry->LoadStaticMesh("Assets/models/Ghost.obj"), Graphics.CreateMaterial(*Registry->LoadTexture("Assets/textures/Ghost.png")));
-        BulletModelPrototype = Graphics.CreateModel(*Registry->LoadStaticMesh("Assets/models/Buckyball.obj"), Graphics.CreateMaterial(*Registry->LoadTexture("Assets/textures/transpink.png")));
+        GhostModelPrototype = Graphics.CreateModel(*Registry->LoadStaticMesh("Assets/models/Ghost.obj"), Graphics.CreateMaterial(Registry->LoadTexture("Assets/textures/Ghost.png")));
+        BulletModelPrototype = Graphics.CreateModel(*Registry->LoadStaticMesh("Assets/models/Buckyball.obj"), Graphics.CreateMaterial(Registry->LoadTexture("Assets/textures/transpink.png")));
 
         Started = true;
     }

@@ -245,4 +245,6 @@ private:
     int PrevAveFPS = 0;
 
     Font TestFont;
+
+    Material* lastUsedMaterial = nullptr;
 };
