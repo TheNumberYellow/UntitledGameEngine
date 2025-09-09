@@ -980,6 +980,9 @@ namespace
                 request->promise.set_value(tex);
             }
 
+            // Ensure all texture loads complete
+            glFlush();
+
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
     }
@@ -1129,16 +1132,27 @@ Renderer::Renderer()
         glContext = wglCreateContextAttribsARB(deviceContext, 0, gl34_attribs);
         wglMakeCurrent(deviceContext, 0);
         wglDeleteContext(tempGlContext);
-        wglMakeCurrent(deviceContext, glContext);   
     
-        loadingContext = wglCreateContextAttribsARB(deviceContext, 0, gl34_attribs);
+        wglMakeCurrent(0, 0);
+    
+        loadingContext = wglCreateContextAttribsARB(deviceContext, glContext, gl34_attribs);
+        if (!loadingContext)
+        {
+            DWORD error = GetLastError();
+
+            LPSTR messageBuffer = nullptr;
+            std::string message = std::system_category().message(error);
+
+            Engine::Error(message);
+        }
         useLoadingThread = true;
-        wglShareLists(glContext, loadingContext);
     }
     else
     {
         glContext = tempGlContext;
     }
+
+    wglMakeCurrent(deviceContext, glContext);
 
     if (wglewIsSupported("WGL_EXT_swap_control") == 1)
     {
@@ -2066,4 +2080,16 @@ Vec2i Renderer::GetViewportSize()
 
     glGetIntegerv(GL_VIEWPORT, m_viewport);
     return Vec2i(m_viewport[2] - m_viewport[0], m_viewport[3] - m_viewport[1]);
+}
+
+std::vector<Texture_ID> Renderer::GetAllTextureIDs()
+{
+    std::lock_guard<std::mutex> lock(textureRequestMtx);
+
+    std::vector<Texture_ID> textures;
+    for (auto& [key, val] : textureMap)
+    {
+        textures.push_back(key);
+    }
+    return textures;
 }

@@ -482,7 +482,23 @@ LRESULT CALLBACK WindowProc(_In_ HWND WindowHandle, _In_ UINT Message, _In_ WPAR
 // Program entry point
 int WinMain(_In_ HINSTANCE InInstance, _In_opt_ HINSTANCE InPreviousInstance, _In_ LPSTR CommandLine, _In_ int ShowCommand)
 {
-    
+    // Command line options
+    bool waitForDebugger = false;
+
+    LPWSTR* argList;
+    int argCount;
+    argList = CommandLineToArgvW(GetCommandLine(), &argCount);
+    for (int i = 0; i < argCount; i++)
+    {
+        if (wcscmp(argList[i], L"-waitfordebugger") == 0)
+        {
+            waitForDebugger = true;
+        }
+    }
+    LocalFree(argList);
+
+
+
     Instance = InInstance;
 
     // Initialize window class
@@ -530,6 +546,14 @@ int WinMain(_In_ HINSTANCE InInstance, _In_opt_ HINSTANCE InPreviousInstance, _I
 
     QueryPerformanceFrequency((LARGE_INTEGER*)&TICKS_PER_SECOND);
     QueryPerformanceCounter((LARGE_INTEGER*)&LAST_FRAME_TICK_COUNT);
+
+    if (waitForDebugger)
+    {
+        while (!IsDebuggerPresent())
+        {
+            Sleep(100);
+        }
+    }
 
     // Set up modules
     Renderer renderer;

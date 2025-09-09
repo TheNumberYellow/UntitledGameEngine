@@ -443,11 +443,7 @@ std::vector<Material> EditorState::LoadMaterials(GraphicsModule& graphics)
         std::string extensionString = ext.string();
         if (extensionString == ".png" || extensionString == ".jpg")
         {
-            if (i > 1)
-            {
-                break;
-            }
-            i++;
+
             std::string fileName = entry.path().generic_string();
 
             if (StringUtils::Contains(fileName, ".norm."))
@@ -487,6 +483,8 @@ Material EditorState::LoadMaterial(std::filesystem::path materialPath)
     AssetRegistry* Registry = AssetRegistry::Get();
     GraphicsModule* Graphics = GraphicsModule::Get();
 
+    bool useLazyLoad = true;
+
     Material newMaterial;
 
     std::filesystem::path ext = materialPath.extension();
@@ -499,7 +497,7 @@ Material EditorState::LoadMaterial(std::filesystem::path materialPath)
 
     std::string fileName = materialPath.generic_string();
 
-    Texture* newTexture = Registry->LoadTexture(fileName, true);
+    Texture* newTexture = Registry->LoadTexture(fileName, useLazyLoad);
 
     if (std::filesystem::exists(NormalMapString))
     {
@@ -509,30 +507,30 @@ Material EditorState::LoadMaterial(std::filesystem::path materialPath)
             {
                 if (std::filesystem::exists(AOMapString))
                 {
-                    Texture* newNormal = Registry->LoadTexture(NormalMapString, true);
-                    Texture* newRoughness = Registry->LoadTexture(RoughnessMapString, true);
-                    Texture* newMetal = Registry->LoadTexture(MetallicMapString, true);
-                    Texture* newAO = Registry->LoadTexture(AOMapString, true);
+                    Texture* newNormal = Registry->LoadTexture(NormalMapString, useLazyLoad);
+                    Texture* newRoughness = Registry->LoadTexture(RoughnessMapString, useLazyLoad);
+                    Texture* newMetal = Registry->LoadTexture(MetallicMapString, useLazyLoad);
+                    Texture* newAO = Registry->LoadTexture(AOMapString, useLazyLoad);
                     newMaterial = Graphics->CreateMaterial(newTexture, newNormal, newRoughness, newMetal, newAO);
                 }
                 else
                 {
-                    Texture* newNormal = Registry->LoadTexture(NormalMapString, true);
-                    Texture* newRoughness = Registry->LoadTexture(RoughnessMapString, true);
-                    Texture* newMetal = Registry->LoadTexture(MetallicMapString, true);
+                    Texture* newNormal = Registry->LoadTexture(NormalMapString, useLazyLoad);
+                    Texture* newRoughness = Registry->LoadTexture(RoughnessMapString, useLazyLoad);
+                    Texture* newMetal = Registry->LoadTexture(MetallicMapString, useLazyLoad);
                     newMaterial = Graphics->CreateMaterial(newTexture, newNormal, newRoughness, newMetal);
                 }
             }
             else
             {
-                Texture* newNormal = Registry->LoadTexture(NormalMapString, true);
-                Texture* newRoughness = Registry->LoadTexture(RoughnessMapString, true);
+                Texture* newNormal = Registry->LoadTexture(NormalMapString, useLazyLoad);
+                Texture* newRoughness = Registry->LoadTexture(RoughnessMapString, useLazyLoad);
                 newMaterial = Graphics->CreateMaterial(newTexture, newNormal, newRoughness);
             }
         }
         else
         {
-            Texture* newNormal = Registry->LoadTexture(NormalMapString, true);
+            Texture* newNormal = Registry->LoadTexture(NormalMapString, useLazyLoad);
             newMaterial = Graphics->CreateMaterial(newTexture, newNormal);
         }
     }

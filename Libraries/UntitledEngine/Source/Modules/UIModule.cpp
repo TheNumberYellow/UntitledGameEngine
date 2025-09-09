@@ -294,6 +294,11 @@ Click UIModule::TextButton(std::string text, PlacementSettings placeSettings, fl
 
 Click UIModule::ImgButton(std::string name, Texture texture, Vec2f size, float borderWidth, Vec3f colour)
 {
+    return ImgButton(name, texture.GetID(), size, borderWidth, colour);
+}
+
+Click UIModule::ImgButton(std::string name, Texture_ID textureID, Vec2f size, float borderWidth, Vec3f colour)
+{
     if (!IsActive())
     {
         return Click();
@@ -320,7 +325,7 @@ Click UIModule::ImgButton(std::string name, Texture texture, Vec2f size, float b
 
     m_Renderer.SetShaderUniformVec3f(m_UIShader, "Colour", c_White);
 
-    m_Renderer.SetActiveTexture(texture.GetID(), "Texture");
+    m_Renderer.SetActiveTexture(textureID, "Texture");
 
     //TODO: come up with better depth testing solution for rendering UI
     m_Renderer.DrawMesh(m_RectMesh);

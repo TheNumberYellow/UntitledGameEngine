@@ -66,8 +66,6 @@ Texture* AssetRegistry::LoadTexture(FilePath Path, bool LazyLoad)
         m_LoadedTextures[Path.GetFullPath()] = m_GraphicsModule->LoadTexture(Path.GetFullPath());
     }
     
-    //m_LoadedTextures[Path.GetFullPath()] = m_GraphicsModule->LoadTexture(Path.GetFullPath());
-
     return m_LoadedTextures[Path.GetFullPath()];
 }
 

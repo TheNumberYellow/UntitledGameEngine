@@ -277,7 +277,7 @@ public:
     Vec2i GetViewportSize();
 
     // TEMP
-
+    std::vector<Texture_ID> GetAllTextureIDs();
 
 private:
 
