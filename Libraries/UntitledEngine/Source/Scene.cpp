@@ -89,6 +89,7 @@ Scene::~Scene()
     m_Models.clear();
     m_PointLights.clear();
     m_DirectionalLights.clear();
+    m_HEMeshes.clear();
 }
 
 void Scene::Pause()
@@ -325,10 +326,20 @@ void Scene::Draw(GraphicsModule& graphics, GBuffer gBuffer, size_t camIndex)
 
 void Scene::EditorDraw(GraphicsModule& graphics, GBuffer gBuffer, Camera* editorCam, bool drawSceneCam)
 {
-    PushSceneRenderCommandsInternal(graphics);
-    for (auto& heMesh : m_HEMeshes)
+    static bool debugDrawHEMeshes = false;
+
+    if (InputModule::Get()->GetKeyState(Key::C).justPressed)
     {
-        heMesh->EditorDraw();
+        debugDrawHEMeshes = !debugDrawHEMeshes;
+    }
+
+    PushSceneRenderCommandsInternal(graphics);
+    if (debugDrawHEMeshes)
+    {
+        for (auto& heMesh : m_HEMeshes)
+        {
+            heMesh->EditorDraw();
+        }
     }
     
     assert(editorCam);
@@ -931,6 +942,7 @@ void Scene::Clear()
     m_PointLights.clear();
     m_DirectionalLights.clear();
     m_Cameras.clear();
+    m_HEMeshes.clear();
 
 #ifdef USE_EDITOR
     m_GenericEditorClickables.clear();

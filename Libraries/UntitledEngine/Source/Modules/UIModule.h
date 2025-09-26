@@ -202,10 +202,10 @@ private:
     StaticMesh_ID m_RectMesh;
     StaticMesh_ID m_BorderMesh;
 
-    Texture_ID m_DefaultButtonTexture;
-    Texture_ID m_DefaultFrameTexture;
-    Texture_ID m_DefaultTabTexture;
-    Texture_ID m_White;
+    Texture m_DefaultButtonTexture;
+    Texture m_DefaultFrameTexture;
+    Texture m_DefaultTabTexture;
+    Texture m_White;
 
     Shader_ID m_UIShader;
 

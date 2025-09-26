@@ -85,29 +85,43 @@ he::SelectedHalfEdgeFace::SelectedHalfEdgeFace(HalfEdgeMesh* inMeshPtr, he::Face
     m_HalfEdgeMesh = inMeshPtr;
     m_FacePtr = inFacePtr;
 
-    //// Iterate through verts to get face pos
-    //// Note(fraser): I really gotta make this less verbose/cumbersome (iterators or something?)
-    //Vec3f pos = Vec3f(0.0f);
-    //int numVertsInFace = 0;
+    // Iterate through verts to get face pos
+    Vec3f averagePos = Vec3f(0.0f);
+    int numVertsInFace = 0;
 
-    //he::Face face = m_HalfEdgeMesh->m_Faces[m_FaceIndex];
-    //he::HalfEdge firstHalfEdge = m_HalfEdgeMesh->m_HalfEdges[face.halfEdge];
+    he::Face* face = m_FacePtr;
+    he::HalfEdge* firstHalfEdge = face->halfEdge;
 
-    //he::HalfEdge currentHalfEdge = firstHalfEdge;
-    //do
-    //{
-    //    he::Vertex vert = m_HalfEdgeMesh->m_Verts[currentHalfEdge.vert];
+    he::HalfEdge* currentHalfEdge = firstHalfEdge;
+    do
+    {
+        he::Vertex* vert = currentHalfEdge->vert;
 
-    //    pos += vert.vec;
-    //    numVertsInFace++;
+        averagePos  += vert->vec;
+        numVertsInFace++;
 
-    //    currentHalfEdge = m_HalfEdgeMesh->m_HalfEdges[currentHalfEdge.next];
+        currentHalfEdge = currentHalfEdge->next;
 
-    //} while (currentHalfEdge != firstHalfEdge);
+    } while (currentHalfEdge != firstHalfEdge);
 
-    //pos /= numVertsInFace;
+    averagePos /= numVertsInFace;
 
-    //m_Transform.SetPosition(pos);
+    m_Transform.SetPosition(averagePos);
+
+    // Iterate through verts to get offset transforms
+    currentHalfEdge = firstHalfEdge;
+    do 
+    {
+        he::Vertex* vert = currentHalfEdge->vert;
+        Vec3f vertPos = vert->vec;
+
+        Vec3f offset = vertPos - averagePos;
+
+        m_VertTransOffsets.push_back(Math::GenerateTransformMatrix(offset));
+        currentHalfEdge = currentHalfEdge->next;
+
+    } while (currentHalfEdge != firstHalfEdge);
+
 }
 
 void he::SelectedHalfEdgeFace::Draw()
@@ -129,29 +143,28 @@ void he::SelectedHalfEdgeFace::Draw()
 
 void he::SelectedHalfEdgeFace::Update()
 {
-    // Iterate through verts to get face pos
-    // Note(fraser): I really gotta make this less verbose/cumbersome (iterators or something?)
-    Vec3f pos = Vec3f(0.0f);
-    int numVertsInFace = 0;
-
     he::Face* face = m_FacePtr;
     he::HalfEdge* firstHalfEdge = face->halfEdge;
 
     he::HalfEdge* currentHalfEdge = firstHalfEdge;
+    int i = 0;
     do
     {
+        Mat4x4f offset = m_VertTransOffsets[i];
+
         he::Vertex* vert = currentHalfEdge->vert;
-
-        pos += vert->vec;
-        numVertsInFace++;
-
+        vert->vec = Vec3f(0.0f, 0.0f, 0.0f) * (m_Transform.GetTransformMatrix() * offset);
+                
         currentHalfEdge = currentHalfEdge->next;
-
+        i++;
     } while (currentHalfEdge != firstHalfEdge);
 
-    pos /= numVertsInFace;
+    InputModule* Input = InputModule::Get();
 
-    m_Transform.SetPosition(pos);
+    if (Input->GetKeyState(Key::E).justReleased)
+    {
+        m_HalfEdgeMesh->ExtrudeFace(m_FacePtr);
+    }
 }
 
 bool he::SelectedHalfEdgeFace::DrawInspectorPanel()
@@ -256,15 +269,15 @@ void he::HalfEdgeMesh::MakeAABB(AABB inAABB)
     float yLen = max.y - min.y;
     float zLen = max.z - min.z;
 
-    m_Verts.push_back(new Vertex(Vec3f(min.x, min.y, min.z)));
-    m_Verts.push_back(new Vertex(Vec3f(min.x + xLen, min.y, min.z)));
-    m_Verts.push_back(new Vertex(Vec3f(min.x + xLen, min.y + yLen, min.z)));
-    m_Verts.push_back(new Vertex(Vec3f(min.x, min.y + yLen, min.z)));
+    m_Verts.push_back(new Vertex(Vec3f(min.x, min.y, min.z)));                          // 0
+    m_Verts.push_back(new Vertex(Vec3f(min.x + xLen, min.y, min.z)));                   // 1
+    m_Verts.push_back(new Vertex(Vec3f(min.x + xLen, min.y + yLen, min.z)));            // 2
+    m_Verts.push_back(new Vertex(Vec3f(min.x, min.y + yLen, min.z)));                   // 3
 
-    m_Verts.push_back(new Vertex(Vec3f(min.x, min.y, min.z + zLen)));
-    m_Verts.push_back(new Vertex(Vec3f(min.x, min.y + yLen, min.z + zLen)));
-    m_Verts.push_back(new Vertex(Vec3f(min.x + xLen, min.y + yLen, min.z + zLen)));
-    m_Verts.push_back(new Vertex(Vec3f(min.x + xLen, min.y, min.z + zLen)));
+    m_Verts.push_back(new Vertex(Vec3f(min.x, min.y, min.z + zLen)));                   // 4
+    m_Verts.push_back(new Vertex(Vec3f(min.x, min.y + yLen, min.z + zLen)));            // 5
+    m_Verts.push_back(new Vertex(Vec3f(min.x + xLen, min.y + yLen, min.z + zLen)));     // 6
+    m_Verts.push_back(new Vertex(Vec3f(min.x + xLen, min.y, min.z + zLen)));            // 7
 
     // Faces
     m_Faces.push_back(new Face());
@@ -288,10 +301,10 @@ void he::HalfEdgeMesh::MakeAABB(AABB inAABB)
     
     //TODO: look into why triangle fans use counter-clockwise face culling???
     // Bottom
-    m_HalfEdges.push_back(new HalfEdge(m_Verts[0], bottomFace, nullptr, nullptr));
-    m_HalfEdges.push_back(new HalfEdge(m_Verts[1], bottomFace, nullptr, nullptr));
-    m_HalfEdges.push_back(new HalfEdge(m_Verts[2], bottomFace, nullptr, nullptr));
-    m_HalfEdges.push_back(new HalfEdge(m_Verts[3], bottomFace, nullptr, nullptr));
+    m_HalfEdges.push_back(new HalfEdge(m_Verts[0], bottomFace, nullptr, nullptr)); // 0
+    m_HalfEdges.push_back(new HalfEdge(m_Verts[1], bottomFace, nullptr, nullptr)); // 1
+    m_HalfEdges.push_back(new HalfEdge(m_Verts[2], bottomFace, nullptr, nullptr)); // 2
+    m_HalfEdges.push_back(new HalfEdge(m_Verts[3], bottomFace, nullptr, nullptr)); // 3
 
     m_HalfEdges[0]->next = m_HalfEdges[1];
     m_HalfEdges[1]->next = m_HalfEdges[2];
@@ -299,10 +312,10 @@ void he::HalfEdgeMesh::MakeAABB(AABB inAABB)
     m_HalfEdges[3]->next = m_HalfEdges[0];
 
     // Top
-    m_HalfEdges.push_back(new HalfEdge(m_Verts[4], topFace, nullptr, nullptr));
-    m_HalfEdges.push_back(new HalfEdge(m_Verts[5], topFace, nullptr, nullptr));
-    m_HalfEdges.push_back(new HalfEdge(m_Verts[6], topFace, nullptr, nullptr));
-    m_HalfEdges.push_back(new HalfEdge(m_Verts[7], topFace, nullptr, nullptr));
+    m_HalfEdges.push_back(new HalfEdge(m_Verts[4], topFace, nullptr, nullptr)); // 4
+    m_HalfEdges.push_back(new HalfEdge(m_Verts[5], topFace, nullptr, nullptr)); // 5
+    m_HalfEdges.push_back(new HalfEdge(m_Verts[6], topFace, nullptr, nullptr)); // 6
+    m_HalfEdges.push_back(new HalfEdge(m_Verts[7], topFace, nullptr, nullptr)); // 7
 
     m_HalfEdges[4]->next = m_HalfEdges[5];
     m_HalfEdges[5]->next = m_HalfEdges[6];
@@ -310,10 +323,10 @@ void he::HalfEdgeMesh::MakeAABB(AABB inAABB)
     m_HalfEdges[7]->next = m_HalfEdges[4];
 
     // Neg-Y
-    m_HalfEdges.push_back(new HalfEdge(m_Verts[0], negXFace, nullptr, nullptr));
-    m_HalfEdges.push_back(new HalfEdge(m_Verts[4], negXFace, nullptr, nullptr));
-    m_HalfEdges.push_back(new HalfEdge(m_Verts[7], negXFace, nullptr, nullptr));
-    m_HalfEdges.push_back(new HalfEdge(m_Verts[1], negXFace, nullptr, nullptr));
+    m_HalfEdges.push_back(new HalfEdge(m_Verts[0], negXFace, nullptr, nullptr)); // 8
+    m_HalfEdges.push_back(new HalfEdge(m_Verts[4], negXFace, nullptr, nullptr)); // 9
+    m_HalfEdges.push_back(new HalfEdge(m_Verts[7], negXFace, nullptr, nullptr)); // 10
+    m_HalfEdges.push_back(new HalfEdge(m_Verts[1], negXFace, nullptr, nullptr)); // 11
 
     m_HalfEdges[8]->next = m_HalfEdges[9];
     m_HalfEdges[9]->next = m_HalfEdges[10];
@@ -321,10 +334,10 @@ void he::HalfEdgeMesh::MakeAABB(AABB inAABB)
     m_HalfEdges[11]->next = m_HalfEdges[8];
 
     // Pos-Y
-    m_HalfEdges.push_back(new HalfEdge(m_Verts[2], posXFace, nullptr, nullptr));
-    m_HalfEdges.push_back(new HalfEdge(m_Verts[6], posXFace, nullptr, nullptr));
-    m_HalfEdges.push_back(new HalfEdge(m_Verts[5], posXFace, nullptr, nullptr));
-    m_HalfEdges.push_back(new HalfEdge(m_Verts[3], posXFace, nullptr, nullptr));
+    m_HalfEdges.push_back(new HalfEdge(m_Verts[2], posXFace, nullptr, nullptr)); // 12
+    m_HalfEdges.push_back(new HalfEdge(m_Verts[6], posXFace, nullptr, nullptr)); // 13
+    m_HalfEdges.push_back(new HalfEdge(m_Verts[5], posXFace, nullptr, nullptr)); // 14
+    m_HalfEdges.push_back(new HalfEdge(m_Verts[3], posXFace, nullptr, nullptr)); // 15
 
     m_HalfEdges[12]->next = m_HalfEdges[13];
     m_HalfEdges[13]->next = m_HalfEdges[14];
@@ -332,10 +345,10 @@ void he::HalfEdgeMesh::MakeAABB(AABB inAABB)
     m_HalfEdges[15]->next = m_HalfEdges[12];
 
     // Neg-X
-    m_HalfEdges.push_back(new HalfEdge(m_Verts[3], negYFace, nullptr, nullptr));
-    m_HalfEdges.push_back(new HalfEdge(m_Verts[5], negYFace, nullptr, nullptr));
-    m_HalfEdges.push_back(new HalfEdge(m_Verts[4], negYFace, nullptr, nullptr));
-    m_HalfEdges.push_back(new HalfEdge(m_Verts[0], negYFace, nullptr, nullptr));
+    m_HalfEdges.push_back(new HalfEdge(m_Verts[3], negYFace, nullptr, nullptr)); // 16
+    m_HalfEdges.push_back(new HalfEdge(m_Verts[5], negYFace, nullptr, nullptr)); // 17
+    m_HalfEdges.push_back(new HalfEdge(m_Verts[4], negYFace, nullptr, nullptr)); // 18
+    m_HalfEdges.push_back(new HalfEdge(m_Verts[0], negYFace, nullptr, nullptr)); // 19
 
     m_HalfEdges[16]->next = m_HalfEdges[17];
     m_HalfEdges[17]->next = m_HalfEdges[18];
@@ -343,10 +356,10 @@ void he::HalfEdgeMesh::MakeAABB(AABB inAABB)
     m_HalfEdges[19]->next = m_HalfEdges[16];
 
     // Pos-X
-    m_HalfEdges.push_back(new HalfEdge(m_Verts[1], posYFace, nullptr, nullptr));
-    m_HalfEdges.push_back(new HalfEdge(m_Verts[7], posYFace, nullptr, nullptr));
-    m_HalfEdges.push_back(new HalfEdge(m_Verts[6], posYFace, nullptr, nullptr));
-    m_HalfEdges.push_back(new HalfEdge(m_Verts[2], posYFace, nullptr, nullptr));
+    m_HalfEdges.push_back(new HalfEdge(m_Verts[1], posYFace, nullptr, nullptr)); // 20
+    m_HalfEdges.push_back(new HalfEdge(m_Verts[7], posYFace, nullptr, nullptr)); // 21
+    m_HalfEdges.push_back(new HalfEdge(m_Verts[6], posYFace, nullptr, nullptr)); // 22
+    m_HalfEdges.push_back(new HalfEdge(m_Verts[2], posYFace, nullptr, nullptr)); // 23
 
     m_HalfEdges[20]->next = m_HalfEdges[21];
     m_HalfEdges[21]->next = m_HalfEdges[22];
@@ -362,34 +375,34 @@ void he::HalfEdgeMesh::MakeAABB(AABB inAABB)
     m_HalfEdges[3]->twin = m_HalfEdges[19];
 
     // Top
-    m_HalfEdges[4]->twin = nullptr;
-    m_HalfEdges[5]->twin = nullptr;
-    m_HalfEdges[6]->twin = nullptr;
-    m_HalfEdges[7]->twin = nullptr;
+    m_HalfEdges[4]->twin = m_HalfEdges[17];
+    m_HalfEdges[5]->twin = m_HalfEdges[13];
+    m_HalfEdges[6]->twin = m_HalfEdges[21];
+    m_HalfEdges[7]->twin = m_HalfEdges[9];
 
     // Neg-y
-    m_HalfEdges[8]->twin = nullptr;
-    m_HalfEdges[9]->twin = nullptr;
-    m_HalfEdges[10]->twin = nullptr;
-    m_HalfEdges[11]->twin = nullptr;
+    m_HalfEdges[8]->twin = m_HalfEdges[18];
+    m_HalfEdges[9]->twin = m_HalfEdges[7];
+    m_HalfEdges[10]->twin = m_HalfEdges[20];
+    m_HalfEdges[11]->twin = m_HalfEdges[0];
 
     // Pos-y
-    m_HalfEdges[12]->twin = nullptr;
-    m_HalfEdges[13]->twin = nullptr;
-    m_HalfEdges[14]->twin = nullptr;
-    m_HalfEdges[15]->twin = nullptr;
+    m_HalfEdges[12]->twin = m_HalfEdges[22];
+    m_HalfEdges[13]->twin = m_HalfEdges[5];
+    m_HalfEdges[14]->twin = m_HalfEdges[16];
+    m_HalfEdges[15]->twin = m_HalfEdges[2];
 
     // Neg-x
-    m_HalfEdges[16]->twin = nullptr;
-    m_HalfEdges[17]->twin = nullptr;
-    m_HalfEdges[18]->twin = nullptr;
-    m_HalfEdges[19]->twin = nullptr;
+    m_HalfEdges[16]->twin = m_HalfEdges[14];
+    m_HalfEdges[17]->twin = m_HalfEdges[4];
+    m_HalfEdges[18]->twin = m_HalfEdges[8];
+    m_HalfEdges[19]->twin = m_HalfEdges[3];
 
     // Pos-x
-    m_HalfEdges[20]->twin = nullptr;
-    m_HalfEdges[21]->twin = nullptr;
-    m_HalfEdges[22]->twin = nullptr;
-    m_HalfEdges[23]->twin = nullptr;
+    m_HalfEdges[20]->twin = m_HalfEdges[10];
+    m_HalfEdges[21]->twin = m_HalfEdges[6];
+    m_HalfEdges[22]->twin = m_HalfEdges[12];
+    m_HalfEdges[23]->twin = m_HalfEdges[1];
 
     // Verts
     m_Verts[0]->halfEdge = m_HalfEdges[0];
@@ -417,6 +430,98 @@ void he::HalfEdgeMesh::SubDivide()
 void he::HalfEdgeMesh::SubDivideFace(Face* inFace)
 {
 
+}
+
+void he::HalfEdgeMesh::ExtrudeFace(he::Face* inFace)
+{
+    // Get all adjacent edges
+    std::vector<he::HalfEdge*> innerEdges;
+    std::vector<he::HalfEdge*> outerEdges;
+
+    HalfEdge* firstHalfEdge = inFace->halfEdge;
+    HalfEdge* currentHalfEdge = firstHalfEdge;
+
+    do 
+    {
+        innerEdges.push_back(currentHalfEdge);
+        outerEdges.push_back(currentHalfEdge->twin);
+
+        currentHalfEdge = currentHalfEdge->next;
+    } while (currentHalfEdge != firstHalfEdge);
+
+    for (auto* innerEdge : innerEdges)
+    {
+        // Add new verts for extruded face so they can separate from connected faces
+        Vec3f oldVecPos = innerEdge->vert->vec;
+        he::Vertex* newVertex = new he::Vertex(oldVecPos);
+        newVertex->halfEdge = innerEdge;
+
+        m_Verts.push_back(newVertex);
+        innerEdge->vert = newVertex;
+    }
+
+    // Vector to track inner half edges to be connected later
+    std::vector<he::HalfEdge*> newInnerEdges;
+
+    for (int i = 0; i < innerEdges.size(); ++i)
+    {
+        he::HalfEdge* innerEdge = innerEdges[i];
+        he::HalfEdge* outerEdge = outerEdges[i];
+        
+        // Add 4 half edges making up new face between the inner and outer half edges
+        he::HalfEdge* outerTwin = new he::HalfEdge();
+        he::HalfEdge* innerTwin = new he::HalfEdge();
+        he::HalfEdge* outerTwinNext = new he::HalfEdge();
+        he::HalfEdge* innerTwinNext = new he::HalfEdge();
+
+        // Add new face
+        he::Face* newFace = new he::Face();
+        newFace->halfEdge = outerTwin;
+        m_Faces.push_back(newFace);
+
+        outerTwin->vert = outerEdge->next->vert;
+        outerTwin->face = newFace;
+        outerTwin->next = outerTwinNext;
+        outerTwin->twin = outerEdge;
+
+        innerTwin->vert = innerEdge->next->vert;
+        innerTwin->face = newFace;
+        innerTwin->next = innerTwinNext;
+        innerTwin->twin = innerEdge;
+
+        outerTwinNext->vert = outerEdge->vert;
+        outerTwinNext->face = newFace;
+        outerTwinNext->next = innerTwin;
+        outerTwinNext->twin = nullptr; // todo
+
+        innerTwinNext->vert = innerEdge->vert;
+        innerTwinNext->face = newFace;
+        innerTwinNext->next = outerTwin;
+        innerTwinNext->twin = nullptr; // todo
+
+        // Hook up existing inner/outer half edges to new half edges
+        innerEdge->twin = innerTwin;
+        outerEdge->twin = outerTwin;
+
+        m_HalfEdges.push_back(outerTwin);
+        m_HalfEdges.push_back(innerTwin);
+        m_HalfEdges.push_back(outerTwinNext);
+        m_HalfEdges.push_back(innerTwinNext);
+
+        newInnerEdges.push_back(innerTwinNext);
+        newInnerEdges.push_back(outerTwinNext);
+    }
+
+    // Hook up inner edges of new face "ring"
+    for (int i = 1; i < newInnerEdges.size() - 1; i += 2)
+    {
+        newInnerEdges[i]->twin = newInnerEdges[i + 1];
+        newInnerEdges[i + 1]->twin = newInnerEdges[i];
+    }
+
+    newInnerEdges[newInnerEdges.size() - 1]->twin = newInnerEdges[0];
+    newInnerEdges[0]->twin = newInnerEdges[newInnerEdges.size() - 1];
+    
 }
 
 void he::HalfEdgeMesh::EditorDraw()
@@ -497,6 +602,21 @@ void he::HalfEdgeMesh::EditorDraw()
 
 void he::HalfEdgeMesh::Clear()
 {
+    // TODO: Delete rep models (they're currently being deleted every frame in the GraphicsModule
+
+    for (he::Vertex* vert : m_Verts)
+    {
+        delete vert;
+    }
+    for (he::Face* face : m_Faces)
+    {
+        delete face;
+    }
+    for (he::HalfEdge* halfEdge : m_HalfEdges)
+    {
+        delete halfEdge;
+    }
+
     m_Verts.clear();
     m_Faces.clear();
     m_HalfEdges.clear();

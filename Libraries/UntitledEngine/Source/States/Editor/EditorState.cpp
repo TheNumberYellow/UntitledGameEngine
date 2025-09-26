@@ -73,11 +73,6 @@ void EditorState::OnInitialized(ArgsList args)
         RandomColours.push_back(Colour);
     }
 
-    he::HalfEdgeMesh* newHeMesh = new he::HalfEdgeMesh();
-    newHeMesh->MakeQuad();
-
-    EditorScene.AddHalfEdgeMesh(newHeMesh);
-
 
     // Set up entity editor stuff
     EntityCamera = Camera(Projection::Perspective);
@@ -203,7 +198,7 @@ void EditorState::UpdateEditor(double DeltaTime)
         Cursor.ResetAllState();
     }
 
-    if (Input->IsKeyDown(Key::E))
+    if (Input->IsKeyDown(Key::Q))
     {
         EditorScene.GetCamera()->SetPosition(ViewportCamera.GetPosition());
         EditorScene.GetCamera()->SetDirection(ViewportCamera.GetDirection());

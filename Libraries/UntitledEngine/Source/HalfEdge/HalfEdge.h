@@ -22,17 +22,6 @@ namespace he
     struct HalfEdge
     {
         HalfEdge() {}
-        //HalfEdge(VertIndex inVert, FaceIndex inFace, HalfEdgeIndex inNext, HalfEdgeIndex inTwin)
-        //    : vert(inVert)
-        //    , face(inFace)
-        //    , next(inNext)
-        //    , twin(inTwin)
-        //{}
-
-        //VertIndex vert = -1;
-        //FaceIndex face = -1;
-        //HalfEdgeIndex next = -1;
-        //HalfEdgeIndex twin = -1;
 
         HalfEdge(Vertex* inVert, Face* inFace, HalfEdge* inNext, HalfEdge* inTwin)
             : vert(inVert)
@@ -106,6 +95,8 @@ namespace he
         HalfEdgeMesh* m_HalfEdgeMesh;
         he::Face* m_FacePtr = nullptr;
         Transform m_Transform;
+        
+        std::vector<Mat4x4f> m_VertTransOffsets;
     };
 
     struct HalfEdgeMesh
@@ -116,6 +107,9 @@ namespace he
         void SubDivide();
 
         void SubDivideFace(Face* inFace);
+
+        // Returns new face
+        void ExtrudeFace(he::Face* inFace);
 
         void EditorDraw();
 

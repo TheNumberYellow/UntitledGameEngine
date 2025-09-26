@@ -891,18 +891,25 @@ void CursorState::UpdateTranslateTool()
 
         Vec3f PointAlongAxis = Math::ClosestPointsOnLines(MouseLine, AxisLine).second;
 
-        switch (Axis)
-        {
-        case EditingAxis::X:
-            PointAlongAxis.x = Math::Round(PointAlongAxis.x, TransSnap);
-            break;
-        case EditingAxis::Y:
-            PointAlongAxis.y = Math::Round(PointAlongAxis.y, TransSnap);
-            break;
-        case EditingAxis::Z:
-            PointAlongAxis.z = Math::Round(PointAlongAxis.z, TransSnap);
-            break;
-        }
+        //switch (Axis)
+        //{
+        //case EditingAxis::X:
+        //    PointAlongAxis.x = Math::Round(PointAlongAxis.x, TransSnap);
+        //    break;
+        //case EditingAxis::Y:
+        //    PointAlongAxis.y = Math::Round(PointAlongAxis.y, TransSnap);
+        //    break;
+        //case EditingAxis::Z:
+        //    PointAlongAxis.z = Math::Round(PointAlongAxis.z, TransSnap);
+        //    break;
+        //}
+
+        // Snap based on first selected object position
+        Vec3f ProxyToFirstObjectOffset = SelectedProxyTransform.GetPosition() - SelectedObjects[0].second->GetTransform()->GetPosition();
+        PointAlongAxis.x = Math::Round(PointAlongAxis.x - ProxyToFirstObjectOffset.x, TransSnap) + ProxyToFirstObjectOffset.x;
+        PointAlongAxis.y = Math::Round(PointAlongAxis.y - ProxyToFirstObjectOffset.y, TransSnap) + ProxyToFirstObjectOffset.y;
+        PointAlongAxis.z = Math::Round(PointAlongAxis.z - ProxyToFirstObjectOffset.z, TransSnap) + ProxyToFirstObjectOffset.z;
+
 
         SelectedProxyTransform.SetPosition(PointAlongAxis);
     }

@@ -2,6 +2,7 @@
 
 #include "Vector.h"
 #include "Geometry.h"
+#include "Quaternion.h"
 
 #include <stdlib.h>
 #include <utility>
@@ -15,7 +16,7 @@
 #define Rad2Deg(rad) (rad * 57.2957549575f)
 
 // Forward declares
-struct Quaternion;
+//struct Quaternion;
 struct Ray;
 
 struct Range
@@ -104,7 +105,7 @@ public:
     static Mat4x4f Scale(Mat4x4f mat, Vec3f scale);
     static Mat4x4f Rotate(Mat4x4f mat, Quaternion rotation);
 
-    static Mat4x4f GenerateTransformMatrix(Vec3f position, Vec3f scale, Quaternion rotation);
+    static Mat4x4f GenerateTransformMatrix(Vec3f position, Vec3f scale = Vec3f(1.0f, 1.0f, 1.0f), Quaternion rotation = Quaternion());
     static Mat4x4f GenerateViewMatrix(Vec3f position, Vec3f direction, Vec3f up = Vec3f(0.0f, 0.0f, 1.0f));
     static Mat4x4f GenerateProjectionMatrix(float verticalFOV, float aspectRatio, float nearClippingPlane, float farClippingPlane);
     static Mat4x4f GenerateOrthoMatrix(float left, float right, float bottom, float top, float nearClippingPlane, float farClippingPlane);

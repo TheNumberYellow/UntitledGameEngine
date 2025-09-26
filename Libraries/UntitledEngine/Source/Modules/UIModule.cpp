@@ -70,10 +70,12 @@ UIModule::UIModule(GraphicsModule& graphics, TextModule& text, InputModule& inpu
     , m_Renderer(renderer)
     , UIElementFormat(VertexBufferFormat({ VertAttribute::Vec2f, VertAttribute::Vec2f }))
 {
-    m_DefaultButtonTexture = m_Renderer.LoadTexture("Assets/images/nine_cut_bw.png");
-    m_DefaultFrameTexture = m_Renderer.LoadTexture("Assets/images/nine_cut_bw.png");
-    m_DefaultTabTexture = m_Renderer.LoadTexture("Assets/images/nine_cut_bw.png");
-    m_White = m_Renderer.LoadTexture("Assets/images/white.png");
+    AssetRegistry* Registry = AssetRegistry::Get();
+    m_DefaultButtonTexture = *Registry->LoadTexture("Assets/images/nine_cut_bw.png");
+    m_DefaultButtonTexture = *Registry->LoadTexture("Assets/images/nine_cut_bw.png");
+    m_DefaultFrameTexture = *Registry->LoadTexture("Assets/images/nine_cut_bw.png");
+    m_DefaultTabTexture = *Registry->LoadTexture("Assets/images/nine_cut_bw.png");
+    m_White = *Registry->LoadTexture("Assets/images/white.png");
 
     // ~~~~~~~~~~~~~~~~~~~~~UI shader code~~~~~~~~~~~~~~~~~~~~~ //
     std::string vertShaderSource = R"(
@@ -474,7 +476,7 @@ bool UIModule::StartFrame(std::string name, Rect rect, float borderWidth, Vec3f 
     m_Renderer.SetActiveShader(m_UIShader);
     
     m_Renderer.UpdateMeshData(m_BorderMesh, UIElementFormat, verts.first, verts.second);
-    m_Renderer.SetActiveTexture(m_DefaultFrameTexture, "Texture");
+    m_Renderer.SetActiveTexture(m_DefaultFrameTexture.GetID(), "Texture");
 
     m_Renderer.SetShaderUniformBool(m_UIShader, "Hovering", false);
     m_Renderer.SetShaderUniformBool(m_UIShader, "Clicking", false);
@@ -486,7 +488,7 @@ bool UIModule::StartFrame(std::string name, Rect rect, float borderWidth, Vec3f 
     
     m_Renderer.UpdateMeshData(m_RectMesh, UIElementFormat, verts.first, verts.second);
 
-    m_Renderer.SetActiveTexture(m_White, "Texture");
+    m_Renderer.SetActiveTexture(m_White.GetID(), "Texture");
 
     //m_Renderer.ClearStencilBuffer();
     m_Renderer.StartStencilDrawing(StencilCompareFunc::EQUAL, StencilOperationFunc::INCREMENT, (int)m_FrameStateStack.size() - 1);
@@ -735,7 +737,7 @@ Click UIModule::ButtonInternal(std::string name, Rect rect, float borderWidth, V
 
     m_Renderer.SetActiveShader(m_UIShader);
 
-    m_Renderer.SetActiveTexture(m_DefaultButtonTexture, "Texture");
+    m_Renderer.SetActiveTexture(m_DefaultButtonTexture.GetID(), "Texture");
 
     m_Renderer.SetShaderUniformBool(m_UIShader, "Hovering", BState->m_Click.hovering);
     m_Renderer.SetShaderUniformBool(m_UIShader, "Clicking", BState->m_Click.clicking);
@@ -778,7 +780,7 @@ void UIModule::FloatSliderInternal(std::string name, Rect rect, float& outNum, f
         m_Renderer.SetActiveShader(m_UIShader);
 
         m_Renderer.UpdateMeshData(m_BorderMesh, UIElementFormat, verts.first, verts.second);
-        m_Renderer.SetActiveTexture(m_DefaultFrameTexture, "Texture");
+        m_Renderer.SetActiveTexture(m_DefaultFrameTexture.GetID(), "Texture");
 
         m_Renderer.SetShaderUniformBool(m_UIShader, "Hovering", false);
         m_Renderer.SetShaderUniformBool(m_UIShader, "Clicking", false);

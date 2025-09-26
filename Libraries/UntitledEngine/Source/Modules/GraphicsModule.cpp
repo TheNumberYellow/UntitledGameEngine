@@ -1935,7 +1935,6 @@ void GraphicsModule::UpdateHEMeshModel(he::HalfEdgeMesh* mesh)
         {
             he::Vertex* thisVert = currentHalfEdge->vert;
 
-            //mesh->m_Verts
             positions.push_back(thisVert->vec);
 
             currentHalfEdge = currentHalfEdge->next;
@@ -1972,23 +1971,43 @@ void GraphicsModule::UpdateHEMeshModel(he::HalfEdgeMesh* mesh)
             Vec3f cross = Math::cross(ca, ba);
             normal = Math::normalize(cross);
 
+            Vec2f texCoords;
+            Vec3f planeOrigin = positions[0];
+            Vec3f planeNormal = normal;
+
+            // Get closest vector on plane to up vector
+            Vec3f upVec = Math::ProjectVecOnPlane(Vec3f::Up(), Plane(planeOrigin, planeNormal));
+            
+            if (upVec.IsNearlyZero())
+            {
+                upVec = Vec3f(1.0f, 0.0f, 0.0f);
+            }
+            else
+            {
+                upVec = upVec.GetNormalized();
+            }
+
+            Vec3f leftVec = Math::cross(normal, upVec);
+
+            Vec3f relativePoint = pos - planeOrigin;
+
+            texCoords.x = Math::dot(relativePoint, leftVec);
+            texCoords.y = Math::dot(relativePoint, upVec);
+
+
             Vertices.insert(Vertices.end(),
                 {
                     // Positions            // Normals (TBD)                // Colours                  // Texcoords
-                    pos.x, pos.y, pos.z,    normal.x, normal.y, normal.z,   1.0f, 1.0f, 1.0f, 1.0f,     pos.x + pos.z, pos.y + pos.z
+                    pos.x, pos.y, pos.z,    normal.x, normal.y, normal.z,   1.0f, 1.0f, 1.0f, 1.0f,     texCoords.x, texCoords.y
                 });
         }
 
-        //StaticMesh_ID heMeshId = m_Renderer.LoadMesh(m_TexturedMeshFormat, Vertices, Indices);
         StaticMesh_ID heMeshId = m_Renderer.LoadMesh(m_TexturedMeshFormat, Vertices);
         m_Renderer.SetMeshDrawType(heMeshId, DrawType::TriangleFan);
-        //m_Renderer.SetMesh
 
         StaticMesh heMesh;
         heMesh.Id = heMeshId;
         heMesh.LoadedFromFile = false;
-
-        //TODO: Create mesh
 
         // TODO: Allow multiple textures as determined by half edge mesh structure
         mesh->m_RepModels.push_back(Model(heMesh, m_DebugMaterial));
