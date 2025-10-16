@@ -99,7 +99,7 @@ public:
     void UpdateBehaviours(double DeltaTime);
 
     void Draw(GraphicsModule& graphics, GBuffer gBuffer, size_t camIndex = 0);
-    void EditorDraw(GraphicsModule& graphics, GBuffer gBuffer, Camera* editorCam, bool drawSceneCam = true);
+    void EditorDraw(GraphicsModule& graphics, GBuffer gBuffer, Camera* editorCam, bool drawSceneCam = true, bool debugDrawHEMeshes = false);
 
     SceneRayCastHit RayCast(Ray ray, std::vector<Model*> IgnoredModels = std::vector<Model*>());
 

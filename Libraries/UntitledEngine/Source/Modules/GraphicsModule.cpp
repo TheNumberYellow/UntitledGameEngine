@@ -1987,6 +1987,9 @@ void GraphicsModule::UpdateHEMeshModel(he::HalfEdgeMesh* mesh)
                 upVec = upVec.GetNormalized();
             }
 
+            // Rotate by face uv rotation
+            upVec = Math::rotate(upVec, face->textureRot, planeNormal);
+
             Vec3f leftVec = Math::cross(normal, upVec);
 
             Vec3f relativePoint = pos - planeOrigin;
@@ -1994,6 +1997,25 @@ void GraphicsModule::UpdateHEMeshModel(he::HalfEdgeMesh* mesh)
             texCoords.x = Math::dot(relativePoint, leftVec);
             texCoords.y = Math::dot(relativePoint, upVec);
 
+            // TEMP: apply uv scaling (UV values way too large as-is)
+            if (face->material)
+            {
+                texCoords.x *= 0.2f;
+                texCoords.y *= 0.2f;
+            }
+            else
+            {
+                texCoords.x *= 0.5f;
+                texCoords.y *= 0.5f;
+            }
+
+            // Apply uv nudge
+            texCoords.x += face->textureNudgeU;
+            texCoords.y += face->textureNudgeV;
+
+            // Apply uv scale
+            texCoords.x *= face->textureScaleU;
+            texCoords.y *= face->textureScaleV;
 
             Vertices.insert(Vertices.end(),
                 {
@@ -2009,8 +2031,14 @@ void GraphicsModule::UpdateHEMeshModel(he::HalfEdgeMesh* mesh)
         heMesh.Id = heMeshId;
         heMesh.LoadedFromFile = false;
 
-        // TODO: Allow multiple textures as determined by half edge mesh structure
-        mesh->m_RepModels.push_back(Model(heMesh, m_DebugMaterial));
+        if (face->material)
+        {
+            mesh->m_RepModels.push_back(Model(heMesh, *face->material));
+        }
+        else
+        {
+            mesh->m_RepModels.push_back(Model(heMesh, m_DebugMaterial));
+        }
     }
 }
 

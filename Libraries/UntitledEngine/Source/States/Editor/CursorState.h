@@ -147,6 +147,8 @@ private:
     ISelectedObject* ClickCastGeneric(Ray mouseRay);
     std::vector<ISelectedObject*> ClickCastHalfEdgeMesh(Ray mouseRay);
 
+    bool ClickCastApplyMaterial(Ray mouseRay, Material* material);
+
     ToolMode Tool = ToolMode::Select;
     DraggingMode Dragging = DraggingMode::None;
 
@@ -170,6 +172,7 @@ private:
 
     // Translate
     Vec3f ObjectRelativeHitPoint;
+    Vec3f InitialObjectPosition;
     float ObjectDistanceAtHit;
     float TransSnap = 0.5f;
 

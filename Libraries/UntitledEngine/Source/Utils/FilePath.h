@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <filesystem>
 
 class FilePath
 {
@@ -24,7 +25,11 @@ public:
 
     void SetPath(std::string InPath)
     {
-        Path = InPath;
+        // Always use absolute path
+        std::filesystem::path relPath = InPath;
+        std::filesystem::path absPath = std::filesystem::absolute(relPath);
+
+        Path = absPath.generic_string();
     }
 
     std::string GetFullPath()

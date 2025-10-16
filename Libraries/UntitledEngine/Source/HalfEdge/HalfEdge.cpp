@@ -173,6 +173,32 @@ bool he::SelectedHalfEdgeFace::DrawInspectorPanel()
 
     ui->TextButton("Face", Vec2f(80, 40), 0.5f);
 
+    ui->NewLine();
+
+    ui->TextButton("Texture Nudge U", Vec2f(160.0f, 40.0f), 0.5f);
+    ui->NewLine();
+    ui->FloatSlider("TextureNudgeU_Slider", Vec2f(240.0f, 40.0f), m_FacePtr->textureNudgeU, -1.0f, 1.0f);
+    ui->NewLine();
+
+    ui->TextButton("Texture Nudge V", Vec2f(160.0f, 40.0f), 0.5f);
+    ui->NewLine();
+    ui->FloatSlider("TextureNudgeV_Slider", Vec2f(240.0f, 40.0f), m_FacePtr->textureNudgeV, -1.0f, 1.0f);
+    ui->NewLine();
+
+    ui->TextButton("Texture Scale U", Vec2f(160.0f, 40.0f), 0.5f);
+    ui->NewLine();
+    ui->FloatSlider("TextureScaleU_Slider", Vec2f(240.0f, 40.0f), m_FacePtr->textureScaleU, 0.001f, 10.0f);
+    ui->NewLine();
+
+    ui->TextButton("Texture Scale V", Vec2f(160.0f, 40.0f), 0.5f);
+    ui->NewLine();
+    ui->FloatSlider("TextureScaleV_Slider", Vec2f(240.0f, 40.0f), m_FacePtr->textureScaleV, 0.001f, 10.0f);
+    ui->NewLine();
+    
+    ui->TextButton("Texture Rotation", Vec2f(160.0f, 40.0f), 0.5f);
+    ui->NewLine();
+    ui->FloatSlider("TextureRotation", Vec2f(240.0f, 40.0f), m_FacePtr->textureRot, -3.14f, 3.14f);
+
     return false;
 }
 
@@ -183,6 +209,18 @@ Transform* he::SelectedHalfEdgeFace::GetTransform()
 
 void he::SelectedHalfEdgeFace::DeleteObject()
 {
+}
+
+void he::SelectedHalfEdgeFace::ApplyMaterial(Material& inMaterial)
+{
+    if (m_FacePtr)
+    {
+        if (m_FacePtr->material)
+        {
+            delete m_FacePtr->material;
+        }
+        m_FacePtr->material = new Material(inMaterial);
+    }
 }
 
 bool he::SelectedHalfEdgeFace::IsEqual(const ISelectedObject& other) const
@@ -546,58 +584,58 @@ void he::HalfEdgeMesh::EditorDraw()
     //    } while (currentHalfEdge != initialHalfEdge);
     //}
 
-    for (auto& face : m_Faces)
-    {
-        Vec3f averageFacePos = Vec3f(0.0f, 0.0f, 0.0f);
-        int numVertsInFace = 0;
-
-        HalfEdge* initialHalfEdge = face->halfEdge;
-
-        HalfEdge* currentHalfEdge = initialHalfEdge;
-
-        do {
-            Vec3f vertPos = currentHalfEdge->vert->vec;
-
-            averageFacePos += vertPos;
-            numVertsInFace++;
-
-            currentHalfEdge = currentHalfEdge->next;
-        } while (currentHalfEdge != initialHalfEdge);
-
-
-        averageFacePos /= numVertsInFace;
-
-        graphics->DebugDrawSphere(averageFacePos, 0.2f, MakeColour(255, 200, 200));
-
-        currentHalfEdge = initialHalfEdge;
-
-        do {
-            HalfEdge* nextHalfEdge = currentHalfEdge->next;
-
-            Vec3f pointA = currentHalfEdge->vert->vec;
-            Vec3f pointB = nextHalfEdge->vert->vec;
-
-            pointA = Math::Lerp(pointA, averageFacePos, 0.1f);
-            pointB = Math::Lerp(pointB, averageFacePos, 0.1f);
-
-            pointA = Math::Lerp(pointA, pointB, 0.1f);
-            pointB = Math::Lerp(pointB, pointA, 0.1f);
-
-
-            graphics->DebugDrawArrow(pointA, pointB, MakeColour(80, 255, 80));
-
-            currentHalfEdge = currentHalfEdge->next;
-
-        } while (currentHalfEdge != initialHalfEdge);
-    }
-
-    //for (auto& halfEdge : m_HalfEdges)
+    //for (auto& face : m_Faces)
     //{
-    //    Vec3f pointA = halfEdge->vert->vec;
-    //    Vec3f pointB = halfEdge->next->vert->vec;
+    //    Vec3f averageFacePos = Vec3f(0.0f, 0.0f, 0.0f);
+    //    int numVertsInFace = 0;
 
-    //    graphics->DebugDrawLine(pointA, pointB, MakeColour(255, 0, 120));
+    //    HalfEdge* initialHalfEdge = face->halfEdge;
+
+    //    HalfEdge* currentHalfEdge = initialHalfEdge;
+
+    //    do {
+    //        Vec3f vertPos = currentHalfEdge->vert->vec;
+
+    //        averageFacePos += vertPos;
+    //        numVertsInFace++;
+
+    //        currentHalfEdge = currentHalfEdge->next;
+    //    } while (currentHalfEdge != initialHalfEdge);
+
+
+    //    averageFacePos /= numVertsInFace;
+
+    //    graphics->DebugDrawSphere(averageFacePos, 0.2f, MakeColour(255, 200, 200));
+
+    //    currentHalfEdge = initialHalfEdge;
+
+    //    do {
+    //        HalfEdge* nextHalfEdge = currentHalfEdge->next;
+
+    //        Vec3f pointA = currentHalfEdge->vert->vec;
+    //        Vec3f pointB = nextHalfEdge->vert->vec;
+
+    //        pointA = Math::Lerp(pointA, averageFacePos, 0.1f);
+    //        pointB = Math::Lerp(pointB, averageFacePos, 0.1f);
+
+    //        pointA = Math::Lerp(pointA, pointB, 0.1f);
+    //        pointB = Math::Lerp(pointB, pointA, 0.1f);
+
+
+    //        graphics->DebugDrawArrow(pointA, pointB, MakeColour(80, 255, 80));
+
+    //        currentHalfEdge = currentHalfEdge->next;
+
+    //    } while (currentHalfEdge != initialHalfEdge);
     //}
+
+    for (auto& halfEdge : m_HalfEdges)
+    {
+        Vec3f pointA = halfEdge->vert->vec;
+        Vec3f pointB = halfEdge->next->vert->vec;
+
+        graphics->DebugDrawLine(pointA, pointB, MakeColour(255, 0, 120));
+    }
 }
 
 void he::HalfEdgeMesh::Clear()

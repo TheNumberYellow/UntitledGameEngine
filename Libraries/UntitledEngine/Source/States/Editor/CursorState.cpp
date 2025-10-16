@@ -150,17 +150,25 @@ void CursorState::Update(double DeltaTime)
         {
             Ray MouseRay = EditorStatePtr->GetMouseRay(*CameraPtr, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
 
-            ISelectedObject* hitSelectedObject = ClickCastGeneric(MouseRay);
+            //ISelectedObject* hitSelectedObject = ClickCastGeneric(MouseRay);
 
-            if (hitSelectedObject)
+            //if (hitSelectedObject)
+            //{
+            //    hitSelectedObject->SetScene(EditorScenePtr);
+            //    hitSelectedObject->ApplyMaterial(*DraggingMaterialPtr);
+            //    delete hitSelectedObject;
+            //}
+
+            if (ClickCastApplyMaterial(MouseRay, DraggingMaterialPtr))
             {
-                hitSelectedObject->SetScene(EditorScenePtr);
-                hitSelectedObject->ApplyMaterial(*DraggingMaterialPtr);
-                delete hitSelectedObject;
+                DraggingMaterialPtr = nullptr;
+                Dragging = DraggingMode::None;
             }
-
-            DraggingMaterialPtr = nullptr;
-            Dragging = DraggingMode::None;
+            else
+            {
+                DraggingMaterialPtr = nullptr;
+                Dragging = DraggingMode::None;
+            }
         }
     }
     else if (Dragging == DraggingMode::NewBehaviour)
@@ -844,6 +852,7 @@ void CursorState::UpdateTranslateTool()
             ObjectRelativeHitPoint = OmniHit.hitPoint - SelectedPos;
             ObjectDistanceAtHit = Math::magnitude(OmniHit.hitPoint - CameraPtr->GetPosition());
         }
+        InitialObjectPosition = SelectedPos;
     }
     else if (Axis == EditingAxis::Omni)
     {
@@ -867,6 +876,7 @@ void CursorState::UpdateTranslateTool()
         NewObjPos.z = Math::Round(NewObjPos.z, TransSnap);
 
         SelectedProxyTransform.SetPosition(NewObjPos);
+
     }
     else if (Axis != EditingAxis::None)
     {
@@ -904,11 +914,11 @@ void CursorState::UpdateTranslateTool()
         //    break;
         //}
 
-        // Snap based on first selected object position
-        Vec3f ProxyToFirstObjectOffset = SelectedProxyTransform.GetPosition() - SelectedObjects[0].second->GetTransform()->GetPosition();
-        PointAlongAxis.x = Math::Round(PointAlongAxis.x - ProxyToFirstObjectOffset.x, TransSnap) + ProxyToFirstObjectOffset.x;
-        PointAlongAxis.y = Math::Round(PointAlongAxis.y - ProxyToFirstObjectOffset.y, TransSnap) + ProxyToFirstObjectOffset.y;
-        PointAlongAxis.z = Math::Round(PointAlongAxis.z - ProxyToFirstObjectOffset.z, TransSnap) + ProxyToFirstObjectOffset.z;
+        // Snap based on distance from initial selection position
+        Vec3f ProxyToInitialObjectPosition = PointAlongAxis - InitialObjectPosition;
+        PointAlongAxis.x = Math::Round(ProxyToInitialObjectPosition.x, TransSnap) + InitialObjectPosition.x;
+        PointAlongAxis.y = Math::Round(ProxyToInitialObjectPosition.y, TransSnap) + InitialObjectPosition.y;
+        PointAlongAxis.z = Math::Round(ProxyToInitialObjectPosition.z, TransSnap) + InitialObjectPosition.z;
 
 
         SelectedProxyTransform.SetPosition(PointAlongAxis);
@@ -1521,4 +1531,63 @@ ISelectedObject* CursorState::ClickCastGeneric(Ray mouseRay)
 std::vector<ISelectedObject*> CursorState::ClickCastHalfEdgeMesh(Ray mouseRay)
 {
     return std::vector<ISelectedObject*>();
+}
+
+bool CursorState::ClickCastApplyMaterial(Ray mouseRay, Material* material)
+{
+    std::vector<IEditorClickable*>& clickables = EditorScenePtr->GetGenericEditorClickables();
+
+    ISelectedObject* closestSelectedObject = nullptr;
+    RayCastHit closestHit;
+
+    for (IEditorClickable* clickable : clickables)
+    {
+        ISelectedObject* newSelectedObject = nullptr;
+        RayCastHit newHit = clickable->ClickCast(mouseRay, newSelectedObject);
+
+        if (newHit.hit && newHit.hitDistance < closestHit.hitDistance)
+        {
+            if (closestSelectedObject)
+            {
+                delete closestSelectedObject;
+            }
+
+            closestHit = newHit;
+            closestSelectedObject = newSelectedObject;
+        }
+        else if (newSelectedObject)
+        {
+            delete newSelectedObject;
+        }
+    }
+    std::vector<he::HalfEdgeMesh*> heMeshes = EditorScenePtr->GetHalfEdgeMeshes();
+
+    for (he::HalfEdgeMesh* heMesh : heMeshes)
+    {
+        ISelectedObject* newSelectedFace = nullptr;
+        RayCastHit newHit = heMesh->ClickCastFaces(mouseRay, newSelectedFace);
+
+        if (newHit.hit && newHit.hitDistance < closestHit.hitDistance)
+        {
+            if (closestSelectedObject)
+            {
+                delete closestSelectedObject;
+            }
+
+            closestHit = newHit;
+            closestSelectedObject = newSelectedFace;
+        }
+        else if (newSelectedFace)
+        {
+            delete newSelectedFace;
+        }
+    }
+
+    if (closestSelectedObject)
+    {
+        closestSelectedObject->ApplyMaterial(*material);
+        delete closestSelectedObject;
+        return true;
+    }
+    return false;
 }

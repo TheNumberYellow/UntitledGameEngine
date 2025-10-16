@@ -48,6 +48,17 @@ namespace he
     struct Face
     {
         //TODO: store material + maybe normals/smoothing data
+    public:
+        float textureNudgeU = 0.0f;
+        float textureNudgeV = 0.0f;
+
+        float textureScaleU = 1.0f;
+        float textureScaleV = 1.0f;
+
+        float textureRot = 0.0f;
+
+        Material* material = nullptr;
+
         HalfEdge* halfEdge = nullptr;
     };
 
@@ -88,6 +99,8 @@ namespace he
         virtual Transform* GetTransform() override;
         virtual void DeleteObject() override;
 
+        virtual void ApplyMaterial(Material& inMaterial);
+        
     private:
 
         virtual bool IsEqual(const ISelectedObject& other) const override;
@@ -108,7 +121,6 @@ namespace he
 
         void SubDivideFace(Face* inFace);
 
-        // Returns new face
         void ExtrudeFace(he::Face* inFace);
 
         void EditorDraw();

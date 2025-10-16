@@ -324,10 +324,8 @@ void Scene::Draw(GraphicsModule& graphics, GBuffer gBuffer, size_t camIndex)
     graphics.Render(gBuffer, m_Cameras[camIndex]);
 }
 
-void Scene::EditorDraw(GraphicsModule& graphics, GBuffer gBuffer, Camera* editorCam, bool drawSceneCam)
+void Scene::EditorDraw(GraphicsModule& graphics, GBuffer gBuffer, Camera* editorCam, bool drawSceneCam, bool debugDrawHEMeshes)
 {
-    static bool debugDrawHEMeshes = false;
-
     if (InputModule::Get()->GetKeyState(Key::C).justPressed)
     {
         debugDrawHEMeshes = !debugDrawHEMeshes;

@@ -236,6 +236,24 @@ void EditorState::UpdateEditor(double DeltaTime)
 
         }
         UI->EndTab();       
+
+        for (int i = ResourceTabs.size() - 1; i >= 0; i--)
+        {
+            ResourceTab tab = ResourceTabs[i];
+            if (UI->StartTab(tab.ResourcePath.GetFileName()))
+            {
+                if (UI->TextButton("Close", PlacementSettings(Vec2f(80.0f, 40.0f)), 8.0f, c_NiceRed))
+                {
+                    ResourceTabs.erase(ResourceTabs.begin() + i);
+                    continue;
+                }
+                
+                UI->NewLine();
+
+                DrawResourceTab(tab);
+            }
+            UI->EndTab();
+        }
     }
     UI->EndFrame();
 
@@ -634,7 +652,9 @@ void EditorState::DrawLevelEditor(GraphicsModule* Graphics, UIModule* UI, double
     {
     }
 
-    EditorScene.EditorDraw(*Graphics, ViewportBuffer, &ViewportCamera);
+    bool drawHeMeshDebug = Cursor.GetSelectMode() == SelectMode::FaceSelect || Cursor.GetSelectMode() == SelectMode::VertSelect;
+
+    EditorScene.EditorDraw(*Graphics, ViewportBuffer, &ViewportCamera, true, drawHeMeshDebug);
     //EditorScene.Update(DeltaTime);
 
     Graphics->SetActiveFrameBuffer(WidgetBuffer);
@@ -1429,6 +1449,16 @@ void EditorState::DrawResourcesPanel(Scene& FocusedScene)
                 {
                     if (UI->TextButton(entry.path().filename().generic_string(), Vec2f(120.0f, 80.0f), 8.0f, c_ResourceButton))
                     {
+                        FilePath resourcePath = entry.path().filename().generic_string();
+
+                        if (resourcePath.GetExt() == ".png" || resourcePath.GetExt() == ".jpg")
+                        {
+                            ResourceTab newResourceTab;
+                            newResourceTab.Type = TabType::TEXTURE;
+                            newResourceTab.ResourcePath = entry.path().generic_string();
+
+                            ResourceTabs.push_back(newResourceTab);
+                        }
 
                     }
                 }
@@ -1473,4 +1503,16 @@ void EditorState::DrawEntityInspectorPanel()
     UIModule* UI = UIModule::Get();
 
     UI->TextButton("Add Component", Vec2f(120.0f, 60.0f), 12.0f, c_NiceYellow, c_FrameDark);
+}
+
+void EditorState::DrawResourceTab(ResourceTab& Tab)
+{
+    UIModule* UI = UIModule::Get();
+
+    if (Tab.Type == TabType::TEXTURE)
+    {
+        Texture* tex = AssetRegistry::Get()->LoadTexture(Tab.ResourcePath.GetFullPath());
+
+        UI->ImgButton(Tab.ResourcePath.GetFileName(), tex->GetID(), Vec2f(500.0f, 500.0f), 10.0f, c_NiceYellow);
+    }
 }

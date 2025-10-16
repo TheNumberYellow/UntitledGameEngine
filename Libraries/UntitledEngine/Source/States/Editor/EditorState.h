@@ -29,6 +29,18 @@ enum class DrawerMode
     BROWSER
 };
 
+enum class TabType
+{
+    TEXTURE,
+    MODEL
+};
+
+struct ResourceTab
+{
+    TabType Type;
+    FilePath ResourcePath;
+};
+
 class EditorState : public BaseState
 {
     //--------------------
@@ -79,6 +91,8 @@ private:
     void DrawInspectorPanel();
 
     void DrawEntityInspectorPanel();
+
+    void DrawResourceTab(ResourceTab& Tab);
 
     //--------------------
     // Private member variables
@@ -192,6 +206,11 @@ private:
     float MaterialPreviewCamDistance = 4.0f;
     float MaterialPreviewCamXAxis = 0.0f;
     float MaterialPreviewCamYAxis = 0.0f;
+
+    //--------------------
+    // Resource Tab Stuff
+    //--------------------
+    std::vector<ResourceTab> ResourceTabs;
 
     //--------------------
     // Constants
