@@ -1,5 +1,7 @@
 #include "EditorState.h"
 
+#ifdef USE_EDITOR
+
 #include "States/Game/GameState.h"
 
 #include "State/StateRegistry.h"
@@ -1516,3 +1518,4 @@ void EditorState::DrawResourceTab(ResourceTab& Tab)
         UI->ImgButton(Tab.ResourcePath.GetFileName(), tex->GetID(), Vec2f(500.0f, 500.0f), 10.0f, c_NiceYellow);
     }
 }
+#endif

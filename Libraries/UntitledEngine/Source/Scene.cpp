@@ -324,6 +324,7 @@ void Scene::Draw(GraphicsModule& graphics, GBuffer gBuffer, size_t camIndex)
     graphics.Render(gBuffer, m_Cameras[camIndex]);
 }
 
+#ifdef USE_EDITOR
 void Scene::EditorDraw(GraphicsModule& graphics, GBuffer gBuffer, Camera* editorCam, bool drawSceneCam, bool debugDrawHEMeshes)
 {
     if (InputModule::Get()->GetKeyState(Key::C).justPressed)
@@ -396,6 +397,7 @@ void Scene::EditorDraw(GraphicsModule& graphics, GBuffer gBuffer, Camera* editor
 
     graphics.Render(gBuffer, *editorCam);
 }
+#endif
 
 SceneRayCastHit Scene::RayCast(Ray ray, std::vector<Model*> IgnoredModels)
 {

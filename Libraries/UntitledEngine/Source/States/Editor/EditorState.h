@@ -1,4 +1,6 @@
 #pragma once
+#ifdef USE_EDITOR
+
 #include "State/BaseState.h"
 
 #include "HalfEdge/HalfEdge.h"
@@ -267,3 +269,4 @@ private:
 
     Material* lastUsedMaterial = nullptr;
 };
+#endif

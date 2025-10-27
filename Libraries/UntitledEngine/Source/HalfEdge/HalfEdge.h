@@ -18,6 +18,7 @@ namespace he
 
     struct Vertex;
     struct Face;
+    struct HalfEdgeMesh;
 
     struct HalfEdge
     {

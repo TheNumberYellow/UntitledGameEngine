@@ -1,5 +1,7 @@
 #pragma once
 
+#ifdef USE_EDITOR
+
 #include "Scene.h"
 #include "Interfaces/EditorClickable_i.h"
 
@@ -219,3 +221,4 @@ private:
     Camera* CameraPtr;
 };
 
+#endif

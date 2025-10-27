@@ -1,5 +1,7 @@
 #include "CursorState.h"
 
+#ifdef USE_EDITOR
+
 #include "Modules/GraphicsModule.h"
 #include "EditorState.h"
 #include "Graphics/Model.h"
@@ -1591,3 +1593,4 @@ bool CursorState::ClickCastApplyMaterial(Ray mouseRay, Material* material)
     }
     return false;
 }
+#endif

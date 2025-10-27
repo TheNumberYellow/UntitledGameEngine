@@ -1,8 +1,10 @@
-#include "Halfedge.h"
+#include "HalfEdge.h"
 
 #include "Modules/CollisionModule.h"
 #include "Modules/GraphicsModule.h"
 #include "Modules/InputModule.h"
+#include "Modules/UIModule.h"
+
 
 he::SelectedHalfEdgeVertex::SelectedHalfEdgeVertex(HalfEdgeMesh* inMeshPtr, he::Vertex* inVertPtr)
 {
