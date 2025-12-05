@@ -138,6 +138,8 @@ namespace he
         // Inherited via IEditorClickable
         //RayCastHit ClickCast(Ray mouseRay, ISelectedObject*& outSelectedObject) override;
 
+        RayCastHit RayCast(Ray ray);
+
         RayCastHit ClickCastFaces(Ray mouseRay, ISelectedObject*& outSelectedObject);
         RayCastHit ClickCastVerts(Ray mouseRay, ISelectedObject*& outSelectedObject);
 

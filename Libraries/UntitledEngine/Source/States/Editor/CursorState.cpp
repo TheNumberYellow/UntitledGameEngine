@@ -621,76 +621,80 @@ void CursorState::UpdateSculptTool(double DeltaTime)
 
     if (FinalHit.rayCastHit.hit)
     {
-        if (FinalHit.hitModel->Type == ModelType::PLANE)
+        // TODO: some sort of polymorphic? solution to various hit results
+        if (FinalHit.hitModel)
         {
-            Vec3f HitPoint = FinalHit.rayCastHit.hitPoint;
-            Graphics->DebugDrawSphere(HitPoint, SculptRadius, Vec3f(0.6f, 0.3f, 0.9f));
-
-            if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB) || Input->GetMouseState().GetMouseButtonState(MouseButton::RMB))
+            if (FinalHit.hitModel->Type == ModelType::PLANE)
             {
-                Model* PlaneModel = FinalHit.hitModel;
-                Vec3f ModelSpaceVertPos = HitPoint * Math::inv(PlaneModel->GetTransform().GetTransformMatrix());
+                Vec3f HitPoint = FinalHit.rayCastHit.hitPoint;
+                Graphics->DebugDrawSphere(HitPoint, SculptRadius, Vec3f(0.6f, 0.3f, 0.9f));
 
-                float VerticalDir = Input->GetMouseState().GetMouseButtonState(MouseButton::RMB) ? -SculptSpeed : SculptSpeed;
-
-                StaticMesh_ID Mesh = PlaneModel->m_StaticMesh.Id;
-
-                std::vector<Vertex*> Vertices = Graphics->m_Renderer.MapMeshVertices(Mesh);
-
-                for (auto& Vert : Vertices)
+                if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB) || Input->GetMouseState().GetMouseButtonState(MouseButton::RMB))
                 {
-                    float Dist = Math::magnitude(Vert->position - ModelSpaceVertPos);
-                    //if (Dist < radius)
-                    //{
-                    float Strength = Math::SmoothStep(Dist, SculptRadius, 0.5f) * VerticalDir * (SculptRadius * 0.25f);
-                    
-                    //Vec3f hitNorm = FinalHit.rayCastHit.hitNormal;
-                    //Vert->position += Strength * hitNorm * (float)DeltaTime;
-                    Vert->position += Strength * Vec3f(0.0f, 0.0f, 1.0f) * (float)DeltaTime;
-                    //}
-                }
+                    Model* PlaneModel = FinalHit.hitModel;
+                    Vec3f ModelSpaceVertPos = HitPoint * Math::inv(PlaneModel->GetTransform().GetTransformMatrix());
 
-                Graphics->m_Renderer.UnmapMeshVertices(Mesh);
-                Collisions->InvalidateMeshCollisionData(Mesh);
-                Graphics->RecalculateTerrainModelNormals(*PlaneModel);
-            }
-            else if (Input->GetMouseState().GetMouseButtonState(MouseButton::MIDDLE))
-            {
-                Model* PlaneModel = FinalHit.hitModel;
-                Vec3f ModelSpaceVertPos = HitPoint * Math::inv(PlaneModel->GetTransform().GetTransformMatrix());
+                    float VerticalDir = Input->GetMouseState().GetMouseButtonState(MouseButton::RMB) ? -SculptSpeed : SculptSpeed;
 
-                StaticMesh_ID Mesh = PlaneModel->m_StaticMesh.Id;
+                    StaticMesh_ID Mesh = PlaneModel->m_StaticMesh.Id;
 
-                std::vector<Vertex*> Vertices = Graphics->m_Renderer.MapMeshVertices(Mesh);
+                    std::vector<Vertex*> Vertices = Graphics->m_Renderer.MapMeshVertices(Mesh);
 
-                std::vector<Vertex*> VerticesInRange;
-                float AverageElevation = 0.0f;
-
-                for (auto& Vert : Vertices)
-                {
-                    float Dist = Math::magnitude(Vert->position - ModelSpaceVertPos);
-                    if (Dist < SculptRadius)
+                    for (auto& Vert : Vertices)
                     {
-                        VerticesInRange.push_back(Vert);
-                        AverageElevation += Vert->position.z;
+                        float Dist = Math::magnitude(Vert->position - ModelSpaceVertPos);
+                        //if (Dist < radius)
+                        //{
+                        float Strength = Math::SmoothStep(Dist, SculptRadius, 0.5f) * VerticalDir * (SculptRadius * 0.25f);
+                    
+                        //Vec3f hitNorm = FinalHit.rayCastHit.hitNormal;
+                        //Vert->position += Strength * hitNorm * (float)DeltaTime;
+                        Vert->position += Strength * Vec3f(0.0f, 0.0f, 1.0f) * (float)DeltaTime;
+                        //}
                     }
-                }
-                AverageElevation /= VerticesInRange.size();
 
-                for (auto& InRangeVert : VerticesInRange)
+                    Graphics->m_Renderer.UnmapMeshVertices(Mesh);
+                    Collisions->InvalidateMeshCollisionData(Mesh);
+                    Graphics->RecalculateTerrainModelNormals(*PlaneModel);
+                }
+                else if (Input->GetMouseState().GetMouseButtonState(MouseButton::MIDDLE))
                 {
-                    float Dist = Math::magnitude(InRangeVert->position - ModelSpaceVertPos);
-                    float Strength = Math::SmoothStep(Dist, SculptRadius, 0.0f);
+                    Model* PlaneModel = FinalHit.hitModel;
+                    Vec3f ModelSpaceVertPos = HitPoint * Math::inv(PlaneModel->GetTransform().GetTransformMatrix());
 
-                    float Diff = AverageElevation - InRangeVert->position.z;
+                    StaticMesh_ID Mesh = PlaneModel->m_StaticMesh.Id;
 
-                    InRangeVert->position.z += SculptSpeed * Diff * Strength * (float)DeltaTime;
+                    std::vector<Vertex*> Vertices = Graphics->m_Renderer.MapMeshVertices(Mesh);
+
+                    std::vector<Vertex*> VerticesInRange;
+                    float AverageElevation = 0.0f;
+
+                    for (auto& Vert : Vertices)
+                    {
+                        float Dist = Math::magnitude(Vert->position - ModelSpaceVertPos);
+                        if (Dist < SculptRadius)
+                        {
+                            VerticesInRange.push_back(Vert);
+                            AverageElevation += Vert->position.z;
+                        }
+                    }
+                    AverageElevation /= VerticesInRange.size();
+
+                    for (auto& InRangeVert : VerticesInRange)
+                    {
+                        float Dist = Math::magnitude(InRangeVert->position - ModelSpaceVertPos);
+                        float Strength = Math::SmoothStep(Dist, SculptRadius, 0.0f);
+
+                        float Diff = AverageElevation - InRangeVert->position.z;
+
+                        InRangeVert->position.z += SculptSpeed * Diff * Strength * (float)DeltaTime;
+                    }
+
+                    Graphics->m_Renderer.UnmapMeshVertices(Mesh);
+                    Collisions->InvalidateMeshCollisionData(Mesh);
+                    Graphics->RecalculateTerrainModelNormals(*PlaneModel);
+
                 }
-
-                Graphics->m_Renderer.UnmapMeshVertices(Mesh);
-                Collisions->InvalidateMeshCollisionData(Mesh);
-                Graphics->RecalculateTerrainModelNormals(*PlaneModel);
-
             }
         }
     }

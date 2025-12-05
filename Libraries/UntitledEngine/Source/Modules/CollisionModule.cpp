@@ -1,5 +1,7 @@
 #include "CollisionModule.h"
 
+#include "HalfEdge/HalfEdge.h"
+
 CollisionModule* CollisionModule::s_Instance = nullptr;
 
 OctreeNode::~OctreeNode()
@@ -200,6 +202,12 @@ void CollisionModule::InvalidateMeshCollisionData(StaticMesh_ID mesh)
 RayCastHit CollisionModule::RayCast(Ray ray, Model& model)
 {
     return RayCast(ray, *GetCollisionMeshFromMesh(model.m_StaticMesh), model.GetTransform().GetTransformMatrix());
+}
+
+RayCastHit CollisionModule::RayCast(Ray ray, he::HalfEdgeMesh& heMesh)
+{
+    return heMesh.RayCast(ray);
+    //return RayCastHit();
 }
 
 RayCastHit CollisionModule::RayCast(Ray ray, const CollisionMesh& mesh, Transform& transform)

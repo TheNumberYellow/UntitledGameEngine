@@ -416,6 +416,11 @@ SceneRayCastHit Scene::RayCast(Ray ray, std::vector<Model*> IgnoredModels)
         finalHit = Closer(finalHit, SceneRayCastHit{ Collision.RayCast(ray, colMesh, it.second->GetTransform()), it.second });
     }
 
+    for (auto& it : m_HEMeshes)
+    {
+        finalHit = Closer(finalHit, SceneRayCastHit{ Collision.RayCast(ray, *it), nullptr });
+    }
+
     return finalHit;
 }
 

@@ -662,6 +662,55 @@ void he::HalfEdgeMesh::Clear()
     m_HalfEdges.clear();
 }
 
+RayCastHit he::HalfEdgeMesh::RayCast(Ray ray)
+{
+    CollisionModule* collisions = CollisionModule::Get();
+
+    he::Face* hitFacePtr = nullptr;
+    RayCastHit closestHitFace;
+
+    for (int i = 0; i < m_Faces.size(); ++i)
+    {
+        std::vector<Vec3f> faceVerts;
+
+        HalfEdge* initialHalfEdge = m_Faces[i]->halfEdge;
+        HalfEdge* currentHalfEdge = initialHalfEdge;
+
+        do
+        {
+            HalfEdge& thisHalfEdge = *currentHalfEdge;
+
+            Vec3f faceVert = thisHalfEdge.vert->vec;
+            faceVerts.push_back(faceVert);
+
+            currentHalfEdge = thisHalfEdge.next;
+
+        } while (currentHalfEdge != initialHalfEdge);
+
+        assert(faceVerts.size() >= 3);
+
+        size_t numFaces = faceVerts.size();
+
+        for (int j = 1; j < numFaces - 1; ++j)
+        {
+            Triangle tri;
+            tri.a = faceVerts[0];
+            tri.b = faceVerts[j];
+            tri.c = faceVerts[j + 1];
+
+            RayCastHit newHit = collisions->RayCast(ray, tri);
+
+            if (newHit.hit && newHit.hitDistance < closestHitFace.hitDistance)
+            {
+                closestHitFace = newHit;
+                hitFacePtr = m_Faces[i];
+            }
+        }
+    }
+
+    return closestHitFace;
+}
+
 RayCastHit he::HalfEdgeMesh::ClickCastFaces(Ray mouseRay, ISelectedObject*& outSelectedObject)
 {
     GraphicsModule* graphics = GraphicsModule::Get();

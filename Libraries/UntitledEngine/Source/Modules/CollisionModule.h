@@ -8,6 +8,10 @@
 #include <limits> 
 #include <unordered_map>
 
+namespace he
+{
+    struct HalfEdgeMesh;
+}
 
 struct Triangle
 {
@@ -74,6 +78,7 @@ public:
     void InvalidateMeshCollisionData(StaticMesh_ID mesh);
 
     RayCastHit RayCast(Ray ray, Model& model);
+    RayCastHit RayCast(Ray ray, he::HalfEdgeMesh& heMesh);
     RayCastHit RayCast(Ray ray, const CollisionMesh& mesh, Transform& transform);
     RayCastHit RayCast(Ray ray, const CollisionMesh& mesh, const Mat4x4f& meshTransform = Mat4x4f());
     RayCastHit RayCast(Ray ray, AABB aabb);
