@@ -1998,17 +1998,17 @@ void GraphicsModule::UpdateHEMeshModel(he::HalfEdgeMesh* mesh)
             texCoords.y = Math::dot(relativePoint, upVec);
 
             // TEMP: apply uv scaling (UV values way too large as-is)
-            if (face->material)
+            //if (face->material)
+            //{
+            //    texCoords.x *= 0.2f;
+            //    texCoords.y *= 0.2f;
+            //}
+            //else
             {
                 texCoords.x *= 0.2f;
                 texCoords.y *= 0.2f;
             }
-            else
-            {
-                texCoords.x *= 0.5f;
-                texCoords.y *= 0.5f;
-            }
-
+            
             // Apply uv nudge
             texCoords.x += face->textureNudgeU;
             texCoords.y += face->textureNudgeV;
@@ -2031,14 +2031,14 @@ void GraphicsModule::UpdateHEMeshModel(he::HalfEdgeMesh* mesh)
         heMesh.Id = heMeshId;
         heMesh.LoadedFromFile = false;
 
-        if (face->material)
+        //if (face->material)
         {
-            mesh->m_RepModels.push_back(Model(heMesh, *face->material));
+            mesh->m_RepModels.push_back(Model(heMesh, face->material));
         }
-        else
-        {
-            mesh->m_RepModels.push_back(Model(heMesh, m_DebugMaterial));
-        }
+        //else
+        //{
+        //    mesh->m_RepModels.push_back(Model(heMesh, m_DebugMaterial));
+        //}
     }
 }
 

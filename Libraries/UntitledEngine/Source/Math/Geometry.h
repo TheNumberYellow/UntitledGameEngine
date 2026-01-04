@@ -212,3 +212,11 @@ struct RayCastHit
             lhs.hitDistance == rhs.hitDistance && lhs.hitNormal == rhs.hitNormal);
     }
 };
+
+struct Intersection
+{
+    bool hit = false;
+
+    Vec3f penetrationNormal;
+    float penetrationDepth = 0.0f;
+};

@@ -46,14 +46,6 @@ struct OctreeNode
     void AddLevel(int tempDepth);
 };
 
-struct Intersection
-{
-    bool hit = false;
-
-    Vec3f penetrationNormal;
-    float penetrationDepth = 0.0f;
-};
-
 struct CollisionMesh
 {
     CollisionMesh() : OctreeHead(nullptr) {}
@@ -91,6 +83,7 @@ public:
     Intersection SphereIntersection(Sphere sphere, Sphere other);
     Intersection SphereIntersection(Sphere sphere, Triangle tri);
     Intersection SphereIntersection(Sphere sphere, Model& model);
+    Intersection SphereIntersection(Sphere sphere, he::HalfEdgeMesh& heMesh);
     Intersection SphereIntersection(Sphere, const CollisionMesh& mesh, Transform& transform);
 
     static const RayCastHit* Closest(std::initializer_list<RayCastHit> hitList);

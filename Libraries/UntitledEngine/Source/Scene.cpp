@@ -416,6 +416,7 @@ SceneRayCastHit Scene::RayCast(Ray ray, std::vector<Model*> IgnoredModels)
         finalHit = Closer(finalHit, SceneRayCastHit{ Collision.RayCast(ray, colMesh, it.second->GetTransform()), it.second });
     }
 
+    // TODO: Some sort of typed union (or maybe polymorphism if this gets more complex) for returning multiple hit object types
     for (auto& it : m_HEMeshes)
     {
         finalHit = Closer(finalHit, SceneRayCastHit{ Collision.RayCast(ray, *it), nullptr });
@@ -444,6 +445,15 @@ Intersection Scene::SphereIntersect(Sphere sphere, std::vector<Model*> IgnoredMo
         if (ModelIntersection.hit && ModelIntersection.penetrationDepth > Result.penetrationDepth)
         {
             Result = ModelIntersection;
+        }
+    }
+    for (auto& it : m_HEMeshes)
+    {
+        Intersection HEMeshIntersection = Collision.SphereIntersection(sphere, *it);
+
+        if (HEMeshIntersection.hit && HEMeshIntersection.penetrationDepth > Result.penetrationDepth)
+        {
+            Result = HEMeshIntersection;
         }
     }
 
@@ -507,7 +517,7 @@ void Scene::Save(std::string FileName)
     // Set of all Static Meshes used in the scene
     std::set<StaticMesh> StaticMeshes;
 
-    for (auto it : m_Models)
+    for (auto& it : m_Models)
     {
         Model* model = it.second;
 
@@ -523,6 +533,17 @@ void Scene::Save(std::string FileName)
         }
     }
 
+    for (auto& it : m_HEMeshes)
+    {
+        he::HalfEdgeMesh* heMesh = it;
+
+        for (auto& face : heMesh->m_Faces)
+        {
+            Material mat = face->material;
+            Materials.insert(mat);
+        }
+    }
+
     std::vector<Material> MatVec(Materials.begin(), Materials.end());
     std::vector<StaticMesh> MeshVec(StaticMeshes.begin(), StaticMeshes.end());
 
@@ -533,6 +554,7 @@ void Scene::Save(std::string FileName)
     json PointLightList;
     json DirLightList;
     json ModelList;
+    json HEMeshList;
 
     int Index = 0;
     for (Material Mat : MatVec)
@@ -598,11 +620,19 @@ void Scene::Save(std::string FileName)
         }
     }
 
+    Index = 0;
+    for (he::HalfEdgeMesh* heMesh : m_HEMeshes)
+    {
+        SaveHEMesh(HEMeshList[Index++], heMesh, MatVec);
+    }
+
+
     SceneJson["Textures"] = TextureList;
     SceneJson["StaticMeshes"] = StaticMeshList;
     SceneJson["PointLights"] = PointLightList;
     SceneJson["DirLights"] = DirLightList;
     SceneJson["Models"] = ModelList;
+    SceneJson["HEMeshes"] = HEMeshList;
 
     // Uncomment to beautify json - makes it easier to debug but makes files much larger
     File << std::setw(4) << SceneJson;
@@ -646,6 +676,7 @@ void Scene::Load(std::string FileName)
     json PointLightsJson = SceneJson["PointLights"];
     json DirLightsJson = SceneJson["DirLights"];
     json ModelsJson = SceneJson["Models"];
+    json HEMeshesJson = SceneJson["HEMeshes"];
 
     for (json& TextureJson : TexturesJson)
     {
@@ -674,6 +705,10 @@ void Scene::Load(std::string FileName)
         {
             AddedModel = AddModel(LoadModel(ModelJson, MaterialVec, StaticMeshVec));
         }
+    }
+    for (json& HEMeshJson : HEMeshesJson)
+    {
+        AddHalfEdgeMesh(LoadHEMesh(HEMeshJson, MaterialVec));
     }
 }
 
@@ -969,12 +1004,15 @@ void Scene::CopyInternal(const Scene& other)
         Model* newModel = new Model(*it.second);
         AddModel(newModel);
 
-        // TODO: Copy actual behaviour so parameter changes are picked up
 
         Behaviour* oldBehaviour = BehaviourRegistry::Get()->GetBehaviourAttachedToEntity(it.second);
         if (oldBehaviour)
         {
-            BehaviourRegistry::Get()->AttachNewBehaviour(oldBehaviour->BehaviourName, newModel);
+            // Copy actual behaviour so parameter changes are picked up
+            // TODO: Behaviour parameters are not serialized
+            BehaviourRegistry::Get()->CopyAndAttachNewBehaviour(oldBehaviour, newModel);
+
+            //BehaviourRegistry::Get()->AttachNewBehaviour(oldBehaviour->BehaviourName, newModel);
         }
     }
 
@@ -1145,6 +1183,146 @@ void Scene::SaveRawModel(json& JsonObject, Model& Mod, int64_t MatIndex)
     JsonObject["Type"] = Mod.Type;
 }
 
+void Scene::SaveHEMesh(json& JsonObject, he::HalfEdgeMesh* HeMesh, std::vector<Material>& MatVec)
+{
+    json FaceListJson;
+    json HalfEdgeListJson;
+    json VertexListJson;
+
+    std::vector<he::Face*>& Faces = HeMesh->m_Faces;
+    std::vector<he::HalfEdge*>& HalfEdges = HeMesh->m_HalfEdges;
+    std::vector<he::Vertex*>& Vertices = HeMesh->m_Verts;
+
+    // Save faces
+    for (auto& face : Faces)
+    {
+        json FaceJson;
+
+        int64_t MaterialIndex = 0;
+
+        auto MatIt = std::find(MatVec.begin(), MatVec.end(), face->material);
+        if (MatIt != MatVec.end())
+        {
+            MaterialIndex = MatIt - MatVec.begin();
+        }
+        else
+        {
+            Engine::FatalError("Could not find material, this should never happen");
+        }
+
+        FaceJson["MatID"] = MaterialIndex;
+
+        FaceJson["TNU"] = face->textureNudgeU;
+        FaceJson["TNV"] = face->textureNudgeV;
+        
+        FaceJson["TSU"] = face->textureScaleU;
+        FaceJson["TSV"] = face->textureScaleV;
+
+        FaceJson["R"] = face->textureRot;
+
+        int64_t HEIndex = 0;
+
+        auto HalfEdgeIt = std::find(HalfEdges.begin(), HalfEdges.end(), face->halfEdge);
+        if (HalfEdgeIt != HalfEdges.end())
+        {
+            HEIndex = HalfEdgeIt - HalfEdges.begin();
+        }
+        else
+        {
+            Engine::FatalError("Could not find Half Edge Index, this should never happen");
+        }
+        FaceJson["HE"] = HEIndex;
+
+        FaceListJson.push_back(FaceJson);
+    }
+
+    // Save halfedges
+    for (auto& halfEdge : HalfEdges)
+    {
+        json HalfEdgeJson;
+
+        int64_t NextIndex = 0;
+        auto NextIt = std::find(HalfEdges.begin(), HalfEdges.end(), halfEdge->next);
+        if (NextIt != HalfEdges.end())
+        {
+            NextIndex = NextIt - HalfEdges.begin();
+        }
+        else
+        {
+            Engine::FatalError("Could not find Next Half Edge Index, this should never happen");
+        }
+
+        int64_t TwinIndex = 0;
+        auto TwinIt = std::find(HalfEdges.begin(), HalfEdges.end(), halfEdge->twin);
+        if (TwinIt != HalfEdges.end())
+        {
+            TwinIndex = TwinIt - HalfEdges.begin();
+        }
+        else
+        {
+            Engine::FatalError("Could not find Twin Half Edge Index, this should never happen");
+        }
+
+        int64_t VertIndex = 0;
+        auto VertIt = std::find(Vertices.begin(), Vertices.end(), halfEdge->vert);
+        if (VertIt != Vertices.end())
+        {
+            VertIndex = VertIt - Vertices.begin();
+        }
+        else
+        {
+            Engine::FatalError("Could not find Vert Index, this should never happen");
+        }
+
+        int64_t FaceIndex = 0;
+        auto FaceIt = std::find(Faces.begin(), Faces.end(), halfEdge->face);
+        if (FaceIt != Faces.end())
+        {
+            FaceIndex = FaceIt - Faces.begin();
+        }
+        else
+        {
+            Engine::FatalError("Could not find Face Index, this should never happen");
+        }
+
+
+        HalfEdgeJson["Next"] = NextIndex;
+        HalfEdgeJson["Twin"] = TwinIndex;
+        HalfEdgeJson["Vert"] = VertIndex;
+        HalfEdgeJson["Face"] = FaceIndex;
+
+        HalfEdgeListJson.push_back(HalfEdgeJson);
+    }
+
+    // Save vertices
+    for (auto& vertex : Vertices)
+    {
+        json VertexJson;
+
+        int64_t HEIndex = 0;
+
+        auto HalfEdgeIt = std::find(HalfEdges.begin(), HalfEdges.end(), vertex->halfEdge);
+        if (HalfEdgeIt != HalfEdges.end())
+        {
+            HEIndex = HalfEdgeIt - HalfEdges.begin();
+        }
+        else
+        {
+            Engine::FatalError("Could not find Half Edge Index, this should never happen");
+        }
+
+        VertexJson["HE"] = HEIndex;
+
+        VertexJson["Pos"] = { vertex->vec.x, vertex->vec.y, vertex->vec.z };
+
+        VertexListJson.push_back(VertexJson);
+    }
+
+    JsonObject["Faces"] = FaceListJson;
+    JsonObject["HalfEdges"] = HalfEdgeListJson;
+    JsonObject["Vertices"] = VertexListJson;
+}
+
 Material Scene::LoadMaterial(json& JsonObject)
 {
     std::string albedoPath = JsonObject[0].get<std::string>();
@@ -1280,4 +1458,67 @@ Model* Scene::LoadRawModel(json& JsonObject, std::vector<Material>& MaterialVect
     }
 
     return NewModel;
+}
+
+he::HalfEdgeMesh* Scene::LoadHEMesh(json& JsonObject, std::vector<Material>& MaterialVector)
+{
+
+    he::HalfEdgeMesh* NewHEMesh = new he::HalfEdgeMesh();
+
+    for (json& FaceJson : JsonObject["Faces"])
+    {
+        he::Face* newFace = new he::Face();
+        newFace->material = Material(MaterialVector[FaceJson["MatID"]]);
+        newFace->textureNudgeU = FaceJson["TNU"];
+        newFace->textureNudgeV = FaceJson["TNV"];
+        
+        newFace->textureScaleU = FaceJson["TSU"];
+        newFace->textureScaleV = FaceJson["TSV"];
+
+        newFace->textureRot = FaceJson["R"];
+
+        NewHEMesh->m_Faces.push_back(newFace);
+    }
+
+    for (json& HalfEdgeJson : JsonObject["HalfEdges"])
+    {
+        he::HalfEdge* newHalfEdge = new he::HalfEdge();
+
+        NewHEMesh->m_HalfEdges.push_back(newHalfEdge);
+    }
+
+    for (json& VertexJson : JsonObject["Vertices"])
+    {
+        he::Vertex* newVertex = new he::Vertex(Vec3f(VertexJson["Pos"][0], VertexJson["Pos"][1], VertexJson["Pos"][2]));
+
+        NewHEMesh->m_Verts.push_back(newVertex);
+    }
+
+    // Connect all half edge mesh constructs
+    int index = 0;
+    for (json& FaceJson : JsonObject["Faces"])
+    {
+        NewHEMesh->m_Faces[index]->halfEdge = NewHEMesh->m_HalfEdges[FaceJson["HE"]];
+        
+        index++;
+    }
+    index = 0;
+    for (json& HalfEdgeJson : JsonObject["HalfEdges"])
+    {
+        NewHEMesh->m_HalfEdges[index]->next = NewHEMesh->m_HalfEdges[HalfEdgeJson["Next"]];
+        NewHEMesh->m_HalfEdges[index]->twin = NewHEMesh->m_HalfEdges[HalfEdgeJson["Twin"]];
+        NewHEMesh->m_HalfEdges[index]->vert = NewHEMesh->m_Verts[HalfEdgeJson["Vert"]];
+        NewHEMesh->m_HalfEdges[index]->face = NewHEMesh->m_Faces[HalfEdgeJson["Face"]];
+
+        index++;
+    }
+    index = 0;
+    for (json& VertexJson : JsonObject["Vertices"])
+    {
+        NewHEMesh->m_Verts[index]->halfEdge = NewHEMesh->m_HalfEdges[VertexJson["HE"]];
+
+        index++;
+    }
+
+    return NewHEMesh;
 }

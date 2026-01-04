@@ -155,6 +155,7 @@ private:
     void SaveDirectionalLight(json& JsonObject, DirectionalLight& DirLight);
     void SaveModel(json& JsonObject, Model& Mod, int64_t MeshIndex, int64_t MatIndex);
     void SaveRawModel(json& JsonObject, Model& Mod, int64_t MatIndex);
+    void SaveHEMesh(json& JsonObject, he::HalfEdgeMesh* HeMesh, std::vector<Material>& MatVec);
 
     Material LoadMaterial(json& JsonObject);
     StaticMesh LoadStaticMesh(json& JsonObject);
@@ -162,6 +163,7 @@ private:
     DirectionalLight LoadDirectionalLight(json& JsonObject);
     Model* LoadModel(json& JsonObject, std::vector<Material>& MaterialVector, std::vector<StaticMesh>& StaticMeshVector);
     Model* LoadRawModel(json& JsonObject, std::vector<Material>& MaterialVector);
+    he::HalfEdgeMesh* LoadHEMesh(json& JsonObject, std::vector<Material>& MaterialVector);
 
 #ifdef USE_EDITOR
     // Editor specific rendering stuff

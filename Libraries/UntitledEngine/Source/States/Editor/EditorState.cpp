@@ -96,6 +96,8 @@ void EditorState::OnUninitialized()
 
 void EditorState::OnEnter()
 {
+    Engine::UnlockCursor();
+    Engine::ShowCursor();
 }
 
 void EditorState::OnExit()
@@ -207,7 +209,6 @@ void EditorState::UpdateEditor(double DeltaTime)
 
         //EditorScene.GetCamera()->SetCamMatrix(ViewportCamera.GetInvCamMatrix());
     }
-
 
     Vec2i ViewportSize = Engine::GetClientAreaSize();
 

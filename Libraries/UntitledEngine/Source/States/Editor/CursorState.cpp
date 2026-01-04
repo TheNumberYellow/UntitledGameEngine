@@ -1306,7 +1306,7 @@ void CursorState::UpdateHalfEdgeTool()
                 //EditorScenePtr->AddModel(new Model(Graphics->CreateBoxModel(BoxBeingCreated)));
                 
                 he::HalfEdgeMesh* newHeMesh = new he::HalfEdgeMesh();
-                newHeMesh->MakeAABB(BoxBeingCreated);
+                newHeMesh->MakeAABB(BoxBeingCreated, Graphics->m_DebugMaterial);
                 //newHeMesh->MakeQuad();
 
                 EditorScenePtr->AddHalfEdgeMesh(newHeMesh);

@@ -15,16 +15,31 @@ struct Material
 
     friend bool operator<(const Material& lhs, const Material& rhs)
     {
-        return lhs.m_Albedo < rhs.m_Albedo
-            || lhs.m_Normal < rhs.m_Normal;
+
+        size_t lhsTotal = 0;
+        size_t rhsTotal = 0;
+
+        lhsTotal = lhs.m_Albedo->GetID() +
+            lhs.m_Normal->GetID() +
+            lhs.m_Metallic->GetID() +
+            lhs.m_Roughness->GetID() + 
+            lhs.m_AO->GetID();
+
+        rhsTotal = rhs.m_Albedo->GetID() +
+            rhs.m_Normal->GetID() +
+            rhs.m_Metallic->GetID() +
+            rhs.m_Roughness->GetID() +
+            rhs.m_AO->GetID();
+
+        return lhsTotal < rhsTotal;
     }
 
     friend bool operator==(const Material& lhs, const Material& rhs)
     {
-        return lhs.m_Albedo == rhs.m_Albedo
-            && lhs.m_Normal == rhs.m_Normal
-            && lhs.m_Metallic == rhs.m_Metallic
-            && lhs.m_Roughness == rhs.m_Roughness
-            && lhs.m_AO == rhs.m_AO;
+        return lhs.m_Albedo->GetID() == rhs.m_Albedo->GetID()
+            && lhs.m_Normal->GetID() == rhs.m_Normal->GetID()
+            && lhs.m_Metallic->GetID() == rhs.m_Metallic->GetID()
+            && lhs.m_Roughness->GetID() == rhs.m_Roughness->GetID()
+            && lhs.m_AO->GetID() == rhs.m_AO->GetID();
     }
 };

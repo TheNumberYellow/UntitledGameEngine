@@ -217,11 +217,11 @@ void he::SelectedHalfEdgeFace::ApplyMaterial(Material& inMaterial)
 {
     if (m_FacePtr)
     {
-        if (m_FacePtr->material)
-        {
-            delete m_FacePtr->material;
-        }
-        m_FacePtr->material = new Material(inMaterial);
+        //if (m_FacePtr->material)
+        //{
+        //    delete m_FacePtr->material;
+        //}
+        m_FacePtr->material = Material(inMaterial);
     }
 }
 
@@ -298,7 +298,7 @@ void he::HalfEdgeMesh::MakeQuad()
     m_Faces[1]->halfEdge = m_HalfEdges[3];
 }
 
-void he::HalfEdgeMesh::MakeAABB(AABB inAABB)
+void he::HalfEdgeMesh::MakeAABB(AABB inAABB, Material inMaterial)
 {
     Clear();
 
@@ -336,6 +336,12 @@ void he::HalfEdgeMesh::MakeAABB(AABB inAABB)
     Face* negYFace = m_Faces[4];
     Face* posYFace = m_Faces[5];
 
+    bottomFace->material = inMaterial;
+    topFace->material = inMaterial;
+    negXFace->material = inMaterial;
+    posXFace->material = inMaterial;
+    negYFace->material = inMaterial;
+    posYFace->material = inMaterial;
 
     // Half-edges
     
@@ -517,6 +523,17 @@ void he::HalfEdgeMesh::ExtrudeFace(he::Face* inFace)
         // Add new face
         he::Face* newFace = new he::Face();
         newFace->halfEdge = outerTwin;
+
+        // Copy material settings of extruded face
+        newFace->material = inFace->material;
+        newFace->textureNudgeU = inFace->textureNudgeU;
+        newFace->textureNudgeV = inFace->textureNudgeV;
+
+        newFace->textureScaleU = inFace->textureScaleU;
+        newFace->textureScaleV = inFace->textureScaleV;
+
+        newFace->textureRot = inFace->textureRot;
+
         m_Faces.push_back(newFace);
 
         outerTwin->vert = outerEdge->next->vert;
@@ -709,6 +726,52 @@ RayCastHit he::HalfEdgeMesh::RayCast(Ray ray)
     }
 
     return closestHitFace;
+}
+
+Intersection he::HalfEdgeMesh::SphereIntersect(Sphere sphere)
+{
+    CollisionModule* collisions = CollisionModule::Get();
+
+    Intersection deepestIntersection;
+    
+    for (int i = 0; i < m_Faces.size(); ++i)
+    {
+        std::vector<Vec3f> faceVerts;
+
+        HalfEdge* initialHalfEdge = m_Faces[i]->halfEdge;
+        HalfEdge* currentHalfEdge = initialHalfEdge;
+
+        do
+        {
+            HalfEdge& thisHalfEdge = *currentHalfEdge;
+
+            Vec3f faceVert = thisHalfEdge.vert->vec;
+            faceVerts.push_back(faceVert);
+
+            currentHalfEdge = thisHalfEdge.next;
+
+        } while (currentHalfEdge != initialHalfEdge);
+
+        assert(faceVerts.size() >= 3);
+
+        size_t numFaces = faceVerts.size();
+
+        for (int j = 1; j < numFaces - 1; ++j)
+        {
+            Triangle tri;
+            tri.a = faceVerts[0];
+            tri.b = faceVerts[j];
+            tri.c = faceVerts[j + 1];
+
+            Intersection newIntersection = collisions->SphereIntersection(sphere, tri);
+
+            if (newIntersection.hit && newIntersection.penetrationDepth > deepestIntersection.penetrationDepth)
+            {
+                deepestIntersection = newIntersection;
+            }
+        }
+    }
+    return deepestIntersection;
 }
 
 RayCastHit he::HalfEdgeMesh::ClickCastFaces(Ray mouseRay, ISelectedObject*& outSelectedObject)

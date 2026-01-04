@@ -67,6 +67,17 @@ Behaviour* BehaviourRegistry::AttachNewBehaviour(std::string BehaviourName, Mode
     return nullptr;
 }
 
+Behaviour* BehaviourRegistry::CopyAndAttachNewBehaviour(Behaviour* inBehaviour, Model* Model)
+{
+    Behaviour* newBehaviour = inBehaviour->Clone();
+    newBehaviour->m_Model = Model;
+    newBehaviour->BehaviourName = inBehaviour->BehaviourName;
+
+    m_AttachedBehaviours[Model].push_back(newBehaviour);
+
+    return newBehaviour;
+}
+
 void BehaviourRegistry::InitializeModelBehaviours(Model* Model, Scene* Scene)
 {
     auto it = m_AttachedBehaviours.find(Model);

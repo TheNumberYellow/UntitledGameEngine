@@ -45,6 +45,7 @@ public:
     Behaviour* AddBehaviourPrototype(std::string BehaviourName, Behaviour* NewBehaviour);
 
     Behaviour* AttachNewBehaviour(std::string BehaviourName, Model* Model);
+    Behaviour* CopyAndAttachNewBehaviour(Behaviour* inBehaviour, Model* Model);
 
     void InitializeModelBehaviours(Model* Model, Scene* Scene);
     void UpdateModelBehaviours(Model* Model, Scene* Scene, double DeltaTime);

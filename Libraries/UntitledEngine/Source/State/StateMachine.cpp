@@ -45,6 +45,8 @@ void StateMachine::PopState()
     delete TopState;
 
     StateStack.pop();
+
+    StateStack.top()->OnEnter();
 }
 
 void StateMachine::Resize()

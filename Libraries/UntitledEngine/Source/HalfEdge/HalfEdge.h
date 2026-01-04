@@ -58,7 +58,7 @@ namespace he
 
         float textureRot = 0.0f;
 
-        Material* material = nullptr;
+        Material material;
 
         HalfEdge* halfEdge = nullptr;
     };
@@ -116,7 +116,7 @@ namespace he
     struct HalfEdgeMesh
     {
         void MakeQuad();
-        void MakeAABB(AABB inAABB);
+        void MakeAABB(AABB inAABB, Material inMaterial);
 
         void SubDivide();
 
@@ -139,6 +139,7 @@ namespace he
         //RayCastHit ClickCast(Ray mouseRay, ISelectedObject*& outSelectedObject) override;
 
         RayCastHit RayCast(Ray ray);
+        Intersection SphereIntersect(Sphere sphere);
 
         RayCastHit ClickCastFaces(Ray mouseRay, ISelectedObject*& outSelectedObject);
         RayCastHit ClickCastVerts(Ray mouseRay, ISelectedObject*& outSelectedObject);

@@ -43,7 +43,7 @@ void Transform::Scale(Vec3f scale)
 
 void Transform::Rotate(Quaternion rotation)
 {
-    m_Rotation = m_Rotation * rotation;
+    m_Rotation = rotation * m_Rotation;
 
     m_TransformMatrixNeedsUpdate = true;
 }

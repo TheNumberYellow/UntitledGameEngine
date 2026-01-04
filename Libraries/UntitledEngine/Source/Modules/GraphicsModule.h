@@ -196,8 +196,12 @@ private:
     Texture m_DefaultAOMap;
     Texture m_DefaultHeightMap;
 
+    // Temp public
+public:
     Material m_DebugMaterial;
-    
+
+private:
+
     VertexBufferFormat m_TexturedMeshFormat;
 
     //TODO(Fraser): this should likely be moved to some sort of "Scene" and cubemaps should have a more generic interface in the graphics module

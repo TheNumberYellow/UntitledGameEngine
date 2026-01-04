@@ -2,14 +2,14 @@
 
 #include "Behaviour\Behaviour.h"
 
-class SphereController :
+class DumbSphere :
     public Behaviour
 {
 public:
 
-    DEFINE_BEHAVIOUR(SphereController);
+    DEFINE_BEHAVIOUR(DumbSphere);
 
-    SphereController();
+    DumbSphere();
 
     void Initialize(Scene* Scene) override;
     void Update(Scene* Scene, double DeltaTime) override;
@@ -23,14 +23,6 @@ private:
     Vec3f AngVel = Vec3f(0.0f, 0.0f, 0.0f);
 
     float ImpulseForce = 30.0f;
-
-    float CamXAxis = 0.0f;
-    float CamYAxis = 0.0f;
-
-    float DefaultCamDistance = 5.0f;
-    float CamDistance;
-
-    Vec3f CamFacingDir = Vec3f(1.0f, 0.0f, 0.0f);
 
     PointLight* MyLight = nullptr;
 };
