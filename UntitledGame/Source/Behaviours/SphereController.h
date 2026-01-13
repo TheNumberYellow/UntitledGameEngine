@@ -22,7 +22,10 @@ private:
 
     Vec3f AngVel = Vec3f(0.0f, 0.0f, 0.0f);
 
+    float JumpSpeed = 30.0f;
+
     float ImpulseForce = 30.0f;
+    float Restitution = 0.5f;
 
     float CamXAxis = 0.0f;
     float CamYAxis = 0.0f;
@@ -33,5 +36,8 @@ private:
     Vec3f CamFacingDir = Vec3f(1.0f, 0.0f, 0.0f);
 
     PointLight* MyLight = nullptr;
+
+    std::deque<Vec3f> LastXPositions;
+    int QueueSize = 100000;
 };
 

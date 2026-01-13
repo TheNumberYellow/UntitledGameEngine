@@ -2080,8 +2080,8 @@ Model GraphicsModule::CreatePlaneModel(Vec2f min, Vec2f max, Material material, 
             float ColB = 1.0f;
             float ColA = 1.0f;
 
-            float TexU = (x * Width / Rows) / 2.0f;
-            float TexV = (y * Height / Columns) / 2.0f;
+            float TexU = (x * Width / Rows) * .2f;
+            float TexV = (y * Height / Columns) * .2f;
 
             Vec3f NewPoint = Vec3f(NewX, NewY, NewZ) - AveragePoint;
             Vertices.insert(Vertices.end(), { NewPoint.x, NewPoint.y, NewPoint.z, NormX, NormY, NormZ, ColR, ColG, ColB, ColA, TexU, TexV});

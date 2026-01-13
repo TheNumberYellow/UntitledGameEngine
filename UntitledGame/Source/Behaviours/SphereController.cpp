@@ -60,7 +60,7 @@ void SphereController::Update(Scene* Scene, double DeltaTime)
 
             LastRot = Quaternion(b, t.Magnitude() * DeltaTime);
         }
-        Velocity.z = 30.f;
+        Velocity.z = JumpSpeed;
     }
 
     m_Model->GetTransform().Move(Velocity * (float)DeltaTime);
@@ -74,7 +74,7 @@ void SphereController::Update(Scene* Scene, double DeltaTime)
     if (SceneIntersection.hit)
     {
         m_Model->GetTransform().Move((SceneIntersection.penetrationNormal * 0.001f) + (SceneIntersection.penetrationNormal * -SceneIntersection.penetrationDepth));
-        Velocity = Velocity - (2.f * (Math::dot(Velocity, SceneIntersection.penetrationNormal)) * SceneIntersection.penetrationNormal) * 0.85f;
+        Velocity = Velocity - ((1.f + Restitution) * (Math::dot(Velocity, SceneIntersection.penetrationNormal)) * SceneIntersection.penetrationNormal);
 
         Vec3f n = -SceneIntersection.penetrationNormal;
         //Vec3f t = Velocity;
@@ -94,25 +94,24 @@ void SphereController::Update(Scene* Scene, double DeltaTime)
 
         }
 
-
-        //Plane hitPlane = Plane(m_Model->GetTransform().GetPosition() + (MySphere.radius * -SceneIntersection.penetrationNormal), -SceneIntersection.penetrationNormal);
-        //Vec3f floorNormal = -SceneIntersection.penetrationNormal;
-        //
-        //Vec3f movementDirection = Math::ProjectVecOnPlane(Velocity, hitPlane);
-
-        //Vec3f rotAxis = Math::cross(movementDirection, floorNormal);
-
-
-        //AngularVelocity = Quaternion(rotAxis, -0.01f);
-
-        //AngularVelocity = AngularVelocity.GetNormalized();
-        //
-                        
-        //Engine::DEBUGPrint("Ball hit something");
     }
     else
     {
         m_Model->GetTransform().Rotate(LastRot);
+    }
+
+    Vec3f pos = m_Model->GetTransform().GetPosition();
+
+    LastXPositions.push_back(pos);
+
+    if (LastXPositions.size() > QueueSize)
+    {
+        LastXPositions.pop_front();
+    }
+
+    for (int i = 0; i < LastXPositions.size() - 1; ++i)
+    {
+        GraphicsModule::Get()->DebugDrawLine(LastXPositions[i], LastXPositions[i + 1], MakeColour(110, 255, 180));
     }
 
     CamDistance = Velocity.Magnitude() * 0.15f;
@@ -172,6 +171,10 @@ void SphereController::DrawInspectorPanel()
     UI->NewLine();
 
     UI->FloatSlider("Impulse", Vec2f(300.0f, 20.0f), ImpulseForce, 0.0f, 100.0f);
+
+    UI->FloatSlider("Restitution", Vec2f(300.0f, 20.0f), Restitution, 0.0f, 2.0f);
+
+    UI->FloatSlider("Jump Speed", Vec2f(300.0f, 20.0f), JumpSpeed, 0.0f, 200.0f);
 }
 
 void SphereController::Initialize(Scene* Scene)

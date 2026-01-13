@@ -635,10 +635,10 @@ void Scene::Save(std::string FileName)
     SceneJson["HEMeshes"] = HEMeshList;
 
     // Uncomment to beautify json - makes it easier to debug but makes files much larger
-    File << std::setw(4) << SceneJson;
+    //File << std::setw(4) << SceneJson;
 
     // Uncomment to normalness
-    //File << SceneJson;
+    File << SceneJson;
 
     File.close();
 }
