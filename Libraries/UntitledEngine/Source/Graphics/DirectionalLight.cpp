@@ -43,6 +43,10 @@ bool SelectedDirectionalLight::DrawInspectorPanel()
     UI->FloatSlider("G", Vec2f(400.0f, 20.0f), DirLightPtr->colour.g);
     UI->FloatSlider("B", Vec2f(400.0f, 20.0f), DirLightPtr->colour.b);
 
+    UI->NewLine();
+
+    UI->CheckBox("Debug Draw Frustum", DirLightPtr->debugDrawFrustum);
+
     return false;
 }
 

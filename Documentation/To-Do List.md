@@ -6,6 +6,8 @@
 ###### Spot Lights
 - [ ] Add spot lights
 
+- [ ] User-configurable skyboxes
+- [ ] Image Based Lighting
 ### Shaders
 - [ ] Make configurable shaders via materials
 

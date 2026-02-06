@@ -67,6 +67,7 @@ struct OffsetInfo
 {
     Vec3f Offset;
     Quaternion RotationDiff;
+    float InitialScale;
 };
 
 struct EditorClickContext
@@ -183,6 +184,10 @@ private:
     float InitialAngle;
     float RotSnap = M_PI_2 / 8.0f;
 
+    // Scale
+    float InitialDistFromObjectCenter;
+    float InitialScale;
+
     // Models
     Model* XAxisTrans;
     Model* YAxisTrans;
@@ -197,6 +202,8 @@ private:
     Model* XAxisScale;
     Model* YAxisScale;
     Model* ZAxisScale;
+
+    Model* ScaleRing;
 
     // Geometry mode state
     bool IsCreatingNewBox = false;

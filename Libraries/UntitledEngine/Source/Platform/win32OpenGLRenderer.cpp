@@ -645,6 +645,24 @@ namespace
     struct OpenGLCubemap
     {
 
+        OpenGLCubemap(Vec2i size, ColourFormat format)
+        {
+            glGenTextures(1, &texture);
+            glBindTexture(GL_TEXTURE_CUBE_MAP, texture);
+            for (unsigned int i = 0; i < 6; i++)
+            {
+                glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+                    0, ColourFormatToGLFormat(format), size.x, size.y, 0, ColourFormatToGLFormat(format), GL_UNSIGNED_BYTE, nullptr
+                );
+            }
+            glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+            glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+        }
+
         OpenGLCubemap(std::string filepath)
         {
             //temp(fraser) obviously
@@ -1338,6 +1356,17 @@ Cubemap_ID Renderer::LoadCubemap(std::string filepath)
     Cubemap_ID newID = cubemapIDGenerator.Generate();
 
     cubemapMap.insert(std::pair<Cubemap_ID, OpenGLCubemap>(newID, newCubemap));
+    return newID;
+}
+
+Cubemap_ID Renderer::CreateCubemap(Vec2i faceSize, ColourFormat format)
+{
+    OpenGLCubemap newCubemap = OpenGLCubemap(faceSize, format);
+
+    Cubemap_ID newID = cubemapIDGenerator.Generate();
+
+    cubemapMap.insert(std::pair<Cubemap_ID, OpenGLCubemap>(newID, newCubemap));
+
     return newID;
 }
 

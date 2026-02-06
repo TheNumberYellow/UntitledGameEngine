@@ -77,6 +77,9 @@ UIModule::UIModule(GraphicsModule& graphics, TextModule& text, InputModule& inpu
     m_DefaultTabTexture = *Registry->LoadTexture("Assets/images/nine_cut_bw.png");
     m_White = *Registry->LoadTexture("Assets/images/white.png");
 
+    m_UncheckedBoxTexture = *Registry->LoadTexture("Assets/images/checkBoxUnchecked.png");
+    m_CheckedBoxTexture = *Registry->LoadTexture("Assets/images/checkBoxChecked.png");
+
     // ~~~~~~~~~~~~~~~~~~~~~UI shader code~~~~~~~~~~~~~~~~~~~~~ //
     std::string vertShaderSource = R"(
     #version 400
@@ -262,6 +265,22 @@ void UIModule::BufferPanel(Framebuffer_ID fBuffer, Vec2f size)
     Rect BufferRect = PlaceElement(size);
 
     BufferPanel(fBuffer, BufferRect);
+}
+
+void UIModule::CheckBox(std::string name, bool& boolRef)
+{
+    if (!IsActive())
+        return;
+
+    Texture checkBoxTexture = boolRef ? m_CheckedBoxTexture : m_UncheckedBoxTexture;
+    
+    //m_Text.DrawText(name, &m_FrameFont, );
+
+    if (ImgButton(name, checkBoxTexture.GetID(), Vec2f(20.0f, 20.0f), 0.0f).clicked)
+    {
+        boolRef = !boolRef;
+    }
+
 }
 
 Click UIModule::TextButton(std::string text, PlacementSettings placeSettings, float borderWidth, Vec3f colour, Vec3f textColour)
@@ -636,6 +655,11 @@ void UIModule::FloatSlider(std::string name, Vec2f size, float& outNum, float mi
     Rect TotalSize = PlaceElement(size);
 
     FloatSliderInternal(name, TotalSize, outNum, min, max, vertical, drawText, colour);
+}
+
+void UIModule::FloatSliderInfinite(std::string name, Vec2f size, float& outNum)
+{
+
 }
 
 void UIModule::NewLine(float lineHeight)

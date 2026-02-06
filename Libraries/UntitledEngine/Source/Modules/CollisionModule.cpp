@@ -49,12 +49,23 @@ void OctreeNode::AddTriangle(Triangle t, int tempDepth)
     }
     else
     {
+        bool anyChildIntersects = false;
         for (int i = 0; i < 8; ++i)
         {
+            AABB slightlyLargerBounds = SubNodes[i]->Bounds;
+            Vec3f expansion = Vec3f(0.1f, 0.1f, 0.1f);
+            slightlyLargerBounds.min -= expansion;
+            slightlyLargerBounds.max += expansion;
+
             if (Intersects(t, SubNodes[i]->Bounds))
             {
+                anyChildIntersects = true;
                 SubNodes[i]->AddTriangle(t, tempDepth);
             }
+        }
+        if (!anyChildIntersects)
+        {
+            Engine::DEBUGPrint("Triangle did not intersect any child nodes!");
         }
     }
 }
@@ -386,7 +397,7 @@ RayCastHit CollisionModule::RayCast(Ray ray, OctreeNode* node, const Mat4x4f& te
     {
         return RayCastHit();
     }
-    if (OctreeDebugDrawEnabled)
+    if (RaycastOctreeDebugDrawEnabled)
     {
         if (node->IsLeaf)
         {
@@ -405,7 +416,7 @@ RayCastHit CollisionModule::RayCast(Ray ray, OctreeNode* node, const Mat4x4f& te
         {
             RayCastHit TriHit = RayCast(ray, Tri);
 
-            if (OctreeDebugDrawEnabled)
+            if (RaycastOctreeDebugDrawEnabled)
             {
                 Triangle TransformedTri = Tri;
                 TransformedTri.a = TransformedTri.a * tempTrans;
@@ -595,38 +606,135 @@ Intersection CollisionModule::SphereIntersection(Sphere sphere, const CollisionM
 
     Mat4x4f invMeshTransform = Math::inv(meshTransform);
 
-    //sphere.position = sphere.position * invMeshTransform;
+    Vec4f spherePosHomo = Vec4f(sphere.position, 1.0f);
+    spherePosHomo = spherePosHomo * invMeshTransform;
+    sphere.position = Vec3f(spherePosHomo.x, spherePosHomo.y, spherePosHomo.z);
+    
+    // TODO: ASSUMES UNIFORM SCALING
+    float transScale = transform.GetScale().x;
+    sphere.radius /= transScale;
 
-    //GraphicsModule::Get()->DebugDrawSphere(sphere.position * meshTransform, sphere.radius, MakeColour(255, 23, 90));
+    //GraphicsModule::Get()->DebugDrawSphere(sphere.position, sphere.radius + 0.1f, MakeColour(255, 23, 90));
 
-    for (int i = 0; i < mesh.indices.size(); i += 3)
+    Intersection aabbIntersection = SphereIntersection(sphere, mesh.boundingBox);
+    if (!aabbIntersection.hit)
     {
-        Vec3f a = mesh.points[mesh.indices[i]];
-        Vec3f b = mesh.points[mesh.indices[(size_t)i + 1]];
-        Vec3f c = mesh.points[mesh.indices[(size_t)i + 2]];
+        return resultIntersection;
+    }
 
-        a = a * meshTransform;
-        b = b * meshTransform;
-        c = c * meshTransform;
-
-        Intersection triIntersection = SphereIntersection(sphere, Triangle{ a, b, c });
-
-        if (triIntersection.hit && triIntersection.penetrationDepth > resultIntersection.penetrationDepth)
+    if (OctreeEnabled)
+    {
+        resultIntersection = SphereIntersection(sphere, mesh.OctreeHead, meshTransform);
+    }
+    else
+    {
+        for (int i = 0; i < mesh.indices.size(); i += 3)
         {
-            resultIntersection = triIntersection;
+            Vec3f a = mesh.points[mesh.indices[i]];
+            Vec3f b = mesh.points[mesh.indices[(size_t)i + 1]];
+            Vec3f c = mesh.points[mesh.indices[(size_t)i + 2]];
+
+
+            Intersection triIntersection = SphereIntersection(sphere, Triangle{ a, b, c });
+
+            if (triIntersection.hit && triIntersection.penetrationDepth > resultIntersection.penetrationDepth)
+            {
+                resultIntersection = triIntersection;
+            }
+        
+            //GraphicsModule::Get()->DebugDrawLine(a, b);
+            //GraphicsModule::Get()->DebugDrawLine(a, c);
+            //GraphicsModule::Get()->DebugDrawLine(b, c);
         }
-        //GraphicsModule::Get()->DebugDrawLine(a * meshTransform, b * meshTransform);
-        //GraphicsModule::Get()->DebugDrawLine(a * meshTransform, c * meshTransform);
-        //GraphicsModule::Get()->DebugDrawLine(b * meshTransform, c * meshTransform);
+    }
+
+
+    if (resultIntersection.hit)
+    {
+        resultIntersection.penetrationDepth *= transScale;
+
+        Mat4x4f m = meshTransform;
+
+        Vec4f peneHomo = Vec4f(resultIntersection.penetrationNormal, 0.0f);
+
+        peneHomo = peneHomo * m;
+        resultIntersection.penetrationNormal = Math::normalize(Vec3f(peneHomo.x, peneHomo.y, peneHomo.z));
 
     }
 
-    //if (resultIntersection.hit)
-    //{
-    //    resultIntersection.penetrationNormal = Math::normalize(resultIntersection.penetrationNormal * transform.GetTransformMatrix());
-    //}
-
     return resultIntersection;
+}
+
+Intersection CollisionModule::SphereIntersection(Sphere sphere, AABB aabb)
+{
+    // Real Time Collision Detection pg. 165
+
+    float squaredDistance = Math::SquaredDistancePointToAABB(sphere.position, aabb);
+
+    // TODO: return penetration normal/depth
+    
+    Intersection result;
+    result.hit = squaredDistance <= sphere.radius * sphere.radius;
+    return result;
+}
+
+Intersection CollisionModule::SphereIntersection(Sphere sphere, OctreeNode* node, const Mat4x4f& tempTrans)
+{
+    if (!SphereIntersection(sphere, node->Bounds).hit)
+    {
+        return Intersection();
+    }
+
+    if (SphereCastOctreeDebugDrawEnabled)
+    {
+        if (node->IsLeaf)
+        {
+            GraphicsModule::Get()->DebugDrawAABB(node->Bounds, Vec3f(0.95f, 0.35f, 0.25f), tempTrans);
+        }
+        else
+        {
+            GraphicsModule::Get()->DebugDrawAABB(node->Bounds, Vec3f(0.2f, 0.9f, 0.1f), tempTrans);
+        }
+    }
+
+    Intersection DeepestIntersection;
+    if (node->IsLeaf)
+    {
+        for (auto& Tri : node->Triangles)
+        {
+            Intersection TriIntersection = SphereIntersection(sphere, Tri);
+
+            if (SphereCastOctreeDebugDrawEnabled)
+            {
+                Triangle TransformedTri = Tri;
+                TransformedTri.a = TransformedTri.a * tempTrans;
+                TransformedTri.b = TransformedTri.b * tempTrans;
+                TransformedTri.c = TransformedTri.c * tempTrans;
+
+                GraphicsModule::Get()->DebugDrawLine(TransformedTri.a, TransformedTri.b, Vec3f(0.5f, 0.5f, 0.9f));
+                GraphicsModule::Get()->DebugDrawLine(TransformedTri.b, TransformedTri.c, Vec3f(0.5f, 0.5f, 0.9f));
+                GraphicsModule::Get()->DebugDrawLine(TransformedTri.c, TransformedTri.a, Vec3f(0.5f, 0.5f, 0.9f));
+            }
+
+            if (TriIntersection.hit && TriIntersection.penetrationDepth > DeepestIntersection.penetrationDepth)
+            {
+                DeepestIntersection = TriIntersection;
+            }
+        }
+    }
+    else
+    {
+        for (int i = 0; i < 8; i++)
+        {
+            Intersection SubIntersection = SphereIntersection(sphere, node->SubNodes[i], tempTrans);
+            if (SubIntersection.hit && SubIntersection.penetrationDepth > DeepestIntersection.penetrationDepth)
+            {
+                DeepestIntersection = SubIntersection;
+            }
+        }
+    }
+
+    return DeepestIntersection;
 }
 
 const RayCastHit* CollisionModule::Closest(std::initializer_list<RayCastHit> hitList)
@@ -686,8 +794,108 @@ inline RayCastHit CollisionModule::RayCastTri(Ray ray, Vec3f a, Vec3f b, Vec3f c
     return result;
 }
 
-bool Intersects(Triangle t, AABB aabb)
+inline void ProjectTriangle(
+    const Vec3f& axis,
+    const Triangle& tri,
+    float& outMin,
+    float& outMax)
 {
-    // TODO: Implement correctly
-    return aabb.Contains(t.a) || aabb.Contains(t.b) || aabb.Contains(t.c) || aabb.Contains((t.a + t.b + t.c) / 3.0f);
+    float p0 = Math::dot(axis, tri.a);
+    float p1 = Math::dot(axis, tri.b);
+    float p2 = Math::dot(axis, tri.c);
+
+    outMin = std::min(p0, std::min(p1, p2));
+    outMax = std::max(p0, std::max(p1, p2));
+}
+
+inline void ProjectAABB(
+    const Vec3f& axis,
+    const Vec3f& center,
+    const Vec3f& extents,
+    float& outMin,
+    float& outMax)
+{
+    float r =
+        extents.x * std::abs(axis.x) +
+        extents.y * std::abs(axis.y) +
+        extents.z * std::abs(axis.z);
+
+    float c = Math::dot(axis, center);
+    outMin = c - r;
+    outMax = c + r;
+}
+
+inline bool OverlapOnAxis(
+    const Vec3f& axis,
+    const Triangle& tri,
+    const Vec3f& boxCenter,
+    const Vec3f& boxExtents)
+{
+    // Degenerate axis -> ignore
+    if (Math::dot(axis, axis) < 1e-6f)
+        return true;
+
+    float triMin, triMax;
+    float boxMin, boxMax;
+
+    ProjectTriangle(axis, tri, triMin, triMax);
+    ProjectAABB(axis, boxCenter, boxExtents, boxMin, boxMax);
+
+    return !(triMax < boxMin || boxMax < triMin);
+}
+
+
+bool Intersects(Triangle tri, AABB box)
+{
+    // Compute box center & half extents
+    Vec3f boxCenter = (box.min + box.max) * 0.5f;
+    Vec3f boxExtents = (box.max - box.min) * 0.5f;
+
+    // Move triangle into box space
+    Triangle t;
+    t.a = tri.a - boxCenter;
+    t.b = tri.b - boxCenter;
+    t.c = tri.c - boxCenter;
+
+    // Triangle edges
+    Vec3f e0 = t.b - t.a;
+    Vec3f e1 = t.c - t.b;
+    Vec3f e2 = t.a - t.c;
+
+    // AABB axes
+    const Vec3f boxAxes[3] = {
+        Vec3f(1, 0, 0),
+        Vec3f(0, 1, 0),
+        Vec3f(0, 0, 1)
+    };
+
+    // 1) Test box face normals
+    for (int i = 0; i < 3; ++i)
+    {
+        float minT = std::min({ t.a[i], t.b[i], t.c[i] });
+        float maxT = std::max({ t.a[i], t.b[i], t.c[i] });
+
+        if (minT > boxExtents[i] || maxT < -boxExtents[i])
+            return false;
+    }
+
+    // 2) Test triangle normal
+    Vec3f triNormal = Math::cross(e0, e1);
+    if (!OverlapOnAxis(triNormal, t, Vec3f(0, 0, 0), boxExtents))
+        return false;
+
+    // 3) Test edge × axis cross products
+    Vec3f edges[3] = { e0, e1, e2 };
+
+    for (int e = 0; e < 3; ++e)
+    {
+        for (int a = 0; a < 3; ++a)
+        {
+            Vec3f axis = Math::cross(edges[e], boxAxes[a]);
+            if (!OverlapOnAxis(axis, t, Vec3f(0, 0, 0), boxExtents))
+                return false;
+        }
+    }
+
+    return true;
 }

@@ -1175,7 +1175,7 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
         vec3 I = normalize(Position - CameraPos);
         vec3 R = reflect(I, normalize(Normal));
         vec3 reflectColour = texture(SkyBox, R).rgb * Metallic;
-        vec3 ambient = max(reflectColour, vec3(0.15)) * BaseColour;
+        vec3 ambient = max(reflectColour, vec3(0.2)) * BaseColour;
 
         OutColour.xyz = ambient; // Ambient
         OutColour.xyz += BaseColour * Light; // Lighting
@@ -1243,12 +1243,14 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
     m_SkyboxCubemap = m_Renderer.LoadCubemap("asda");
     m_IsSkyboxSet = true;
 
+    m_PointLightShadowCubemap = m_Renderer.CreateCubemap(Vec2i(1024, 1024), ColourFormat::DEPTH);
+
     m_ShadowBuffer = CreateFBuffer(Vec2i(8000, 8000), FBufferFormat::DEPTH);
 
     m_ShadowCamera = Camera(Projection::Orthographic);
-    m_ShadowCamera.SetScreenSize(Vec2f(100.0f, 100.0f));
+    m_ShadowCamera.SetScreenSize(Vec2f(200.0f, 200.0f));
     m_ShadowCamera.SetNearPlane(0.0f);
-    m_ShadowCamera.SetFarPlane(100.0f);
+    m_ShadowCamera.SetFarPlane(500.0f);
     m_ShadowCamera.SetPosition(Vec3f(0.0f, -30.0f, 6.0f));
 
     VertexBufferFormat quadMeshFormat = VertexBufferFormat({ VertAttribute::Vec3f, VertAttribute::Vec3f, VertAttribute::Vec4f, VertAttribute::Vec2f });
@@ -1406,6 +1408,13 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam)
 
     // Temp skybox code end
 
+
+    // Debug draw shadow camera frustum
+    //m_ShadowCamera.DebugDrawCamFrustum();
+
+    // End debug draw shadow cam frustum
+
+
     // Debug draw
     m_Renderer.SetActiveFBuffer(Buffer.DebugBuffer);
     m_Renderer.ClearColourBuffer();
@@ -1472,7 +1481,7 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam)
         {
             // Create directional light shadow map
             m_ShadowCamera.SetDirection(Command.m_Direction);
-            m_ShadowCamera.SetPosition(Cam.GetPosition() + (-m_ShadowCamera.GetDirection() * 40.0f));
+            m_ShadowCamera.SetPosition(Cam.GetPosition() + (-m_ShadowCamera.GetDirection() * 80.0f));
 
 
             m_Renderer.SetActiveShader(m_ShadowShader);

@@ -327,10 +327,20 @@ void GetControllerState(InputModule& inputs)
 
             Vec2f LeftStickAxis;
             Vec2f LeftInputAxis = Vec2f(Gamepad.sThumbLX, Gamepad.sThumbLY);
+            float LeftStickMag = LeftInputAxis.Magnitude();
+
+            Vec2f LeftStickDir = Vec2f(LeftInputAxis.x / LeftStickMag, LeftInputAxis.y / LeftStickMag);
+
             if (Math::magnitude(LeftInputAxis) > XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE)
             {
-                LeftStickAxis.x = (float)Gamepad.sThumbLX / 32767;
-                LeftStickAxis.y = (float)Gamepad.sThumbLY / 32767;
+                if (LeftStickMag > 32767) LeftStickMag = 32767;
+
+                LeftStickMag -= XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE;
+
+                LeftStickMag = LeftStickMag / (32767 - XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
+
+                LeftStickAxis.x = LeftStickDir.x * LeftStickMag;
+                LeftStickAxis.y = LeftStickDir.y * LeftStickMag;
             }
             else
             {
@@ -340,10 +350,20 @@ void GetControllerState(InputModule& inputs)
 
             Vec2f RightStickAxis;
             Vec2f RightInputAxis = Vec2f(Gamepad.sThumbRX, Gamepad.sThumbRY);
+            float RightStickMag = RightInputAxis.Magnitude();
+
+            Vec2f RightStickDir = Vec2f(RightInputAxis.x / RightStickMag, RightInputAxis.y / RightStickMag);
+
             if (Math::magnitude(RightInputAxis) > XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE)
             {
-                RightStickAxis.x = (float)Gamepad.sThumbRX / 32767;
-                RightStickAxis.y = (float)Gamepad.sThumbRY / 32767;
+                if (RightStickMag > 32767) RightStickMag = 32767;
+
+                RightStickMag -= XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE;
+
+                RightStickMag = RightStickMag / (32767 - XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE);
+
+                RightStickAxis.x = RightStickDir.x * RightStickMag;
+                RightStickAxis.y = RightStickDir.y * RightStickMag;
             }
             else
             {

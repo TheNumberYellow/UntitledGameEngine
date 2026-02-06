@@ -175,6 +175,8 @@ private:
     Model yScaleWidget;
     Model zScaleWidget;
 
+    Model ScaleRing;
+
     //--------------------
     // Resources loaded from folders
     //--------------------

@@ -134,6 +134,8 @@ namespace he
 
         std::vector<Model> m_RepModels;
 
+        bool m_RepModelsNeedUpdate = true;
+
 
         // Inherited via IEditorClickable
         //RayCastHit ClickCast(Ray mouseRay, ISelectedObject*& outSelectedObject) override;

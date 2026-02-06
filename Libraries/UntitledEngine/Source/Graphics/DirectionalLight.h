@@ -35,5 +35,7 @@ struct DirectionalLight : public IEditorClickable
     Vec3f direction = Vec3f(0.0f, 0.0f, -1.0f);
     Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f);
 
+    bool debugDrawFrustum = false;
+
     virtual RayCastHit ClickCast(Ray mouseRay, ISelectedObject*& outSelectedObject) override;
 };

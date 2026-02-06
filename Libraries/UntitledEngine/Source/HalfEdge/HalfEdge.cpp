@@ -24,6 +24,8 @@ void he::SelectedHalfEdgeVertex::Draw()
 
 void he::SelectedHalfEdgeVertex::Update()
 {
+    m_HalfEdgeMesh->m_RepModelsNeedUpdate = true;
+
     // Test next vec
     if (InputModule::Get()->GetKeyState(Key::X).justPressed)
     {
@@ -145,6 +147,8 @@ void he::SelectedHalfEdgeFace::Draw()
 
 void he::SelectedHalfEdgeFace::Update()
 {
+    m_HalfEdgeMesh->m_RepModelsNeedUpdate = true;
+
     he::Face* face = m_FacePtr;
     he::HalfEdge* firstHalfEdge = face->halfEdge;
 
@@ -222,6 +226,7 @@ void he::SelectedHalfEdgeFace::ApplyMaterial(Material& inMaterial)
         //    delete m_FacePtr->material;
         //}
         m_FacePtr->material = Material(inMaterial);
+        m_HalfEdgeMesh->m_RepModelsNeedUpdate = true;
     }
 }
 

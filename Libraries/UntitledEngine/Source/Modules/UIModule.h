@@ -119,6 +119,8 @@ public:
     void BufferPanel(Framebuffer_ID fBuffer, Rect rect);
     void BufferPanel(Framebuffer_ID fBuffer, Vec2f size);
 
+    void CheckBox(std::string name, bool& boolRef);
+
     Click TextButton(std::string text, PlacementSettings placeSettings, float borderWidth, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f), Vec3f textColour = Vec3f(0.0f, 0.0f, 0.0f));
     Click ImgButton(std::string name, Texture texture, Vec2f size, float borderWidth, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
     Click ImgButton(std::string name, Texture_ID textureID, Vec2f size, float borderWidth, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
@@ -140,6 +142,7 @@ public:
     void EndTab();
 
     void FloatSlider(std::string name, Vec2f size, float& outNum, float min = 0.0f, float max = 1.0f, bool vertical = false, bool drawText = true, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
+    void FloatSliderInfinite(std::string name, Vec2f size, float& outNum);
 
     void NewLine(float lineHeight = 10.0f);
 
@@ -206,6 +209,9 @@ private:
     Texture m_DefaultFrameTexture;
     Texture m_DefaultTabTexture;
     Texture m_White;
+
+    Texture m_UncheckedBoxTexture;
+    Texture m_CheckedBoxTexture;
 
     Shader_ID m_UIShader;
 

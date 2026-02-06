@@ -179,6 +179,20 @@ void TextModule::DrawText(std::string text, Font* font, Vec2f position, Vec3f co
     m_Renderer.SetActiveTexture(font->m_TextureAtlas, "Texture");
     
     m_Renderer.DrawMesh(meshInfo.m_Mesh);
+
+    //return meshInfo.m_Bounds.size;
+}
+
+Vec2f TextModule::GetTextSize(std::string text, Font* font)
+{
+    for (int i = 0; i < text.size(); ++i)
+    {
+        CharacterInfo c = font->m_CharacterInfo[text[i]];
+
+
+    }
+
+    return Vec2f();
 }
 
 void TextModule::Resize(Vec2i newSize)
@@ -253,6 +267,7 @@ TextMeshInfo TextModule::GenerateTextMeshInfo(std::string text, Font& font)
         cursor.y += c.Advance.y >> 6;
     }
 
+    // TODO: Clear out unused text meshes
     textInfo.m_Mesh = m_Renderer.LoadMesh(vertFormat, textQuadsVertices, indexBuffer);
 
     return textInfo;

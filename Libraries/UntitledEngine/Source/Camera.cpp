@@ -136,6 +136,47 @@ Mat4x4f Camera::GetProjectionMatrix()
     return m_ProjectionMatrix;
 }
 
+void Camera::DebugDrawCamFrustum()
+{
+    GraphicsModule* Graphics = GraphicsModule::Get();
+
+    Mat4x4f InvCamMatrix = GetInvCamMatrix();
+
+    Vec3f Corners[8];
+
+    Corners[0] = Vec3f(-1.0f, -1.0f, -1.0f);
+    Corners[1] = Vec3f(1.0f, -1.0f, -1.0f);
+    Corners[2] = Vec3f(1.0f, 1.0f, -1.0f);
+    Corners[3] = Vec3f(-1.0f, 1.0f, -1.0f);
+    Corners[4] = Vec3f(-1.0f, -1.0f, 1.0f);
+    Corners[5] = Vec3f(1.0f, -1.0f, 1.0f);
+    Corners[6] = Vec3f(1.0f, 1.0f, 1.0f);
+    Corners[7] = Vec3f(-1.0f, 1.0f, 1.0f);
+
+    for (int i = 0; i < 8; ++i)
+    {
+        Corners[i] = Math::testMult(Corners[i], InvCamMatrix);
+
+        //Graphics->DebugDrawPoint(Corners[i]);
+    }
+
+    Graphics->DebugDrawLine(Corners[0], Corners[1], MakeColour(125, 255, 125));
+    Graphics->DebugDrawLine(Corners[1], Corners[2], MakeColour(125, 255, 125));
+    Graphics->DebugDrawLine(Corners[2], Corners[3], MakeColour(125, 255, 125));
+    Graphics->DebugDrawLine(Corners[3], Corners[0], MakeColour(125, 255, 125));
+
+    Graphics->DebugDrawLine(Corners[4], Corners[5], MakeColour(255, 125, 125));
+    Graphics->DebugDrawLine(Corners[5], Corners[6], MakeColour(255, 125, 125));
+    Graphics->DebugDrawLine(Corners[6], Corners[7], MakeColour(255, 125, 125));
+    Graphics->DebugDrawLine(Corners[7], Corners[4], MakeColour(255, 125, 125));
+
+    Graphics->DebugDrawLine(Corners[0], Corners[4]);
+    Graphics->DebugDrawLine(Corners[1], Corners[5]);
+    Graphics->DebugDrawLine(Corners[2], Corners[6]);
+    Graphics->DebugDrawLine(Corners[3], Corners[7]);
+
+}
+
 void Camera::UpdateViewMatrix()
 {
     m_ViewMatrix = Math::GenerateViewMatrix(m_Position, m_Direction, m_Up);

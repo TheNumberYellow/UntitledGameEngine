@@ -43,6 +43,7 @@ struct Vec2f
 
     friend bool operator==(const Vec2f& lhs, const Vec2f& rhs);
 
+    float Magnitude();
     bool IsZero();
 
     operator Vec2i() const;
@@ -138,6 +139,7 @@ struct Vec4f
 {
     float x, y, z, w;
     Vec4f(float x, float y, float z, float w) : x(x), y(y), z(z), w(w) {}
+    Vec4f(Vec3f v3, float w) : x(v3.x), y(v3.y), z(v3.z), w(w) {}
     Vec4f() : x(0.0f), y(0.0f), z(0.0f), w(0.0f) {} // TODO: come back to this if I'm always setting w to 1.0f
 
     float& operator[] (int index);

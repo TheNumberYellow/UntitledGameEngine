@@ -391,6 +391,8 @@ void Scene::EditorDraw(GraphicsModule& graphics, GBuffer gBuffer, Camera* editor
 
             CamRC.m_TransMat = CamTrans.GetTransformMatrix();
 
+            //Cam.DebugDrawCamFrustum();
+
             graphics.AddRenderCommand(CamRC);
         }
     }
@@ -1047,7 +1049,11 @@ void Scene::PushSceneRenderCommandsInternal(GraphicsModule& graphics)
 {
     for (auto& heMesh : m_HEMeshes)
     {
-        graphics.UpdateHEMeshModel(heMesh);
+        if (heMesh->m_RepModelsNeedUpdate)
+        {
+            graphics.UpdateHEMeshModel(heMesh);
+            heMesh->m_RepModelsNeedUpdate = false;
+        }
 
         for (auto& repModel : heMesh->m_RepModels)
         {

@@ -25,6 +25,8 @@ CursorState::CursorState(EditorState* InEditorState, Scene* InEditorScene)
     XAxisScale = &EditorStatePtr->xScaleWidget;
     YAxisScale = &EditorStatePtr->yScaleWidget;
     ZAxisScale = &EditorStatePtr->zScaleWidget;
+
+    ScaleRing = &EditorStatePtr->ScaleRing;
 }
 
 void CursorState::SetScene(Scene* InScene)
@@ -250,6 +252,10 @@ void CursorState::Update(double DeltaTime)
         XAxisScale->GetTransform().SetPosition(ObjTrans.GetPosition() + Vec3f(5.0f, 0.0f, 0.0f));
         YAxisScale->GetTransform().SetPosition(ObjTrans.GetPosition() + Vec3f(0.0f, 5.0f, 0.0f));
         ZAxisScale->GetTransform().SetPosition(ObjTrans.GetPosition() + Vec3f(0.0f, 0.0f, 5.0f));
+
+        ScaleRing->GetTransform().SetPosition(ObjTrans.GetPosition());
+        ScaleRing->GetTransform().SetScale((DistFromCam / 6.0f) * ObjTrans.GetScale());
+        ScaleRing->GetTransform().SetRotation(Math::VecDiffToQuat(Math::normalize(CameraPtr->GetPosition() - ObjTrans.GetPosition()), Vec3f(0.0f, 0.0f, 1.0f)));
 
         UpdateSelectedObjects();
         DrawSelectedObjects();
@@ -501,9 +507,11 @@ void CursorState::DrawTransientModels()
         }
         else if (TransMode == TransformMode::Scale)
         {
-            Graphics->Draw(*XAxisScale);
-            Graphics->Draw(*YAxisScale);
-            Graphics->Draw(*ZAxisScale);
+            //Graphics->Draw(*XAxisScale);
+            //Graphics->Draw(*YAxisScale);
+            //Graphics->Draw(*ZAxisScale);
+
+            Graphics->Draw(*ScaleRing);
         }
     }
 }
@@ -706,7 +714,7 @@ void CursorState::UpdateGenericSelectTool()
 
     Vec2i MousePos = Input->GetMouseState().GetMousePos();
 
-    if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).justPressed && EditorStatePtr->GetEditorSceneViewportRect().Contains(MousePos))
+    if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB) && EditorStatePtr->GetEditorSceneViewportRect().Contains(MousePos))
     {
         Ray MouseRay = EditorStatePtr->GetMouseRay(*CameraPtr, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
 
@@ -1051,6 +1059,62 @@ void CursorState::UpdateRotateTool()
 
 void CursorState::UpdateScaleTool()
 {
+    InputModule* Input = InputModule::Get();
+    if (!Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).pressed
+        || SelectedObjects.empty())
+    {
+        Axis = EditingAxis::None;
+        UpdateSelectTool();
+        return;
+    }
+
+    CollisionModule* Collisions = CollisionModule::Get();
+
+    Vec3f SelectedPos = SelectedProxyTransform.GetPosition();
+
+    Vec2i MousePos = Input->GetMouseState().GetMousePos();
+    Ray MouseRay = EditorStatePtr->GetMouseRay(*CameraPtr, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+
+    if (Axis == EditingAxis::None && Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).justPressed)
+    {
+        RayCastHit ClosestHit;
+
+        if (RayCastHit RingHit = Collisions->RayCast(MouseRay, *ScaleRing); RingHit.hit)
+        {
+            ClosestHit = RingHit;
+            Axis = EditingAxis::Omni;
+            ObjectRelativeHitPoint = RingHit.hitPoint - SelectedPos;
+
+            // Temp
+            InitialScale = SelectedProxyTransform.GetScale().x;
+
+            Line MouseLine(MouseRay.point, MouseRay.direction);
+
+            Vec3f ClosestPointFromMouseRayToObjCenter = Math::ClosestPointOnLineToPoint(MouseLine, SelectedPos);
+            InitialDistFromObjectCenter = (ClosestPointFromMouseRayToObjCenter - SelectedPos).Magnitude();
+        }
+
+    }
+    else if (Axis == EditingAxis::Omni)
+    {
+        Line MouseLine(MouseRay.point, MouseRay.direction);
+
+        Vec3f ClosestPointFromMouseRayToObjCenter = Math::ClosestPointOnLineToPoint(MouseLine, SelectedPos);
+
+        float DistFromObjectCenter = (ClosestPointFromMouseRayToObjCenter - SelectedPos).Magnitude();
+
+        float ScaleFactor = DistFromObjectCenter / InitialDistFromObjectCenter;
+
+        SelectedProxyTransform.SetScale(InitialScale * ScaleFactor);
+
+        //ScaleRing->GetTransform().SetScale(DistDiff + 1.0f);
+    }
+
+    if (Axis == EditingAxis::None)
+    {
+        UpdateSelectTool();
+    }
+
 }
 
 void CursorState::UpdateBoxTool()
@@ -1302,12 +1366,10 @@ void CursorState::UpdateHalfEdgeTool()
             }
             else
             {
-                // Create the box model, add to scene
-                //EditorScenePtr->AddModel(new Model(Graphics->CreateBoxModel(BoxBeingCreated)));
+                // Create the half edge mesh, add to scene
                 
                 he::HalfEdgeMesh* newHeMesh = new he::HalfEdgeMesh();
                 newHeMesh->MakeAABB(BoxBeingCreated, Graphics->m_DebugMaterial);
-                //newHeMesh->MakeQuad();
 
                 EditorScenePtr->AddHalfEdgeMesh(newHeMesh);
             }
@@ -1336,9 +1398,9 @@ void CursorState::UpdateHalfEdgeTool()
 
                 Vec3f HitPoint = PlaneHit.hitPoint;
 
-                HitPoint.x = Math::Round(HitPoint.x, GeoPlaceSnap);
-                HitPoint.y = Math::Round(HitPoint.y, GeoPlaceSnap);
-                HitPoint.z = Math::Round(HitPoint.z, GeoPlaceSnap);
+                HitPoint.x = NewBoxStartPoint.x + Math::Round(HitPoint.x - NewBoxStartPoint.x, GeoPlaceSnap);
+                HitPoint.y = NewBoxStartPoint.y + Math::Round(HitPoint.y - NewBoxStartPoint.y, GeoPlaceSnap);
+                HitPoint.z = NewBoxStartPoint.z + Math::Round(HitPoint.z - NewBoxStartPoint.z, GeoPlaceSnap);
 
                 float minX = std::min(HitPoint.x, NewBoxStartPoint.x);
                 float minY = std::min(HitPoint.y, NewBoxStartPoint.y);
@@ -1363,15 +1425,29 @@ void CursorState::UpdateHalfEdgeTool()
             RayCastHit PlaneHit = Collisions->RayCast(MouseRay, Plane(Vec3f(0.0f, 0.0f, 0.0f), Vec3f(0.0f, 0.0f, 1.0f)));
             RayCastHit SceneHit = EditorScenePtr->RayCast(MouseRay).rayCastHit;
 
-            RayCastHit FinalHit = PlaneHit.hitDistance < SceneHit.hitDistance ? PlaneHit : SceneHit;
+            //RayCastHit FinalHit = PlaneHit.hitDistance < SceneHit.hitDistance ? PlaneHit : SceneHit;
+            RayCastHit FinalHit = SceneHit.hit ? SceneHit : PlaneHit;
 
             if (FinalHit.hit)
             {
                 Vec3f HitPoint = FinalHit.hitPoint;
 
-                HitPoint.x = Math::Round(HitPoint.x, GeoPlaceSnap);
-                HitPoint.y = Math::Round(HitPoint.y, GeoPlaceSnap);
-                HitPoint.z = Math::Round(HitPoint.z, GeoPlaceSnap);
+                Vec3f HitNormal = FinalHit.hitNormal;
+
+                bool xAligned = abs(Math::dot(HitNormal, Vec3f(1.0f, 0.0f, 0.0f))) > 0.99f;
+                bool yAligned = abs(Math::dot(HitNormal, Vec3f(0.0f, 1.0f, 0.0f))) > 0.99f;
+                bool zAligned = abs(Math::dot(HitNormal, Vec3f(0.0f, 0.0f, 1.0f))) > 0.99f;
+
+                if (xAligned || yAligned || zAligned)
+                {
+                    if (!xAligned) HitPoint.x = Math::Round(HitPoint.x, GeoPlaceSnap);
+                    if (!yAligned) HitPoint.y = Math::Round(HitPoint.y, GeoPlaceSnap);
+                    if (!zAligned) HitPoint.z = Math::Round(HitPoint.z, GeoPlaceSnap);
+                }
+
+                //HitPoint.x = Math::Round(HitPoint.x, GeoPlaceSnap);
+                //HitPoint.y = Math::Round(HitPoint.y, GeoPlaceSnap);
+                //HitPoint.z = Math::Round(HitPoint.z, GeoPlaceSnap);
 
                 IsCreatingNewBox = true;
                 NewBoxStartPoint = HitPoint;
@@ -1479,20 +1555,53 @@ void CursorState::RecalculateProxyAndObjectOffsets()
     {
         Obj.first.RotationDiff = Obj.second->GetTransform()->GetRotation() * SelectedProxyTransform.GetRotation().Inverse();
     }
+
+    // Reset scale
+    for (auto& Obj : SelectedObjects)
+    {
+        Obj.first.InitialScale = Obj.second->GetTransform()->GetScale().x;
+    }
+
+    SelectedProxyTransform.SetScale(1.0f);
 }
 
 void CursorState::UpdateSelectedTransformsBasedOnProxy()
 {
     Vec3f ProxyPos = SelectedProxyTransform.GetPosition();
 
+    // Handle translation
     for (auto& Object : SelectedObjects)
     {
         Object.second->GetTransform()->SetPosition(ProxyPos - Object.first.Offset);
     }
+    // Handle rotation
     for (auto& Object : SelectedObjects)
     {
         Object.second->GetTransform()->RotateAroundPoint(ProxyPos, SelectedProxyTransform.GetRotation());
         Object.second->GetTransform()->SetRotation(SelectedProxyTransform.GetRotation() * Object.first.RotationDiff);
+    }
+    // Handle scaling
+    if (SelectedObjects.size() == 1)
+    {
+        SelectedObjects[0].second->GetTransform()->SetScale(SelectedProxyTransform.GetScale() * SelectedObjects[0].first.InitialScale);
+    }
+    else
+    {
+        for (auto& Object : SelectedObjects)
+        {
+            // TODO: Non-uniform scaling
+            float ProxyScale = SelectedProxyTransform.GetScale().x;
+            
+            Vec3f ObjOffset = Object.first.Offset;
+
+            float OffsetDist = ObjOffset.Magnitude();
+
+            Object.second->GetTransform()->SetPosition(ProxyPos - (ObjOffset * ProxyScale));
+
+            Object.second->GetTransform()->SetScale(SelectedProxyTransform.GetScale() * Object.first.InitialScale);
+
+            //Object.second->GetTransform()->SetScale(SelectedProxyTransform.GetScale());
+        }
     }
 }
 

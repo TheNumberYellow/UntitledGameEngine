@@ -231,6 +231,9 @@ private:
     Texture_ID m_LightTexture;
 
     Framebuffer_ID m_ShadowBuffer;
+    Cubemap_ID m_PointLightShadowCubemap;
+    //Framebuffer_ID m_ShadowBufferPointLight[6];
+
     Camera m_ShadowCamera;
     Shader_ID m_PosShader;
     Shader_ID m_NormalsShader;

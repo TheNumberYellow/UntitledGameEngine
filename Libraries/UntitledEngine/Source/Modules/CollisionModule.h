@@ -18,7 +18,7 @@ struct Triangle
     Vec3f a, b, c;
 };
 
-bool Intersects(Triangle t, AABB aabb);
+bool Intersects(Triangle t, AABB b);
 
 struct OctreeNode
 {
@@ -84,7 +84,9 @@ public:
     Intersection SphereIntersection(Sphere sphere, Triangle tri);
     Intersection SphereIntersection(Sphere sphere, Model& model);
     Intersection SphereIntersection(Sphere sphere, he::HalfEdgeMesh& heMesh);
-    Intersection SphereIntersection(Sphere, const CollisionMesh& mesh, Transform& transform);
+    Intersection SphereIntersection(Sphere sphere, const CollisionMesh& mesh, Transform& transform);
+    Intersection SphereIntersection(Sphere sphere, AABB aabb);
+    Intersection SphereIntersection(Sphere sphere, OctreeNode* node, const Mat4x4f& tempTrans);
 
     static const RayCastHit* Closest(std::initializer_list<RayCastHit> hitList);
 
@@ -100,7 +102,8 @@ private:
     std::unordered_map<StaticMesh_ID, CollisionMesh*> m_CollisionMeshMap;
 
     bool OctreeEnabled = true;
-    bool OctreeDebugDrawEnabled = false;
+    bool RaycastOctreeDebugDrawEnabled = false;
+    bool SphereCastOctreeDebugDrawEnabled = false;
 
     static CollisionModule* s_Instance;
 };

@@ -46,6 +46,8 @@ bool SelectedPointLight::DrawInspectorPanel()
 
     UI->FloatSlider("Intensity", Vec2f(400.0f, 20.0f), PointLightPtr->intensity, 0.0f, 10.0f);
 
+    UI->CheckBox("CastShadows", PointLightPtr->castShadows);
+
     return false;
 }
 

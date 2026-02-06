@@ -21,8 +21,9 @@ public:
         , m_ProjectionMatrixNeedsUpdate(true)
         , m_FieldOfView(Deg2Rad(90.0f))
         , m_NearClippingPlane(0.01f)
-        , m_FarClippingPlane(5000.0f)
+        , m_FarClippingPlane(500.0f)
         , m_ProjectionType(projType)
+        , m_ScreenSize(800.0f, 600.0f)
     {
     }
 
@@ -54,6 +55,8 @@ public:
 
     Mat4x4f GetViewMatrix();
     Mat4x4f GetProjectionMatrix();
+
+    void DebugDrawCamFrustum();
 
 private:
     void UpdateViewMatrix();

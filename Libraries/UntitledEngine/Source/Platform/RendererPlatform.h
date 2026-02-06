@@ -193,6 +193,7 @@ public:
     bool IsFBufferTextureValid(Framebuffer_ID bufID);
 
     Cubemap_ID LoadCubemap(std::string filepath);
+    Cubemap_ID CreateCubemap(Vec2i faceSize, ColourFormat format = ColourFormat::RGB);
 
     Shader_ID LoadShader(std::string vertShaderSource, std::string fragShaderSource);
 

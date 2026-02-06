@@ -147,6 +147,27 @@ Mat4x4f Math::inv(Mat4x4f mat)
     return result;
 }
 
+Mat4x4f Math::transpose(Mat4x4f mat)
+{
+    glm::mat4 glmMat;
+
+    glmMat[0] = glm::vec4(mat[0].x, mat[0].y, mat[0].z, mat[0].w);
+    glmMat[1] = glm::vec4(mat[1].x, mat[1].y, mat[1].z, mat[1].w);
+    glmMat[2] = glm::vec4(mat[2].x, mat[2].y, mat[2].z, mat[2].w);
+    glmMat[3] = glm::vec4(mat[3].x, mat[3].y, mat[3].z, mat[3].w);
+
+    glmMat = glm::transpose(glmMat);
+
+    Mat4x4f result;
+
+    result[0] = Vec4f(glmMat[0].x, glmMat[0].y, glmMat[0].z, glmMat[0].w);
+    result[1] = Vec4f(glmMat[1].x, glmMat[1].y, glmMat[1].z, glmMat[1].w);
+    result[2] = Vec4f(glmMat[2].x, glmMat[2].y, glmMat[2].z, glmMat[2].w);
+    result[3] = Vec4f(glmMat[3].x, glmMat[3].y, glmMat[3].z, glmMat[3].w);
+
+    return result;
+}
+
 Vec4f Math::mult(Vec4f vec, Mat4x4f mat)
 {
     Vec4f result = vec;
@@ -161,6 +182,15 @@ Vec4f Math::mult(Vec4f vec, Mat4x4f mat)
 
 Vec3f Math::mult(Vec3f vec, Mat4x4f mat)
 {
+    //Vec4f point = Vec4f(vec.x, vec.y, vec.z, 1.0f);
+
+    //Vec4f result;
+
+    //result[0] = mat[0][0] * point.x + mat[1][0] * point.y + mat[2][0] * point.z + mat[3][0] * point.w;
+    //result[1] = mat[0][1] * point.x + mat[1][1] * point.y + mat[2][1] * point.z + mat[3][1] * point.w;
+    //result[2] = mat[0][2] * point.x + mat[1][2] * point.y + mat[2][2] * point.z + mat[3][2] * point.w;
+
+    //return Vec3f(result.x, result.y, result.z);
     Vec4f point = Vec4f(vec.x, vec.y, vec.z, 1.0f);
 
     Vec4f result;
@@ -168,8 +198,24 @@ Vec3f Math::mult(Vec3f vec, Mat4x4f mat)
     result[0] = mat[0][0] * point.x + mat[1][0] * point.y + mat[2][0] * point.z + mat[3][0] * point.w;
     result[1] = mat[0][1] * point.x + mat[1][1] * point.y + mat[2][1] * point.z + mat[3][1] * point.w;
     result[2] = mat[0][2] * point.x + mat[1][2] * point.y + mat[2][2] * point.z + mat[3][2] * point.w;
+    result[3] = mat[0][3] * point.x + mat[1][3] * point.y + mat[2][3] * point.z + mat[3][3] * point.w;
 
-    return Vec3f(result.x, result.y, result.z);
+    return Vec3f(result.x / result.w, result.y / result.w, result.z / result.w);
+
+}
+
+Vec3f Math::testMult(Vec3f vec, Mat4x4f mat)
+{
+    Vec4f point = Vec4f(vec.x, vec.y, vec.z, 1.0f);
+
+    Vec4f result;
+
+    result[0] = mat[0][0] * point.x + mat[1][0] * point.y + mat[2][0] * point.z + mat[3][0] * point.w;
+    result[1] = mat[0][1] * point.x + mat[1][1] * point.y + mat[2][1] * point.z + mat[3][1] * point.w;
+    result[2] = mat[0][2] * point.x + mat[1][2] * point.y + mat[2][2] * point.z + mat[3][2] * point.w;
+    result[3] = mat[0][3] * point.x + mat[1][3] * point.y + mat[2][3] * point.z + mat[3][3] * point.w;
+
+    return Vec3f(result.x / result.w, result.y / result.w, result.z / result.w);
 }
 
 Mat4x4f Math::Translate(Mat4x4f mat, Vec3f translation)
@@ -344,6 +390,16 @@ Vec3f Math::ClosestPointOnLineToPoint(LineSegment line, Vec3f point)
     return Vec3f();
 }
 
+Vec3f Math::ClosestPointOnLineToPoint(Line line, Vec3f point)
+{
+    Vec3f v = point - line.point;
+
+    float t = Math::dot(v, line.direction) / line.direction.LenSquared();
+
+    Vec3f closestPoint = line.point + line.direction * t;
+    return closestPoint;
+}
+
 std::pair<Vec3f, Vec3f> Math::ClosestPointsOnLines(Line a, Line b)
 {
     // Get the direction of the line perpendicular to both lines
@@ -369,6 +425,26 @@ Vec3f Math::ClosestPointOnPlaneToPoint(Plane plane, Vec3f point)
 Vec3f Math::ProjectVecOnPlane(Vec3f Vec, Plane P)
 {
     return Vec - (Math::dot(Vec, P.normal) * P.normal);
+}
+
+float Math::DistancePointToAABB(Vec3f p, AABB b)
+{
+    return sqrt(SquaredDistancePointToAABB(p, b));
+}
+
+float Math::SquaredDistancePointToAABB(Vec3f p, AABB b)
+{
+    // Realtime Collision Detection pg. 131
+    float sqDist = 0.0f;
+
+    for (int i = 0; i < 3; i++)
+    {
+        // For each axis count any excess distance outside box extents
+        float v = p[i];
+        if (v < b.min[i]) sqDist += (b.min[i] - v) * (b.min[i] - v);
+        if (v > b.max[i]) sqDist += (v - b.max[i]) * (v - b.max[i]);
+    }
+    return sqDist;
 }
 
 float Math::Remap(float iMin, float iMax, float oMin, float oMax, float v)

@@ -97,9 +97,12 @@ public:
     static float Pi() { return (float)M_PI; }
 
     static Mat4x4f inv(Mat4x4f mat);
+    static Mat4x4f transpose(Mat4x4f mat);
 
     static Vec4f mult(Vec4f vec, Mat4x4f mat);
     static Vec3f mult(Vec3f vec, Mat4x4f mat);
+    static Vec3f testMult(Vec3f vec, Mat4x4f mat);
+
 
     static Mat4x4f Translate(Mat4x4f mat, Vec3f translation);
     static Mat4x4f Scale(Mat4x4f mat, Vec3f scale);
@@ -114,9 +117,13 @@ public:
 
     static Vec3f ClosestPointOnLineToPoint(Vec3f a, Vec3f b, Vec3f p);
     static Vec3f ClosestPointOnLineToPoint(LineSegment line, Vec3f point);
+    static Vec3f ClosestPointOnLineToPoint(Line line, Vec3f point);
     static std::pair<Vec3f, Vec3f> ClosestPointsOnLines(Line a, Line b);
     static Vec3f ClosestPointOnPlaneToPoint(Plane plane, Vec3f point);
 
     static Vec3f ProjectVecOnPlane(Vec3f Vec, Plane P);
+
+    static float DistancePointToAABB(Vec3f p, AABB b);
+    static float SquaredDistancePointToAABB(Vec3f p, AABB b);
 
 };

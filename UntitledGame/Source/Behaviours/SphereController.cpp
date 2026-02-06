@@ -15,40 +15,64 @@ void SphereController::Update(Scene* Scene, double DeltaTime)
     DeltaTime = Math::Min(DeltaTime, 0.015);
 
 
-
-
-
     Vec3f InputForce = Vec3f(0.0f, 0.0f, 0.0f);
+    bool JumpPressed = false;
 
-    if (InputState->GetKeyState(Key::W))
+    if (InputState->GetGamepadState().IsEnabled())
     {
-        InputForce += CamFacingDir;
+        GamepadState Gamepad = InputState->GetGamepadState();
+
+        Vec2f Stick = Gamepad.GetLeftStickAxis();
+
+        InputForce += CamFacingDir * Stick.y;
+        InputForce += Math::cross(CamFacingDir, Vec3f(0.0f, 0.0f, 1.0f)) * Stick.x;
+
+        JumpPressed = Gamepad.GetButtonState(Button::Face_South).justPressed;
+
+        if (!InputForce.IsNearlyZero())
+        {
+            //InputForce = Math::normalize(InputForce);
+
+            InputForce *= ImpulseForce;
+
+            Velocity += InputForce * (float)DeltaTime;
+        }
     }
-    if (InputState->GetKeyState(Key::S))
+    else
     {
-        InputForce -= CamFacingDir;
-    }
-    if (InputState->GetKeyState(Key::A))
-    {
-        InputForce -= Math::cross(CamFacingDir, Vec3f(0.0f, 0.0f, 1.0f));
-    }
-    if (InputState->GetKeyState(Key::D))
-    {
-        InputForce += Math::cross(CamFacingDir, Vec3f(0.0f, 0.0f, 1.0f));
+        if (InputState->GetKeyState(Key::W))
+        {
+            InputForce += CamFacingDir;
+        }
+        if (InputState->GetKeyState(Key::S))
+        {
+            InputForce -= CamFacingDir;
+        }
+        if (InputState->GetKeyState(Key::A))
+        {
+            InputForce -= Math::cross(CamFacingDir, Vec3f(0.0f, 0.0f, 1.0f));
+        }
+        if (InputState->GetKeyState(Key::D))
+        {
+            InputForce += Math::cross(CamFacingDir, Vec3f(0.0f, 0.0f, 1.0f));
+        }
+
+        JumpPressed = InputState->GetKeyState(Key::Space).justPressed;
+
+        if (!InputForce.IsNearlyZero())
+        {
+            InputForce = Math::normalize(InputForce);
+
+            InputForce *= ImpulseForce;
+
+            Velocity += InputForce * (float)DeltaTime;
+        }
     }
 
-    if (!InputForce.IsNearlyZero())
-    {
-        InputForce = Math::normalize(InputForce);
-
-        InputForce *= ImpulseForce;
-
-        Velocity += InputForce * (float)DeltaTime;
-    }
 
     Velocity.z -= 90.0f * (float)DeltaTime;
 
-    if (InputState->GetKeyState(Key::Space).justPressed)
+    if (Grounded && JumpPressed)
     {
         Vec3f t = Math::ProjectVecOnPlane(Velocity, Plane(Vec3f(0.0f, 0.0f, 0.0f), Vec3f(0.0f, 0.0f, 1.0f)));
         if (!t.IsNearlyZero())
@@ -60,8 +84,18 @@ void SphereController::Update(Scene* Scene, double DeltaTime)
 
             LastRot = Quaternion(b, t.Magnitude() * DeltaTime);
         }
-        Velocity.z = JumpSpeed;
+
+        if (Velocity.z > 0.0f)
+        {
+            Velocity.z += JumpSpeed;
+        }
+        else
+        {
+            Velocity.z = JumpSpeed;
+        }
     }
+
+    Grounded = false;
 
     m_Model->GetTransform().Move(Velocity * (float)DeltaTime);
 
@@ -73,6 +107,10 @@ void SphereController::Update(Scene* Scene, double DeltaTime)
 
     if (SceneIntersection.hit)
     {
+        if (Math::dot(SceneIntersection.penetrationNormal, Vec3f(0.0f, 0.0f, -1.0f)) > 0.6f)
+        {
+            Grounded = true;
+        }
         m_Model->GetTransform().Move((SceneIntersection.penetrationNormal * 0.001f) + (SceneIntersection.penetrationNormal * -SceneIntersection.penetrationDepth));
         Velocity = Velocity - ((1.f + Restitution) * (Math::dot(Velocity, SceneIntersection.penetrationNormal)) * SceneIntersection.penetrationNormal);
 
@@ -100,18 +138,21 @@ void SphereController::Update(Scene* Scene, double DeltaTime)
         m_Model->GetTransform().Rotate(LastRot);
     }
 
-    Vec3f pos = m_Model->GetTransform().GetPosition();
-
-    LastXPositions.push_back(pos);
-
-    if (LastXPositions.size() > QueueSize)
+    if (TrailEnabled)
     {
-        LastXPositions.pop_front();
-    }
+        Vec3f pos = m_Model->GetTransform().GetPosition();
 
-    for (int i = 0; i < LastXPositions.size() - 1; ++i)
-    {
-        GraphicsModule::Get()->DebugDrawLine(LastXPositions[i], LastXPositions[i + 1], MakeColour(110, 255, 180));
+        LastXPositions.push_back(pos);
+
+        if (LastXPositions.size() > QueueSize)
+        {
+            LastXPositions.pop_front();
+        }
+
+        for (int i = 0; i < LastXPositions.size() - 1; ++i)
+        {
+            GraphicsModule::Get()->DebugDrawLine(LastXPositions[i], LastXPositions[i + 1], MakeColour(110, 255, 180));
+        }
     }
 
     CamDistance = Velocity.Magnitude() * 0.15f;
@@ -123,22 +164,40 @@ void SphereController::Update(Scene* Scene, double DeltaTime)
     MyLight->position = m_Model->GetTransform().GetPosition();
 
     // Begin camera stuff
-
     Vec3f CamCenterPoint = m_Model->GetTransform().GetPosition();
 
-    Vec2f DeltaMouse = InputState->GetMouseState().GetDeltaMousePos();
+    Vec2f DeltaMouse;
 
-    CamXAxis -= DeltaMouse.x * 0.005f;
-    CamYAxis -= DeltaMouse.y * 0.005f;
+    if (InputState->GetGamepadState().IsEnabled())
+    {
+        DeltaMouse = InputState->GetGamepadState().GetRightStickAxis();
+        
+        DeltaMouse.y = -DeltaMouse.y;
+
+        Engine::DEBUGPrint("X: " + std::to_string(DeltaMouse.x) + ", Y: " + std::to_string(DeltaMouse.y));
+        
+        DeltaMouse.x *= 0.03f;
+        DeltaMouse.y *= 0.03f;
+    }
+    else
+    {
+        DeltaMouse = InputState->GetMouseState().GetDeltaMousePos();
+
+        DeltaMouse.x *= 0.005f;
+        DeltaMouse.y *= 0.005f;
+    }
+
+    CamXAxis -= DeltaMouse.x;
+    CamYAxis -= DeltaMouse.y;
 
     CamYAxis = Math::ClampRadians(CamYAxis, -M_PI_2 + 0.001f, M_PI_2 - 0.001f);
 
     Quaternion Rotation = Quaternion::FromEuler(CamYAxis, 0.0f, CamXAxis);
     
-    
     Vec3f NegDistance = Vec3f(0.0f, -CamDistance, 0.0f);
 
     Vec3f NewCamPos;
+
     // Test cam against level geo
     SceneRayCastHit CamHitTest = Scene->RayCast(Ray(CamCenterPoint, (NegDistance * Rotation).GetNormalized()), { m_Model });
     
@@ -149,8 +208,8 @@ void SphereController::Update(Scene* Scene, double DeltaTime)
     else
     {
         NewCamPos = (NegDistance * Rotation) + CamCenterPoint;
-
     }
+
     Vec3f NewCamDir = (CamCenterPoint - NewCamPos).GetNormalized();
 
     Scene->GetCamera()->SetPosition(NewCamPos);
@@ -160,7 +219,6 @@ void SphereController::Update(Scene* Scene, double DeltaTime)
     CamFacingDir = CamFacingDir.GetNormalized();
 
     // End camera stuff
-
 }
 
 void SphereController::DrawInspectorPanel()

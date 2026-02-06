@@ -380,6 +380,11 @@ void EditorState::LoadEditorResources()
     yScaleWidget.SetMaterial(Graphics->CreateMaterial(GreenTexture));
     zScaleWidget.SetMaterial(Graphics->CreateMaterial(BlueTexture));
 
+    ScaleRing = Graphics->CreateModel(
+        *Registry->LoadStaticMesh("Assets/models/ScaleRing.obj"),
+        Graphics->CreateMaterial(PurpleTexture)
+    );
+
     // Load editor UI textures
     playButtonTexture = *Registry->LoadTexture("Assets/images/playButton.png");
 

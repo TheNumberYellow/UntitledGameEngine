@@ -74,6 +74,9 @@ public:
     // Screen-space only for now!!!!
     void DrawText(std::string text, Font* font, Vec2f position, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f), Anchor textAnchor = Anchor::TOP_LEFT);
 
+    // Gets size of text, were it to be drawn
+    Vec2f GetTextSize(std::string text, Font* font);
+
     // Inherited via IResizeable
     virtual void Resize(Vec2i newSize) override;
 
