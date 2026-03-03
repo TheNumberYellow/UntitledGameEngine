@@ -146,6 +146,7 @@ private:
     
     Texture lightEntityTexture;
     Texture directionalLightEntityTexture;
+    Texture spotLightEntityTexture;
     Texture cameraEntityTexture;
     Texture brainEntityTexture;
     Texture billboardEntityTexture;

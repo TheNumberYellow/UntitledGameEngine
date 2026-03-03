@@ -18,7 +18,7 @@ struct Triangle
     Vec3f a, b, c;
 };
 
-bool Intersects(Triangle t, AABB b);
+Intersection Intersects(const Triangle& t, const AABB& b);
 
 struct OctreeNode
 {
@@ -87,6 +87,8 @@ public:
     Intersection SphereIntersection(Sphere sphere, const CollisionMesh& mesh, Transform& transform);
     Intersection SphereIntersection(Sphere sphere, AABB aabb);
     Intersection SphereIntersection(Sphere sphere, OctreeNode* node, const Mat4x4f& tempTrans);
+
+    Intersection AABBTriangleIntersection(AABB box, Triangle tri);
 
     static const RayCastHit* Closest(std::initializer_list<RayCastHit> hitList);
 

@@ -220,6 +220,8 @@ public:
     void SetActiveFBuffer(Framebuffer_ID fBufferID);
     void ResizeFBuffer(Framebuffer_ID fBufferID, Vec2i newSize);
     void ResetToScreenBuffer();
+    
+    void BindCubemapFace(Cubemap_ID cubemapID, int faceIndex);
 
     void SetActiveTexture(Texture_ID textureID, unsigned int textureSlot = 0);
     void SetActiveTexture(Texture_ID textureID, std::string textureName);

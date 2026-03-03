@@ -30,9 +30,9 @@ bool SelectedModel::DrawInspectorPanel()
     float newY = oldY;
     float newZ = oldZ;
 
-    UI->FloatSlider("X", Vec2f(400.0f, 20.0f), newX, -10.0f, 10.0f);
-    UI->FloatSlider("Y", Vec2f(400.0f, 20.0f), newY, -10.0f, 10.0f);
-    UI->FloatSlider("Z", Vec2f(400.0f, 20.0f), newZ, -10.0f, 10.0f);
+    UI->FloatDragger("X", Vec2f(130.0f, 20.0f), newX);
+    UI->FloatDragger("Y", Vec2f(130.0f, 20.0f), newY);
+    UI->FloatDragger("Z", Vec2f(130.0f, 20.0f), newZ);
 
     if (newX != oldX || newY != oldY || newZ != oldZ)
     {

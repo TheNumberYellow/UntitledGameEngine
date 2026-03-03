@@ -645,9 +645,12 @@ namespace
     struct OpenGLCubemap
     {
 
-        OpenGLCubemap(Vec2i size, ColourFormat format)
+        OpenGLCubemap(Vec2i size, ColourFormat format) : size(size)
         {
             glGenTextures(1, &texture);
+            glGenFramebuffers(1, &fbo);
+            glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+            
             glBindTexture(GL_TEXTURE_CUBE_MAP, texture);
             for (unsigned int i = 0; i < 6; i++)
             {
@@ -660,6 +663,21 @@ namespace
             glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
             glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
             glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+            
+            // TODO(fraser) switch on format and allow colour buffers as well if necessary
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X, texture, 0);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + 1, texture, 0);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + 2, texture, 0);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + 3, texture, 0);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + 4, texture, 0);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + 5, texture, 0);
+
+            if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+            {
+                Engine::FatalError("Cubemap framebuffer is not complete!");
+            }
+
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
             glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
         }
 
@@ -690,6 +708,8 @@ namespace
                 unsigned char* data = stbi_load(faces[i].c_str(), &width, &height, &nrChannels, 0);
                 if (data)
                 {
+                    // ASSUMPTION: all faces of the cubemap are the same size - which they should be, but if not this will cause problems
+                    size = Vec2i(width, height);
                     glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
                         0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data
                     );
@@ -708,10 +728,18 @@ namespace
             glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
             glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 
+            if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+            {
+                Engine::FatalError("Cubemap framebuffer is not complete!");
+            }
+
             glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
         }
 
+        Vec2i size;
         GLuint texture;
+        GLuint fbo;
     };
 
     struct OpenGLShader
@@ -1639,6 +1667,20 @@ void Renderer::ResetToScreenBuffer()
 {
     glViewport(0, 0, Engine::GetClientAreaSize().x, Engine::GetClientAreaSize().y);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void Renderer::BindCubemapFace(Cubemap_ID cubemapID, int faceIndex)
+{
+    OpenGLCubemap* cubemapPtr = GetGLCubemapFromCubemapID(cubemapID);
+    glBindFramebuffer(GL_FRAMEBUFFER, cubemapPtr->fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + faceIndex, cubemapPtr->texture, 0);
+
+    int status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (status != GL_FRAMEBUFFER_COMPLETE)
+    {
+        Engine::DEBUGPrint("WTF\n");
+    }
+    glViewport(0, 0, cubemapPtr->size.x, cubemapPtr->size.y);
 }
 
 void Renderer::SetActiveTexture(Texture_ID texture, unsigned int textureSlot)

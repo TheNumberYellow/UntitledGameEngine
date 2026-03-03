@@ -126,4 +126,8 @@ public:
     static float DistancePointToAABB(Vec3f p, AABB b);
     static float SquaredDistancePointToAABB(Vec3f p, AABB b);
 
+
+    // Noise functions
+    static float PerlinNoise1D(float seed);
+    static Vec2f PerlinNoise2D(Vec2f seed);
 };

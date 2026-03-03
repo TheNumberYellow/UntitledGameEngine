@@ -19,7 +19,7 @@ public:
         : m_ViewProjectionMatrixNeedsUpdate(true)
         , m_ViewMatrixNeedsUpdate(true)
         , m_ProjectionMatrixNeedsUpdate(true)
-        , m_FieldOfView(Deg2Rad(90.0f))
+        , m_FieldOfView(90.0f)
         , m_NearClippingPlane(0.01f)
         , m_FarClippingPlane(500.0f)
         , m_ProjectionType(projType)

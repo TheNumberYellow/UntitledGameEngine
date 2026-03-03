@@ -20,6 +20,9 @@ StaticMesh* Scene::CameraMesh = nullptr;
 Material* Scene::CameraMaterial = nullptr;
 StaticMesh* Scene::DirectionalLightMesh = nullptr;
 Material* Scene::DirectionalLightMaterial = nullptr;
+StaticMesh* Scene::SpotLightMesh = nullptr;
+Material* Scene::SpotLightMaterial = nullptr;
+
 #endif
 
 SceneRayCastHit Closer(const SceneRayCastHit& lhs, const SceneRayCastHit& rhs)
@@ -61,6 +64,14 @@ Scene::Scene()
     {
         DirectionalLightMaterial = new Material(Graphics->CreateMaterial((Registry->LoadTexture("Assets/textures/whiteTexture.png"))));
     }
+    if (!SpotLightMesh)
+    {
+        SpotLightMesh = Registry->LoadStaticMesh("Assets/models/SpotLight.obj");
+    }
+    if (!SpotLightMaterial)
+    {
+        SpotLightMaterial = new Material(Graphics->CreateMaterial((Registry->LoadTexture("Assets/textures/whiteTexture.png"))));
+    }
 #endif
 
 }
@@ -89,6 +100,7 @@ Scene::~Scene()
     m_Models.clear();
     m_PointLights.clear();
     m_DirectionalLights.clear();
+    m_SpotLights.clear();
     m_HEMeshes.clear();
 }
 
@@ -176,6 +188,37 @@ void Scene::DeletePointLight(PointLight* light)
     }
 }
 
+SpotLight* Scene::AddSpotLight(SpotLight newLight)
+{
+    SpotLight* newLightPtr = new SpotLight(newLight);
+    m_SpotLights.push_back(newLightPtr);
+
+#ifdef USE_EDITOR
+    m_GenericEditorClickables.push_back(newLightPtr);
+#endif
+
+    return m_SpotLights.back();
+}
+
+void Scene::DeleteSpotLight(SpotLight* light)
+{
+#ifdef USE_EDITOR
+    auto clickableIt = std::find(m_GenericEditorClickables.begin(), m_GenericEditorClickables.end(), light);
+    if (clickableIt != m_GenericEditorClickables.end())
+    {
+        m_GenericEditorClickables.erase(clickableIt);
+    }
+#endif
+
+    auto it = std::find(m_SpotLights.begin(), m_SpotLights.end(), light);
+    if (it != m_SpotLights.end())
+    {
+        m_SpotLights.erase(it);
+
+        delete light;
+    }
+}
+
 DirectionalLight* Scene::AddDirectionalLight(DirectionalLight newLight)
 {
     DirectionalLight* newLightPtr = new DirectionalLight(newLight);
@@ -233,6 +276,11 @@ std::vector<IEditorClickable*>& Scene::GetGenericEditorClickables()
 std::vector<PointLight*>& Scene::GetPointLights()
 {
     return m_PointLights;
+}
+
+std::vector<SpotLight*>& Scene::GetSpotLights()
+{
+    return m_SpotLights;
 }
 
 std::vector<he::HalfEdgeMesh*>& Scene::GetHalfEdgeMeshes()
@@ -366,6 +414,23 @@ void Scene::EditorDraw(GraphicsModule& graphics, GBuffer gBuffer, Camera* editor
         DirLightTrans.SetRotation(q);
         
         RenderCommand.m_TransMat = DirLightTrans.GetTransformMatrix();
+
+        graphics.AddRenderCommand(RenderCommand);
+    }
+    for (SpotLight* SLight : m_SpotLights)
+    {
+        StaticMeshRenderCommand RenderCommand;
+        RenderCommand.m_Mesh = SpotLightMesh->Id;
+        RenderCommand.m_Material = *SpotLightMaterial;
+        RenderCommand.m_CastShadows = false;
+
+        Transform SpotLightTrans;
+        SpotLightTrans.SetPosition(SLight->position);
+        Quaternion q = Math::VecDiffToQuat(SLight->direction, Vec3f::Up());
+
+        SpotLightTrans.SetRotation(q);
+
+        RenderCommand.m_TransMat = SpotLightTrans.GetTransformMatrix();
 
         graphics.AddRenderCommand(RenderCommand);
     }
@@ -979,9 +1044,18 @@ void Scene::Clear()
     {
         delete PointLight;
     }
+    for (auto& DirLight : m_DirectionalLights)
+    {
+        delete DirLight;
+    }
+    for (auto& SLight : m_SpotLights)
+    {
+        delete SLight;
+    }
 
     m_Models.clear();
     m_PointLights.clear();
+    m_SpotLights.clear();
     m_DirectionalLights.clear();
     m_Cameras.clear();
     m_HEMeshes.clear();
@@ -1026,6 +1100,10 @@ void Scene::CopyInternal(const Scene& other)
     for (auto& pointLight : other.m_PointLights)
     {
         AddPointLight(*pointLight);
+    }
+    for (auto& spotLight : other.m_SpotLights)
+    {
+        AddSpotLight(*spotLight);
     }
     for (auto& directionalLight : other.m_DirectionalLights)
     {
@@ -1083,6 +1161,24 @@ void Scene::PushSceneRenderCommandsInternal(GraphicsModule& graphics)
         LightRC.m_Intensity = Light->intensity;
 
         graphics.AddRenderCommand(LightRC);
+    }
+    for (SpotLight* SLight : m_SpotLights)
+    {
+        SpotLightRenderCommand SLightRC;
+        SLightRC.m_Colour = SLight->colour;
+        SLightRC.m_Position = SLight->position;
+        SLightRC.m_Direction = SLight->direction;
+        
+        SLightRC.m_Intensity = SLight->intensity;
+        
+        SLightRC.m_ConstantAttenuation = SLight->constantAttenuation;
+        SLightRC.m_LinearAttenuation = SLight->linearAttenuation;
+        SLightRC.m_QuadraticAttenuation = SLight->quadraticAttenuation;
+
+        SLightRC.m_InnerAngle = SLight->innerAngle;
+        SLightRC.m_OuterAngle = SLight->outerAngle;
+        
+        graphics.AddRenderCommand(SLightRC);
     }
     for (DirectionalLight* Light : m_DirectionalLights)
     {

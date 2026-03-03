@@ -139,6 +139,8 @@ public:
 	void UpdateMousePos(Vec2i newPos, bool mouseLocked, Vec2i center);
 	void UpdateMouseWheel(int delta);
 
+    void ClearDeltaMousePos();
+
 	Vec2i GetMousePos() const;
 	Vec2i GetDeltaMousePos() const;
 	int GetDeltaMouseWheel() const;
@@ -244,6 +246,8 @@ public:
 	MouseState& GetMouseState();
 	void UpdateMousePos(Vec2i newPos);
 	void UpdateMouseWheel(int delta);
+
+	void ClearDeltaMousePos();
 
 	void SetMouseLocked(bool locked);
 	void SetMouseCenter(Vec2i newCenter);

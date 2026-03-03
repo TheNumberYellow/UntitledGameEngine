@@ -4,6 +4,23 @@
 
 #include <string>
 
+enum class CursorType
+{
+    Arrow,
+    Hand,
+    Crosshair,
+    IBeam,
+    Wait,
+    Help,
+    No,
+    SizeAll,
+    SizeNESW,
+    SizeNS,
+    SizeNWSE,
+    SizeWE,
+    UpArrow
+};
+
 namespace Engine
 {
     // These functions are defined in platform-specific engine code
@@ -29,6 +46,8 @@ namespace Engine
 
     extern void HideCursor();
     extern void ShowCursor();
+
+    extern void SetMouseCursor(CursorType cursor);
 
     extern void StopGame();
 

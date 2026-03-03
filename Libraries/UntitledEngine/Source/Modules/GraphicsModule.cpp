@@ -327,7 +327,7 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
 
     m_TexturedMeshShader = m_Renderer.LoadShader(vertShaderSource, fragShaderSource);
 
-    // ~~~~~~~~~~~~~~~~~~~~~Shadow shader code~~~~~~~~~~~~~~~~~~~~~ //
+    // ~~~~~~~~~~~~~~~~~~~~~Directional light shadow shader code (depth only) ~~~~~~~~~~~~~~~~~~~~~ //
 
     std::string shadowVertShader = R"(
     #version 400
@@ -350,7 +350,81 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
     }
     )";
 
-    m_ShadowShader = m_Renderer.LoadShader(shadowVertShader, shadowFragShader);
+    m_DirShadowShader = m_Renderer.LoadShader(shadowVertShader, shadowFragShader);
+
+    // ~~~~~~~~~~~~~~~~~~~~~Point light shadow shader code (depth only) ~~~~~~~~~~~~~~~~~~~~~ //
+
+    shadowVertShader = R"(
+    #version 400
+    layout (location = 0) in vec3 aPos;
+
+
+    uniform mat4 Transformation;
+    uniform mat4 ShadowVP;
+
+    out vec4 FragPos;
+
+    void main()
+    {
+        FragPos = vec4(Transformation * vec4(aPos, 1.0));
+        gl_Position = ShadowVP * FragPos;
+    }
+    
+    )";
+
+    shadowFragShader = R"(
+    #version 400
+    in vec4 FragPos;
+
+    uniform vec3 LightPos;
+    uniform float FarPlane;
+
+    void main()
+    {
+        float lightDistance = length(FragPos.xyz - LightPos);
+        lightDistance = lightDistance / FarPlane;
+
+        gl_FragDepth = lightDistance;
+    }
+    )";
+
+    m_PointShadowShader = m_Renderer.LoadShader(shadowVertShader, shadowFragShader);
+
+    // ~~~~~~~~~~~~~~~~~~~~~~Spot light shadow shader code (depth only) ~~~~~~~~~~~~~~~~~~~~~ //
+
+    shadowVertShader = R"(
+    #version 400
+    layout (location = 0) in vec3 aPos;
+
+    uniform mat4 Transformation;
+    uniform mat4 ShadowVP;
+
+    out vec4 FragPos;
+
+    void main()
+    {
+        FragPos = vec4(Transformation * vec4(aPos, 1.0));
+        gl_Position = ShadowVP * FragPos;
+    }
+    
+    )";
+
+    shadowFragShader = R"(
+    #version 400
+    in vec4 FragPos;
+
+    uniform vec3 LightPos;
+    uniform float FarPlane;
+
+    void main()
+    {
+        float lightDistance = length(FragPos.xyz - LightPos);
+        lightDistance = lightDistance / FarPlane;
+        gl_FragDepth = lightDistance;
+    }
+    )";
+
+    m_SpotShadowShader = m_Renderer.LoadShader(shadowVertShader, shadowFragShader);
 
     // ~~~~~~~~~~~~~~~~~~~~~Skybox shader code~~~~~~~~~~~~~~~~~~~~~ //
     vertShaderSource = R"(
@@ -982,7 +1056,7 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
     )";
     m_GBufferDirectionalLightShader = m_Renderer.LoadShader(vertShaderSource, fragShaderSource);
 
-    // ~~~~~~~~~~~~~~~~~~~~~GBuffer point light shader code~~~~~~~~~~~~~~~~~~~~~ //
+    // ~~~~~~~~~~~~~~~~~~~~~GBuffer point light shader code (no shadows)~~~~~~~~~~~~~~~~~~~~~ //
     vertShaderSource = R"(
     #version 400
 
@@ -1128,6 +1202,387 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
     )";
     m_GBufferPointLightShader = m_Renderer.LoadShader(vertShaderSource, fragShaderSource);
 
+    // ~~~~~~~~~~~~~~~~~~~~~GBuffer point light shader code (with shadows)~~~~~~~~~~~~~~~~~~~~~ //
+    vertShaderSource = R"(
+    #version 400
+
+    in vec2 VertPosition;
+    in vec2 VertUV;
+
+    smooth out vec2 FragUV;
+
+    void main()
+    {
+        gl_Position = vec4(VertPosition, 0.0, 1.0);
+        FragUV = VertUV;    
+    }
+
+    )";
+
+    fragShaderSource = R"(
+    #version 400
+
+    out vec4 OutColour;
+
+    smooth in vec2 FragUV;
+
+    uniform sampler2D gPosition;
+    uniform sampler2D gNormal;
+    uniform sampler2D gAlbedo;
+    uniform sampler2D gMetallic;
+    uniform sampler2D gRoughness;
+    uniform sampler2D gAO;
+
+    //uniform samplerCube SkyBox;	
+    uniform samplerCube ShadowMap; 
+
+    uniform vec3 LightPosition;
+    uniform vec3 LightColour;
+
+    uniform vec3 CameraPos;
+    
+    uniform float FarPlane;
+    
+    const float PI = 3.14159265359;
+    // ----------------------------------------------------------------------------
+    float DistributionGGX(vec3 N, vec3 H, float roughness)
+    {
+        float a = roughness*roughness;
+        float a2 = a*a;
+        float NdotH = max(dot(N, H), 0.0);
+        float NdotH2 = NdotH*NdotH;
+
+        float nom   = a2;
+        float denom = (NdotH2 * (a2 - 1.0) + 1.0);
+        denom = PI * denom * denom;
+
+        return nom / denom;
+    }
+    // ----------------------------------------------------------------------------
+    float GeometrySchlickGGX(float NdotV, float roughness)
+    {
+        float r = (roughness + 1.0);
+        float k = (r*r) / 8.0;
+
+        float nom   = NdotV;
+        float denom = NdotV * (1.0 - k) + k;
+
+        return nom / denom;
+    }
+    // ----------------------------------------------------------------------------
+    float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
+    {
+        float NdotV = max(dot(N, V), 0.0);
+        float NdotL = max(dot(N, L), 0.0);
+        float ggx2 = GeometrySchlickGGX(NdotV, roughness);
+        float ggx1 = GeometrySchlickGGX(NdotL, roughness);
+
+        return ggx1 * ggx2;
+    }
+
+    // ----------------------------------------------------------------------------
+    vec3 fresnelSchlick(float cosTheta, vec3 F0)
+    {
+        return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+    }
+
+    float ShadowCalculation(vec3 FragPos, vec3 LightPos, vec3 Normal)
+    {
+        vec3 fragToLight = FragPos - LightPos;
+        vec3 lightDir = normalize(fragToLight);
+        float bias = max(0.0009 * (1.0 - dot(Normal, lightDir)), 0.0002);         
+        // Sample the cubemap in the direction from the fragment to the light
+        vec3 fixedLightDir = vec3(lightDir.x, lightDir.y, lightDir.z);
+        float closestDepth = texture(ShadowMap, fixedLightDir).r * FarPlane; 
+        
+        float currentDepth = length(fragToLight);
+        
+        float shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;  
+        
+        //vec3 lightDir = normalize(LightPos - FragPos);
+        return shadow;
+        
+        //float tex = closestDepth;
+        //return tex;
+    }
+
+    void main()
+    {
+        vec3 Position = texture(gPosition, FragUV).xyz;
+        vec3 Normal = texture(gNormal, FragUV).xyz;
+        vec3 Albedo = texture(gAlbedo, FragUV).xyz;
+        float Metallic = texture(gMetallic, FragUV).r;
+        float Roughness = texture(gRoughness, FragUV).g;
+        float AO = texture(gAO, FragUV).r;        
+
+        vec3 N = normalize(Normal);
+        vec3 V = normalize(CameraPos - Position);        
+
+        // calculate reflectance at normal incidence; if dia-electric (like plastic) use F0 
+        // of 0.04 and if it's a metal, use the albedo color as F0 (metallic workflow)    
+        vec3 F0 = vec3(0.04); 
+        F0 = mix(F0, Albedo, Metallic);
+
+        // reflectance equation
+        vec3 Lo = vec3(0.0);
+
+        // calculate per-light radiance
+        vec3 L = normalize(LightPosition - Position);
+        vec3 H = normalize(V + L);
+        float distance = length(LightPosition - Position);
+        float attenuation = 1.0 / (distance * distance);
+        //float linear = 0.001;
+        //float quadratic = 0.02;
+        //float attenuation = 1.0 / (1.0 + linear * distance + quadratic * distance * distance);
+        attenuation *= 20.0;
+        vec3 radiance = LightColour * attenuation;
+
+        // Cook-Torrance BRDF
+        float NDF = DistributionGGX(N, H, Roughness);   
+        float G   = GeometrySmith(N, V, L, Roughness);      
+        vec3 F    = fresnelSchlick(clamp(dot(H, V), 0.0, 1.0), F0);
+    
+        vec3 numerator    = NDF * G * F; 
+        float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001; // + 0.0001 to prevent divide by zero
+        vec3 specular = numerator / denominator;    
+
+        // kS is equal to Fresnel
+        vec3 kS = F;
+        // for energy conservation, the diffuse and specular light can't
+        // be above 1.0 (unless the surface emits light); to preserve this
+        // relationship the diffuse component (kD) should equal 1.0 - kS.
+        vec3 kD = vec3(1.0) - kS;
+        // multiply kD by the inverse metalness such that only non-metals 
+        // have diffuse lighting, or a linear blend if partly metal (pure metals
+        // have no diffuse light).
+        kD *= 1.0 - Metallic;	  
+
+        // scale light by NdotL
+        float NdotL = max(dot(N, L), 0.0);        
+
+        // add to outgoing radiance Lo
+        Lo += (kD / PI + specular) * radiance * NdotL;  // note that we already multiplied the BRDF by the Fresnel (kS) so we won't multiply by kS again
+
+        //float randomTiny = 0.000001 * (Position.x + Normal.x + Albedo.x + Metallic + Roughness + AO + SunDirection.x + SunColour.r + CameraPos.x);
+
+        float shadow = ShadowCalculation(Position, LightPosition, Normal);
+        vec3 color = (1.0 - shadow) * Lo * AO;
+        //vec3 color = (1.0) * Lo * AO;
+        OutColour = vec4(color, 1.0); 
+        //OutColour = vec4(vec3(shadow), 1.0);  
+    }   
+        
+    )";
+    m_GBufferPointLightShaderWithShadow = m_Renderer.LoadShader(vertShaderSource, fragShaderSource);
+
+    // ~~~~~~~~~~~~~~~~~~~~~GBuffer spot light shader code (with shadows)~~~~~~~~~~~~~~~~~~~~~ //
+
+    vertShaderSource = R"(
+    #version 400
+
+    in vec2 VertPosition;
+    in vec2 VertUV;
+
+    smooth out vec2 FragUV;
+    void main()
+    {
+        gl_Position = vec4(VertPosition, 0.0, 1.0);
+        FragUV = VertUV;    
+    }
+    )";
+
+    fragShaderSource = R"(
+    #version 400
+
+    out vec4 OutColour;
+
+    smooth in vec2 FragUV;
+
+    uniform sampler2D gPosition;
+    uniform sampler2D gNormal;
+    uniform sampler2D gAlbedo;
+    uniform sampler2D gMetallic;
+    uniform sampler2D gRoughness;
+    uniform sampler2D gAO;
+
+    uniform sampler2D ShadowMap; 
+    uniform mat4x4 LightSpaceMatrix;
+
+    uniform vec3 LightPosition;
+    uniform vec3 LightDirection;
+    uniform vec3 LightColour;
+
+    uniform float ConstantAtten;
+    uniform float LinearAtten;
+    uniform float QuadraticAtten;
+
+    uniform float InnerAngle;
+    uniform float OuterAngle;
+
+    uniform vec3 CameraPos;
+
+    uniform float FarPlane;
+    
+    const float PI = 3.14159265359;
+    // ----------------------------------------------------------------------------
+    float DistributionGGX(vec3 N, vec3 H, float roughness)
+    {
+        float a = roughness*roughness;
+        float a2 = a*a;
+        float NdotH = max(dot(N, H), 0.0);
+        float NdotH2 = NdotH*NdotH;
+
+        float nom   = a2;
+        float denom = (NdotH2 * (a2 - 1.0) + 1.0);
+        denom = PI * denom * denom;
+
+        return nom / denom;
+    }
+    // ----------------------------------------------------------------------------
+    float GeometrySchlickGGX(float NdotV, float roughness)
+    {
+        float r = (roughness + 1.0);
+        float k = (r*r) / 8.0;
+
+        float nom   = NdotV;
+        float denom = NdotV * (1.0 - k) + k;
+
+        return nom / denom;
+    }
+    // ----------------------------------------------------------------------------
+    float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
+    {
+        float NdotV = max(dot(N, V), 0.0);
+        float NdotL = max(dot(N, L), 0.0);
+        float ggx2 = GeometrySchlickGGX(NdotV, roughness);
+        float ggx1 = GeometrySchlickGGX(NdotL, roughness);
+
+        return ggx1 * ggx2;
+    }
+
+    // ----------------------------------------------------------------------------
+    vec3 fresnelSchlick(float cosTheta, vec3 F0)
+    {
+        return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+    }
+
+    float ShadowCalculation(vec4 fragPosLightSpace, vec3 FragNormal)
+    {
+        // perform perspective divide
+        vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+        
+        // transform to [0,1] range
+        projCoords = projCoords * 0.5 + 0.5;
+        
+        // get closest depth value from light's perspective (using [0,1] range fragPosLight as coords)
+        float closestDepth = texture(ShadowMap, projCoords.xy).r * FarPlane; 
+        
+        // get depth of current fragment from light's perspective
+        float currentDepth = fragPosLightSpace.w;
+        
+        // check whether current frag pos is in shadow  
+        vec3 dir = vec3(-LightDirection.x, -LightDirection.y, -LightDirection.z);      
+        
+        //float bias = max(0.000009 * (1.0 - dot(FragNormal.xyz, dir)), 0.0000002);         
+        float bias = 0.0;
+
+        float shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;  
+        //if (projCoords.z > 1.0 || projCoords.z < 0.0)
+        //{
+        //    shadow = 0.0;
+        //}
+        //if (projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0 || projCoords.y > 1.0)
+        //{
+        //    shadow = 1.0;
+        //}
+
+        return shadow;
+    }
+
+    void main()
+    {
+        vec3 Position = texture(gPosition, FragUV).xyz;
+        vec3 Normal = texture(gNormal, FragUV).xyz;
+        vec3 Albedo = texture(gAlbedo, FragUV).xyz;
+        float Metallic = texture(gMetallic, FragUV).r;
+        float Roughness = texture(gRoughness, FragUV).g;
+        float AO = texture(gAO, FragUV).r;        
+
+        vec3 N = normalize(Normal);
+        vec3 V = normalize(CameraPos - Position);        
+
+        // calculate reflectance at normal incidence; if dia-electric (like plastic) use F0 
+        // of 0.04 and if it's a metal, use the albedo color as F0 (metallic workflow)    
+        vec3 F0 = vec3(0.04); 
+        F0 = mix(F0, Albedo, Metallic);
+
+        // reflectance equation
+        vec3 Lo = vec3(0.0);
+
+        // calculate per-light radiance
+        vec3 L = normalize(-LightDirection);
+        vec3 H = normalize(V + L);
+        float distance = length(LightPosition - Position);
+        
+        // calculate attenuation        
+        float constant = ConstantAtten;
+        float linear = LinearAtten;
+        float quadratic = QuadraticAtten;
+        float attenuation = 1.0 / (ConstantAtten + linear * distance + quadratic * distance * distance);
+
+        vec3 radiance = LightColour * attenuation;
+
+        // Cook-Torrance BRDF
+        float NDF = DistributionGGX(N, H, Roughness);   
+        float G   = GeometrySmith(N, V, L, Roughness);      
+        vec3 F    = fresnelSchlick(clamp(dot(H, V), 0.0, 1.0), F0);
+    
+        vec3 numerator    = NDF * G * F; 
+        float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001; // + 0.0001 to prevent divide by zero
+        vec3 specular = numerator / denominator;    
+
+        // kS is equal to Fresnel
+        vec3 kS = F;
+        // for energy conservation, the diffuse and specular light can't
+        // be above 1.0 (unless the surface emits light); to preserve this
+        // relationship the diffuse component (kD) should equal 1.0 - kS.
+        vec3 kD = vec3(1.0) - kS;
+        // multiply kD by the inverse metalness such that only non-metals 
+        // have diffuse lighting, or a linear blend if partly metal (pure metals
+        // have no diffuse light).
+        kD *= 1.0 - Metallic;	  
+
+        // scale light by NdotL
+        float NdotL = max(dot(N, L), 0.0);        
+
+        // add to outgoing radiance Lo
+        Lo += (kD / PI + specular) * radiance * NdotL;  // note that we already multiplied the BRDF by the Fresnel (kS) so we won't multiply by kS again
+
+        // scale light using angle falloff
+        float theta = dot(normalize(LightPosition - Position), normalize(-LightDirection));
+
+        float epsilon = InnerAngle - OuterAngle;
+        float intensity = clamp((theta - OuterAngle) / epsilon, 0.0, 1.0);
+        
+        Lo *= intensity;
+      
+
+        vec4 FragPosLightSpace = LightSpaceMatrix * vec4(Position, 1.0);
+
+        float shadow = ShadowCalculation(FragPosLightSpace, Normal);
+        //float shadow = 0.0;
+
+        vec3 color = (1.0 - shadow) * Lo * AO;
+
+        OutColour = vec4(color, 1.0); 
+    } 
+
+
+    )";
+
+    m_GBufferSpotLightShaderWithShadow = m_Renderer.LoadShader(vertShaderSource, fragShaderSource);
+
+
     // ~~~~~~~~~~~~~~~~~~~~~GBuffer combiner shader code~~~~~~~~~~~~~~~~~~~~~ //
     vertShaderSource = R"(
     #version 400
@@ -1246,6 +1701,7 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
     m_PointLightShadowCubemap = m_Renderer.CreateCubemap(Vec2i(1024, 1024), ColourFormat::DEPTH);
 
     m_ShadowBuffer = CreateFBuffer(Vec2i(8000, 8000), FBufferFormat::DEPTH);
+    m_SpotLightShadowBuffer = CreateFBuffer(Vec2i(1024, 1024), FBufferFormat::DEPTH);
 
     m_ShadowCamera = Camera(Projection::Orthographic);
     m_ShadowCamera.SetScreenSize(Vec2f(200.0f, 200.0f));
@@ -1351,9 +1807,56 @@ void GraphicsModule::AddRenderCommand(PointLightRenderCommand Command)
     m_PointLightRenderCommands.push_back(Command);
 }
 
+void GraphicsModule::AddRenderCommand(SpotLightRenderCommand Command)
+{
+    m_SpotLightRenderCommands.push_back(Command);
+}
+
 void GraphicsModule::AddRenderCommand(DirectionalLightRenderCommand Command)
 {
     m_DirectionalLightRenderCommands.push_back(Command);
+}
+
+static Vec3f GetPointLightDirectionForCubemapFace(int faceIndex)
+{
+    switch (faceIndex)
+    {
+    case 0:
+        return Vec3f(1.0f, 0.0f, 0.0f); // +X
+    case 1:
+        return Vec3f(-1.0f, 0.0f, 0.0f); // -X
+    case 2:
+        return Vec3f(0.0f, 1.0f, 0.0f); // +Y
+    case 3:
+        return Vec3f(0.0f, -1.0f, 0.0f); // -Y
+    case 4:
+        return Vec3f(0.0f, 0.0f, 1.0f); // +Z
+    case 5:
+        return Vec3f(0.0f, 0.0f, -1.0f); // -Z
+    default:
+        return Vec3f(1.0f, 0.0f, 0.0f);
+    }
+}
+
+static Vec3f GetPointLightUpVecForCubemapFace(int faceIndex)
+{
+    switch (faceIndex)
+    {
+    case 0:
+        return Vec3f(0.0f, -1.0f, 0.0f); // +X
+    case 1:
+        return Vec3f(0.0f, -1.0f, 0.0f); // -X
+    case 2:
+        return Vec3f(0.0f, 0.0f, 1.0f); // +Y
+    case 3:
+        return Vec3f(0.0f, 0.0f, -1.0f); // -Y
+    case 4:
+        return Vec3f(0.0f, -1.0f, 0.0f); // +Z
+    case 5:
+        return Vec3f(0.0f, -1.0f, 0.0f); // -Z
+    default:
+        return Vec3f(0.0f, -1.0f, 0.0f);
+    }
 }
 
 void GraphicsModule::Render(GBuffer Buffer, Camera Cam)
@@ -1484,10 +1987,10 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam)
             m_ShadowCamera.SetPosition(Cam.GetPosition() + (-m_ShadowCamera.GetDirection() * 80.0f));
 
 
-            m_Renderer.SetActiveShader(m_ShadowShader);
+            m_Renderer.SetActiveShader(m_DirShadowShader);
             SetActiveFrameBuffer(m_ShadowBuffer);
             {
-                m_Renderer.SetShaderUniformMat4x4f(m_ShadowShader, "LightSpaceMatrix", m_ShadowCamera.GetCamMatrix());
+                m_Renderer.SetShaderUniformMat4x4f(m_DirShadowShader, "LightSpaceMatrix", m_ShadowCamera.GetCamMatrix());
 
                 for (StaticMeshRenderCommand& Command : m_StaticMeshRenderCommands)
                 {
@@ -1496,7 +1999,7 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam)
                         continue;
                     }
                     // Set mesh-specific transform uniform
-                    m_Renderer.SetShaderUniformMat4x4f(m_ShadowShader, "Transformation", Command.m_TransMat);
+                    m_Renderer.SetShaderUniformMat4x4f(m_DirShadowShader, "Transformation", Command.m_TransMat);
 
                     // Draw mesh to shadow map
                     m_Renderer.DrawMesh(Command.m_Mesh);
@@ -1525,29 +2028,139 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam)
             }
         }
 
-        // Point lights
-        m_Renderer.SetActiveShader(m_GBufferPointLightShader);
-
-        m_Renderer.SetShaderUniformVec3f(m_GBufferPointLightShader, "CameraPos", Cam.GetPosition());
-
-        // Needed?
-        m_Renderer.SetActiveTexture(Buffer.PositionTex, "gPosition");
-        m_Renderer.SetActiveTexture(Buffer.NormalTex, "gNormal");
-        m_Renderer.SetActiveTexture(Buffer.AlbedoTex, "gAlbedo");
-        m_Renderer.SetActiveTexture(Buffer.MetallicTex, "gMetallic");
-        m_Renderer.SetActiveTexture(Buffer.RoughnessTex, "gRoughness");
-        m_Renderer.SetActiveTexture(Buffer.AOTex, "gAO");
-
         // Loop through point lights here
-        SetActiveFrameBuffer(Buffer.LightBuffer, false);
+        
         for (PointLightRenderCommand& Command : m_PointLightRenderCommands)
         {
-            m_Renderer.SetShaderUniformVec3f(m_GBufferPointLightShader, "LightPosition", Command.m_Position);
-            m_Renderer.SetShaderUniformVec3f(m_GBufferPointLightShader, "LightColour", Command.m_Colour * Command.m_Intensity);
+            float maxLightDistance = Command.m_Intensity * 100.0f;
 
-            m_Renderer.DrawMesh(Buffer.QuadMesh);
+            m_Renderer.SetActiveShader(m_PointShadowShader);
+            for (int i = 0; i < 6; i++)
+            {
+                SetActiveCubemapFace(m_PointLightShadowCubemap, i);
+                Mat4x4f shadowProj = Math::GenerateProjectionMatrix(90.0f, 1.0f, 0.001f, maxLightDistance);
+                Mat4x4f shadowView = Math::GenerateViewMatrix(Command.m_Position, GetPointLightDirectionForCubemapFace(i), 
+                    GetPointLightUpVecForCubemapFace(i));
+
+                Mat4x4f shadowVP = shadowProj * shadowView;
+                m_Renderer.SetShaderUniformMat4x4f(m_PointShadowShader, "ShadowVP", shadowVP);
+                m_Renderer.SetShaderUniformVec3f(m_PointShadowShader, "LightPos", Command.m_Position);
+                m_Renderer.SetShaderUniformFloat(m_PointShadowShader, "FarPlane", maxLightDistance);
+                for (StaticMeshRenderCommand& MeshCommand : m_StaticMeshRenderCommands)
+                {
+                    if (!MeshCommand.m_CastShadows)
+                    {
+                        continue;
+                    }
+                    // Set mesh-specific transform uniform
+                    m_Renderer.SetShaderUniformMat4x4f(m_PointShadowShader, "Transformation", MeshCommand.m_TransMat);
+                    // Draw mesh to shadow map
+                    m_Renderer.DrawMesh(MeshCommand.m_Mesh);
+                }
+            }
+
+            // Point lights
+            m_Renderer.SetActiveShader(m_GBufferPointLightShaderWithShadow);
+            SetActiveFrameBuffer(Buffer.LightBuffer, false);
+            {
+                m_Renderer.SetShaderUniformVec3f(m_GBufferPointLightShaderWithShadow, "CameraPos", Cam.GetPosition());
+                m_Renderer.SetActiveCubemap(m_PointLightShadowCubemap, "ShadowMap");
+
+                // Needed?
+                m_Renderer.SetActiveTexture(Buffer.PositionTex, "gPosition");
+                m_Renderer.SetActiveTexture(Buffer.NormalTex, "gNormal");
+                m_Renderer.SetActiveTexture(Buffer.AlbedoTex, "gAlbedo");
+                m_Renderer.SetActiveTexture(Buffer.MetallicTex, "gMetallic");
+                m_Renderer.SetActiveTexture(Buffer.RoughnessTex, "gRoughness");
+                m_Renderer.SetActiveTexture(Buffer.AOTex, "gAO");
+
+                m_Renderer.SetShaderUniformVec3f(m_GBufferPointLightShaderWithShadow, "LightPosition", Command.m_Position);
+                m_Renderer.SetShaderUniformVec3f(m_GBufferPointLightShaderWithShadow, "LightColour", Command.m_Colour * Command.m_Intensity);
+                m_Renderer.SetShaderUniformFloat(m_GBufferPointLightShaderWithShadow, "FarPlane", maxLightDistance);
+
+                m_Renderer.DrawMesh(Buffer.QuadMesh);
+            }
+
         }
 
+        // Loop through spot lights here
+
+        for (SpotLightRenderCommand& Command : m_SpotLightRenderCommands)
+        {
+            // Create spot light shadow map
+            float lightRange;
+            
+            // TODO(fraser): test attenuation ranges
+            if (Command.m_QuadraticAttenuation > 0.0f)
+            {
+                lightRange = sqrt(Command.m_Intensity / (Command.m_QuadraticAttenuation * 0.01f));
+            }
+            else if (Command.m_LinearAttenuation > 0.0f)
+            {
+                lightRange = Command.m_Intensity / (Command.m_LinearAttenuation * 0.01f);
+            }
+            else
+            {
+                lightRange = 100.0f; // Arbitrary large distance if no attenuation
+            }
+
+            Engine::DEBUGPrint("Light range: " + std::to_string(lightRange));
+
+            m_Renderer.SetActiveShader(m_SpotShadowShader);
+
+            Mat4x4f shadowProj = Math::GenerateProjectionMatrix(Command.m_OuterAngle * 2.0f, 1.0f, 0.001f, lightRange);
+            Mat4x4f shadowView = Math::GenerateViewMatrix(Command.m_Position, Command.m_Direction, Vec3f(0.0f, 0.0f, 1.0f));
+            Mat4x4f shadowVP = shadowProj * shadowView;
+
+            SetActiveFrameBuffer(m_SpotLightShadowBuffer);
+            m_Renderer.SetShaderUniformMat4x4f(m_SpotShadowShader, "ShadowVP", shadowVP);
+            m_Renderer.SetShaderUniformVec3f(m_SpotShadowShader, "LightPos", Command.m_Position);
+            m_Renderer.SetShaderUniformFloat(m_SpotShadowShader, "FarPlane", lightRange);
+            for (StaticMeshRenderCommand& MeshCommand : m_StaticMeshRenderCommands)
+            {
+                if (MeshCommand.m_CastShadows)
+                {
+                    // Set mesh-specific transform uniform
+                    m_Renderer.SetShaderUniformMat4x4f(m_SpotShadowShader, "Transformation", MeshCommand.m_TransMat);
+                    // Draw mesh to shadow map
+                    m_Renderer.DrawMesh(MeshCommand.m_Mesh);
+                }
+            }
+
+            // Render spot light
+
+            m_Renderer.SetActiveShader(m_GBufferSpotLightShaderWithShadow);
+            SetActiveFrameBuffer(Buffer.LightBuffer, false);
+            {
+                m_Renderer.SetShaderUniformVec3f(m_GBufferSpotLightShaderWithShadow, "CameraPos", Cam.GetPosition());
+
+                m_Renderer.SetActiveTexture(Buffer.PositionTex, "gPosition");
+                m_Renderer.SetActiveTexture(Buffer.NormalTex, "gNormal");
+                m_Renderer.SetActiveTexture(Buffer.AlbedoTex, "gAlbedo");
+                m_Renderer.SetActiveTexture(Buffer.MetallicTex, "gMetallic");
+                m_Renderer.SetActiveTexture(Buffer.RoughnessTex, "gRoughness");
+                m_Renderer.SetActiveTexture(Buffer.AOTex, "gAO");
+
+                m_Renderer.SetActiveFBufferTexture(m_SpotLightShadowBuffer, "ShadowMap");
+
+                m_Renderer.SetShaderUniformMat4x4f(m_GBufferSpotLightShaderWithShadow, "LightSpaceMatrix", shadowVP);
+                m_Renderer.SetShaderUniformVec3f(m_GBufferSpotLightShaderWithShadow, "LightPosition", Command.m_Position);
+                m_Renderer.SetShaderUniformVec3f(m_GBufferSpotLightShaderWithShadow, "LightDirection", Command.m_Direction);
+                m_Renderer.SetShaderUniformVec3f(m_GBufferSpotLightShaderWithShadow, "LightColour", Command.m_Colour * Command.m_Intensity);
+                
+                m_Renderer.SetShaderUniformFloat(m_GBufferSpotLightShaderWithShadow, "ConstantAtten", Command.m_ConstantAttenuation);
+                m_Renderer.SetShaderUniformFloat(m_GBufferSpotLightShaderWithShadow, "LinearAtten", Command.m_LinearAttenuation);
+                m_Renderer.SetShaderUniformFloat(m_GBufferSpotLightShaderWithShadow, "QuadraticAtten", Command.m_QuadraticAttenuation);
+
+                m_Renderer.SetShaderUniformFloat(m_GBufferSpotLightShaderWithShadow, "FarPlane", lightRange);
+
+                m_Renderer.SetShaderUniformFloat(m_GBufferSpotLightShaderWithShadow, "InnerAngle", cos(Deg2Rad(Command.m_InnerAngle)));
+                m_Renderer.SetShaderUniformFloat(m_GBufferSpotLightShaderWithShadow, "OuterAngle", cos(Deg2Rad(Command.m_OuterAngle)));
+
+                m_Renderer.DrawMesh(Buffer.QuadMesh);
+            }
+
+        }
     }
     m_Renderer.SetBlendFunction(BlendFunc::TRANS);
 
@@ -1590,6 +2203,7 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam)
     m_StaticMeshRenderCommands.clear();
     m_BillboardRenderCommands.clear();
     m_PointLightRenderCommands.clear();
+    m_SpotLightRenderCommands.clear();
     m_DirectionalLightRenderCommands.clear();
 
     m_Renderer.EnableStencilTesting();
@@ -1727,6 +2341,16 @@ void GraphicsModule::SetActiveFrameBuffer(Framebuffer_ID fBufferID, bool clearBu
         //m_Renderer.DrawMesh(m_SkyboxMesh);
 
         //m_Renderer.EnableDepthTesting();
+    }
+}
+
+void GraphicsModule::SetActiveCubemapFace(Cubemap_ID fBufferID, int faceIndex, bool clearBuffer)
+{
+    m_Renderer.BindCubemapFace(fBufferID, faceIndex);
+    if (clearBuffer)
+    {
+        m_Renderer.ClearDepthBuffer();
+        //m_Renderer.ClearScreenAndDepthBuffer();
     }
 }
 

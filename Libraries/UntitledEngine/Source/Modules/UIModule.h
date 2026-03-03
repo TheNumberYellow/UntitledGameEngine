@@ -76,6 +76,11 @@ struct FloatSliderState : public ElementState
     bool dragging = false;
 };
 
+struct FloatDraggerState : public ElementState
+{
+    bool dragging = false;
+};
+
 enum class PlacementType
 {
     SIZE,
@@ -142,7 +147,7 @@ public:
     void EndTab();
 
     void FloatSlider(std::string name, Vec2f size, float& outNum, float min = 0.0f, float max = 1.0f, bool vertical = false, bool drawText = true, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
-    void FloatSliderInfinite(std::string name, Vec2f size, float& outNum);
+    void FloatDragger(std::string name, Vec2f size, float& outNum, float speed = 0.1f, float min = std::numeric_limits<float>::min(), float max = std::numeric_limits<float>::max());
 
     void NewLine(float lineHeight = 10.0f);
 
@@ -161,6 +166,7 @@ private:
 
     void FloatSliderInternal(std::string name, Rect rect, float& outNum, float min = 0.0f, float max = 1.0f, bool vertical = false, bool drawText = true, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
 
+    void FloatDraggerInternal(std::string name, Rect rect, float& outNum, float speed, float min, float max);
 
     // Returns the bounds of an element given a placement setting, without advancing the cursor
     Rect SizeElement(PlacementSettings settings);
@@ -177,6 +183,7 @@ private:
     ButtonState* GetButtonState(std::string name);
     TextEntryState* GetTextEntryState(std::string name);
     FloatSliderState* GetFloatSliderState(std::string name);
+    FloatDraggerState* GetFloatDraggerState(std::string name);
 
     Rect GetFrame();
 
@@ -199,6 +206,7 @@ private:
     std::unordered_map<ElementID, ButtonState> m_ButtonStates;
     std::unordered_map<ElementID, TextEntryState> m_TextEntryStates;
     std::unordered_map<ElementID, FloatSliderState> m_FloatSliderStates;
+    std::unordered_map<ElementID, FloatDraggerState> m_FloatDraggerStates;
 
     size_t m_HashCount = 0;
 

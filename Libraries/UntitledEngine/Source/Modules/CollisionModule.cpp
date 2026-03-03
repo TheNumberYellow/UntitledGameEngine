@@ -57,7 +57,7 @@ void OctreeNode::AddTriangle(Triangle t, int tempDepth)
             slightlyLargerBounds.min -= expansion;
             slightlyLargerBounds.max += expansion;
 
-            if (Intersects(t, SubNodes[i]->Bounds))
+            if (Intersects(t, SubNodes[i]->Bounds).hit)
             {
                 anyChildIntersects = true;
                 SubNodes[i]->AddTriangle(t, tempDepth);
@@ -106,7 +106,7 @@ void OctreeNode::AddLevel(int tempDepth)
     {
         for (int i = 0; i < 8; ++i)
         {
-            if (Intersects(Tri, SubNodes[i]->Bounds))
+            if (Intersects(Tri, SubNodes[i]->Bounds).hit)
             {
                 SubNodes[i]->AddTriangle(Tri, tempDepth);
             }
@@ -737,6 +737,11 @@ Intersection CollisionModule::SphereIntersection(Sphere sphere, OctreeNode* node
     return DeepestIntersection;
 }
 
+Intersection CollisionModule::AABBTriangleIntersection(AABB box, Triangle tri)
+{
+    return Intersects(tri, box);
+}
+
 const RayCastHit* CollisionModule::Closest(std::initializer_list<RayCastHit> hitList)
 {
     const RayCastHit* closestHit = hitList.begin();
@@ -794,108 +799,146 @@ inline RayCastHit CollisionModule::RayCastTri(Ray ray, Vec3f a, Vec3f b, Vec3f c
     return result;
 }
 
-inline void ProjectTriangle(
-    const Vec3f& axis,
+static void ProjectTriangleOntoAxis(
     const Triangle& tri,
+    const Vec3f& axis,
     float& outMin,
     float& outMax)
 {
-    float p0 = Math::dot(axis, tri.a);
-    float p1 = Math::dot(axis, tri.b);
-    float p2 = Math::dot(axis, tri.c);
+    float p0 = Math::dot(tri.a, axis);
+    float p1 = Math::dot(tri.b, axis);
+    float p2 = Math::dot(tri.c, axis);
 
     outMin = std::min(p0, std::min(p1, p2));
     outMax = std::max(p0, std::max(p1, p2));
 }
 
-inline void ProjectAABB(
+static void ProjectAABBOntoAxis(
+    const AABB& box,
     const Vec3f& axis,
-    const Vec3f& center,
-    const Vec3f& extents,
     float& outMin,
     float& outMax)
 {
-    float r =
-        extents.x * std::abs(axis.x) +
-        extents.y * std::abs(axis.y) +
-        extents.z * std::abs(axis.z);
+    // Get box center + extents
+    Vec3f center = {
+        (box.min.x + box.max.x) * 0.5f,
+        (box.min.y + box.max.y) * 0.5f,
+        (box.min.z + box.max.z) * 0.5f
+    };
 
-    float c = Math::dot(axis, center);
+    Vec3f extents = {
+        (box.max.x - box.min.x) * 0.5f,
+        (box.max.y - box.min.y) * 0.5f,
+        (box.max.z - box.min.z) * 0.5f
+    };
+
+    float c = Math::dot(center, axis);
+
+    float r =
+        extents.x * abs(axis.x) +
+        extents.y * abs(axis.y) +
+        extents.z * abs(axis.z);
+
     outMin = c - r;
     outMax = c + r;
 }
 
-inline bool OverlapOnAxis(
-    const Vec3f& axis,
+Intersection Intersects(
     const Triangle& tri,
-    const Vec3f& boxCenter,
-    const Vec3f& boxExtents)
+    const AABB& box)
 {
-    // Degenerate axis -> ignore
-    if (Math::dot(axis, axis) < 1e-6f)
-        return true;
-
-    float triMin, triMax;
-    float boxMin, boxMax;
-
-    ProjectTriangle(axis, tri, triMin, triMax);
-    ProjectAABB(axis, boxCenter, boxExtents, boxMin, boxMax);
-
-    return !(triMax < boxMin || boxMax < triMin);
-}
-
-
-bool Intersects(Triangle tri, AABB box)
-{
-    // Compute box center & half extents
-    Vec3f boxCenter = (box.min + box.max) * 0.5f;
-    Vec3f boxExtents = (box.max - box.min) * 0.5f;
-
-    // Move triangle into box space
-    Triangle t;
-    t.a = tri.a - boxCenter;
-    t.b = tri.b - boxCenter;
-    t.c = tri.c - boxCenter;
+    Intersection result{};
+    result.hit = true;
+    result.penetrationDepth = std::numeric_limits<float>::max();
 
     // Triangle edges
-    Vec3f e0 = t.b - t.a;
-    Vec3f e1 = t.c - t.b;
-    Vec3f e2 = t.a - t.c;
+    Vec3f e0 = { tri.b.x - tri.a.x, tri.b.y - tri.a.y, tri.b.z - tri.a.z };
+    Vec3f e1 = { tri.c.x - tri.b.x, tri.c.y - tri.b.y, tri.c.z - tri.b.z };
+    Vec3f e2 = { tri.a.x - tri.c.x, tri.a.y - tri.c.y, tri.a.z - tri.c.z };
 
-    // AABB axes
-    const Vec3f boxAxes[3] = {
-        Vec3f(1, 0, 0),
-        Vec3f(0, 1, 0),
-        Vec3f(0, 0, 1)
+    // Box axes
+    Vec3f boxAxes[3] = {
+        {1,0,0},
+        {0,1,0},
+        {0,0,1}
     };
 
-    // 1) Test box face normals
+    Vec3f axes[13];
+    int axisCount = 0;
+
+    // 3 box axes
+    axes[axisCount++] = boxAxes[0];
+    axes[axisCount++] = boxAxes[1];
+    axes[axisCount++] = boxAxes[2];
+
+    // Triangle normal
+    axes[axisCount++] = Math::cross(e0, e1);
+
+    // 9 cross product axes
+    Vec3f triEdges[3] = { e0, e1, e2 };
+
     for (int i = 0; i < 3; ++i)
     {
-        float minT = std::min({ t.a[i], t.b[i], t.c[i] });
-        float maxT = std::max({ t.a[i], t.b[i], t.c[i] });
-
-        if (minT > boxExtents[i] || maxT < -boxExtents[i])
-            return false;
-    }
-
-    // 2) Test triangle normal
-    Vec3f triNormal = Math::cross(e0, e1);
-    if (!OverlapOnAxis(triNormal, t, Vec3f(0, 0, 0), boxExtents))
-        return false;
-
-    // 3) Test edge × axis cross products
-    Vec3f edges[3] = { e0, e1, e2 };
-
-    for (int e = 0; e < 3; ++e)
-    {
-        for (int a = 0; a < 3; ++a)
+        for (int j = 0; j < 3; ++j)
         {
-            Vec3f axis = Math::cross(edges[e], boxAxes[a]);
-            if (!OverlapOnAxis(axis, t, Vec3f(0, 0, 0), boxExtents))
-                return false;
+            axes[axisCount++] = Math::cross(triEdges[i], boxAxes[j]);
         }
     }
 
-    return true;
+    // Box center for normal direction
+    Vec3f boxCenter = {
+        (box.min.x + box.max.x) * 0.5f,
+        (box.min.y + box.max.y) * 0.5f,
+        (box.min.z + box.max.z) * 0.5f
+    };
+
+    Vec3f triCenter = {
+        (tri.a.x + tri.b.x + tri.c.x) / 3.0f,
+        (tri.a.y + tri.b.y + tri.c.y) / 3.0f,
+        (tri.a.z + tri.b.z + tri.c.z) / 3.0f
+    };
+
+    for (int i = 0; i < axisCount; ++i)
+    {
+        Vec3f axis = axes[i];
+
+        float lenSq = Math::dot(axis, axis);
+        if (lenSq < 1e-8f)
+            continue; // skip degenerate axes
+
+        axis = Math::normalize(axis);
+
+        float triMin, triMax;
+        float boxMin, boxMax;
+
+        ProjectTriangleOntoAxis(tri, axis, triMin, triMax);
+        ProjectAABBOntoAxis(box, axis, boxMin, boxMax);
+
+        float overlap = std::min(triMax, boxMax) - std::max(triMin, boxMin);
+
+        if (overlap < 0.0f)
+        {
+            result.hit = false;
+            return result; // separating axis found
+        }
+
+        if (overlap < result.penetrationDepth)
+        {
+            result.penetrationDepth = overlap;
+
+            // direction from box to triangle
+            Vec3f d = {
+                triCenter.x - boxCenter.x,
+                triCenter.y - boxCenter.y,
+                triCenter.z - boxCenter.z
+            };
+
+            if (Math::dot(d, axis) < 0.0f)
+                axis = { -axis.x, -axis.y, -axis.z };
+
+            result.penetrationNormal = axis;
+        }
+    }
+
+    return result;
 }

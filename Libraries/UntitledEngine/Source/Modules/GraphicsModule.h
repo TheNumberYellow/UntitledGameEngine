@@ -12,6 +12,7 @@
 #include "Graphics/Model.h"
 #include "Graphics/PointLight.h"
 #include "Graphics/DirectionalLight.h"
+#include "Graphics/SpotLight.h"
 
 #include <unordered_map>
 #include <vector>
@@ -86,6 +87,7 @@ public:
     void AddRenderCommand(StaticMeshRenderCommand Command);
     void AddRenderCommand(BillboardRenderCommand Command);
     void AddRenderCommand(PointLightRenderCommand Command);
+    void AddRenderCommand(SpotLightRenderCommand Command);
     void AddRenderCommand(DirectionalLightRenderCommand Command);
 
     // Render all submitted render commands into the specified buffer
@@ -109,6 +111,7 @@ public:
     StaticMesh LoadMesh(std::string filePath);
 
     void SetActiveFrameBuffer(Framebuffer_ID fBufferID, bool clearBuffer = true);
+    void SetActiveCubemapFace(Cubemap_ID fBufferID, int faceIndex, bool clearBuffer = true);
     void ResizeFrameBuffer(Framebuffer_ID fBufferID, Vec2i size);
     void ResizeGBuffer(GBuffer& Buffer, Vec2i Size);
     void ResetFrameBuffer();
@@ -184,7 +187,9 @@ private:
 public:
     Shader_ID m_UnlitShader;
     Shader_ID m_TexturedMeshShader;
-    Shader_ID m_ShadowShader;
+    Shader_ID m_DirShadowShader;
+    Shader_ID m_PointShadowShader;
+    Shader_ID m_SpotShadowShader;
 private:
     Shader_ID m_SkyboxShader;
     Shader_ID m_DebugLineShader;
@@ -231,6 +236,7 @@ private:
     Texture_ID m_LightTexture;
 
     Framebuffer_ID m_ShadowBuffer;
+    Framebuffer_ID m_SpotLightShadowBuffer;
     Cubemap_ID m_PointLightShadowCubemap;
     //Framebuffer_ID m_ShadowBufferPointLight[6];
 
@@ -242,6 +248,7 @@ private:
     std::vector<StaticMeshRenderCommand> m_StaticMeshRenderCommands;
     std::vector<BillboardRenderCommand> m_BillboardRenderCommands;
     std::vector<PointLightRenderCommand> m_PointLightRenderCommands;
+    std::vector<SpotLightRenderCommand> m_SpotLightRenderCommands;
     std::vector<DirectionalLightRenderCommand> m_DirectionalLightRenderCommands;
 
     // GBuffer stuff
@@ -252,6 +259,8 @@ private:
 
     Shader_ID m_GBufferDirectionalLightShader;
     Shader_ID m_GBufferPointLightShader;
+    Shader_ID m_GBufferPointLightShaderWithShadow;
+    Shader_ID m_GBufferSpotLightShaderWithShadow;
 
     Shader_ID m_GBufferCombinerShader;
 

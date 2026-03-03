@@ -155,6 +155,60 @@ void Engine::ShowCursor()
     }
 }
 
+void Engine::SetMouseCursor(CursorType cursor)
+{
+    LPCTSTR cursorID;
+    switch (cursor)
+    {
+    case CursorType::Arrow:
+        cursorID = IDC_ARROW;
+        break;
+    case CursorType::Hand:
+        cursorID = IDC_HAND;
+        break;
+    case CursorType::Crosshair:
+        cursorID = IDC_CROSS;
+        break;
+    case CursorType::IBeam:
+        cursorID = IDC_IBEAM;
+        break;
+    case CursorType::Wait:
+        cursorID = IDC_WAIT;
+        break;
+    case CursorType::Help:
+        cursorID = IDC_HELP;
+        break;
+    case CursorType::No:
+        cursorID = IDC_NO;
+        break;
+    case CursorType::SizeAll:
+        cursorID = IDC_SIZEALL;
+        break;
+    case CursorType::SizeNESW:
+        cursorID = IDC_SIZENESW;
+        break;
+    case CursorType::SizeNS:
+        cursorID = IDC_SIZENS;
+        break;
+    case CursorType::SizeNWSE:
+        cursorID = IDC_SIZENWSE;
+        break;
+    case CursorType::SizeWE:
+        cursorID = IDC_SIZEWE;
+        break;
+    case CursorType::UpArrow:
+        cursorID = IDC_UPARROW;
+        break;
+    default:
+        Engine::FatalError("Invalid mouse cursor type.");
+        return;
+    }
+
+    HCURSOR hCursor = LoadCursor(NULL, cursorID);
+    SetCursor(hCursor);
+
+}
+
 void Engine::StopGame()
 {
     running = false;

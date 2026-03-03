@@ -561,6 +561,14 @@ void UIModule::EndFrame()
         SliderRect.location = FrameRect.location + Vec2f(FrameRect.size.x, 0.0f);
         SliderRect.size = Vec2f(15.0f, FrameRect.size.y);
 
+        // Scroll using mouse wheel
+        int mouseWheelDelta = m_Input.GetMouseState().GetDeltaMouseWheel();
+        if (mouseWheelDelta != 0)
+        {
+            frameState->verticalOffset -= mouseWheelDelta * 20.0f;
+            frameState->verticalOffset = std::clamp(frameState->verticalOffset, 0.0f, frameState->maxElementOffset);
+        }
+
         FloatSliderInternal(frameState->name + "_Slider", SliderRect, frameState->verticalOffset, 0.0f, frameState->maxElementOffset, true, false);
     }
     else
@@ -657,9 +665,16 @@ void UIModule::FloatSlider(std::string name, Vec2f size, float& outNum, float mi
     FloatSliderInternal(name, TotalSize, outNum, min, max, vertical, drawText, colour);
 }
 
-void UIModule::FloatSliderInfinite(std::string name, Vec2f size, float& outNum)
+void UIModule::FloatDragger(std::string name, Vec2f size, float& outNum, float speed, float min, float max)
 {
+    if (!IsActive())
+    {
+        return;
+    }
 
+    Rect TotalSize = PlaceElement(size);
+    
+    FloatDraggerInternal(name, TotalSize, outNum, speed, min, max);
 }
 
 void UIModule::NewLine(float lineHeight)
@@ -890,6 +905,87 @@ void UIModule::FloatSliderInternal(std::string name, Rect rect, float& outNum, f
 
         outNum = Math::Lerp(min, max, MouseVal);
     }
+
+}
+
+void UIModule::FloatDraggerInternal(std::string name, Rect rect, float& outNum, float speed, float min, float max)
+{
+    if (!IsActive())
+    {
+        return;
+    }
+
+    FloatDraggerState* DraggerState = GetFloatDraggerState(name);
+    if (DraggerState->dragging)
+    {
+        if (!Engine::GetMouseDown())
+        {
+            DraggerState->dragging = false;
+        }
+        Engine::ShowCursor();
+        Engine::SetMouseCursor(CursorType::Arrow);
+    }
+
+    Click click = ButtonInternal(name + "_Dragger", rect, 2.0f, c_White);
+    if (click.clicking && !DraggerState->dragging)
+    {
+        DraggerState->dragging = true;
+    }
+    else if (!click.clicking && click.hovering)
+    {
+        Engine::SetMouseCursor(CursorType::SizeWE);
+    }
+    if (DraggerState->dragging)
+    {
+        Vec2f MouseDelta = m_Input.GetMouseState().GetDeltaMousePos();
+        outNum += MouseDelta.x * speed;
+
+        outNum = Math::Clamp(outNum, min, max);
+
+        Vec2f MousePos = m_Input.GetMouseState().GetMousePos();
+
+        // Mouse looping behaviour
+        if (MousePos.x < rect.location.x)
+        {
+            Engine::SetMousePosition(Vec2f(rect.location.x + rect.size.x, MousePos.y));
+            m_Input.GetMouseState().UpdateMousePos(Engine::GetMousePosition(), false, Vec2i());
+
+            // TODO (fraser): This may affect other code which uses the delta mouse pos, consider a better solution
+            m_Input.ClearDeltaMousePos();
+        }
+        else if (MousePos.x > rect.location.x + rect.size.x)
+        {
+            Engine::SetMousePosition(Vec2f(rect.location.x, MousePos.y));
+            m_Input.GetMouseState().UpdateMousePos(Engine::GetMousePosition(), false, Vec2i());
+            m_Input.ClearDeltaMousePos();
+        }
+        if (MousePos.y < rect.location.y)
+        {
+            Engine::SetMousePosition(Vec2f(MousePos.x, rect.location.y + rect.size.y));
+            m_Input.GetMouseState().UpdateMousePos(Engine::GetMousePosition(), false, Vec2i());
+        }
+        else if (MousePos.y > rect.location.y + rect.size.y)
+        {
+            Engine::SetMousePosition(Vec2f(MousePos.x, rect.location.y));
+            m_Input.GetMouseState().UpdateMousePos(Engine::GetMousePosition(), false, Vec2i());
+        }
+
+        // Hide mouse cursor while dragging
+        Engine::HideCursor();
+    }
+
+    if (ShouldDraw(rect))
+    {
+        // Render
+        //m_Renderer.DisableDepthTesting();
+        if (name != "")
+        {
+            //TODO: hard coded text colour
+            m_Text.DrawText(name + " = " + std::to_string(outNum), &m_FrameFont, rect.Center(), Vec3f(0.0f, 0.0f, 0.0f), Anchor::CENTER);
+        }
+        //m_Renderer.EnableDepthTesting();
+    }
+
 
 }
 
@@ -1143,6 +1239,21 @@ FloatSliderState* UIModule::GetFloatSliderState(std::string name)
     m_FloatSliderStates[ID].m_Alive = true;
 
     return &m_FloatSliderStates[ID];
+}
+
+FloatDraggerState* UIModule::GetFloatDraggerState(std::string name)
+{
+    ElementID ID = GetElementID(name);
+
+    auto got = m_FloatDraggerStates.find(ID);
+    if (got == m_FloatDraggerStates.end())
+    {
+        m_FloatDraggerStates.emplace(ID, FloatDraggerState());
+    }
+
+    m_FloatDraggerStates[ID].m_Alive = true;
+
+    return &m_FloatDraggerStates[ID];
 }
 
 Rect UIModule::GetFrame()

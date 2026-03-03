@@ -130,6 +130,11 @@ void InputModule::UpdateMouseWheel(int delta)
 	m_LocalSystemInputState.UpdateMouseWheel(delta);
 }
 
+void InputModule::ClearDeltaMousePos()
+{
+	m_LocalSystemInputState.GetMouseState().ClearDeltaMousePos();
+}
+
 void InputModule::SetMouseLocked(bool locked)
 {
     m_LocalSystemInputState.SetMouseLocked(locked);
@@ -206,6 +211,11 @@ void MouseState::UpdateMousePos(Vec2i newPos, bool mouseLocked, Vec2i center)
 void MouseState::UpdateMouseWheel(int delta)
 {
 	m_DeltaMouseWheel = delta;
+}
+
+void MouseState::ClearDeltaMousePos()
+{
+	m_DeltaMouse = Vec2i(0, 0);
 }
 
 Vec2i MouseState::GetMousePos() const

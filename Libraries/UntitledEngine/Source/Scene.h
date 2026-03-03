@@ -74,6 +74,9 @@ public:
     PointLight* AddPointLight(PointLight newLight);
     void DeletePointLight(PointLight* light);
 
+    SpotLight* AddSpotLight(SpotLight newLight);
+    void DeleteSpotLight(SpotLight* light);
+
     DirectionalLight* AddDirectionalLight(DirectionalLight newLight);
     void DeleteDirectionalLight(DirectionalLight* light);
 
@@ -85,6 +88,9 @@ public:
 #endif
 
     std::vector<PointLight*>& GetPointLights();
+    
+    std::vector<SpotLight*>& GetSpotLights();
+    
     std::vector<he::HalfEdgeMesh*>& GetHalfEdgeMeshes();
 
     void AddCamera(Camera* camera);
@@ -132,6 +138,7 @@ private:
 
     std::vector<PointLight*> m_PointLights;
     std::vector<DirectionalLight*> m_DirectionalLights;
+    std::vector<SpotLight*> m_SpotLights;
 
     // TODO: these might only be in editor builds (might all be converted to regular models in non-editor builds)
     std::vector<he::HalfEdgeMesh*> m_HEMeshes;
@@ -172,6 +179,8 @@ private:
     static Material* CameraMaterial;
     static StaticMesh* DirectionalLightMesh;
     static Material* DirectionalLightMaterial;
+    static StaticMesh* SpotLightMesh;
+    static Material* SpotLightMaterial;
 #endif
 
     GUIDGenerator m_ModelIDGenerator;

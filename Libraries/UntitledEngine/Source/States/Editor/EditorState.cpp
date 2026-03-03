@@ -404,6 +404,7 @@ void EditorState::LoadEditorResources()
     
     lightEntityTexture = *Registry->LoadTexture("Assets/images/lightTool.png");
     directionalLightEntityTexture = *Registry->LoadTexture("Assets/images/dirLight.png");
+    spotLightEntityTexture = *Registry->LoadTexture("Assets/images/spotLight.png");
     cameraEntityTexture = *Registry->LoadTexture("Assets/images/cameraButton.png");
     brainEntityTexture = *Registry->LoadTexture("Assets/images/brainTool.png");
     billboardEntityTexture = *Registry->LoadTexture("Assets/images/billboardTool.png");
@@ -1182,6 +1183,7 @@ void EditorState::DrawEditorUI()
             Cursor.SetToolMode(ToolMode::Sculpt);
         }
 
+        UI->CheckBox("Grid Snap", Cursor.ShouldSnapToGrid);
     }
     UI->EndFrame();
 
@@ -1386,6 +1388,15 @@ void EditorState::DrawResourcesPanel(Scene& FocusedScene)
                         DirectionalLight NewDirLight = DirectionalLight();
                         DirectionalLight* DirLightPtr = FocusedScene.AddDirectionalLight(NewDirLight);
                         Cursor.StartDraggingNewDirectionalLight(DirLightPtr);
+                    }
+                }
+                if (UI->ImgButton("SpotLightEntity", spotLightEntityTexture, Vec2f(80.0f, 80.0f), 12.0f, c_ResourceButton).clicking)
+                {
+                    if (!Cursor.IsDraggingSomething())
+                    {
+                        SpotLight NewSpotLight = SpotLight();
+                        SpotLight* SpotLightPtr = FocusedScene.AddSpotLight(NewSpotLight);
+                        Cursor.StartDraggingNewSpotLight(SpotLightPtr);
                     }
                 }
                 if (UI->ImgButton("CameraEntity", cameraEntityTexture, Vec2f(80.0f, 80.0f), 12.0f, c_ResourceButton))

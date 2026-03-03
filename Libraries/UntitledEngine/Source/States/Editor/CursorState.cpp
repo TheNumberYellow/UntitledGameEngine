@@ -143,6 +143,21 @@ void CursorState::Update(double DeltaTime)
             Dragging = DraggingMode::None;
         }
     }
+    else if (Dragging == DraggingMode::NewSpotLight)
+    {
+        if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).pressed)
+        {
+            Vec2i MousePos = Input->GetMouseState().GetMousePos();
+            Ray MouseRay = EditorStatePtr->GetMouseRay(*CameraPtr, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+            DraggingSpotLightPtr->position = MouseRay.point + MouseRay.direction * 8.0f;
+        }
+        else
+        {
+            DraggingSpotLightPtr = nullptr;
+
+            Dragging = DraggingMode::None;
+        }
+    }
     else if (Dragging == DraggingMode::NewTexture)
     {
         Vec2i MousePos = Input->GetMouseState().GetMousePos();
@@ -457,6 +472,16 @@ void CursorState::StartDraggingNewDirectionalLight(DirectionalLight* NewDirLight
     DraggingDirectionalLightPtr = NewDirLight;
 }
 
+void CursorState::StartDraggingNewSpotLight(SpotLight* NewSpotLight)
+{
+    if (Dragging != DraggingMode::None)
+    {
+        return;
+    }
+    Dragging = DraggingMode::NewSpotLight;
+    DraggingSpotLightPtr = NewSpotLight;
+}
+
 void CursorState::StartDraggingNewMaterial(Material* NewMaterial)
 {
     if (Dragging != DraggingMode::None)
@@ -714,7 +739,7 @@ void CursorState::UpdateGenericSelectTool()
 
     Vec2i MousePos = Input->GetMouseState().GetMousePos();
 
-    if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB) && EditorStatePtr->GetEditorSceneViewportRect().Contains(MousePos))
+    if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).justPressed && EditorStatePtr->GetEditorSceneViewportRect().Contains(MousePos))
     {
         Ray MouseRay = EditorStatePtr->GetMouseRay(*CameraPtr, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
 
@@ -885,9 +910,12 @@ void CursorState::UpdateTranslateTool()
         Vec3f NewObjPos = (MouseRay.point - ObjectRelativeHitPoint) +
             (MouseRay.direction * ObjectDistanceAtHit);
 
-        NewObjPos.x = Math::Round(NewObjPos.x, TransSnap);
-        NewObjPos.y = Math::Round(NewObjPos.y, TransSnap);
-        NewObjPos.z = Math::Round(NewObjPos.z, TransSnap);
+        if (ShouldSnapToGrid)
+        {
+            NewObjPos.x = Math::Round(NewObjPos.x, TransSnap);
+            NewObjPos.y = Math::Round(NewObjPos.y, TransSnap);
+            NewObjPos.z = Math::Round(NewObjPos.z, TransSnap);
+        }
 
         SelectedProxyTransform.SetPosition(NewObjPos);
 
@@ -930,10 +958,13 @@ void CursorState::UpdateTranslateTool()
 
         // Snap based on distance from initial selection position
         Vec3f ProxyToInitialObjectPosition = PointAlongAxis - InitialObjectPosition;
-        PointAlongAxis.x = Math::Round(ProxyToInitialObjectPosition.x, TransSnap) + InitialObjectPosition.x;
-        PointAlongAxis.y = Math::Round(ProxyToInitialObjectPosition.y, TransSnap) + InitialObjectPosition.y;
-        PointAlongAxis.z = Math::Round(ProxyToInitialObjectPosition.z, TransSnap) + InitialObjectPosition.z;
-
+        
+        if (ShouldSnapToGrid)
+        {
+            PointAlongAxis.x = Math::Round(ProxyToInitialObjectPosition.x, TransSnap) + InitialObjectPosition.x;
+            PointAlongAxis.y = Math::Round(ProxyToInitialObjectPosition.y, TransSnap) + InitialObjectPosition.y;
+            PointAlongAxis.z = Math::Round(ProxyToInitialObjectPosition.z, TransSnap) + InitialObjectPosition.z;
+        }
 
         SelectedProxyTransform.SetPosition(PointAlongAxis);
     }
@@ -1044,7 +1075,10 @@ void CursorState::UpdateRotateTool()
 
         float DeltaAngle = InitialAngle - CurrentAngle;
 
-        DeltaAngle = Math::Round(DeltaAngle, RotSnap);
+        if (ShouldSnapToGrid)
+        {
+            DeltaAngle = Math::Round(DeltaAngle, RotSnap);
+        }
 
         Quaternion axisQuat = Quaternion(AxisPlane.normal, DeltaAngle);
 

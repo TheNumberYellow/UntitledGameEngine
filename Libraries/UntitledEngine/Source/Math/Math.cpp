@@ -261,35 +261,60 @@ Mat4x4f Math::GenerateTransformMatrix(Vec3f position, Vec3f scale, Quaternion ro
 
 Mat4x4f Math::GenerateViewMatrix(Vec3f position, Vec3f direction, Vec3f up)
 {
-    Vec3f f(normalize(direction));
-    Vec3f side = cross(f, up);
-    Vec3f s;
-    if (side.IsNearlyZero())
+    //Vec3f f(normalize(direction));
+    //Vec3f side = cross(f, up);
+    //Vec3f s;
+    //if (side.IsNearlyZero())
+    //{
+    //    s = orthogonal(up);
+    //}
+    //else
+    //{
+    //    s = side;
+    //}
+
+    //s = normalize(s);
+ 
+    //Vec3f u(cross(s, f));
+
+    //Mat4x4f result;
+    //result[0][0] = s.x;
+    //result[1][0] = s.y;
+    //result[2][0] = s.z;
+    //result[0][1] = u.x;
+    //result[1][1] = u.y;
+    //result[2][1] = u.z;
+    //result[0][2] = -f.x;
+    //result[1][2] = -f.y;
+    //result[2][2] = -f.z;
+    //result[3][0] = -dot(s, position);
+    //result[3][1] = -dot(u, position);
+    //result[3][2] = dot(f, position);
+
+    //return result;
+
+    if (Math::dot(direction, up) > 0.999f)
     {
-        s = orthogonal(up);
+        up = orthogonal(direction);
     }
-    else
+    if (Math::dot(direction, up) < -0.999f)
     {
-        s = side;
+        up = orthogonal(direction);
     }
 
-    s = normalize(s);
- 
-    Vec3f u(cross(s, f));
+    glm::mat4 glmMat;
+    glm::vec3 glmPosition = glm::vec3(position.x, position.y, position.z);
+    glm::vec3 glmDirection = glm::vec3(direction.x, direction.y, direction.z);
+    glm::vec3 glmUp = glm::vec3(up.x, up.y, up.z);
+
+    glmMat = glm::lookAt(glmPosition, glmPosition + glmDirection, glmUp);
 
     Mat4x4f result;
-    result[0][0] = s.x;
-    result[1][0] = s.y;
-    result[2][0] = s.z;
-    result[0][1] = u.x;
-    result[1][1] = u.y;
-    result[2][1] = u.z;
-    result[0][2] = -f.x;
-    result[1][2] = -f.y;
-    result[2][2] = -f.z;
-    result[3][0] = -dot(s, position);
-    result[3][1] = -dot(u, position);
-    result[3][2] = dot(f, position);
+
+    result[0] = Vec4f(glmMat[0].x, glmMat[0].y, glmMat[0].z, glmMat[0].w);
+    result[1] = Vec4f(glmMat[1].x, glmMat[1].y, glmMat[1].z, glmMat[1].w);
+    result[2] = Vec4f(glmMat[2].x, glmMat[2].y, glmMat[2].z, glmMat[2].w);
+    result[3] = Vec4f(glmMat[3].x, glmMat[3].y, glmMat[3].z, glmMat[3].w);
 
     return result;
 }
@@ -297,7 +322,7 @@ Mat4x4f Math::GenerateViewMatrix(Vec3f position, Vec3f direction, Vec3f up)
 Mat4x4f Math::GenerateProjectionMatrix(float verticalFOV, float aspectRatio, float nearClippingPlane, float farClippingPlane)
 {
     glm::mat4 glmMat;
-    glmMat = glm::perspective(verticalFOV, aspectRatio, nearClippingPlane, farClippingPlane);
+    glmMat = glm::perspective(glm::radians(verticalFOV), aspectRatio, nearClippingPlane, farClippingPlane);
 
     Mat4x4f result;
 
@@ -537,4 +562,70 @@ Mat4x4f Mat4x4f::operator*(Mat4x4f rhs)
         }
     }
     return result;
+}
+
+float Math::PerlinNoise1D(float seed)
+{
+    //TODO: vibe coded with copilot
+    // Generate perlin noise based on the seed value. This is a very basic implementation and can be improved for better performance and quality.
+    int x0 = (int)floor(seed);
+    int x1 = x0 + 1;
+
+    float t = seed - x0;
+    
+    // Fade function to smooth the interpolation
+    float fade = t * t * t * (t * (t * 6 - 15) + 10);
+
+    // Hash function to generate pseudo-random gradients
+    auto hash = [](int x) {
+        x = (x << 13) ^ x;
+        return (1.0f - ((x * (x * x * 15731 + 789221) + 1376312589) & 0x7fffffff) / 1073741824.0f);
+        };
+
+    float g0 = hash(x0);
+    float g1 = hash(x1);
+
+    float d0 = g0 * (t);
+    float d1 = g1 * (t - 1);
+
+    return (1 - fade) * d0 + fade * d1;
+}
+
+Vec2f Math::PerlinNoise2D(Vec2f seed)
+{
+    //TODO: vibe coded with copilot 
+    // This is a very basic implementation of 2D Perlin noise and can be improved for better performance and quality.
+    int x0 = (int)floor(seed.x);
+    int x1 = x0 + 1;
+    int y0 = (int)floor(seed.y);
+    int y1 = y0 + 1;
+
+    float tX = seed.x - x0;
+    float tY = seed.y - y0;
+
+    // Fade function to smooth the interpolation
+    float fadeX = tX * tX * tX * (tX * (tX * 6 - 15) + 10);
+    float fadeY = tY * tY * tY * (tY * (tY * 6 - 15) + 10);
+
+    // Hash function to generate pseudo-random gradients
+    auto hash = [](int x, int y) {
+        int n = x + y * 57;
+        n = (n << 13) ^ n;
+        return (1.0f - ((n * (n * n * 15731 + 789221) + 1376312589) & 0x7fffffff) / 1073741824.0f);
+        };
+
+    float g00 = hash(x0, y0);
+    float g10 = hash(x1, y0);
+    float g01 = hash(x0, y1);
+    float g11 = hash(x1, y1);
+
+    float d00 = g00 * (tX) * (tY);
+    float d10 = g10 * (tX - 1) * (tY);
+    float d01 = g01 * (tX) * (tY - 1);
+    float d11 = g11 * (tX - 1) * (tY - 1);
+
+    float noiseX0 = (1 - fadeX) * d00 + fadeX * d10;
+    float noiseX1 = (1 - fadeX) * d01 + fadeX * d11;
+
+    return Vec2f((1 - fadeY) * noiseX0 + fadeY * noiseX1, (1 - fadeY) * d00 + fadeY * d01);
 }

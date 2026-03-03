@@ -161,7 +161,7 @@ void SphereController::Update(Scene* Scene, double DeltaTime)
         CamDistance = DefaultCamDistance;
     }
 
-    MyLight->position = m_Model->GetTransform().GetPosition();
+    MyLight->position = m_Model->GetTransform().GetPosition() + Vec3f(0.0f, 0.0f, 2.5f);
 
     // Begin camera stuff
     Vec3f CamCenterPoint = m_Model->GetTransform().GetPosition();
@@ -233,6 +233,10 @@ void SphereController::DrawInspectorPanel()
     UI->FloatSlider("Restitution", Vec2f(300.0f, 20.0f), Restitution, 0.0f, 2.0f);
 
     UI->FloatSlider("Jump Speed", Vec2f(300.0f, 20.0f), JumpSpeed, 0.0f, 200.0f);
+
+    UI->FloatSlider("Light Intensity", Vec2f(300.0f, 20.0f), LightIntensity, 0.0f, 25.0f);
+
+    UI->CheckBox("Trail Enabled", TrailEnabled);
 }
 
 void SphereController::Initialize(Scene* Scene)
@@ -242,15 +246,15 @@ void SphereController::Initialize(Scene* Scene)
 
     InputState = &InputModule::Get()->m_LocalSystemInputState;
 
-    PointLight NewLight;
+    SpotLight NewLight;
 
     NewLight.position = m_Model->GetTransform().GetPosition();
     //NewLight.colour = MakeColour(Math::RandomInt(0, 255), Math::RandomInt(0, 255), Math::RandomInt(0, 255));
-    NewLight.colour = MakeColour(155, 255, 155);
+    NewLight.colour = MakeColour(255, 255, 155);
 
-    NewLight.intensity = 0.5f;
+    NewLight.intensity = LightIntensity;
 
-    MyLight = Scene->AddPointLight(NewLight);
+    MyLight = Scene->AddSpotLight(NewLight);
 
     CamDistance = DefaultCamDistance;
 }

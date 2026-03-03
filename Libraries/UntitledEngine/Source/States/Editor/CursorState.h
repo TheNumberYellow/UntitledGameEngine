@@ -52,6 +52,7 @@ enum class DraggingMode : uint8_t
     NewBehaviour,
     NewPointLight,
     NewDirectionalLight,
+    NewSpotLight
 };
 
 enum class EditingAxis : uint8_t
@@ -108,6 +109,7 @@ public:
     void StartDraggingNewModel(Model* NewModel);
     void StartDraggingNewPointLight(PointLight* NewPointLight);
     void StartDraggingNewDirectionalLight(DirectionalLight* NewDirLight);
+    void StartDraggingNewSpotLight(SpotLight* NewSpotLight);
     void StartDraggingNewMaterial(Material* NewMaterial);
     void StartDraggingNewBehaviour(std::string NewBehaviourName);
 
@@ -163,6 +165,7 @@ private:
     Model* DraggingModelPtr = nullptr;
     PointLight* DraggingPointLightPtr = nullptr;
     DirectionalLight* DraggingDirectionalLightPtr = nullptr;
+    SpotLight* DraggingSpotLightPtr = nullptr;
 
     Material* DraggingMaterialPtr = nullptr;
     std::string DraggingBehaviourName;
@@ -220,6 +223,9 @@ private:
     // Sculpt mode state
     float SculptSpeed = 3.0f;
     float SculptRadius = 1.0f;
+
+    friend class EditorState;
+    bool ShouldSnapToGrid = false;
 
     EditorClickContext ClickContext;
 

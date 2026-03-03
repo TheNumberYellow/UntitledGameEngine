@@ -27,6 +27,8 @@ private:
     float ImpulseForce = 30.0f;
     float Restitution = 0.0f;
 
+    float LightIntensity = 4.0f;
+
     float CamXAxis = 0.0f;
     float CamYAxis = 0.0f;
 
@@ -35,7 +37,7 @@ private:
 
     Vec3f CamFacingDir = Vec3f(1.0f, 0.0f, 0.0f);
 
-    PointLight* MyLight = nullptr;
+    SpotLight* MyLight = nullptr;
 
     bool TrailEnabled = false;
     std::deque<Vec3f> LastXPositions;
