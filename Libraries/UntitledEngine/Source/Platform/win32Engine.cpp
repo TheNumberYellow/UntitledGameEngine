@@ -490,6 +490,7 @@ LRESULT CALLBACK WindowProc(_In_ HWND WindowHandle, _In_ UINT Message, _In_ WPAR
     switch (Message)
     {
     case WM_CLOSE:
+        Engine::StopGame();
         DestroyWindow(WindowHandle);
         break;
     case WM_DESTROY:

@@ -252,11 +252,22 @@ void Scene::DeleteDirectionalLight(DirectionalLight* light)
 
 void Scene::AddHalfEdgeMesh(he::HalfEdgeMesh* newMesh)
 {
+#ifdef USE_EDITOR
+    m_GenericEditorClickables.push_back(newMesh);
+#endif
     m_HEMeshes.push_back(newMesh);
 }
 
 void Scene::DeleteHalfEdgeMesh(he::HalfEdgeMesh* mesh)
 {
+#ifdef USE_EDITOR
+    auto clickableIt = std::find(m_GenericEditorClickables.begin(), m_GenericEditorClickables.end(), mesh);
+    if (clickableIt != m_GenericEditorClickables.end())
+    {
+        m_GenericEditorClickables.erase(clickableIt);
+    }
+#endif
+
     auto it = std::find(m_HEMeshes.begin(), m_HEMeshes.end(), mesh);
     if (it != m_HEMeshes.end())
     {
@@ -466,7 +477,10 @@ void Scene::EditorDraw(GraphicsModule& graphics, GBuffer gBuffer, Camera* editor
 }
 #endif
 
-SceneRayCastHit Scene::RayCast(Ray ray, std::vector<Model*> IgnoredModels)
+SceneRayCastHit Scene::RayCast(
+    Ray ray, 
+    std::vector<Model*> IgnoredModels, 
+    std::vector<he::HalfEdgeMesh*> IgnoredHalfEdgeMeshes)
 {
     CollisionModule& Collision = *CollisionModule::Get();
 
@@ -486,6 +500,10 @@ SceneRayCastHit Scene::RayCast(Ray ray, std::vector<Model*> IgnoredModels)
     // TODO: Some sort of typed union (or maybe polymorphism if this gets more complex) for returning multiple hit object types
     for (auto& it : m_HEMeshes)
     {
+        if (std::count(IgnoredHalfEdgeMeshes.begin(), IgnoredHalfEdgeMeshes.end(), it) > 0)
+        {
+            continue;
+        }
         finalHit = Closer(finalHit, SceneRayCastHit{ Collision.RayCast(ray, *it), nullptr });
     }
 
@@ -620,6 +638,7 @@ void Scene::Save(std::string FileName)
     json StaticMeshList;
     json PointLightList;
     json DirLightList;
+    json SpotLightList;
     json ModelList;
     json HEMeshList;
 
@@ -646,7 +665,11 @@ void Scene::Save(std::string FileName)
     {
         SaveDirectionalLight(DirLightList[Index++], *DLight);
     }
-
+    Index = 0;
+    for (SpotLight* SLight : m_SpotLights)
+    {
+        SaveSpotLight(SpotLightList[Index++], *SLight);
+    }
     Index = 0;
     for (auto it : m_Models)
     {
@@ -698,6 +721,7 @@ void Scene::Save(std::string FileName)
     SceneJson["StaticMeshes"] = StaticMeshList;
     SceneJson["PointLights"] = PointLightList;
     SceneJson["DirLights"] = DirLightList;
+    SceneJson["SpotLights"] = SpotLightList;
     SceneJson["Models"] = ModelList;
     SceneJson["HEMeshes"] = HEMeshList;
 
@@ -742,6 +766,7 @@ void Scene::Load(std::string FileName)
     json StaticMeshesJson = SceneJson["StaticMeshes"];
     json PointLightsJson = SceneJson["PointLights"];
     json DirLightsJson = SceneJson["DirLights"];
+    json SpotLightsJson = SceneJson["SpotLights"];
     json ModelsJson = SceneJson["Models"];
     json HEMeshesJson = SceneJson["HEMeshes"];
 
@@ -760,6 +785,10 @@ void Scene::Load(std::string FileName)
     for (json& DirLightJson : DirLightsJson)
     {
         AddDirectionalLight(LoadDirectionalLight(DirLightJson));
+    }
+    for (json& SpotLightJson : SpotLightsJson)
+    {
+        AddSpotLight(LoadSpotLight(SpotLightJson));
     }
     for (json& ModelJson : ModelsJson)
     {
@@ -1239,6 +1268,19 @@ void Scene::SaveDirectionalLight(json& JsonObject, DirectionalLight& DirLight)
     JsonObject["Position"] = { DirLight.position.x, DirLight.position.y, DirLight.position.z };
 }
 
+void Scene::SaveSpotLight(json& JsonObject, SpotLight& SpotLight)
+{
+    JsonObject["Position"] = { SpotLight.position.x, SpotLight.position.y, SpotLight.position.z };
+    JsonObject["Direction"] = { SpotLight.direction.x, SpotLight.direction.y, SpotLight.direction.z };
+    JsonObject["Colour"] = { SpotLight.colour.x, SpotLight.colour.y, SpotLight.colour.z };
+    JsonObject["Intensity"] = SpotLight.intensity;
+    JsonObject["ConstantAttenuation"] = SpotLight.constantAttenuation;
+    JsonObject["LinearAttenuation"] = SpotLight.linearAttenuation;
+    JsonObject["QuadraticAttenuation"] = SpotLight.quadraticAttenuation;
+    JsonObject["InnerAngle"] = SpotLight.innerAngle;
+    JsonObject["OuterAngle"] = SpotLight.outerAngle;
+}
+
 void Scene::SaveModel(json& JsonObject, Model& Mod, int64_t MeshIndex, int64_t MatIndex)
 {
     Mat4x4f ModTrans = Mod.GetTransform().GetTransformMatrix();
@@ -1498,6 +1540,33 @@ DirectionalLight Scene::LoadDirectionalLight(json& JsonObject)
     DLight.position = VecPos;
 
     return DLight;
+}
+
+SpotLight Scene::LoadSpotLight(json& JsonObject)
+{
+    auto Pos = JsonObject["Position"];
+    auto Dir = JsonObject["Direction"];
+    auto Clr = JsonObject["Colour"];
+    Vec3f VecPos = Vec3f(Pos[0], Pos[1], Pos[2]);
+    Vec3f VecDir = Vec3f(Dir[0], Dir[1], Dir[2]);
+    Vec3f VecColour = Vec3f(Clr[0], Clr[1], Clr[2]);
+    float Intensity = JsonObject["Intensity"];
+    float ConstantAttenuation = JsonObject["ConstantAttenuation"];
+    float LinearAttenuation = JsonObject["LinearAttenuation"];
+    float QuadraticAttenuation = JsonObject["QuadraticAttenuation"];
+    float InnerAngle = JsonObject["InnerAngle"];
+    float OuterAngle = JsonObject["OuterAngle"];
+    SpotLight SLight;
+    SLight.position = VecPos;
+    SLight.direction = VecDir;
+    SLight.colour = VecColour;
+    SLight.intensity = Intensity;
+    SLight.constantAttenuation = ConstantAttenuation;
+    SLight.linearAttenuation = LinearAttenuation;
+    SLight.quadraticAttenuation = QuadraticAttenuation;
+    SLight.innerAngle = InnerAngle;
+    SLight.outerAngle = OuterAngle;
+    return SLight;
 }
 
 Model* Scene::LoadModel(json& JsonObject, std::vector<Material>& MaterialVector, std::vector<StaticMesh>& StaticMeshVector)

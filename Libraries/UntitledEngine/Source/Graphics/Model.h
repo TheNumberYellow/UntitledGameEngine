@@ -43,6 +43,8 @@ private:
 
     virtual bool IsEqual(const ISelectedObject& Other) const override;
 
+    //Temporarily public
+public:
     Model* ModelPtr;
 };
 

@@ -48,16 +48,21 @@ void Transform::Rotate(Quaternion rotation)
     m_TransformMatrixNeedsUpdate = true;
 }
 
-void Transform::RotateAroundPoint(Vec3f point, Quaternion rotation)
+void Transform::RotateAroundPoint(Vec3f pivot, Quaternion rotation)
 {
-    Mat4x4f RotMat = rotation.ToMatrix();
+    // Translate the object to the pivot point
+    m_Position -= pivot;
 
-    Mat4x4f TransMat = Math::Translate(Mat4x4f(), point);
-    Mat4x4f RevTransMat = Math::Translate(Mat4x4f(), -point);
+    // Rotate the position around the pivot
+    m_Position = m_Position * rotation;
 
-    Mat4x4f TotalTrans = TransMat * RotMat * RevTransMat;
+    // Translate the object back to its original position
+    m_Position += pivot;
 
-    SetTransformMatrix(TransMat * RotMat * RevTransMat * GetTransformMatrix());
+    // Apply the rotation to the object's orientation
+    m_Rotation = rotation * m_Rotation;
+
+    m_TransformMatrixNeedsUpdate = true;
 }
 
 void Transform::SetParent(Transform* inParent)

@@ -269,7 +269,7 @@ void CursorState::Update(double DeltaTime)
         ZAxisScale->GetTransform().SetPosition(ObjTrans.GetPosition() + Vec3f(0.0f, 0.0f, 5.0f));
 
         ScaleRing->GetTransform().SetPosition(ObjTrans.GetPosition());
-        ScaleRing->GetTransform().SetScale((DistFromCam / 6.0f) * ObjTrans.GetScale());
+        ScaleRing->GetTransform().SetScale((DistFromCam / 6.0f) * ScaleWidgetModifier);
         ScaleRing->GetTransform().SetRotation(Math::VecDiffToQuat(Math::normalize(CameraPtr->GetPosition() - ObjTrans.GetPosition()), Vec3f(0.0f, 0.0f, 1.0f)));
 
         UpdateSelectedObjects();
@@ -538,6 +538,35 @@ void CursorState::DrawTransientModels()
 
             Graphics->Draw(*ScaleRing);
         }
+    }
+}
+
+void CursorState::DrawToolSettingsPanel()
+{
+    UIModule* UI = UIModule::Get();
+
+    switch (Tool)
+    {
+    case ToolMode::Select:
+        UI->Text("Select Tool Settings:");
+
+
+        break;
+    case ToolMode::Transform:
+        UI->Text("Transform Tool Settings:");
+        break;
+    case ToolMode::Geometry:
+        UI->Text("Geometry Tool Settings:");
+        break;
+    case ToolMode::Vertex:
+        UI->Text("Vertex Tool Settings:");
+        break;
+    case ToolMode::Sculpt:
+        UI->Text("Sculpt Tool Settings:");
+        break;
+    default:
+
+        break;
     }
 }
 
@@ -943,19 +972,6 @@ void CursorState::UpdateTranslateTool()
 
         Vec3f PointAlongAxis = Math::ClosestPointsOnLines(MouseLine, AxisLine).second;
 
-        //switch (Axis)
-        //{
-        //case EditingAxis::X:
-        //    PointAlongAxis.x = Math::Round(PointAlongAxis.x, TransSnap);
-        //    break;
-        //case EditingAxis::Y:
-        //    PointAlongAxis.y = Math::Round(PointAlongAxis.y, TransSnap);
-        //    break;
-        //case EditingAxis::Z:
-        //    PointAlongAxis.z = Math::Round(PointAlongAxis.z, TransSnap);
-        //    break;
-        //}
-
         // Snap based on distance from initial selection position
         Vec3f ProxyToInitialObjectPosition = PointAlongAxis - InitialObjectPosition;
         
@@ -964,6 +980,49 @@ void CursorState::UpdateTranslateTool()
             PointAlongAxis.x = Math::Round(ProxyToInitialObjectPosition.x, TransSnap) + InitialObjectPosition.x;
             PointAlongAxis.y = Math::Round(ProxyToInitialObjectPosition.y, TransSnap) + InitialObjectPosition.y;
             PointAlongAxis.z = Math::Round(ProxyToInitialObjectPosition.z, TransSnap) + InitialObjectPosition.z;
+        }
+
+        if (Input->IsKeyDown(Key::Shift))
+        {
+            // Snap to geometry along the axis
+
+            CollisionModule* Collisions = CollisionModule::Get();
+            
+            Vec3f SelectionPos = SelectedProxyTransform.GetPosition();
+
+            // Determine which direction along the axis we should snap to based on camera angle
+            Vec3f SnappingDirection = Math::dot(CameraPtr->GetDirection(), SlidingAxis) > 0 ? SlidingAxis : -SlidingAxis;
+
+            // Ignore the selected objects in the raycast so we don't accidentally snap to ourselves
+            std::vector<Model*> IgnoredModels;
+            std::vector<he::HalfEdgeMesh*> IgnoredMeshes;
+            for (auto& SelectedObj : SelectedObjects)
+            {
+                // TODO: Unify mesh/model collisions
+                if (SelectedModel* SModel = dynamic_cast<SelectedModel*>(SelectedObj.second))
+                {
+                    IgnoredModels.push_back(SModel->ModelPtr);
+                }
+                if (he::SelectedHalfEdgeMesh* SHMesh = dynamic_cast<he::SelectedHalfEdgeMesh*>(SelectedObj.second))
+                {
+                    IgnoredMeshes.push_back(SHMesh->m_HalfEdgeMesh);
+                }
+                if (he::SelectedHalfEdgeFace* SHFace = dynamic_cast<he::SelectedHalfEdgeFace*>(SelectedObj.second))
+                {
+                    IgnoredMeshes.push_back(SHFace->m_HalfEdgeMesh);
+                }
+                if (he::SelectedHalfEdgeVertex* SHVert = dynamic_cast<he::SelectedHalfEdgeVertex*>(SelectedObj.second))
+                {
+                    IgnoredMeshes.push_back(SHVert->m_HalfEdgeMesh);
+                }
+            }
+
+            SceneRayCastHit Hit = EditorScenePtr->RayCast(Ray(SelectionPos + (SnappingDirection * -0.001f), SnappingDirection), IgnoredModels, IgnoredMeshes);
+
+            if (Hit.rayCastHit.hit)
+            {
+                PointAlongAxis = Hit.rayCastHit.hitPoint;
+            }
         }
 
         SelectedProxyTransform.SetPosition(PointAlongAxis);
@@ -1097,6 +1156,8 @@ void CursorState::UpdateScaleTool()
     if (!Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).pressed
         || SelectedObjects.empty())
     {
+        // Reset scale widget modifier when not actively scaling to prevent it getting stuck at a smaller/larger size after a scale operation
+        ScaleWidgetModifier = 1.0f;
         Axis = EditingAxis::None;
         UpdateSelectTool();
         return;
@@ -1140,7 +1201,7 @@ void CursorState::UpdateScaleTool()
         float ScaleFactor = DistFromObjectCenter / InitialDistFromObjectCenter;
 
         SelectedProxyTransform.SetScale(InitialScale * ScaleFactor);
-
+        ScaleWidgetModifier = ScaleFactor;
         //ScaleRing->GetTransform().SetScale(DistDiff + 1.0f);
     }
 
@@ -1608,12 +1669,7 @@ void CursorState::UpdateSelectedTransformsBasedOnProxy()
     {
         Object.second->GetTransform()->SetPosition(ProxyPos - Object.first.Offset);
     }
-    // Handle rotation
-    for (auto& Object : SelectedObjects)
-    {
-        Object.second->GetTransform()->RotateAroundPoint(ProxyPos, SelectedProxyTransform.GetRotation());
-        Object.second->GetTransform()->SetRotation(SelectedProxyTransform.GetRotation() * Object.first.RotationDiff);
-    }
+
     // Handle scaling
     if (SelectedObjects.size() == 1)
     {
@@ -1625,7 +1681,7 @@ void CursorState::UpdateSelectedTransformsBasedOnProxy()
         {
             // TODO: Non-uniform scaling
             float ProxyScale = SelectedProxyTransform.GetScale().x;
-            
+
             Vec3f ObjOffset = Object.first.Offset;
 
             float OffsetDist = ObjOffset.Magnitude();
@@ -1637,6 +1693,17 @@ void CursorState::UpdateSelectedTransformsBasedOnProxy()
             //Object.second->GetTransform()->SetScale(SelectedProxyTransform.GetScale());
         }
     }
+
+    // Handle rotation
+    for (auto& Object : SelectedObjects)
+    {
+
+        Object.second->GetTransform()->RotateAroundPoint(ProxyPos, SelectedProxyTransform.GetRotation());
+
+        Object.second->GetTransform()->SetRotation(SelectedProxyTransform.GetRotation() * Object.first.RotationDiff);
+    }
+
+
 }
 
 void CursorState::RotateSelectedTransforms(Quaternion Rotation)
@@ -1709,26 +1776,37 @@ bool CursorState::ClickCastApplyMaterial(Ray mouseRay, Material* material)
             delete newSelectedObject;
         }
     }
-    std::vector<he::HalfEdgeMesh*> heMeshes = EditorScenePtr->GetHalfEdgeMeshes();
-
-    for (he::HalfEdgeMesh* heMesh : heMeshes)
+    // Special case: if we hit a half edge mesh, we want to check if we hit a face and apply the material to that face instead of the whole mesh
+    if (dynamic_cast<he::SelectedHalfEdgeMesh*>(closestSelectedObject))
     {
-        ISelectedObject* newSelectedFace = nullptr;
-        RayCastHit newHit = heMesh->ClickCastFaces(mouseRay, newSelectedFace);
+        delete closestSelectedObject;
+        closestSelectedObject = nullptr;
+        closestHit = RayCastHit();
+        
+        std::vector<he::HalfEdgeMesh*> heMeshes = EditorScenePtr->GetHalfEdgeMeshes();
 
-        if (newHit.hit && newHit.hitDistance < closestHit.hitDistance)
+        for (he::HalfEdgeMesh* heMesh : heMeshes)
         {
-            if (closestSelectedObject)
+            ISelectedObject* newSelectedFace = nullptr;
+            RayCastHit newHit = heMesh->ClickCastFaces(mouseRay, newSelectedFace);
+
+            if (newHit.hit)
             {
-                delete closestSelectedObject;
-            }
+                if (newHit.hitDistance < closestHit.hitDistance)
+                {
+                    if (closestSelectedObject)
+                    {
+                        delete closestSelectedObject;
+                    }
 
-            closestHit = newHit;
-            closestSelectedObject = newSelectedFace;
-        }
-        else if (newSelectedFace)
-        {
-            delete newSelectedFace;
+                    closestHit = newHit;
+                    closestSelectedObject = newSelectedFace;
+                }
+            }
+            else if (newSelectedFace)
+            {
+                delete newSelectedFace;
+            }
         }
     }
 

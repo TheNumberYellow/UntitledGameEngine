@@ -19,7 +19,7 @@ public:
     void Scale(Vec3f scale);
     void Rotate(Quaternion rotation);
 
-    void RotateAroundPoint(Vec3f point, Quaternion rotation);
+    void RotateAroundPoint(Vec3f pivot, Quaternion rotation);
 
     void SetParent(Transform* inParent);
 

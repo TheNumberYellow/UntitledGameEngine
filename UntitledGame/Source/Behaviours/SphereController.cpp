@@ -161,7 +161,10 @@ void SphereController::Update(Scene* Scene, double DeltaTime)
         CamDistance = DefaultCamDistance;
     }
 
-    MyLight->position = m_Model->GetTransform().GetPosition() + Vec3f(0.0f, 0.0f, 2.5f);
+    if (LightEnabled)
+    {
+        MyLight->position = m_Model->GetTransform().GetPosition() + Vec3f(0.0f, 0.0f, 0.0f);
+    }
 
     // Begin camera stuff
     Vec3f CamCenterPoint = m_Model->GetTransform().GetPosition();
@@ -174,7 +177,7 @@ void SphereController::Update(Scene* Scene, double DeltaTime)
         
         DeltaMouse.y = -DeltaMouse.y;
 
-        Engine::DEBUGPrint("X: " + std::to_string(DeltaMouse.x) + ", Y: " + std::to_string(DeltaMouse.y));
+        //Engine::DEBUGPrint("X: " + std::to_string(DeltaMouse.x) + ", Y: " + std::to_string(DeltaMouse.y));
         
         DeltaMouse.x *= 0.03f;
         DeltaMouse.y *= 0.03f;
@@ -236,7 +239,7 @@ void SphereController::DrawInspectorPanel()
 
     UI->FloatSlider("Light Intensity", Vec2f(300.0f, 20.0f), LightIntensity, 0.0f, 25.0f);
 
-    UI->CheckBox("Trail Enabled", TrailEnabled);
+    UI->CheckBox("Light Enabled", LightEnabled);
 }
 
 void SphereController::Initialize(Scene* Scene)
@@ -246,15 +249,18 @@ void SphereController::Initialize(Scene* Scene)
 
     InputState = &InputModule::Get()->m_LocalSystemInputState;
 
-    SpotLight NewLight;
+    if (LightEnabled)
+    {
+        PointLight NewLight;
 
-    NewLight.position = m_Model->GetTransform().GetPosition();
-    //NewLight.colour = MakeColour(Math::RandomInt(0, 255), Math::RandomInt(0, 255), Math::RandomInt(0, 255));
-    NewLight.colour = MakeColour(255, 255, 155);
+        NewLight.position = m_Model->GetTransform().GetPosition();
+        //NewLight.colour = MakeColour(Math::RandomInt(0, 255), Math::RandomInt(0, 255), Math::RandomInt(0, 255));
+        NewLight.colour = MakeColour(255, 255, 155);
 
-    NewLight.intensity = LightIntensity;
+        NewLight.intensity = LightIntensity;
 
-    MyLight = Scene->AddSpotLight(NewLight);
+        MyLight = Scene->AddPointLight(NewLight);
+    }
 
     CamDistance = DefaultCamDistance;
 }

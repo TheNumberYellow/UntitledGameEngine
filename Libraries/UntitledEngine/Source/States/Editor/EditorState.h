@@ -85,6 +85,8 @@ private:
 
     void DrawMaterialEditor();
 
+    void DrawNewTabScreen();
+
     void DrawEditorUI();
 
     void DrawTopPanel();
@@ -236,16 +238,16 @@ private:
     const Colour c_DarkOrange = Colour(255.f / 255.f, 140.f / 255.f, 0.0f);
 
     // Test Palette
-    const Colour c_Black = Colour(21.f / 255.f, 21.f / 255.f, 21.f / 255.f);
-    const Colour c_Maroon = Colour(169.f / 255.f, 29.f / 255.f, 58.f / 255.f);
-    const Colour c_Red = Colour(199.f / 255.f, 54.f / 255.f, 89.f / 255.f);
-    const Colour c_Grey = Colour(238.f / 255.f, 238.f / 255.f, 238.f / 255.f);
+    const Colour c_Black = MakeColour(21, 21, 21);
+    const Colour c_Maroon = MakeColour(169, 29, 58);
+    const Colour c_Red = MakeColour(199, 54, 89);
+    const Colour c_Grey = MakeColour(238, 238, 238);
 
     // Another palette
-    const Colour c_Navy = Colour(1.f / 255.f, 32.f / 255.f, 78.f / 255.f);
-    const Colour c_Teal = Colour(2.f / 255.f, 131.f / 255.f, 145.f / 255.f);
-    const Colour c_Beige = Colour(246.f / 255.f, 220.f / 255.f, 172.f / 255.f);
-    const Colour c_Orange = Colour(254.f / 255.f, 174.f / 255.f, 111.f / 255.f);
+    const Colour c_Navy = MakeColour(1, 32, 78);
+    const Colour c_Teal = MakeColour(2, 131, 145);
+    const Colour c_Beige = MakeColour(246, 220, 172);
+    const Colour c_Orange = MakeColour(254, 174, 111);
 
     // Another another palette
     const Colour c_RetroGrey = MakeColour(238, 238, 238);

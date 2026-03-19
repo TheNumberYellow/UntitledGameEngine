@@ -327,8 +327,8 @@ namespace
 
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, size.x, size.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
 
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
                 // Temp(fraser): this is specifically for shadow maps, technically this should be a construction parameter
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
@@ -1030,6 +1030,18 @@ namespace
             glFlush();
 
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+
+        // Cleanup texture request stack
+        {
+            std::lock_guard<std::mutex> lock(textureRequestMtx);
+            while (!textureRequestStack.empty())
+            {
+                // Set promise value to some invalid texture ID to prevent waiting threads from hanging indefinitely
+                textureRequestStack.front()->promise.set_value(-1);
+
+                textureRequestStack.pop();
+            }
         }
     }
 

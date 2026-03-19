@@ -63,6 +63,31 @@ namespace he
         HalfEdge* halfEdge = nullptr;
     };
 
+    class SelectedHalfEdgeMesh : public ISelectedObject
+    {
+    public:
+        SelectedHalfEdgeMesh(HalfEdgeMesh* inMeshPtr);
+
+        virtual void Draw() override;
+        virtual void Update() override;
+
+        virtual bool DrawInspectorPanel() override;
+        virtual Transform* GetTransform() override;
+        virtual void DeleteObject() override;
+
+    private:
+
+        virtual bool IsEqual(const ISelectedObject& other) const override;
+
+
+        Transform m_Transform;
+
+        std::vector<Mat4x4f> m_VertTransOffsets;
+        
+    public:
+        HalfEdgeMesh* m_HalfEdgeMesh;
+    };
+
     class SelectedHalfEdgeVertex : public ISelectedObject
     {
     public:
@@ -80,11 +105,13 @@ namespace he
 
         virtual bool IsEqual(const ISelectedObject& other) const override;
 
-        HalfEdgeMesh* m_HalfEdgeMesh;
         he::Vertex* m_VertPtr = nullptr;
         Transform m_Transform;
 
         bool m_Dirty = false;
+        
+    public:
+        HalfEdgeMesh* m_HalfEdgeMesh;
     };
 
     class SelectedHalfEdgeFace : public ISelectedObject
@@ -106,14 +133,16 @@ namespace he
 
         virtual bool IsEqual(const ISelectedObject& other) const override;
 
-        HalfEdgeMesh* m_HalfEdgeMesh;
         he::Face* m_FacePtr = nullptr;
         Transform m_Transform;
         
         std::vector<Mat4x4f> m_VertTransOffsets;
+        
+    public:
+        HalfEdgeMesh* m_HalfEdgeMesh;
     };
 
-    struct HalfEdgeMesh
+    struct HalfEdgeMesh : public IEditorClickable
     {
         void MakeQuad();
         void MakeAABB(AABB inAABB, Material inMaterial);
@@ -145,6 +174,9 @@ namespace he
 
         RayCastHit ClickCastFaces(Ray mouseRay, ISelectedObject*& outSelectedObject);
         RayCastHit ClickCastVerts(Ray mouseRay, ISelectedObject*& outSelectedObject);
+
+
+        virtual RayCastHit ClickCast(Ray mouseRay, ISelectedObject*& outSelectedObject) override;
 
     };
 

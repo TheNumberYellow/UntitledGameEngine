@@ -149,7 +149,7 @@ public:
     void FloatSlider(std::string name, Vec2f size, float& outNum, float min = 0.0f, float max = 1.0f, bool vertical = false, bool drawText = true, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
     void FloatDragger(std::string name, Vec2f size, float& outNum, float speed = 0.1f, float min = std::numeric_limits<float>::min(), float max = std::numeric_limits<float>::max());
 
-    void NewLine(float lineHeight = 10.0f);
+    void NewLine(float lineHeight = 0.0f);
 
     void OnFrameStart();
     void OnFrameEnd();

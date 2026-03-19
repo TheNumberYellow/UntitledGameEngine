@@ -109,7 +109,11 @@ public:
     void EditorDraw(GraphicsModule& graphics, GBuffer gBuffer, Camera* editorCam, bool drawSceneCam = true, bool debugDrawHEMeshes = false);
 #endif
 
-    SceneRayCastHit RayCast(Ray ray, std::vector<Model*> IgnoredModels = std::vector<Model*>());
+    // TODO: Unify mesh/model collisions
+    SceneRayCastHit RayCast(
+        Ray ray, 
+        std::vector<Model*> IgnoredModels = std::vector<Model*>(), 
+        std::vector<he::HalfEdgeMesh*> IgnoredHalfEdgeMeshes = std::vector<he::HalfEdgeMesh*>());
 
     Intersection SphereIntersect(Sphere sphere, std::vector<Model*> IgnoredModels = std::vector<Model*>());
 
@@ -160,6 +164,7 @@ private:
     void SaveStaticMesh(json& JsonObject, StaticMesh& Mesh);
     void SavePointLight(json& JsonObject, PointLight& PointLight);
     void SaveDirectionalLight(json& JsonObject, DirectionalLight& DirLight);
+    void SaveSpotLight(json& JsonObject, SpotLight& SpotLight);
     void SaveModel(json& JsonObject, Model& Mod, int64_t MeshIndex, int64_t MatIndex);
     void SaveRawModel(json& JsonObject, Model& Mod, int64_t MatIndex);
     void SaveHEMesh(json& JsonObject, he::HalfEdgeMesh* HeMesh, std::vector<Material>& MatVec);
@@ -168,6 +173,7 @@ private:
     StaticMesh LoadStaticMesh(json& JsonObject);
     PointLight LoadPointLight(json& JsonObject);
     DirectionalLight LoadDirectionalLight(json& JsonObject);
+    SpotLight LoadSpotLight(json& JsonObject);
     Model* LoadModel(json& JsonObject, std::vector<Material>& MaterialVector, std::vector<StaticMesh>& StaticMeshVector);
     Model* LoadRawModel(json& JsonObject, std::vector<Material>& MaterialVector);
     he::HalfEdgeMesh* LoadHEMesh(json& JsonObject, std::vector<Material>& MaterialVector);

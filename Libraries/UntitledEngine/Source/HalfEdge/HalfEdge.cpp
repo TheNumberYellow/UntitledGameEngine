@@ -5,6 +5,75 @@
 #include "Modules/InputModule.h"
 #include "Modules/UIModule.h"
 
+he::SelectedHalfEdgeMesh::SelectedHalfEdgeMesh(HalfEdgeMesh* inMeshPtr)
+{
+    m_HalfEdgeMesh = inMeshPtr;
+
+    // Iterate through all verts to get average pos for half edge mesh
+    Vec3f averagePos = Vec3f(0.0f);
+    for (he::Vertex* vert : m_HalfEdgeMesh->m_Verts)
+    {
+        averagePos += vert->vec;
+    }
+    averagePos /= m_HalfEdgeMesh->m_Verts.size();
+
+    m_Transform.SetPosition(averagePos);
+
+    // Iterate through verts to get offset transforms
+    for (he::Vertex* vert : m_HalfEdgeMesh->m_Verts)
+    {
+        Vec3f vertPos = vert->vec;
+        Vec3f offset = vertPos - averagePos;
+        m_VertTransOffsets.push_back(Math::GenerateTransformMatrix(offset));
+    }
+
+}
+
+void he::SelectedHalfEdgeMesh::Draw()
+{
+    GraphicsModule* graphics = GraphicsModule::Get();
+    // Draw lines for each half edge
+    for (he::HalfEdge* halfEdge : m_HalfEdgeMesh->m_HalfEdges)
+    {
+        Vec3f start = halfEdge->vert->vec;
+        Vec3f end = halfEdge->next ? halfEdge->next->vert->vec : start;
+        graphics->DebugDrawLine(start, end, MakeColour(125, 125, 255));
+    }
+}
+
+void he::SelectedHalfEdgeMesh::Update()
+{
+    m_HalfEdgeMesh->m_RepModelsNeedUpdate = true;
+
+    for (size_t i = 0; i < m_HalfEdgeMesh->m_Verts.size(); i++)
+    {
+        Mat4x4f offset = m_VertTransOffsets[i];
+        he::Vertex* vert = m_HalfEdgeMesh->m_Verts[i];
+        vert->vec = Vec3f(0.0f, 0.0f, 0.0f) * (m_Transform.GetTransformMatrix() * offset);
+    }
+}
+
+bool he::SelectedHalfEdgeMesh::DrawInspectorPanel()
+{
+
+    return false;
+}
+
+Transform* he::SelectedHalfEdgeMesh::GetTransform()
+{
+    return &m_Transform;
+}
+
+void he::SelectedHalfEdgeMesh::DeleteObject()
+{
+    ScenePtr->DeleteHalfEdgeMesh(m_HalfEdgeMesh);
+}
+
+bool he::SelectedHalfEdgeMesh::IsEqual(const ISelectedObject& other) const
+{
+    return &other == this || (typeid(*this) == typeid(other) && static_cast<const SelectedHalfEdgeMesh&>(other).m_HalfEdgeMesh == m_HalfEdgeMesh);
+}
+
 
 he::SelectedHalfEdgeVertex::SelectedHalfEdgeVertex(HalfEdgeMesh* inMeshPtr, he::Vertex* inVertPtr)
 {
@@ -865,6 +934,44 @@ RayCastHit he::HalfEdgeMesh::ClickCastVerts(Ray mouseRay, ISelectedObject*& outS
     return closestHitVert;
 }
 
+RayCastHit he::HalfEdgeMesh::ClickCast(Ray mouseRay, ISelectedObject*& outSelectedObject)
+{
+    GraphicsModule* graphics = GraphicsModule::Get();
+    CollisionModule* collisions = CollisionModule::Get();
+
+    // We only need to check faces
+    for (int i = 0; i < m_Faces.size(); ++i)
+    {
+        std::vector<Vec3f> faceVerts;
+        HalfEdge* initialHalfEdge = m_Faces[i]->halfEdge;
+        HalfEdge* currentHalfEdge = initialHalfEdge;
+        do
+        {
+            HalfEdge& thisHalfEdge = *currentHalfEdge;
+            Vec3f faceVert = thisHalfEdge.vert->vec;
+            faceVerts.push_back(faceVert);
+            currentHalfEdge = thisHalfEdge.next;
+        } while (currentHalfEdge != initialHalfEdge);
+        assert(faceVerts.size() >= 3);
+        size_t numFaces = faceVerts.size();
+        for (int j = 1; j < numFaces - 1; ++j)
+        {
+            Triangle tri;
+            tri.a = faceVerts[0];
+            tri.b = faceVerts[j];
+            tri.c = faceVerts[j + 1];
+            RayCastHit newHit = collisions->RayCast(mouseRay, tri);
+            if (newHit.hit)
+            {
+                outSelectedObject = new SelectedHalfEdgeMesh(this);
+                return newHit;
+            }
+        }
+     }
+     // No hit
+    return RayCastHit();    
+}
+
 //RayCastHit he::HalfEdgeMesh::ClickCast(Ray mouseRay, ISelectedObject*& outSelectedObject)
 //{
 //    GraphicsModule* graphics = GraphicsModule::Get();
@@ -954,3 +1061,4 @@ RayCastHit he::HalfEdgeMesh::ClickCastVerts(Ray mouseRay, ISelectedObject*& outS
 //
 //    return closestHit;
 //}
+

@@ -115,6 +115,7 @@ public:
 
     void DrawTransientModels();
 
+    void DrawToolSettingsPanel();
     void DrawInspectorPanel();
 
     bool IsDraggingSomething();
@@ -190,6 +191,7 @@ private:
     // Scale
     float InitialDistFromObjectCenter;
     float InitialScale;
+    float ScaleWidgetModifier = 1.0f;
 
     // Models
     Model* XAxisTrans;

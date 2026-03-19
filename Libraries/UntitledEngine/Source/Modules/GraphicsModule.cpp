@@ -903,6 +903,26 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
     fragShaderSource = R"(
     #version 400
 
+    // Array of const vec2 pixel offsets for sampling the depth map when calculating shadows
+    const vec2 poissonDisk[16] = vec2[](
+    vec2(-0.94201624, -0.39906216),
+    vec2(0.94558609, -0.76890725),
+    vec2(-0.094184101, -0.92938870),
+    vec2(0.34495938, 0.29387760),
+    vec2(-0.91588581, 0.45771432),
+    vec2(-0.81544232, -0.87912464),
+    vec2(-0.38277543, 0.27676845),
+    vec2(0.97484398, 0.75648379),
+    vec2(0.44323325, -0.97511554),
+    vec2(0.53742981, -0.47373420),
+    vec2(-0.26496911, -0.41893023),
+    vec2(0.79197514, 0.19090188),
+    vec2(-0.24188840, 0.99706507),
+    vec2(-0.81409955, 0.91437590),
+    vec2(0.19984126, 0.78641367),
+    vec2(0.14383161, -0.14100790)
+    );
+
     out vec4 OutColour;
 
     smooth in vec2 FragUV;
@@ -925,6 +945,12 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
     uniform vec3 CameraPos;
     
     const float PI = 3.14159265359;
+
+    // Get random rotation for sampling shadow map
+    float random(vec3 st) {
+        return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123 + st.z);
+    }
+
     // ----------------------------------------------------------------------------
     float DistributionGGX(vec3 N, vec3 H, float roughness)
     {
@@ -973,23 +999,37 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
         vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
         // transform to [0,1] range
         projCoords = projCoords * 0.5 + 0.5;
-        // get closest depth value from light's perspective (using [0,1] range fragPosLight as coords)
-        float closestDepth = texture(ShadowMap, projCoords.xy).r; 
+        
         // get depth of current fragment from light's perspective
         float currentDepth = projCoords.z;
-        // check whether current frag pos is in shadow  
+        
         vec3 sun = vec3(-SunDirection.x, -SunDirection.y, -SunDirection.z);      
-        //float bias = max(0.05 * (1.0 - dot(FragNormal, sun)), 0.005);  
         float bias = max(0.0009 * (1.0 - dot(FragNormal.xyz, sun)), 0.0002);         
+        
+        float totalShadow = 0.0;
+        float randomRotation = random(FragNormal);
+        for (int i = 0; i < 16; ++i)
+        {
+            vec2 offset = poissonDisk[i] / 4000.0;
+            // Rotate offset by random rotation
+            float angle = randomRotation * 2.0 * PI;
+            float cosAngle = cos(angle);
+            float sinAngle = sin(angle);
+            vec2 rotatedOffset = vec2(
+                offset.x * cosAngle - offset.y * sinAngle,
+                offset.x * sinAngle + offset.y * cosAngle
+            );
+            float closestDepth = texture(ShadowMap, projCoords.xy + rotatedOffset).r; 
+            totalShadow += currentDepth - bias > closestDepth ? 1.0 : 0.0;
+        }
+        totalShadow /= 16.0;        
 
-    
-        float shadow = currentDepth - bias > closestDepth  ? 1.0 : 0.0;  
         if (projCoords.z > 1.0)
         {
-            shadow = 0.0;
+            totalShadow = 0.0;
         }
 
-        return shadow;
+        return totalShadow;
     }
 
     void main()
@@ -1244,6 +1284,12 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
     uniform float FarPlane;
     
     const float PI = 3.14159265359;
+
+    // Get random rotation for sampling shadow map
+    float random(vec3 st) {
+        return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123 + st.z);
+    }
+
     // ----------------------------------------------------------------------------
     float DistributionGGX(vec3 N, vec3 H, float roughness)
     {
@@ -1335,7 +1381,11 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
         //float quadratic = 0.02;
         //float attenuation = 1.0 / (1.0 + linear * distance + quadratic * distance * distance);
         attenuation *= 20.0;
+        
         vec3 radiance = LightColour * attenuation;
+        float randomTiny = (random(Position) - 0.5) * 0.1;
+        radiance += randomTiny;
+
 
         // Cook-Torrance BRDF
         float NDF = DistributionGGX(N, H, Roughness);   
@@ -1394,6 +1444,26 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
     fragShaderSource = R"(
     #version 400
 
+    // Array of const vec2 pixel offsets for sampling the depth map when calculating shadows
+    const vec2 poissonDisk[16] = vec2[](
+    vec2(-0.94201624, -0.39906216),
+    vec2(0.94558609, -0.76890725),
+    vec2(-0.094184101, -0.92938870),
+    vec2(0.34495938, 0.29387760),
+    vec2(-0.91588581, 0.45771432),
+    vec2(-0.81544232, -0.87912464),
+    vec2(-0.38277543, 0.27676845),
+    vec2(0.97484398, 0.75648379),
+    vec2(0.44323325, -0.97511554),
+    vec2(0.53742981, -0.47373420),
+    vec2(-0.26496911, -0.41893023),
+    vec2(0.79197514, 0.19090188),
+    vec2(-0.24188840, 0.99706507),
+    vec2(-0.81409955, 0.91437590),
+    vec2(0.19984126, 0.78641367),
+    vec2(0.14383161, -0.14100790)
+    );
+
     out vec4 OutColour;
 
     smooth in vec2 FragUV;
@@ -1424,6 +1494,12 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
     uniform float FarPlane;
     
     const float PI = 3.14159265359;
+    
+    // Get random rotation for sampling shadow map
+    float random(vec3 st) {
+        return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123 + st.z);
+    }
+    
     // ----------------------------------------------------------------------------
     float DistributionGGX(vec3 N, vec3 H, float roughness)
     {
@@ -1466,37 +1542,43 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
         return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
     }
 
-    float ShadowCalculation(vec4 fragPosLightSpace, vec3 FragNormal)
+    float ShadowCalculation(vec4 fragPosLightSpace, vec3 FragNormal, vec3 FragPos)
     {
         // perform perspective divide
         vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
-        
+
         // transform to [0,1] range
         projCoords = projCoords * 0.5 + 0.5;
         
-        // get closest depth value from light's perspective (using [0,1] range fragPosLight as coords)
-        float closestDepth = texture(ShadowMap, projCoords.xy).r * FarPlane; 
         
         // get depth of current fragment from light's perspective
-        float currentDepth = fragPosLightSpace.w;
-        
-        // check whether current frag pos is in shadow  
+        float currentDepth = length(FragPos - LightPosition) / FarPlane;
+
         vec3 dir = vec3(-LightDirection.x, -LightDirection.y, -LightDirection.z);      
+        float bias = max(0.0009 * (1.0 - dot(FragNormal.xyz, dir)), 0.0002);         
+
+        float totalShadow = 0.0;
         
-        //float bias = max(0.000009 * (1.0 - dot(FragNormal.xyz, dir)), 0.0000002);         
-        float bias = 0.0;
+        for (int i = 0; i < 16; ++i)
+        {
+            vec2 offset = poissonDisk[i] / 256.0;
+            // Rotate offset by random rotation
+            float randomRotation = random(FragNormal);
+            float angle = randomRotation * 2.0 * PI;
+            float cosAngle = cos(angle);
+            float sinAngle = sin(angle);
+            vec2 rotatedOffset = vec2(
+                offset.x * cosAngle - offset.y * sinAngle,
+                offset.x * sinAngle + offset.y * cosAngle
+            );
+             // Sample the shadow map with the rotated offset
+            float closestDepth = texture(ShadowMap, projCoords.xy + rotatedOffset).r; 
 
-        float shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;  
-        //if (projCoords.z > 1.0 || projCoords.z < 0.0)
-        //{
-        //    shadow = 0.0;
-        //}
-        //if (projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0 || projCoords.y > 1.0)
-        //{
-        //    shadow = 1.0;
-        //}
+            totalShadow += currentDepth - bias > closestDepth ? 1.0 : 0.0;
+        }
+        totalShadow /= 16.0;
 
-        return shadow;
+        return totalShadow;
     }
 
     void main()
@@ -1520,7 +1602,8 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
         vec3 Lo = vec3(0.0);
 
         // calculate per-light radiance
-        vec3 L = normalize(-LightDirection);
+        vec3 L = normalize(LightPosition - Position);
+        //vec3 L = normalize(-LightDirection);
         vec3 H = normalize(V + L);
         float distance = length(LightPosition - Position);
         
@@ -1531,6 +1614,9 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
         float attenuation = 1.0 / (ConstantAtten + linear * distance + quadratic * distance * distance);
 
         vec3 radiance = LightColour * attenuation;
+        
+        float randomTiny = (random(Position) - 0.5) * 0.0001;
+        radiance += randomTiny; // Add a tiny random value to prevent banding
 
         // Cook-Torrance BRDF
         float NDF = DistributionGGX(N, H, Roughness);   
@@ -1567,13 +1653,27 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
         Lo *= intensity;
       
 
+        // Get the fragment position in light space
         vec4 FragPosLightSpace = LightSpaceMatrix * vec4(Position, 1.0);
+        
 
-        float shadow = ShadowCalculation(FragPosLightSpace, Normal);
+        //vec4 FragPosLightSpace = LightSpaceMatrix * vec4(Position, 1.0);
+
+        float shadow = ShadowCalculation(FragPosLightSpace, Normal, Position);
         //float shadow = 0.0;
 
-        vec3 color = (1.0 - shadow) * Lo * AO;
+        
+        //vec3 projCoords = FragPosLightSpace.xyz / FragPosLightSpace.w;
+        
+        //projCoords = projCoords * 0.5 + 0.5;
+        
+        //projCoords.x += 0.001 * shadow;
 
+        //OutColour = FragPosLightSpace + vec4(0.0, 0.0, 0.0, 0.0001 * shadow);
+        //OutColour = vec4(projCoords, 1.0);
+        // OutColour = vec4(shadow, shadow, shadow, 1.0); 
+        
+        vec3 color = (1.0 - shadow) * Lo * AO;
         OutColour = vec4(color, 1.0); 
     } 
 
@@ -2101,10 +2201,10 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam)
             }
             else
             {
-                lightRange = 100.0f; // Arbitrary large distance if no attenuation
+                lightRange = 200.0f; // Arbitrary large distance if no attenuation
             }
 
-            Engine::DEBUGPrint("Light range: " + std::to_string(lightRange));
+            //Engine::DEBUGPrint("Light range: " + std::to_string(lightRange));
 
             m_Renderer.SetActiveShader(m_SpotShadowShader);
 
@@ -2153,6 +2253,9 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam)
                 m_Renderer.SetShaderUniformFloat(m_GBufferSpotLightShaderWithShadow, "QuadraticAtten", Command.m_QuadraticAttenuation);
 
                 m_Renderer.SetShaderUniformFloat(m_GBufferSpotLightShaderWithShadow, "FarPlane", lightRange);
+
+                //m_Renderer.SetShaderUniformFloat(m_GBufferSpotLightShaderWithShadow, "InnerAngle", cos(Deg2Rad(Command.m_InnerAngle * 2.0f)));
+                //m_Renderer.SetShaderUniformFloat(m_GBufferSpotLightShaderWithShadow, "OuterAngle", cos(Deg2Rad(Command.m_OuterAngle * 2.0f)));
 
                 m_Renderer.SetShaderUniformFloat(m_GBufferSpotLightShaderWithShadow, "InnerAngle", cos(Deg2Rad(Command.m_InnerAngle)));
                 m_Renderer.SetShaderUniformFloat(m_GBufferSpotLightShaderWithShadow, "OuterAngle", cos(Deg2Rad(Command.m_OuterAngle)));
@@ -2269,6 +2372,7 @@ Texture* GraphicsModule::LoadTextureAsync(std::string filePath)
             newTexture->Loaded = true;
         }).detach();
 
+   
     return newTexture;
 }
 

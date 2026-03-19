@@ -185,9 +185,14 @@ void TextModule::DrawText(std::string text, Font* font, Vec2f position, Vec3f co
 
 Vec2f TextModule::GetTextSize(std::string text, Font* font)
 {
+    Vec2f textSize = Vec2f(0.0f, 0.0f);
     for (int i = 0; i < text.size(); ++i)
     {
         CharacterInfo c = font->m_CharacterInfo[text[i]];
+
+        float w = (float)c.Size.x;
+        float h = (float)c.Size.y;
+
 
 
     }

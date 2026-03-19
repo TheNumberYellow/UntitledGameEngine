@@ -293,11 +293,11 @@ Mat4x4f Math::GenerateViewMatrix(Vec3f position, Vec3f direction, Vec3f up)
 
     //return result;
 
-    if (Math::dot(direction, up) > 0.999f)
+    if (Math::dot(direction, up) == 1.0f)
     {
         up = orthogonal(direction);
     }
-    if (Math::dot(direction, up) < -0.999f)
+    if (Math::dot(direction, up) == -1.0f)
     {
         up = orthogonal(direction);
     }

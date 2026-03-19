@@ -37,9 +37,10 @@ private:
 
     Vec3f CamFacingDir = Vec3f(1.0f, 0.0f, 0.0f);
 
-    SpotLight* MyLight = nullptr;
+    PointLight* MyLight = nullptr;
 
     bool TrailEnabled = false;
+    bool LightEnabled = false;
     std::deque<Vec3f> LastXPositions;
     int QueueSize = 100000;
 

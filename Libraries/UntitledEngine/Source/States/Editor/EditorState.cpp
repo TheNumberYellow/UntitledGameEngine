@@ -236,9 +236,15 @@ void EditorState::UpdateEditor(double DeltaTime)
 
         if (UI->StartTab("Materials"))
         {
-
+            DrawMaterialEditor();
         }
         UI->EndTab();       
+
+        if (UI->StartTab("+"))
+        {
+            DrawNewTabScreen();
+        }
+        UI->EndTab();
 
         for (int i = ResourceTabs.size() - 1; i >= 0; i--)
         {
@@ -842,6 +848,7 @@ void EditorState::DrawEntityEditor()
             }
         }
 
+
         Texture TransModeTexture = translateToolTexture;
         switch (Cursor.GetTransMode())
         {
@@ -1074,6 +1081,26 @@ void EditorState::DrawMaterialEditor()
 
 }
 
+void EditorState::DrawNewTabScreen()
+{
+    UIModule* UI = UIModule::Get();
+
+    if (UI->TextButton("New Material", Vec2f(200.0f, 100.0f), 8.0f, c_NicePurple));
+    {
+
+    }
+    UI->NewLine();
+    if (UI->TextButton("New Entity", Vec2f(200.0f, 100.0f), 8.0f, c_NicePurple))
+    {
+
+    }
+    UI->NewLine();
+    if (UI->TextButton("New Hotspot Texture", Vec2f(200.0f, 100.0f), 8.0f, c_NicePurple));
+    {
+
+    }
+}
+
 void EditorState::DrawEditorUI()
 {
     GraphicsModule* Graphics = GraphicsModule::Get();
@@ -1252,6 +1279,7 @@ void EditorState::DrawTopPanel()
             if (Engine::FileSaveDialog(FileName, "Save Level", "Level", "lvl"))
             {
                 EditorScene.Save(FileName);
+                Engine::SetWindowTitleText(FileName);
             }
         }
 
@@ -1500,6 +1528,12 @@ void EditorState::DrawInspectorPanel()
 
     UI->StartFrame("Settings", InspectorPanelRect, 16.0f, c_Inspector);
     {
+        if (UI->StartTab("Tool Settings"))
+        {
+            Cursor.DrawToolSettingsPanel();
+        }
+        UI->EndTab();
+
         if (UI->StartTab("Inspector"))
         {
             Cursor.DrawInspectorPanel();
