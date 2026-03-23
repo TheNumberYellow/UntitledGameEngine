@@ -1262,6 +1262,26 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
     fragShaderSource = R"(
     #version 400
 
+    // Array of const vec2 pixel offsets for sampling the depth map when calculating shadows
+    const vec2 poissonDisk[16] = vec2[](
+    vec2(-0.94201624, -0.39906216),
+    vec2(0.94558609, -0.76890725),
+    vec2(-0.094184101, -0.92938870),
+    vec2(0.34495938, 0.29387760),
+    vec2(-0.91588581, 0.45771432),
+    vec2(-0.81544232, -0.87912464),
+    vec2(-0.38277543, 0.27676845),
+    vec2(0.97484398, 0.75648379),
+    vec2(0.44323325, -0.97511554),
+    vec2(0.53742981, -0.47373420),
+    vec2(-0.26496911, -0.41893023),
+    vec2(0.79197514, 0.19090188),
+    vec2(-0.24188840, 0.99706507),
+    vec2(-0.81409955, 0.91437590),
+    vec2(0.19984126, 0.78641367),
+    vec2(0.14383161, -0.14100790)
+    );
+
     out vec4 OutColour;
 
     smooth in vec2 FragUV;
@@ -1339,14 +1359,38 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
         float bias = max(0.0009 * (1.0 - dot(Normal, lightDir)), 0.0002);         
         // Sample the cubemap in the direction from the fragment to the light
         vec3 fixedLightDir = vec3(lightDir.x, lightDir.y, lightDir.z);
-        float closestDepth = texture(ShadowMap, fixedLightDir).r * FarPlane; 
         
-        float currentDepth = length(fragToLight);
-        
-        float shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;  
-        
-        //vec3 lightDir = normalize(LightPos - FragPos);
-        return shadow;
+        float totalShadow = 0.0;
+
+        for (int i = 0; i < 16; ++i)
+        {
+            vec2 offset = poissonDisk[i] / 2000.0;
+            // Rotate offset by random rotation
+            float randomRotation = random(Normal);
+            float angle = randomRotation * 2.0 * PI;
+            float cosAngle = cos(angle);
+            float sinAngle = sin(angle);
+            // Get a 3d offset for sampling the cubemap by rotating the 2d offset around the light direction
+            vec3 rotatedOffset = vec3(
+                offset.x * cosAngle - offset.y * sinAngle,
+                offset.x * sinAngle + offset.y * cosAngle,
+                0.0
+            );
+            
+            // Rotate the light direction by the rotated offset
+            vec3 sampleDir = fixedLightDir + rotatedOffset;
+            float closestDepth = texture(ShadowMap, sampleDir).r * FarPlane; 
+            totalShadow += length(fragToLight) - bias > closestDepth ? 1.0 : 0.0;
+        }
+        totalShadow /= 16.0;
+        //float closestDepth = texture(ShadowMap, fixedLightDir).r * FarPlane; 
+
+        return totalShadow;        
+        //float currentDepth = length(fragToLight);
+        //
+        //float shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;  
+        //
+        //return shadow;
         
         //float tex = closestDepth;
         //return tex;

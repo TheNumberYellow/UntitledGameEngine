@@ -31,7 +31,10 @@ public:
     virtual bool DrawInspectorPanel() = 0;
 
     virtual Transform* GetTransform() = 0;
+    
     virtual void DeleteObject() = 0;
+
+    virtual void CopyObject(ISelectedObject*& outCopy) { outCopy = nullptr; }
 
     // Drag'n'drop functionalities
     virtual void ApplyMaterial(Material& inMaterial) {}
@@ -51,5 +54,5 @@ protected:
 
     // Just some handy consts classes using this interface can use to have consistent colours when drawing a selection box or inspector widgets
     const Vec3f c_SelectedBoxColour = Vec3f(0.f / 255.f, 255.f / 255.f, 255.f / 255.f);
-    const Vec3f c_InspectorColour = Vec3f(175.f / 255.f, 225.f / 255.f, 175.f / 255.f);
+    const Vec3f c_InspectorColour = MakeColour(25, 78, 25);
 };

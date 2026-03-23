@@ -1085,17 +1085,17 @@ void EditorState::DrawNewTabScreen()
 {
     UIModule* UI = UIModule::Get();
 
-    if (UI->TextButton("New Material", Vec2f(200.0f, 100.0f), 8.0f, c_NicePurple));
+    if (UI->TextButton("New Material", c_NicePurple));
     {
 
     }
     UI->NewLine();
-    if (UI->TextButton("New Entity", Vec2f(200.0f, 100.0f), 8.0f, c_NicePurple))
+    if (UI->TextButton("New Entity", c_NicePurple))
     {
 
     }
     UI->NewLine();
-    if (UI->TextButton("New Hotspot Texture", Vec2f(200.0f, 100.0f), 8.0f, c_NicePurple));
+    if (UI->TextButton("New Hotspot Texture", c_NicePurple));
     {
 
     }

@@ -89,6 +89,7 @@ public:
 
     static Quaternion normalize(Quaternion quat);
     static Quaternion VecDiffToQuat(Vec3f v1, Vec3f v2);
+    static Quaternion LookRotation(Vec3f forward, Vec3f up = Vec3f(0.0f, 0.0f, 1.0f));
 
     static float norm(Quaternion quat);
 

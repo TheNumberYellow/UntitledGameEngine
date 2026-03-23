@@ -183,21 +183,30 @@ void TextModule::DrawText(std::string text, Font* font, Vec2f position, Vec3f co
     //return meshInfo.m_Bounds.size;
 }
 
-Vec2f TextModule::GetTextSize(std::string text, Font* font)
+Rect TextModule::GetTextSize(std::string text, Font* font)
 {
-    Vec2f textSize = Vec2f(0.0f, 0.0f);
+    Rect textBounds;
+    Vec2f cursor = Vec2f(0.0f, 0.0f);
     for (int i = 0; i < text.size(); ++i)
     {
         CharacterInfo c = font->m_CharacterInfo[text[i]];
 
+        float xpos = cursor.x + c.Bearing.x;
+        float ypos = cursor.y - (c.Size.y - c.Bearing.y);
+
         float w = (float)c.Size.x;
         float h = (float)c.Size.y;
 
+        textBounds.expand(Vec2f(xpos, ypos));
+        textBounds.expand(Vec2f(xpos, ypos + h));
+        textBounds.expand(Vec2f(xpos + w, ypos + h));
+        textBounds.expand(Vec2f(xpos + w, ypos));
 
-
+        cursor.x += c.Advance.x >> 6;
+        cursor.y += c.Advance.y >> 6;
     }
 
-    return Vec2f();
+    return textBounds;
 }
 
 void TextModule::Resize(Vec2i newSize)

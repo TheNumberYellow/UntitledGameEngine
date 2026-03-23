@@ -283,6 +283,10 @@ void CursorState::Update(double DeltaTime)
         {
             UnselectSelectedObjects();
         }
+        else if (Input->GetKeyState(Key::C) && Input->GetKeyState(Key::Ctrl).pressed)
+        {
+            // Copy selected objects to clipboard
+        }
     }
 }
 
@@ -549,8 +553,6 @@ void CursorState::DrawToolSettingsPanel()
     {
     case ToolMode::Select:
         UI->Text("Select Tool Settings:");
-
-
         break;
     case ToolMode::Transform:
         UI->Text("Transform Tool Settings:");

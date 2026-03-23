@@ -28,6 +28,7 @@ struct Vec2f
 {
     float x, y;
     Vec2f(float x, float y) : x(x), y(y) {}
+    Vec2f(float xy) : x(xy), y(xy) {}
     Vec2f() : x(0.0f), y(0.0f) {}
 
     Vec2f operator+(Vec2f rhs);

@@ -457,17 +457,9 @@ void Scene::EditorDraw(GraphicsModule& graphics, GBuffer gBuffer, Camera* editor
 
             Transform CamTrans;
             CamTrans.SetTransformMatrix(Cam.GetCamTransMatrix());
-
-            // *vomits on the floor*
-            Quaternion CamRot = Quaternion(Vec3f(0.0f, 0.0f, 1.0f), (float)M_PI);
-            CamRot = CamRot * Quaternion(Vec3f(1.0f, 0.0f, 0.0f), (float)M_PI_2);
-
-            CamTrans.Rotate(CamRot);
             CamTrans.SetScale(0.1f);
 
             CamRC.m_TransMat = CamTrans.GetTransformMatrix();
-
-            //Cam.DebugDrawCamFrustum();
 
             graphics.AddRenderCommand(CamRC);
         }

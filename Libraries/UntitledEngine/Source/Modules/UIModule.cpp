@@ -134,7 +134,7 @@ UIModule::UIModule(GraphicsModule& graphics, TextModule& text, InputModule& inpu
     m_BorderMesh = m_Renderer.CreateEmptyMesh(UIElementFormat, true);
     m_RectMesh = m_Renderer.CreateEmptyMesh(UIElementFormat, true);
 
-    m_FrameFont = m_Text.LoadFont("Assets/fonts/ARLRDBD.TTF", 12);
+    m_FrameFont = m_Text.LoadFont("Assets/fonts/ARLRDBD.TTF", 14);
 
     s_Instance = this;
 }
@@ -283,6 +283,19 @@ void UIModule::CheckBox(std::string name, bool& boolRef)
 
 }
 
+Click UIModule::TextButton(std::string text, Vec3f colour, Vec3f textColour)
+{
+    if (!IsActive())
+    {
+        return Click();
+    }
+    Rect textBounds = m_Text.GetTextSize(text, &m_FrameFont);
+
+    float padding = 4.0f;
+    Vec2f buttonSize = (textBounds.location + textBounds.size) + Vec2f(padding * 2.0f);
+    return TextButton(text, buttonSize, padding, colour, textColour);
+}
+
 Click UIModule::TextButton(std::string text, PlacementSettings placeSettings, float borderWidth, Vec3f colour, Vec3f textColour)
 {
     if (!IsActive())
@@ -398,6 +411,17 @@ void UIModule::Text(std::string text, Vec2f position, Vec3f colour)
 
 void UIModule::Text(std::string text, Colour col)
 {
+    if (!IsActive())
+        return;
+
+    Rect textBounds = m_Text.GetTextSize(text, &m_FrameFont);
+    // Add padding to prevent text from being flush with edge of frame
+    textBounds.location += Vec2f(4.0f, 4.0f);
+    textBounds.size += Vec2f(4.0f, 4.0f);
+
+    Rect TotalSize = PlaceElement(textBounds);
+
+    m_Text.DrawText(text, &m_FrameFont, TotalSize.location, col);
 
 }
 
@@ -603,8 +627,8 @@ bool UIModule::StartTab(std::string text, Vec3f colour)
     else
     {
         float borderWidth = 20.0f;
-
-        Vec2f buttonSize = Vec2f(c_TabButtonWidth, borderWidth);
+        Rect textRect = m_Text.GetTextSize(text, &m_FrameFont);
+        Vec2f buttonSize = Vec2f(textRect.size.x + 10.0f, borderWidth);
         
         FrameState* frameState = m_FrameStateStack.back();
         bool IsActiveTab = frameState->activeTab == m_CurrentTabIndexStack.back();
@@ -1044,8 +1068,15 @@ Rect UIModule::PlaceElement(PlacementSettings settings)
     Rect CurrentFrame = GetFrame();
     CursorInfo& CurrentCursor = CursorStack.top();
 
-    ElementBounds.size = settings.size;
-
+    if (settings.type == PlacementType::RECT)
+    {
+        ElementBounds = settings.rect;
+    }
+    else if (settings.type == PlacementType::SIZE)
+    {
+        ElementBounds.size = settings.size;
+    }
+    
     if (CurrentCursor.Top.x + ElementBounds.size.x > CurrentFrame.location.x + CurrentFrame.size.x)
     {
         // New horizontal line

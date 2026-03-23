@@ -116,6 +116,24 @@ Quaternion Math::VecDiffToQuat(Vec3f v1, Vec3f v2)
     return Math::normalize(result);
 }
 
+Quaternion Math::LookRotation(Vec3f forward, Vec3f up)
+{
+    Vec3f right = Math::cross(up, forward);
+    up = Math::cross(forward, right);
+    Mat4x4f rotMat;
+    rotMat[0] = Vec4f(right.x, right.y, right.z, 0.0f);
+    rotMat[1] = Vec4f(up.x, up.y, up.z, 0.0f);
+    rotMat[2] = Vec4f(forward.x, forward.y, forward.z, 0.0f);
+    rotMat[3] = Vec4f(0.0f, 0.0f, 0.0f, 1.0f);
+    glm::mat4 glmRotMat;
+    glmRotMat[0] = glm::vec4(rotMat[0].x, rotMat[0].y, rotMat[0].z, rotMat[0].w);
+    glmRotMat[1] = glm::vec4(rotMat[1].x, rotMat[1].y, rotMat[1].z, rotMat[1].w);
+    glmRotMat[2] = glm::vec4(rotMat[2].x, rotMat[2].y, rotMat[2].z, rotMat[2].w);
+    glmRotMat[3] = glm::vec4(rotMat[3].x, rotMat[3].y, rotMat[3].z, rotMat[3].w);
+    glm::quat glmQuat = glm::quat_cast(glmRotMat);
+    return Quaternion(glmQuat.x, glmQuat.y, glmQuat.z, glmQuat.w);
+}
+
 float Math::norm(Quaternion quat)
 {
     return sqrt(quat.x * quat.x + quat.y * quat.y + quat.z * quat.z + quat.w * quat.w);
@@ -261,38 +279,6 @@ Mat4x4f Math::GenerateTransformMatrix(Vec3f position, Vec3f scale, Quaternion ro
 
 Mat4x4f Math::GenerateViewMatrix(Vec3f position, Vec3f direction, Vec3f up)
 {
-    //Vec3f f(normalize(direction));
-    //Vec3f side = cross(f, up);
-    //Vec3f s;
-    //if (side.IsNearlyZero())
-    //{
-    //    s = orthogonal(up);
-    //}
-    //else
-    //{
-    //    s = side;
-    //}
-
-    //s = normalize(s);
- 
-    //Vec3f u(cross(s, f));
-
-    //Mat4x4f result;
-    //result[0][0] = s.x;
-    //result[1][0] = s.y;
-    //result[2][0] = s.z;
-    //result[0][1] = u.x;
-    //result[1][1] = u.y;
-    //result[2][1] = u.z;
-    //result[0][2] = -f.x;
-    //result[1][2] = -f.y;
-    //result[2][2] = -f.z;
-    //result[3][0] = -dot(s, position);
-    //result[3][1] = -dot(u, position);
-    //result[3][2] = dot(f, position);
-
-    //return result;
-
     if (Math::dot(direction, up) == 1.0f)
     {
         up = orthogonal(direction);

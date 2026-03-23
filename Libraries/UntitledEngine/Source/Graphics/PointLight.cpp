@@ -33,16 +33,16 @@ bool SelectedPointLight::DrawInspectorPanel()
     Vec3f Pos = PointLightPtr->position;
     Vec3f Col = PointLightPtr->colour;
 
-    static std::string ColourString = "Colour";
-    static std::string IntensityString = "Intensity";
 
-    UI->TextEntry("Colour", ColourString, Vec2f(250.0f, 20.0f), c_InspectorColour);
+    UI->Text("Colour", c_InspectorColour);
+    UI->NewLine();
 
     UI->FloatSlider("R", Vec2f(400.0f, 20.0f), PointLightPtr->colour.r);
     UI->FloatSlider("G", Vec2f(400.0f, 20.0f), PointLightPtr->colour.g);
     UI->FloatSlider("B", Vec2f(400.0f, 20.0f), PointLightPtr->colour.b);
 
-    UI->TextEntry("Intensity", IntensityString, Vec2f(250.0f, 20.0f), c_InspectorColour);
+    UI->Text("Intensity", c_InspectorColour);
+    UI->NewLine();
 
     UI->FloatDragger("Intensity", Vec2f(400.0f, 20.0f), PointLightPtr->intensity, 0.1f);
 
