@@ -40,6 +40,8 @@ struct Vec2f
     Vec2f operator*(float rhs);
     Vec2f operator/(float rhs);
 
+    Vec2f operator*(Vec2f rhs);
+
     Vec2f operator-();
 
     friend bool operator==(const Vec2f& lhs, const Vec2f& rhs);

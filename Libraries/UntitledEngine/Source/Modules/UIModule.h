@@ -85,6 +85,10 @@ enum class PlacementType
 {
     SIZE,
     RECT,
+    RECT_ABSOLUTE,
+    FIT_WIDTH,
+    FIT_HEIGHT,
+    FIT_BOTH
 };
 
 struct PlacementSettings
@@ -92,6 +96,7 @@ struct PlacementSettings
     PlacementSettings(Vec2f inSize);
     PlacementSettings(Rect inRect);
 
+    PlacementSettings(PlacementType inType);
     PlacementSettings(PlacementType inType, float f);
     PlacementSettings(PlacementType inType, Vec2f v);
     PlacementSettings(PlacementType inType, Rect r);
@@ -100,6 +105,7 @@ struct PlacementSettings
     
     union
     {    
+        Vec2f minSize;
         Vec2f size;
         Rect rect;
     };
@@ -118,8 +124,8 @@ public:
     void AlignTop();
     void AlignBottom();
 
-    void ImgPanel(Texture texture, Rect rect);
-    void ImgPanel(Texture_ID texture, Rect rect);
+    void ImgPanel(Texture texture, PlacementSettings placeSetting);
+    void ImgPanel(Texture_ID texture, PlacementSettings placeSettings);
 
     void BufferPanel(Framebuffer_ID fBuffer, Rect rect);
     void BufferPanel(Framebuffer_ID fBuffer, Vec2f size);
@@ -133,24 +139,31 @@ public:
 
     Click BufferButton(std::string name, Framebuffer_ID fBuffer, Vec2f size, float borderWidth, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
 
+    void Text(std::string text, PlacementSettings placeSettings, Vec3f colour = Vec3f(0.1f, 0.1f, 0.4f));
     void Text(std::string text, Vec2f position, Vec3f colour = Vec3f(0.1f, 0.1f, 0.4f));
     void Text(std::string text, Colour col = Colour(0.1f, 0.1f, 0.4f));
 
     void TextEntry(std::string name, std::string& stringRef, Vec2f size, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
     void FloatTextEntry(std::string name, float& floatRef, Vec2f size, Colour colour = Vec3f(1.0f, 1.0f, 1.0f));
 
-    bool StartFrame(std::string name, Rect rect, float borderWidth, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
+    bool StartFrame(std::string name, PlacementSettings placeSettings, float borderWidth, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f), bool drawFrameName = true);
     void EndFrame();
 
-    void StartFrame(std::string name, Vec2f size, float borderWidth, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
+    void DrawBorder(PlacementSettings placeSettings, float borderWidth, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
 
     bool StartTab(std::string text = "", Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
     void EndTab();
 
     void FloatSlider(std::string name, Vec2f size, float& outNum, float min = 0.0f, float max = 1.0f, bool vertical = false, bool drawText = true, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
-    void FloatDragger(std::string name, Vec2f size, float& outNum, float speed = 0.1f, float min = std::numeric_limits<float>::min(), float max = std::numeric_limits<float>::max());
+    void FloatDragger(std::string name, PlacementSettings placeSettings, float& outNum, float speed = 0.1f, float min = std::numeric_limits<float>::lowest(), float max = std::numeric_limits<float>::max());
+
 
     void NewLine(float lineHeight = 0.0f);
+
+    Vec2f GetCurrentFrameSize();
+    Rect GetCurrentFrameRect();
+
+    bool IsInFrame();
 
     void OnFrameStart();
     void OnFrameEnd();
@@ -161,13 +174,11 @@ public:
     static UIModule* Get() { return s_Instance; }
 private:
 
-    Click ButtonInternal(std::string name, Vec2f size, float borderWidth, Vec3f colour);
-
-    Click ButtonInternal(std::string name, Rect rect, float borderWidth, Vec3f colour);
+    Click ButtonInternal(std::string name, PlacementSettings placeSettings, float borderWidth, Vec3f colour);
 
     void FloatSliderInternal(std::string name, Rect rect, float& outNum, float min = 0.0f, float max = 1.0f, bool vertical = false, bool drawText = true, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
 
-    void FloatDraggerInternal(std::string name, Rect rect, float& outNum, float speed, float min, float max);
+    void FloatDraggerInternal(std::string name, PlacementSettings placeSettings, float& outNum, float speed, float min, float max);
 
     // Returns the bounds of an element given a placement setting, without advancing the cursor
     Rect SizeElement(PlacementSettings settings);
@@ -177,6 +188,7 @@ private:
 
     MeshData GetVertexDataForRect(Rect rect);
     MeshData GetVertexDataForBorderMesh(Rect rect, float borderWidth);   
+    MeshData GetVertexDataForEmptyBorderMesh(Rect rect, float borderWidth);
 
     ElementID GetElementID(std::string name);
 

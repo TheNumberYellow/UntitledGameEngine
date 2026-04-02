@@ -277,6 +277,9 @@ public:
 
     void SetCulling(Cull c);
 
+    void DisableCulling();
+    void EnableCulling();
+
     Vec2i GetViewportSize();
 
     // TEMP

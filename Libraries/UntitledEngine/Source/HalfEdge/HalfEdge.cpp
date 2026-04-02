@@ -51,6 +51,17 @@ void he::SelectedHalfEdgeMesh::Update()
         he::Vertex* vert = m_HalfEdgeMesh->m_Verts[i];
         vert->vec = Vec3f(0.0f, 0.0f, 0.0f) * (m_Transform.GetTransformMatrix() * offset);
     }
+
+    InputModule* Input = InputModule::Get();
+
+    if (Input->GetKeyState(Key::F).justPressed)
+    {
+        // Flip all faces
+        for (he::Face* face : m_HalfEdgeMesh->m_Faces)
+        {
+            m_HalfEdgeMesh->FlipFace(face);
+        }
+    }
 }
 
 bool he::SelectedHalfEdgeMesh::DrawInspectorPanel()
@@ -67,6 +78,14 @@ Transform* he::SelectedHalfEdgeMesh::GetTransform()
 void he::SelectedHalfEdgeMesh::DeleteObject()
 {
     ScenePtr->DeleteHalfEdgeMesh(m_HalfEdgeMesh);
+}
+
+void he::SelectedHalfEdgeMesh::ApplyMaterial(Material& inMaterial)
+{
+    for (Face* face : m_HalfEdgeMesh->m_Faces)
+    {
+        face->material = inMaterial;
+    }
 }
 
 bool he::SelectedHalfEdgeMesh::IsEqual(const ISelectedObject& other) const
@@ -240,6 +259,10 @@ void he::SelectedHalfEdgeFace::Update()
     {
         m_HalfEdgeMesh->ExtrudeFace(m_FacePtr);
     }
+    if (Input->GetKeyState(Key::F).justReleased)
+    {
+        m_HalfEdgeMesh->FlipFace(m_FacePtr);
+    }
 }
 
 bool he::SelectedHalfEdgeFace::DrawInspectorPanel()
@@ -250,28 +273,28 @@ bool he::SelectedHalfEdgeFace::DrawInspectorPanel()
 
     ui->NewLine();
 
-    ui->TextButton("Texture Nudge U", Vec2f(160.0f, 40.0f), 0.5f);
-    ui->NewLine();
-    ui->FloatSlider("TextureNudgeU_Slider", Vec2f(240.0f, 40.0f), m_FacePtr->textureNudgeU, -1.0f, 1.0f);
-    ui->NewLine();
-
-    ui->TextButton("Texture Nudge V", Vec2f(160.0f, 40.0f), 0.5f);
-    ui->NewLine();
-    ui->FloatSlider("TextureNudgeV_Slider", Vec2f(240.0f, 40.0f), m_FacePtr->textureNudgeV, -1.0f, 1.0f);
+    ui->Text("Texture Nudge U", PlacementType::FIT_WIDTH);
+    //ui->NewLine();
+    ui->FloatDragger("TextureNudgeU_Dragger", PlacementType::FIT_WIDTH, m_FacePtr->textureNudgeU, 0.001f);
     ui->NewLine();
 
-    ui->TextButton("Texture Scale U", Vec2f(160.0f, 40.0f), 0.5f);
-    ui->NewLine();
-    ui->FloatSlider("TextureScaleU_Slider", Vec2f(240.0f, 40.0f), m_FacePtr->textureScaleU, 0.001f, 10.0f);
+    ui->Text("Texture Nudge V", PlacementType::FIT_WIDTH);
+    //ui->NewLine();
+    ui->FloatDragger("TextureNudgeV_Dragger", PlacementType::FIT_WIDTH, m_FacePtr->textureNudgeV, 0.001f);
     ui->NewLine();
 
-    ui->TextButton("Texture Scale V", Vec2f(160.0f, 40.0f), 0.5f);
+    ui->Text("Texture Scale U", PlacementType::FIT_WIDTH);
+    //ui->NewLine();
+    ui->FloatDragger("TextureScaleU_Dragger", PlacementType::FIT_WIDTH, m_FacePtr->textureScaleU, 0.001f);
     ui->NewLine();
-    ui->FloatSlider("TextureScaleV_Slider", Vec2f(240.0f, 40.0f), m_FacePtr->textureScaleV, 0.001f, 10.0f);
+
+    ui->Text("Texture Scale V", PlacementType::FIT_WIDTH);
+    //ui->NewLine();
+    ui->FloatDragger("TextureScaleV_Dragger", PlacementType::FIT_WIDTH, m_FacePtr->textureScaleV, 0.001f);
     ui->NewLine();
     
-    ui->TextButton("Texture Rotation", Vec2f(160.0f, 40.0f), 0.5f);
-    ui->NewLine();
+    ui->Text("Texture Rotation", PlacementType::FIT_WIDTH);
+    //ui->NewLine();
     ui->FloatSlider("TextureRotation", Vec2f(240.0f, 40.0f), m_FacePtr->textureRot, -3.14f, 3.14f);
 
     return false;
@@ -284,6 +307,7 @@ Transform* he::SelectedHalfEdgeFace::GetTransform()
 
 void he::SelectedHalfEdgeFace::DeleteObject()
 {
+    m_HalfEdgeMesh->DeleteFace(m_FacePtr);
 }
 
 void he::SelectedHalfEdgeFace::ApplyMaterial(Material& inMaterial)
@@ -552,6 +576,57 @@ void he::HalfEdgeMesh::SubDivideFace(Face* inFace)
 
 }
 
+void he::HalfEdgeMesh::DeleteFace(Face* inFace)
+{
+    // Get all adjacent edges
+    std::vector<he::HalfEdge*> adjacentEdges;
+
+    HalfEdge* firstHalfEdge = inFace->halfEdge;
+    HalfEdge* currentHalfEdge = firstHalfEdge;
+
+    do 
+    {
+        adjacentEdges.push_back(currentHalfEdge);
+        currentHalfEdge = currentHalfEdge->next;
+    } while (currentHalfEdge != firstHalfEdge);
+
+    // Hook up adjacent faces to each other by connecting half edge twins of deleted face to each other
+    for (he::HalfEdge* halfEdge : adjacentEdges)
+    {
+        if (halfEdge->twin)
+        {
+            halfEdge->twin->twin = halfEdge->next;
+        }
+        if (halfEdge->next)
+        {
+            halfEdge->next->twin = halfEdge->twin;
+        }
+    }
+
+    // Remove half edges and face
+    for (he::HalfEdge* halfEdge : adjacentEdges)
+    {
+        auto it = std::find(m_HalfEdges.begin(), m_HalfEdges.end(), halfEdge);
+        if (it != m_HalfEdges.end())
+        {
+            m_HalfEdges.erase(it);
+            delete halfEdge;
+        }
+    }
+    
+    auto faceIt = std::find(m_Faces.begin(), m_Faces.end(), inFace);
+    if (faceIt != m_Faces.end())
+    {
+        m_Faces.erase(faceIt);
+        delete inFace;
+    }
+}
+
+void he::HalfEdgeMesh::FlipFace(Face* inFace)
+{
+    inFace->flipFace = !inFace->flipFace;
+}
+
 void he::HalfEdgeMesh::ExtrudeFace(he::Face* inFace)
 {
     // Get all adjacent edges
@@ -602,6 +677,8 @@ void he::HalfEdgeMesh::ExtrudeFace(he::Face* inFace)
         newFace->material = inFace->material;
         newFace->textureNudgeU = inFace->textureNudgeU;
         newFace->textureNudgeV = inFace->textureNudgeV;
+
+        newFace->flipFace = inFace->flipFace;
 
         newFace->textureScaleU = inFace->textureScaleU;
         newFace->textureScaleV = inFace->textureScaleV;
@@ -785,9 +862,18 @@ RayCastHit he::HalfEdgeMesh::RayCast(Ray ray)
         for (int j = 1; j < numFaces - 1; ++j)
         {
             Triangle tri;
-            tri.a = faceVerts[0];
-            tri.b = faceVerts[j];
-            tri.c = faceVerts[j + 1];
+            if (m_Faces[i]->flipFace)
+            {
+                tri.a = faceVerts[0];
+                tri.b = faceVerts[j + 1];
+                tri.c = faceVerts[j];
+            }
+            else
+            {
+                tri.a = faceVerts[0];
+                tri.b = faceVerts[j];
+                tri.c = faceVerts[j + 1];
+            }
 
             RayCastHit newHit = collisions->RayCast(ray, tri);
 
@@ -833,9 +919,19 @@ Intersection he::HalfEdgeMesh::SphereIntersect(Sphere sphere)
         for (int j = 1; j < numFaces - 1; ++j)
         {
             Triangle tri;
-            tri.a = faceVerts[0];
-            tri.b = faceVerts[j];
-            tri.c = faceVerts[j + 1];
+            
+            if (m_Faces[i]->flipFace)
+            {
+                tri.a = faceVerts[0];
+                tri.b = faceVerts[j + 1];
+                tri.c = faceVerts[j];
+            }
+            else
+            {
+                tri.a = faceVerts[0];
+                tri.b = faceVerts[j];
+                tri.c = faceVerts[j + 1];
+            }
 
             Intersection newIntersection = collisions->SphereIntersection(sphere, tri);
 

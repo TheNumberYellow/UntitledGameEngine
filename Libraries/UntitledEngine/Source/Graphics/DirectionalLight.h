@@ -8,6 +8,8 @@ struct DirectionalLightRenderCommand
 {
     Vec3f m_Direction;
     Vec3f m_Colour;
+    float m_Intensity;
+    float m_ShadowBlurMult;
 };
 
 class SelectedDirectionalLight : public ISelectedObject
@@ -34,6 +36,8 @@ struct DirectionalLight : public IEditorClickable
     Vec3f position = Vec3f(0.0f, 0.0f, 0.0f);
     Vec3f direction = Vec3f(0.0f, 0.0f, -1.0f);
     Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f);
+    float intensity = 1.0f;
+    float shadowBlurMult = 1.0f;
 
     bool debugDrawFrustum = false;
 

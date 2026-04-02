@@ -2157,6 +2157,16 @@ void Renderer::SetCulling(Cull c)
     }
 }
 
+void Renderer::DisableCulling()
+{
+    glDisable(GL_CULL_FACE);
+}
+
+void Renderer::EnableCulling()
+{
+    glEnable(GL_CULL_FACE);
+}
+
 Vec2i Renderer::GetViewportSize()
 {
     GLint m_viewport[4];

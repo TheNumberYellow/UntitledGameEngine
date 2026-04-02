@@ -63,6 +63,73 @@ PlacementSettings::PlacementSettings(Rect inRect)
     type = PlacementType::RECT;
 }
 
+PlacementSettings::PlacementSettings(PlacementType inType)
+{
+    type = inType;
+    if (inType == PlacementType::FIT_WIDTH || inType == PlacementType::FIT_HEIGHT || inType == PlacementType::FIT_BOTH)
+    {
+        // Default fit size, can be overridden by user in other constructor overloads
+        minSize.x = 20.0f;
+        minSize.y = 20.0f;
+    }
+}
+
+PlacementSettings::PlacementSettings(PlacementType inType, float f)
+{
+    type = inType;
+    if (inType == PlacementType::FIT_WIDTH || inType == PlacementType::FIT_HEIGHT || inType == PlacementType::FIT_BOTH)
+    {
+        minSize.x = f;
+        minSize.y = f;
+    }
+    if (inType == PlacementType::SIZE)
+    {
+        size = Vec2f(f, f);
+    }
+    if (inType == PlacementType::RECT)
+    {
+        rect = Rect(Vec2f(0.0f, 0.0f), Vec2f(f, f));
+    }
+}
+
+PlacementSettings::PlacementSettings(PlacementType inType, Vec2f v)
+{
+    type = inType;
+    if (inType == PlacementType::FIT_WIDTH || inType == PlacementType::FIT_HEIGHT || inType == PlacementType::FIT_BOTH)
+    {
+        minSize = v;
+    }
+    if (inType == PlacementType::SIZE)
+    {
+        size = v;
+    }
+    if (inType == PlacementType::RECT)
+    {
+        rect = Rect(Vec2f(0.0f, 0.0f), v);
+    }
+}
+
+PlacementSettings::PlacementSettings(PlacementType inType, Rect r)
+{
+    type = inType;
+    if (inType == PlacementType::FIT_WIDTH || inType == PlacementType::FIT_HEIGHT || inType == PlacementType::FIT_BOTH)
+    {
+        minSize = r.size;
+    }
+    if (inType == PlacementType::SIZE)
+    {
+        size = r.size;
+    }
+    if (inType == PlacementType::RECT)
+    {
+        rect = r;
+    }
+    if (inType == PlacementType::RECT_ABSOLUTE)
+    {
+        rect = r;
+    }
+}
+
 UIModule::UIModule(GraphicsModule& graphics, TextModule& text, InputModule& input, Renderer& renderer)
     : m_Graphics(graphics)
     , m_Text(text)
@@ -163,42 +230,17 @@ void UIModule::AlignBottom()
     m_TopAligned = false;
 }
 
-void UIModule::ImgPanel(Texture texture, Rect rect)
+void UIModule::ImgPanel(Texture texture, PlacementSettings placeSettings)
 {
-    if (!IsActive())
-        return;
-
-    rect.location += GetFrame().location;
-
-    if (!ShouldDraw(rect))
-    {
-        return;
-    }
-
-    m_Renderer.DisableDepthTesting();
-
-    MeshData vertexData = GetVertexDataForRect(rect);
-
-    m_Renderer.UpdateMeshData(m_RectMesh, UIElementFormat, vertexData.first, vertexData.second);
-
-    m_Renderer.SetActiveTexture(texture.GetID(), "Texture");
-    m_Renderer.SetActiveShader(m_UIShader);
-
-    m_Renderer.SetShaderUniformBool(m_UIShader, "Hovering", false);
-    m_Renderer.SetShaderUniformBool(m_UIShader, "Clicking", false);
-    m_Renderer.SetShaderUniformVec3f(m_UIShader, "Colour", c_White);
-
-    m_Renderer.DrawMesh(m_RectMesh);
-
-    m_Renderer.EnableDepthTesting();
+    ImgPanel(texture.GetID(), placeSettings);
 }
 
-void UIModule::ImgPanel(Texture_ID texture, Rect rect)
+void UIModule::ImgPanel(Texture_ID texture, PlacementSettings placeSettings)
 {
     if (!IsActive())
         return;
 
-    rect.location += GetFrame().location;
+    Rect rect = PlaceElement(placeSettings);
 
     if (!ShouldDraw(rect))
     {
@@ -274,6 +316,7 @@ void UIModule::CheckBox(std::string name, bool& boolRef)
 
     Texture checkBoxTexture = boolRef ? m_CheckedBoxTexture : m_UncheckedBoxTexture;
     
+    Text(name, MakeColour(0, 0, 0));
     //m_Text.DrawText(name, &m_FrameFont, );
 
     if (ImgButton(name, checkBoxTexture.GetID(), Vec2f(20.0f, 20.0f), 0.0f).clicked)
@@ -303,18 +346,16 @@ Click UIModule::TextButton(std::string text, PlacementSettings placeSettings, fl
         return Click();
     }
 
-    Vec2f size = placeSettings.size;
-
-    Rect BRect = SizeElement(size);
-
-    Click Result = ButtonInternal(text, size, borderWidth, colour);
+    Rect BRect = SizeElement(placeSettings);
 
     if (!ShouldDraw(BRect))
     {
-        return Result;
+        return Click();
     }
 
-    //TODO: hard coded text colour
+    Click Result = ButtonInternal(text, placeSettings, borderWidth, colour);
+
+
     if (text != "")
     {
         //TODO: come up with better depth testing solution for rendering UI
@@ -403,6 +444,28 @@ Click UIModule::BufferButton(std::string name, Framebuffer_ID fBuffer, Vec2f siz
     return Result;
 }
 
+void UIModule::Text(std::string text, PlacementSettings placeSettings, Vec3f colour)
+{
+    if (!IsActive())
+    {
+        return;
+    }
+    Rect desiredRect = SizeElement(placeSettings);
+    Rect textBounds = m_Text.GetTextSize(text, &m_FrameFont);
+    // If text is larger than desired rect, expand desired rect to fit text
+    if (textBounds.size.x > desiredRect.size.x)
+    {
+        desiredRect.size.x = textBounds.size.x;
+    }
+    if (textBounds.size.y > desiredRect.size.y)
+    {
+        desiredRect.size.y = textBounds.size.y;
+    }
+
+    m_Text.DrawText(text, &m_FrameFont, desiredRect.location + (desiredRect.size / 2), colour, Anchor::CENTER);
+    PlaceElement(desiredRect);
+}
+
 void UIModule::Text(std::string text, Vec2f position, Vec3f colour)
 {
     position += GetFrame().location;
@@ -483,12 +546,15 @@ void UIModule::FloatTextEntry(std::string name, float& floatRef, Vec2f size, Col
 {
 }
 
-bool UIModule::StartFrame(std::string name, Rect rect, float borderWidth, Vec3f colour)
+bool UIModule::StartFrame(std::string name, PlacementSettings placeSettings, float borderWidth, Vec3f colour, bool drawFrameName)
 {
     m_InTabStack.push_back(false);
 
     if (!IsActive())
         return false;
+
+
+    Rect FrameRect = PlaceElement(placeSettings);
 
     //rect.location += GetFrame().location;
 
@@ -505,16 +571,16 @@ bool UIModule::StartFrame(std::string name, Rect rect, float borderWidth, Vec3f 
 
     m_FrameStateStack.push_back(State);
 
-    m_SubRectStack.push(Rect(rect.location + Vec2f(borderWidth, borderWidth), rect.size - Vec2f(borderWidth * 2, borderWidth * 2)));
+    m_SubRectStack.push(Rect(FrameRect.location + Vec2f(borderWidth, borderWidth), FrameRect.size - Vec2f(borderWidth * 2, borderWidth * 2)));
 
-    CursorStack.push(CursorInfo(rect.location + Vec2f(borderWidth, borderWidth), rect.location + Vec2f(borderWidth, borderWidth)));
+    CursorStack.push(CursorInfo(FrameRect.location + Vec2f(borderWidth, borderWidth), FrameRect.location + Vec2f(borderWidth, borderWidth)));
 
     
 
     // Render
     m_Renderer.DisableDepthTesting();
 
-    MeshData verts = GetVertexDataForBorderMesh(rect, borderWidth);
+    MeshData verts = GetVertexDataForBorderMesh(FrameRect, borderWidth);
     
     m_Renderer.SetActiveShader(m_UIShader);
     
@@ -527,7 +593,7 @@ bool UIModule::StartFrame(std::string name, Rect rect, float borderWidth, Vec3f 
 
     m_Renderer.DrawMesh(m_BorderMesh);
 
-    verts = GetVertexDataForRect(Rect(rect.location + Vec2f(borderWidth, borderWidth), rect.size - Vec2f(borderWidth * 2, borderWidth * 2)));
+    verts = GetVertexDataForRect(Rect(FrameRect.location + Vec2f(borderWidth, borderWidth), FrameRect.size - Vec2f(borderWidth * 2, borderWidth * 2)));
     
     m_Renderer.UpdateMeshData(m_RectMesh, UIElementFormat, verts.first, verts.second);
 
@@ -538,9 +604,9 @@ bool UIModule::StartFrame(std::string name, Rect rect, float borderWidth, Vec3f 
     m_Renderer.DrawMesh(m_RectMesh);
     m_Renderer.EndStencilDrawing();
 
-    if (name != "")
+    if (drawFrameName && name != "")
     {
-        Rect r = rect;
+        Rect r = FrameRect;
         //TODO: hard coded text colour
         m_Text.DrawText(name, &m_FrameFont, r.location, Vec3f(0.0f, 0.0f, 0.0f));
     }
@@ -601,16 +667,37 @@ void UIModule::EndFrame()
     }
 }
 
-void UIModule::StartFrame(std::string name, Vec2f size, float borderWidth, Vec3f colour)
+void UIModule::DrawBorder(PlacementSettings placeSettings, float borderWidth, Vec3f colour)
 {
     if (!IsActive())
     {
         return;
     }
 
-    Rect FrameRect = PlaceElement(size);
+    Rect BRect = PlaceElement(placeSettings);
 
-    StartFrame(name, FrameRect, borderWidth, colour);
+    if (!ShouldDraw(BRect))
+    {
+        return;
+    }
+
+    // Render
+    m_Renderer.DisableDepthTesting();
+    MeshData vertexData = GetVertexDataForEmptyBorderMesh(BRect, borderWidth);
+
+    m_Renderer.UpdateMeshData(m_BorderMesh, UIElementFormat, vertexData.first, vertexData.second);
+
+    m_Renderer.SetActiveShader(m_UIShader);
+    m_Renderer.SetActiveTexture(m_DefaultButtonTexture.GetID(), "Texture");
+
+    m_Renderer.SetShaderUniformBool(m_UIShader, "Hovering", false);
+    m_Renderer.SetShaderUniformBool(m_UIShader, "Clicking", false);
+    m_Renderer.SetShaderUniformVec3f(m_UIShader, "Colour", colour);
+
+    m_Renderer.DrawMesh(m_BorderMesh);
+
+    m_Renderer.EnableDepthTesting();
+    // End rendering
 }
 
 bool UIModule::StartTab(std::string text, Vec3f colour)
@@ -645,33 +732,21 @@ bool UIModule::StartTab(std::string text, Vec3f colour)
 
         m_CurrentTabIndexStack.back()++;
         m_InTabStack.back() = true;
-        //m_InTabStack.top() = true;
     
         return IsActiveTab;
     }
-
-    //m_InTab = true;
 }
 
 void UIModule::EndTab()
 {
-
-    //if (CursorStack.size() == m_InTabStack)
-
     if (!m_InTabStack.back() && !IsActive())
     {
         return;
     }
-    //if (!IsActive())
-    //{
-    //    return;
-    //}
     if (m_FrameStateStack.empty())
     {
         return;
     }
-
-    //Engine::DEBUGPrint("Ending tab");
 
     m_InTabStack.back() = false;
     CursorStack.pop();
@@ -689,16 +764,14 @@ void UIModule::FloatSlider(std::string name, Vec2f size, float& outNum, float mi
     FloatSliderInternal(name, TotalSize, outNum, min, max, vertical, drawText, colour);
 }
 
-void UIModule::FloatDragger(std::string name, Vec2f size, float& outNum, float speed, float min, float max)
+void UIModule::FloatDragger(std::string name, PlacementSettings placeSettings, float& outNum, float speed, float min, float max)
 {
     if (!IsActive())
     {
         return;
     }
-
-    Rect TotalSize = PlaceElement(size);
     
-    FloatDraggerInternal(name, TotalSize, outNum, speed, min, max);
+    FloatDraggerInternal(name, placeSettings, outNum, speed, min, max);
 }
 
 void UIModule::NewLine(float lineHeight)
@@ -711,6 +784,35 @@ void UIModule::NewLine(float lineHeight)
     CurrentCursor.Top.y = CurrentCursor.Bottom.y + lineHeight;
 
     CurrentCursor.Bottom.y = CurrentCursor.Top.y;
+}
+
+Vec2f UIModule::GetCurrentFrameSize()
+{
+    if (m_SubRectStack.empty())
+    {
+        return m_Renderer.GetViewportSize();
+    }
+    else
+    {
+        return m_SubRectStack.top().size;
+    }
+}
+
+Rect UIModule::GetCurrentFrameRect()
+{
+    if (m_SubRectStack.empty())
+    {
+        return Rect(Vec2f(0.0f, 0.0f), m_Renderer.GetViewportSize());
+    }
+    else
+    {
+        return m_SubRectStack.top();
+    }
+}
+
+bool UIModule::IsInFrame()
+{
+    return !m_SubRectStack.empty();
 }
 
 void UIModule::OnFrameStart()
@@ -757,44 +859,34 @@ void UIModule::OnFrameEnd()
     //Engine::DEBUGPrint("~~~~ENDING FRAME~~~~");
 }
 
-Click UIModule::ButtonInternal(std::string name, Vec2f size, float borderWidth, Vec3f colour)
+Click UIModule::ButtonInternal(std::string name, PlacementSettings placeSettings, float borderWidth, Vec3f colour)
 {
     if (!IsActive())
     {
         return Click();
     }
 
-    Rect BRect = PlaceElement(size);
-
-    return ButtonInternal(name, BRect, borderWidth, colour);
-}
-
-Click UIModule::ButtonInternal(std::string name, Rect rect, float borderWidth, Vec3f colour)
-{
-    if (!IsActive())
-    {
-        return Click();
-    }
+    Rect BRect = PlaceElement(placeSettings);
 
     ButtonState* BState = GetButtonState(name);
 
     if (!m_SubRectStack.empty())
     {
-        BState->m_Click.Update(rect, m_SubRectStack.top());
+        BState->m_Click.Update(BRect, m_SubRectStack.top());
     }
     else
     {
-        BState->m_Click.Update(rect, Rect());
+        BState->m_Click.Update(BRect, Rect());
     }
 
-    if (!ShouldDraw(rect))
+    if (!ShouldDraw(BRect))
     {
         return BState->m_Click;
     }
 
     // Render
     m_Renderer.DisableDepthTesting();
-    MeshData vertexData = GetVertexDataForBorderMesh(rect, borderWidth);
+    MeshData vertexData = GetVertexDataForBorderMesh(BRect, borderWidth);
 
     m_Renderer.UpdateMeshData(m_BorderMesh, UIElementFormat, vertexData.first, vertexData.second);
 
@@ -892,7 +984,7 @@ void UIModule::FloatSliderInternal(std::string name, Rect rect, float& outNum, f
         SliderRect.size = Vec2f(10.0f, TotalSize.size.y);
     }
 
-    Click SliderClick = ButtonInternal(name + "_Slider", SliderRect, 2.0f, c_NiceBlue);
+    Click SliderClick = ButtonInternal(name + "_Slider", PlacementSettings(PlacementType::RECT_ABSOLUTE, SliderRect), 2.0f, c_NiceBlue);
 
     bool SliderContainsMouse = InputModule::Get()->GetMouseState().GetMouseButtonState(MouseButton::LMB).justPressed && TotalSize.Contains(Engine::GetMousePosition());
 
@@ -932,7 +1024,7 @@ void UIModule::FloatSliderInternal(std::string name, Rect rect, float& outNum, f
 
 }
 
-void UIModule::FloatDraggerInternal(std::string name, Rect rect, float& outNum, float speed, float min, float max)
+void UIModule::FloatDraggerInternal(std::string name, PlacementSettings placeSettings, float& outNum, float speed, float min, float max)
 {
     if (!IsActive())
     {
@@ -950,7 +1042,9 @@ void UIModule::FloatDraggerInternal(std::string name, Rect rect, float& outNum, 
         Engine::SetMouseCursor(CursorType::Arrow);
     }
 
-    Click click = ButtonInternal(name + "_Dragger", rect, 2.0f, c_White);
+    Rect rect = SizeElement(placeSettings);
+
+    Click click = ButtonInternal(name + "_Dragger", placeSettings, 2.0f, c_White);
     if (click.clicking && !DraggerState->dragging)
     {
         DraggerState->dragging = true;
@@ -1022,24 +1116,92 @@ Rect UIModule::SizeElement(PlacementSettings settings)
 
     CursorInfo NewCursor = CurrentCursor;
 
-    ElementBounds.size = settings.size;
-
-    if (CurrentCursor.Top.x + ElementBounds.size.x > CurrentFrame.location.x + CurrentFrame.size.x)
+    if (settings.type == PlacementType::RECT)
     {
-        // New horizontal line
-        NewCursor.Top.x = CurrentFrame.location.x;
-        NewCursor.Top.y = NewCursor.Bottom.y;
-
-        NewCursor.Bottom = NewCursor.Top + Vec2f(0.0f, ElementBounds.size.y);
+        ElementBounds = settings.rect;
+    }
+    else if (settings.type == PlacementType::SIZE)
+    {
+        ElementBounds.size = settings.size;
+    }
+    else if (settings.type == PlacementType::RECT_ABSOLUTE)
+    {
+        // Absolute placement ignores the current cursor position and places the element at the specified rect location
+        ElementBounds = settings.rect;
     }
 
-    if (NewCursor.Top.y + ElementBounds.size.y > NewCursor.Bottom.y)
+    else if (settings.type == PlacementType::FIT_WIDTH)
     {
-        NewCursor.Bottom.y = NewCursor.Top.y + ElementBounds.size.y;
+        // If space remaining is below the min width, set the element bounds 
+        // width to the full width of the frame so it gets moved to the next line
+        float availableWidth = CurrentFrame.size.x - CurrentCursor.Top.x;
+        if (availableWidth < settings.minSize.x)
+        {
+            ElementBounds.size.x = CurrentFrame.size.x;
+        }
+        else
+        {
+            ElementBounds.size.x = availableWidth;
+        }
+
+        ElementBounds.size.y = settings.minSize.y;
+    }
+    else if (settings.type == PlacementType::FIT_HEIGHT)
+    {
+        ElementBounds.size.x = settings.minSize.x;
+        float availableHeight = CurrentFrame.size.y - CurrentCursor.Bottom.y;
+        if (availableHeight < settings.minSize.y)
+        {
+            ElementBounds.size.y = CurrentFrame.size.y;
+        }
+        else
+        {
+            ElementBounds.size.y = availableHeight;
+        }
+    }
+    else if (settings.type == PlacementType::FIT_BOTH)
+    {
+        float availableWidth = CurrentFrame.size.x - CurrentCursor.Top.x;
+        if (availableWidth < settings.minSize.x)
+        {
+            ElementBounds.size.x = CurrentFrame.size.x;
+        }
+        else
+        {
+            ElementBounds.size.x = availableWidth;
+        }
+
+        float availableHeight = CurrentFrame.size.y - CurrentCursor.Bottom.y;
+        if (availableHeight < settings.minSize.y)
+        {
+            ElementBounds.size.y = CurrentFrame.size.y;
+        }
+        else
+        {
+            ElementBounds.size.y = availableHeight;
+        }
     }
 
-    ElementBounds.location = NewCursor.Top;
-    NewCursor.Top.x += ElementBounds.size.x;
+    if (settings.type != PlacementType::RECT_ABSOLUTE)
+    {
+        if (CurrentCursor.Top.x + ElementBounds.size.x > CurrentFrame.location.x + CurrentFrame.size.x)
+        {
+            // New horizontal line
+            NewCursor.Top.x = CurrentFrame.location.x;
+            NewCursor.Top.y = NewCursor.Bottom.y;
+
+            NewCursor.Bottom = NewCursor.Top + Vec2f(0.0f, ElementBounds.size.y);
+        }
+
+        if (NewCursor.Top.y + ElementBounds.size.y > NewCursor.Bottom.y)
+        {
+            NewCursor.Bottom.y = NewCursor.Top.y + ElementBounds.size.y;
+        }
+
+        ElementBounds.location = NewCursor.Top;
+        NewCursor.Top.x += ElementBounds.size.x;
+    }
+
 
     if (!m_FrameStateStack.empty())
     {
@@ -1076,23 +1238,82 @@ Rect UIModule::PlaceElement(PlacementSettings settings)
     {
         ElementBounds.size = settings.size;
     }
-    
-    if (CurrentCursor.Top.x + ElementBounds.size.x > CurrentFrame.location.x + CurrentFrame.size.x)
+    else if (settings.type == PlacementType::RECT_ABSOLUTE)
     {
-        // New horizontal line
-        CurrentCursor.Top.x = CurrentFrame.location.x;
-        CurrentCursor.Top.y = CurrentCursor.Bottom.y;
+        // Absolute placement ignores the current cursor position and places the element at the specified rect location
+        ElementBounds = settings.rect;
+    }
+    else if (settings.type == PlacementType::FIT_WIDTH)
+    {
+        // If space remaining is below the min width, set the element bounds 
+        // width to the full width of the frame so it gets moved to the next line
+        float availableWidth = CurrentFrame.size.x - CurrentCursor.Top.x;
+        if (availableWidth < settings.minSize.x)
+        {
+            ElementBounds.size.x = CurrentFrame.size.x;
+        }
+        else
+        {
+            ElementBounds.size.x = availableWidth;
+        }
 
-        CurrentCursor.Bottom = CurrentCursor.Top + Vec2f(0.0f, ElementBounds.size.y);
+        ElementBounds.size.y = settings.minSize.y;
+    }
+    else if (settings.type == PlacementType::FIT_HEIGHT)
+    {
+        ElementBounds.size.x = settings.minSize.x;
+        float availableHeight = CurrentFrame.size.y - CurrentCursor.Bottom.y;
+        if (availableHeight < settings.minSize.y)
+        {
+            ElementBounds.size.y = CurrentFrame.size.y;
+        }
+        else
+        {
+            ElementBounds.size.y = availableHeight;
+        }
+    }
+    else if (settings.type == PlacementType::FIT_BOTH)
+    {
+        float availableWidth = CurrentFrame.size.x - CurrentCursor.Top.x;
+        if (availableWidth < settings.minSize.x)
+        {
+            ElementBounds.size.x = CurrentFrame.size.x;
+        }
+        else
+        {
+            ElementBounds.size.x = availableWidth;
+        }
+
+        float availableHeight = CurrentFrame.size.y - CurrentCursor.Bottom.y;
+        if (availableHeight < settings.minSize.y)
+        {
+            ElementBounds.size.y = CurrentFrame.size.y;
+        }
+        else
+        {
+            ElementBounds.size.y = availableHeight;
+        }
     }
 
-    if (CurrentCursor.Top.y + ElementBounds.size.y > CurrentCursor.Bottom.y)
+    if (settings.type != PlacementType::RECT_ABSOLUTE)
     {
-        CurrentCursor.Bottom.y = CurrentCursor.Top.y + ElementBounds.size.y;
-    }
+        if (CurrentCursor.Top.x + ElementBounds.size.x > CurrentFrame.location.x + CurrentFrame.size.x)
+        {
+            // New horizontal line
+            CurrentCursor.Top.x = CurrentFrame.location.x;
+            CurrentCursor.Top.y = CurrentCursor.Bottom.y;
 
-    ElementBounds.location = CurrentCursor.Top;
-    CurrentCursor.Top.x += ElementBounds.size.x;
+            CurrentCursor.Bottom = CurrentCursor.Top + Vec2f(0.0f, ElementBounds.size.y);
+        }
+
+        if (CurrentCursor.Top.y + ElementBounds.size.y > CurrentCursor.Bottom.y)
+        {
+            CurrentCursor.Bottom.y = CurrentCursor.Top.y + ElementBounds.size.y;
+        }
+
+        ElementBounds.location = CurrentCursor.Top;
+        CurrentCursor.Top.x += ElementBounds.size.x;
+    }
 
     if (!m_FrameStateStack.empty())
     {
@@ -1195,6 +1416,70 @@ std::pair<std::vector<float>, std::vector<ElementIndex>> UIModule::GetVertexData
         2, 6, 7, 2, 7, 3,
         4, 8, 9, 4, 9, 5,
         5, 9, 10, 5, 10, 6,
+        6, 10, 11, 6, 11, 7,
+        8, 12, 13, 8, 13, 9,
+        9, 13, 14, 9, 14, 10,
+        10, 14, 15, 10, 15, 11
+    };
+
+    return MeshData(vertices, indices);
+}
+
+MeshData UIModule::GetVertexDataForEmptyBorderMesh(Rect rect, float borderWidth)
+{
+    Vec2i screenSize = Engine::GetClientAreaSize();
+
+    rect.location.y = (screenSize.y - rect.location.y) - rect.size.y;
+
+    Vec2f min = rect.location;
+    Vec2f max = rect.location + rect.size;
+
+    float b = borderWidth;
+
+    float t0 = 0.0f;
+    float t1 = 1.0f / 3.0f;
+    float t2 = 2.0f / 3.0f;
+
+    //  12__13____14__15
+    //  |   |     |   |
+    //  8___9_____10__11
+    //  |   |     |   |
+    //  |-b-|     |   |
+    //  |   |     |   |
+    //  4___5_____6___7
+    //  |   |     |   |
+    //  0___1_____2___3
+
+    std::vector<float> vertices =
+    {
+        // Position                 // UV
+        min.x, min.y,               0.0f, 0.0f,
+        min.x + b, min.y,           t1, 0.0f,
+        max.x - b, min.y,           t2, 0.0f,
+        max.x, min.y,               1.0f, 0.0f,
+
+        min.x, min.y + b,           0.0f, t1,
+        min.x + b, min.y + b,       t1, t1,
+        max.x - b, min.y + b,       t2, t1,
+        max.x, min.y + b,           1.0f, t1,
+
+        min.x, max.y - b,           0.0f, t2,
+        min.x + b, max.y - b,       t1, t2,
+        max.x - b, max.y - b,       t2, t2,
+        max.x, max.y - b,           1.0f, t2,
+
+        min.x, max.y,               0.0f, 1.0f,
+        min.x + b, max.y,           t1, 1.0f,
+        max.x - b, max.y,           t2, 1.0f,
+        max.x, max.y,               1.0f, 1.0f
+
+    };
+    std::vector<ElementIndex> indices =
+    {
+        0, 4, 5, 0, 5, 1,
+        1, 5, 6, 1, 6, 2,
+        2, 6, 7, 2, 7, 3,
+        4, 8, 9, 4, 9, 5,
         6, 10, 11, 6, 11, 7,
         8, 12, 13, 8, 13, 9,
         9, 13, 14, 9, 14, 10,

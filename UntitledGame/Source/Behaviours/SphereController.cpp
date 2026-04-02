@@ -206,12 +206,24 @@ void SphereController::Update(Scene* Scene, double DeltaTime)
     
     if (CamHitTest.rayCastHit.hit && CamHitTest.rayCastHit.hitDistance < CamDistance)
     {
-        NewCamPos = CamHitTest.rayCastHit.hitPoint + (CamHitTest.rayCastHit.hitNormal * 0.01f);
+        NewCamPos = CamHitTest.rayCastHit.hitPoint + (CamHitTest.rayCastHit.hitNormal * 0.1f);
     }
     else
     {
         NewCamPos = (NegDistance * Rotation) + CamCenterPoint;
+
+        // Also test radius around cam against level geo (to prevent clipping when close to walls)
+        Sphere CamSphere;
+        CamSphere.position = NewCamPos;
+        CamSphere.radius = 0.2f;
+        Intersection CamSphereTest = Scene->SphereIntersect(CamSphere, { m_Model });
+        if (CamSphereTest.hit)
+        {
+            NewCamPos = NewCamPos + (CamSphereTest.penetrationNormal * (0.1f - CamSphereTest.penetrationDepth));
+        }
     }
+
+
 
     Vec3f NewCamDir = (CamCenterPoint - NewCamPos).GetNormalized();
 

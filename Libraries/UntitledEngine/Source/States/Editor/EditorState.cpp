@@ -214,7 +214,7 @@ void EditorState::UpdateEditor(double DeltaTime)
 
     //Graphics->ResetFrameBuffer();
 
-    UI->StartFrame("EditorFrame", Rect(Vec2f(0.0f, 0.0f), ViewportSize), 0.0f, c_FrameDark);
+    UI->StartFrame("EditorFrame", PlacementSettings(PlacementType::RECT_ABSOLUTE, Rect(Vec2f(0.0f, 0.0f), ViewportSize)), 0.0f, c_FrameDark);
     {
         if (UI->StartTab("Level"))
         {
@@ -239,6 +239,12 @@ void EditorState::UpdateEditor(double DeltaTime)
             DrawMaterialEditor();
         }
         UI->EndTab();       
+
+        if (UI->StartTab("HotSpot Materials"))
+        {
+            DrawHotSpotMaterialEditor();
+        }
+        UI->EndTab();
 
         if (UI->StartTab("+"))
         {
@@ -400,6 +406,7 @@ void EditorState::LoadEditorResources()
 
     boxToolTexture = *Registry->LoadTexture("Assets/images/boxTool.png");
     planeToolTexture = *Registry->LoadTexture("Assets/images/planeTool.png");
+    waterToolTexture = *Registry->LoadTexture("Assets/images/waterTool.png");
 
     translateToolTexture = *Registry->LoadTexture("Assets/images/translateTool.png");
     rotateToolTexture = *Registry->LoadTexture("Assets/images/rotateTool.png");
@@ -709,48 +716,49 @@ void EditorState::DrawProjectSettingsEditor()
     
     UI->StartFrame("Project Build Settings", Vec2f(420.0f, 400.0f), 20.0f, c_NiceLighterBlue);
 
-
-    std::string GameTypeButtonString;
-    if (CurrentGameType == GameType::SINGLEPLAYER) GameTypeButtonString = "Singleplayer";
-    else if (CurrentGameType == GameType::MULTIPLAYER) GameTypeButtonString = "Multiplayer";
-
-    if (UI->TextButton(GameTypeButtonString, Vec2f(380.0f, 60.0f), 10.0f, c_Button))
     {
-        if (CurrentGameType == GameType::SINGLEPLAYER) CurrentGameType = GameType::MULTIPLAYER;
-        else if (CurrentGameType == GameType::MULTIPLAYER) CurrentGameType = GameType::SINGLEPLAYER;
-    }
-    UI->NewLine(40.0f);
+        std::string GameTypeButtonString;
+        if (CurrentGameType == GameType::SINGLEPLAYER) GameTypeButtonString = "Singleplayer";
+        else if (CurrentGameType == GameType::MULTIPLAYER) GameTypeButtonString = "Multiplayer";
 
-    std::string GameStateUsingString = "Using custom game state: ";
-    if (UsingCustomGameState) GameStateUsingString += " True";
-    else GameStateUsingString += " False";
-
-    if (UI->TextButton(GameStateUsingString, Vec2f(UsingCustomGameState ? 190.0f : 380.0f, 60.0f), 10.0f, c_Button))
-    {
-        UsingCustomGameState = !UsingCustomGameState;
-    }
-
-    if (UsingCustomGameState)
-    {
-        if (UI->TextButton(CustomGameStateNames[CurrentCustomStateIndex], Vec2f(190.0f, 60.0f), 10.0f, c_NiceBrightGreen))
+        if (UI->TextButton(GameTypeButtonString, Vec2f(380.0f, 60.0f), 10.0f, c_Button))
         {
-            CurrentCustomStateIndex++;
-            if (CurrentCustomStateIndex >= CustomGameStateNames.size())
+            if (CurrentGameType == GameType::SINGLEPLAYER) CurrentGameType = GameType::MULTIPLAYER;
+            else if (CurrentGameType == GameType::MULTIPLAYER) CurrentGameType = GameType::SINGLEPLAYER;
+        }
+        UI->NewLine(40.0f);
+
+        std::string GameStateUsingString = "Using custom game state: ";
+        if (UsingCustomGameState) GameStateUsingString += " True";
+        else GameStateUsingString += " False";
+
+        if (UI->TextButton(GameStateUsingString, Vec2f(UsingCustomGameState ? 190.0f : 380.0f, 60.0f), 10.0f, c_Button))
+        {
+            UsingCustomGameState = !UsingCustomGameState;
+        }
+
+        if (UsingCustomGameState)
+        {
+            if (UI->TextButton(CustomGameStateNames[CurrentCustomStateIndex], Vec2f(190.0f, 60.0f), 10.0f, c_NiceBrightGreen))
             {
-                CurrentCustomStateIndex = 0;
+                CurrentCustomStateIndex++;
+                if (CurrentCustomStateIndex >= CustomGameStateNames.size())
+                {
+                    CurrentCustomStateIndex = 0;
+                }
             }
         }
-    }
 
-    UI->NewLine(40.0f);
+        UI->NewLine(40.0f);
 
-    if (UI->TextButton("Build", Vec2f(380.0f, 60.0f), 10.0f, c_TopButton, Vec3f(1.0f, 1.0f, 1.0f)))
-    {
-        std::string BuildCommand = "BuildGame.bat " + CurrentLevelName + " " + GameTypeButtonString;
-        
-        if (UsingCustomGameState) BuildCommand += " " + CustomGameStateNames[CurrentCustomStateIndex];
+        if (UI->TextButton("Build", Vec2f(380.0f, 60.0f), 10.0f, c_TopButton, Vec3f(1.0f, 1.0f, 1.0f)))
+        {
+            std::string BuildCommand = "BuildGame.bat " + CurrentLevelName + " " + GameTypeButtonString;
 
-        Engine::RunCommand(BuildCommand);
+            if (UsingCustomGameState) BuildCommand += " " + CustomGameStateNames[CurrentCustomStateIndex];
+
+            Engine::RunCommand(BuildCommand);
+        }
     }
     UI->EndFrame();
 }
@@ -814,7 +822,7 @@ void EditorState::DrawEntityEditor()
     // Left toolbar buttons
     Rect ToolbarButtonRect = Rect(Vec2f(0.0f, 60.0f), Vec2f(ViewportRect.location.x, ViewportRect.size.y));
 
-    if (UI->StartFrame("Tools", ToolbarButtonRect, 0.0f, c_FrameLight))
+    if (UI->StartFrame("Tools", PlacementSettings(PlacementType::RECT_ABSOLUTE, ToolbarButtonRect), 0.0f, c_FrameLight))
     {
         Vec3f SelectedColour = c_SelectedButton;
         Vec3f UnSelectedColour = c_Button;
@@ -960,7 +968,7 @@ void EditorState::DrawEntityEditor()
     Rect InspectorPanelRect = Rect(Vec2f(SceneViewportRect.location.x + SceneViewportRect.size.x, SceneViewportRect.location.y),
         Vec2f(ViewportSize.x - (SceneViewportRect.location.x + SceneViewportRect.size.x), ViewportSize.y - SceneViewportRect.location.y));
 
-    UI->StartFrame("Entity Inspector", InspectorPanelRect, 12.0f, c_NiceLighterBlue);
+    UI->StartFrame("Entity Inspector", PlacementSettings(PlacementType::RECT_ABSOLUTE, InspectorPanelRect), 12.0f, c_NiceLighterBlue);
     {
         DrawEntityInspectorPanel();
     }
@@ -970,7 +978,7 @@ void EditorState::DrawEntityEditor()
     Vec2i ScreenSize = Engine::GetClientAreaSize();
 
     Rect ResourcePanelRect = Rect(Vec2f(ViewportRect.location.x, ViewportRect.location.y + ViewportRect.size.y), Vec2f(ViewportRect.size.x, ScreenSize.y - (ViewportRect.location.y + ViewportRect.size.y)));
-    UI->StartFrame("Resources", ResourcePanelRect, 16.0f, c_FrameDark);
+    UI->StartFrame("Resources", PlacementSettings(PlacementType::RECT_ABSOLUTE, ResourcePanelRect), 16.0f, c_FrameDark);
     {
         if (UI->StartTab("Models", c_Tab))
         {
@@ -988,7 +996,8 @@ void EditorState::DrawEntityEditor()
         {
             for (auto& Mat : LoadedMaterials)
             {
-                if (UI->ImgButton(Mat.m_Albedo->Path.GetFileNameNoExt(), *Mat.m_Albedo, Vec2f(80, 80), 5.0f, c_ResourceButton).clicking)
+                Click materialClick = UI->ImgButton(Mat.m_Albedo->Path.GetFileNameNoExt(), *Mat.m_Albedo, Vec2f(80, 80), 5.0f, c_ResourceButton);
+                if (materialClick.clicking)
                 {
                     if (!Cursor.IsDraggingSomething())
                     {
@@ -996,6 +1005,11 @@ void EditorState::DrawEntityEditor()
                         Cursor.StartDraggingNewMaterial(MatPtr);
                     }
 
+                }
+                if (materialClick.clicked)
+                {
+                    Cursor.StopDragging();
+                    Cursor.ApplyMaterialToSelectedObjects(Mat);
                 }
             }
         }
@@ -1081,21 +1095,212 @@ void EditorState::DrawMaterialEditor()
 
 }
 
+void EditorState::DrawHotSpotMaterialEditor()
+{
+    UIModule* UI = UIModule::Get();
+    InputModule* Input = InputModule::Get();
+
+    Vec2f FrameSize = UI->GetCurrentFrameSize();
+
+    UI->StartFrame("Hotspot Material Toolbar", PlacementSettings(PlacementType::FIT_WIDTH, 50.0f), 0.0f, c_FrameLight);
+    {
+        if (UI->TextButton("Clear Hotspots", PlacementSettings(PlacementType::FIT_HEIGHT, 120.0f), 8.0f, c_NiceYellow))
+        {
+            HotspotRects.clear();
+        }
+    }
+    UI->EndFrame();
+
+    UI->StartFrame("Hotspot Material Editor", PlacementSettings(PlacementType::FIT_WIDTH, FrameSize.y * 0.75f), 12.0f, c_NiceLighterBlue);
+    {
+        if (SelectedHotspotMaterial)
+        {
+            Vec2f hotspotMaterialFrameSize = UI->GetCurrentFrameSize();
+
+            float smallerDim = std::min(hotspotMaterialFrameSize.x, hotspotMaterialFrameSize.y);
+            
+            smallerDim -= smallerDim * 0.05; // Padding from edges of frame
+
+            Rect frameRect = UI->GetCurrentFrameRect();
+
+            // Center the image in the frame and scale it to fit while maintaining aspect ratio
+            Vec2f frameCenter = frameRect.location + (frameRect.size / 2.0f);
+            Vec2f imgSize = Vec2f(smallerDim, smallerDim);
+            float imgAspect = imgSize.x / imgSize.y;
+            Vec2f imgRectSize;
+            if (imgAspect > 1.0f)
+            {
+                imgRectSize.x = smallerDim;
+                imgRectSize.y = smallerDim / imgAspect;
+            }
+            else
+            {
+                imgRectSize.y = smallerDim;
+                imgRectSize.x = smallerDim * imgAspect;
+            }
+            Rect imgRect = Rect(frameCenter - (imgRectSize / 2.0f), imgRectSize);
+
+            UI->ImgPanel(*SelectedHotspotMaterial->m_Albedo, PlacementSettings(PlacementType::RECT_ABSOLUTE, imgRect));
+
+            // If the user clicks on the frame, start dragging out a new hotspot rect if they didn't click on an existing one
+            if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).justPressed && !DraggingNewHotspotRect)
+            {
+                Vec2f MousePos = Input->GetMouseState().GetMousePos();
+                Rect frameRect = UI->GetCurrentFrameRect();
+                if (frameRect.Contains(MousePos))
+                {
+                    // Clamp mouse position to the image rect
+                    if (MousePos.x < imgRect.location.x) MousePos.x = imgRect.location.x;
+                    if (MousePos.y < imgRect.location.y) MousePos.y = imgRect.location.y;
+                    if (MousePos.x > imgRect.location.x + imgRect.size.x) MousePos.x = imgRect.location.x + imgRect.size.x;
+                    if (MousePos.y > imgRect.location.y + imgRect.size.y) MousePos.y = imgRect.location.y + imgRect.size.y;
+
+                    bool clickedOnExistingHotspot = false;
+                    //for (auto& hotspotRect : HotspotRects)
+                    //{
+                    //    Rect hotspotRectAbsolute = Rect(imgRect.location + (hotspotRect.location * imgRect.size), hotspotRect.size * imgRect.size);
+                    //    if (hotspotRectAbsolute.Contains(MousePos))
+                    //    {
+                    //        clickedOnExistingHotspot = true;
+                    //        break;
+                    //    }
+                    //}
+                    if (!clickedOnExistingHotspot)
+                    {
+                        DraggingNewHotspotRect = true;
+                        NewHotspotRectStartPos = MousePos - imgRect.location;
+                    }
+                }
+            }
+            // If the user releases the mouse button while dragging out a new hotspot rect, add it to the list of hotspot rects
+            if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).justReleased && DraggingNewHotspotRect)
+            {
+                Vec2f MousePos = Input->GetMouseState().GetMousePos();
+                Vec2f NewHotspotRectEndPos = MousePos - imgRect.location;
+                // If the mouse is outside the image rect, clamp the current position to the edge of the image rect
+                if (NewHotspotRectEndPos.x < 0.0f) NewHotspotRectEndPos.x = 0.0f;
+                if (NewHotspotRectEndPos.y < 0.0f) NewHotspotRectEndPos.y = 0.0f;
+                if (NewHotspotRectEndPos.x > imgRect.size.x) NewHotspotRectEndPos.x = imgRect.size.x;
+                if (NewHotspotRectEndPos.y > imgRect.size.y) NewHotspotRectEndPos.y = imgRect.size.y;
+
+                Rect NewHotspotRect = Rect(
+                    Vec2f(std::min(NewHotspotRectStartPos.x, NewHotspotRectEndPos.x), std::min(NewHotspotRectStartPos.y, NewHotspotRectEndPos.y)),
+                    Vec2f(std::abs(NewHotspotRectEndPos.x - NewHotspotRectStartPos.x), std::abs(NewHotspotRectEndPos.y - NewHotspotRectStartPos.y))
+                );
+
+
+                if (NewHotspotRect.size.x > 0.0001f && NewHotspotRect.size.y > 0.0001f)
+                {
+                    // Store rect as relative to img rect, with normalized coordinates (0 to 1)
+                    NewHotspotRect.location.x /= imgRect.size.x;
+                    NewHotspotRect.location.y /= imgRect.size.y;
+                    NewHotspotRect.size.x /= imgRect.size.x;
+                    NewHotspotRect.size.y /= imgRect.size.y;                
+
+                    for (auto& hotspotRect : HotspotRects)
+                    {
+                        NewHotspotRect.shrinkOverlap(hotspotRect);
+                    }
+
+                    HotspotRects.push_back(NewHotspotRect);
+                    DraggingNewHotspotRect = false;
+                }
+                else
+                {
+                    DraggingNewHotspotRect = false;
+                }
+
+            }
+            // If the user is dragging out a new hotspot rect, draw a rect from the start position to the current mouse position
+            if (DraggingNewHotspotRect)
+            {
+                Vec2f MousePos = Input->GetMouseState().GetMousePos();
+                Vec2f NewHotspotRectCurrentPos = MousePos - imgRect.location;
+                // If the mouse is outside the image rect, clamp the current position to the edge of the image rect
+                if (NewHotspotRectCurrentPos.x < 0.0f) NewHotspotRectCurrentPos.x = 0.0f;
+                if (NewHotspotRectCurrentPos.y < 0.0f) NewHotspotRectCurrentPos.y = 0.0f;
+                if (NewHotspotRectCurrentPos.x > imgRect.size.x) NewHotspotRectCurrentPos.x = imgRect.size.x;
+                if (NewHotspotRectCurrentPos.y > imgRect.size.y) NewHotspotRectCurrentPos.y = imgRect.size.y;
+
+                NewHotspotRect = Rect(
+                    Vec2f(std::min(NewHotspotRectStartPos.x, NewHotspotRectCurrentPos.x), std::min(NewHotspotRectStartPos.y, NewHotspotRectCurrentPos.y)),
+                    Vec2f(std::abs(NewHotspotRectCurrentPos.x - NewHotspotRectStartPos.x), std::abs(NewHotspotRectCurrentPos.y - NewHotspotRectStartPos.y))
+                );
+
+                // Store rect as relative to img rect, with normalized coordinates (0 to 1)
+                NewHotspotRect.location.x /= imgRect.size.x;
+                NewHotspotRect.location.y /= imgRect.size.y;
+                NewHotspotRect.size.x /= imgRect.size.x;
+                NewHotspotRect.size.y /= imgRect.size.y;
+
+                for (auto& hotspotRect : HotspotRects)
+                {
+                    NewHotspotRect.shrinkOverlap(hotspotRect);
+                }
+            }
+
+            for (int i = HotspotRects.size() - 1; i >= 0; i--)
+            {
+                Rect& hotspotRect = HotspotRects[i];
+                Rect hotspotRectAbsolute = Rect(imgRect.location + (hotspotRect.location * imgRect.size), hotspotRect.size * imgRect.size);
+                UI->DrawBorder(PlacementSettings(PlacementType::RECT_ABSOLUTE, hotspotRectAbsolute), 1.0f, c_NiceBrightGreen);
+                //if (UI->TextButton("Wee", PlacementSettings(PlacementType::RECT_ABSOLUTE, hotspotRectAbsolute), 0.0f))
+                //{
+                //    HotspotRects.erase(HotspotRects.begin() + i);
+                //}
+            }
+
+            // If we're dragging out a new hotspot rect, draw it as well
+            if (DraggingNewHotspotRect)
+            {
+                Rect hotspotRectAbsolute = Rect(imgRect.location + (NewHotspotRect.location * imgRect.size), NewHotspotRect.size * imgRect.size);
+                UI->DrawBorder(PlacementSettings(PlacementType::RECT_ABSOLUTE, hotspotRectAbsolute), 1.0f, c_NicePurple);
+                //UI->TextButton("Wee", PlacementSettings(PlacementType::RECT_ABSOLUTE, hotspotRectAbsolute), 0.0f);
+            }
+        }
+        else
+        {
+            UI->Text("Select a Material to begin", PlacementType::FIT_BOTH, 12.0f);
+        }
+    }
+    UI->EndFrame();
+
+    // Draw resource drawer for materials
+    UI->StartFrame("Materials", PlacementType::FIT_BOTH, 12.0f, c_NiceYellow);
+    {
+        UI->StartFrame("Inner Materials Frame Test", PlacementType::FIT_BOTH, 12.0f, c_NiceYellow);
+
+        Vec2f frameSize = UI->GetCurrentFrameSize();
+
+        for (auto& Mat : LoadedMaterials)
+        {
+            Click materialClick = UI->ImgButton(Mat.m_Albedo->Path.GetFileNameNoExt(), *Mat.m_Albedo, Vec2f(80, 80), 5.0f, c_ResourceButton);
+            if (materialClick.clicked)
+            {
+                SelectedHotspotMaterial = &Mat;
+                HotspotRects.clear();
+            }
+        }
+        UI->EndFrame();
+    }
+    UI->EndFrame();
+}
+
 void EditorState::DrawNewTabScreen()
 {
     UIModule* UI = UIModule::Get();
 
-    if (UI->TextButton("New Material", c_NicePurple));
+    if (UI->TextButton("New Material", PlacementType::FIT_WIDTH, 4.0f, c_NicePurple));
     {
 
     }
     UI->NewLine();
-    if (UI->TextButton("New Entity", c_NicePurple))
+    if (UI->TextButton("New Entity", PlacementType::FIT_WIDTH, 4.0f, c_NicePurple))
     {
 
     }
     UI->NewLine();
-    if (UI->TextButton("New Hotspot Texture", c_NicePurple));
+    if (UI->TextButton("New Hotspot Texture", PlacementType::FIT_WIDTH, 4.0f, c_NicePurple));
     {
 
     }
@@ -1112,7 +1317,7 @@ void EditorState::DrawEditorUI()
     // Left toolbar buttons
     Rect ToolbarButtonRect = Rect(Vec2f(0.0f, 60.0f), Vec2f(ViewportRect.location.x, ViewportRect.size.y));
 
-    if (UI->StartFrame("Tools", ToolbarButtonRect, 0.0f, c_FrameLight))
+    if (UI->StartFrame("Tools", PlacementSettings(PlacementType::RECT_ABSOLUTE, ToolbarButtonRect), 0.0f, c_FrameLight))
     {
         Vec3f SelectedColour = c_SelectedButton;
         Vec3f UnSelectedColour = c_Button;
@@ -1187,6 +1392,9 @@ void EditorState::DrawEditorUI()
         case GeometryMode::HalfEdge:
             GeoModeTexture = playButtonTexture;
             break;
+        case GeometryMode::Water:
+            GeoModeTexture = waterToolTexture;
+            break;
         default:
             break;
         }
@@ -1215,6 +1423,7 @@ void EditorState::DrawEditorUI()
     UI->EndFrame();
 
     DrawTopPanel();
+    DrawToolSettingsPanel();
     DrawDrawerSettingsPanel();
     DrawResourcesPanel(EditorScene);
     DrawInspectorPanel();
@@ -1233,7 +1442,7 @@ void EditorState::DrawTopPanel()
 
     //Vec2f TopPanelButtonSize = Vec2f(ViewportRect.location.y, ViewportRect.location.y);
 
-    UI->StartFrame("Top", TopPanelRect, 0.0f, c_FrameDark);
+    UI->StartFrame("Top", PlacementSettings(PlacementType::RECT_ABSOLUTE, TopPanelRect), 0.0f, c_FrameDark);
     {
         if (UI->ImgButton("PlayButton", playButtonTexture, Vec2f(40.0f, 40.0f), 8.0f, c_TopButton))
         {
@@ -1308,6 +1517,25 @@ void EditorState::DrawTopPanel()
     UI->EndFrame();
 }
 
+void EditorState::DrawToolSettingsPanel()
+{
+    UIModule* UI = UIModule::Get();
+    
+    Vec2i ScreenSize = Engine::GetClientAreaSize();
+    Rect ViewportRect = GetEditorSceneViewportRect();
+
+    Rect ToolSettingsRect = Rect(
+        Vec2f(ScreenSize.x * 0.0f, ViewportRect.location.y + ViewportRect.size.y), 
+        Vec2f(ScreenSize.x * 0.1f, ScreenSize.y - (ViewportRect.location.y + ViewportRect.size.y))
+    );
+
+    UI->StartFrame("Tool Settings", PlacementSettings(PlacementType::RECT_ABSOLUTE, ToolSettingsRect), 8.0f, c_FrameDark, false);
+    {
+        Cursor.DrawToolSettingsPanel();
+    }
+    UI->EndFrame();
+}
+
 void EditorState::DrawDrawerSettingsPanel()
 {
     UIModule* UI = UIModule::Get();
@@ -1316,17 +1544,17 @@ void EditorState::DrawDrawerSettingsPanel()
     Rect ViewportRect = GetEditorSceneViewportRect();
 
     Rect ModeSelectRect = Rect(
-        Vec2f(0.0f, ViewportRect.location.y + ViewportRect.size.y), 
-        Vec2f(ViewportRect.location.x, ScreenSize.y - (ViewportRect.location.y + ViewportRect.size.y))
+        Vec2f(ScreenSize.x * 0.1f, ViewportRect.location.y + ViewportRect.size.y), 
+        Vec2f(ScreenSize.x * 0.05f, ScreenSize.y - (ViewportRect.location.y + ViewportRect.size.y))
     );
 
-    UI->StartFrame("Mode Select", ModeSelectRect, 6.0f, c_FrameLight);
+    UI->StartFrame("Mode Select", PlacementSettings(PlacementType::RECT_ABSOLUTE, ModeSelectRect), 6.0f, c_FrameLight);
     {
-        if (UI->TextButton("Content", Vec2f(ModeSelectRect.size.x - 16.0f, 40.0f), 6.0f))
+        if (UI->TextButton("Content", PlacementType::FIT_WIDTH, 6.0f))
         {
             Drawer = DrawerMode::CONTENT;
         }
-        if (UI->TextButton("Browser", Vec2f(ModeSelectRect.size.x - 16.0f, 40.0f), 6.0f))
+        if (UI->TextButton("Browser", PlacementType::FIT_WIDTH, 6.0f))
         {
             Drawer = DrawerMode::BROWSER;
         }
@@ -1346,11 +1574,13 @@ void EditorState::DrawResourcesPanel(Scene& FocusedScene)
     Vec2i ScreenSize = Engine::GetClientAreaSize();
     Rect ViewportRect = GetEditorSceneViewportRect();
 
-    Rect ResourcePanelRect = Rect(Vec2f(ViewportRect.location.x, ViewportRect.location.y + ViewportRect.size.y), Vec2f(ViewportRect.size.x, ScreenSize.y - (ViewportRect.location.y + ViewportRect.size.y)));
+    Rect ResourcePanelRect = Rect(
+        Vec2f(ScreenSize.x * 0.15f, ViewportRect.location.y + ViewportRect.size.y),
+        Vec2f((ViewportRect.size.x + ViewportRect.location.x) - (ScreenSize.x * 0.15f), ScreenSize.y - (ViewportRect.location.y + ViewportRect.size.y)));
 
     if (Drawer == DrawerMode::CONTENT)
     {
-        UI->StartFrame("Resources", ResourcePanelRect, 16.0f, c_FrameDark);
+        UI->StartFrame("Resources", PlacementSettings(PlacementType::RECT_ABSOLUTE,  ResourcePanelRect), 16.0f, c_FrameDark);
         {
             UI->StartTab("Models", c_Tab);
             {
@@ -1374,7 +1604,8 @@ void EditorState::DrawResourcesPanel(Scene& FocusedScene)
             {
                 for (auto& Mat : LoadedMaterials)
                 {
-                    if (UI->ImgButton(Mat.m_Albedo->Path.GetFileNameNoExt(), *Mat.m_Albedo, Vec2f(80, 80), 5.0f, c_ResourceButton).clicking)
+                    Click materialClick = UI->ImgButton(Mat.m_Albedo->Path.GetFileNameNoExt(), *Mat.m_Albedo, Vec2f(80, 80), 5.0f, c_ResourceButton);
+                    if (materialClick.clicking)
                     {
                         lastUsedMaterial = &Mat;
                         if (!Cursor.IsDraggingSomething())
@@ -1383,6 +1614,11 @@ void EditorState::DrawResourcesPanel(Scene& FocusedScene)
                             Cursor.StartDraggingNewMaterial(MatPtr);
                         }
 
+                    }
+                    if (materialClick.clicked)
+                    {
+                        Cursor.StopDragging();
+                        Cursor.ApplyMaterialToSelectedObjects(Mat);
                     }
                 }
 
@@ -1394,6 +1630,12 @@ void EditorState::DrawResourcesPanel(Scene& FocusedScene)
                     UI->ImgButton(lastUsedMaterial->m_Metallic->Path.GetFileNameNoExt(), *lastUsedMaterial->m_Metallic, Vec2f(40, 40), 0.0f);
                     UI->ImgButton(lastUsedMaterial->m_AO->Path.GetFileNameNoExt(), *lastUsedMaterial->m_AO, Vec2f(40, 40), 0.0f);
                 }
+            }
+            UI->EndTab();
+
+            UI->StartTab("HotSpot Materials", c_Tab);
+            {
+                
             }
             UI->EndTab();
 
@@ -1475,7 +1717,7 @@ void EditorState::DrawResourcesPanel(Scene& FocusedScene)
     }
     else if (Drawer == DrawerMode::BROWSER)
     {
-        UI->StartFrame("Browser", ResourcePanelRect, 16.0f, c_FrameDark);
+        UI->StartFrame("Browser", PlacementSettings(PlacementType::RECT_ABSOLUTE, ResourcePanelRect), 16.0f, c_FrameDark);
         {
             if (UI->TextButton("..", Vec2f(120.0f, 40.0f), 8.0f, c_NiceYellow))
             {
@@ -1526,14 +1768,8 @@ void EditorState::DrawInspectorPanel()
     Rect InspectorPanelRect = Rect( Vec2f(ViewportRect.location.x + ViewportRect.size.x, ViewportRect.location.y), 
                                     Vec2f(ScreenSize.x - (ViewportRect.location.x + ViewportRect.size.x), ScreenSize.y - ViewportRect.location.y));
 
-    UI->StartFrame("Settings", InspectorPanelRect, 16.0f, c_Inspector);
+    UI->StartFrame("Settings", PlacementSettings(PlacementType::RECT_ABSOLUTE, InspectorPanelRect), 16.0f, c_Inspector);
     {
-        if (UI->StartTab("Tool Settings"))
-        {
-            Cursor.DrawToolSettingsPanel();
-        }
-        UI->EndTab();
-
         if (UI->StartTab("Inspector"))
         {
             Cursor.DrawInspectorPanel();

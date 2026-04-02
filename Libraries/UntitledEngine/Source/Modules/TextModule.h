@@ -20,7 +20,8 @@ enum class Anchor
     MIDDLE_RIGHT,
     BOTTOM_LEFT,
     BOTTOM_CENTER,
-    BOTTOM_RIGHT
+    BOTTOM_RIGHT,
+    DEFAULT
 };
 
 struct CharacterInfo {
@@ -36,6 +37,7 @@ struct Font
 
     Texture_ID m_TextureAtlas;
     Vec2i m_AtlasSize;
+    int m_FontSize;
 };
 
 struct TextInfo

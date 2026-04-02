@@ -19,6 +19,24 @@ void SelectedPointLight::Draw()
     AABB LightAABB = AABB(PointLightPtr->position - Vec3f(0.35f, 0.35f, 0.35f), PointLightPtr->position + Vec3f(0.35f, 0.35f, 0.35f));
 
     Graphics->DebugDrawAABB(LightAABB, c_SelectedBoxColour);
+
+    float lightRange;
+
+    // TODO(fraser): test attenuation ranges
+    if (PointLightPtr->quadraticAttenuation > 0.0f)
+    {
+        lightRange = sqrt(PointLightPtr->intensity / (PointLightPtr->quadraticAttenuation * 0.01f));
+    }
+    else if (PointLightPtr->linearAttenuation > 0.0f)
+    {
+        lightRange = PointLightPtr->intensity / (PointLightPtr->linearAttenuation * 0.01f);
+    }
+    else
+    {
+        lightRange = 200.0f; // Arbitrary large distance if no attenuation
+    }
+    Graphics->DebugDrawSphere(PointLightPtr->position, lightRange, PointLightPtr->colour);
+
 }
 
 void SelectedPointLight::Update()
@@ -44,7 +62,11 @@ bool SelectedPointLight::DrawInspectorPanel()
     UI->Text("Intensity", c_InspectorColour);
     UI->NewLine();
 
-    UI->FloatDragger("Intensity", Vec2f(400.0f, 20.0f), PointLightPtr->intensity, 0.1f);
+    UI->FloatDragger("Intensity", Vec2f(400.0f, 20.0f), PointLightPtr->intensity, 0.1f, 0.0f);
+
+    UI->FloatDragger("Constant Attenuation", Vec2f(400.0f, 20.0f), PointLightPtr->constantAttenuation, 0.01f, 0.0f);
+    UI->FloatDragger("Linear Attenuation", Vec2f(400.0f, 20.0f), PointLightPtr->linearAttenuation, 0.01f, 0.0f);
+    UI->FloatDragger("Quadratic Attenuation", Vec2f(400.0f, 20.0f), PointLightPtr->quadraticAttenuation, 0.01f, 0.0f);
 
     UI->CheckBox("CastShadows", PointLightPtr->castShadows);
 

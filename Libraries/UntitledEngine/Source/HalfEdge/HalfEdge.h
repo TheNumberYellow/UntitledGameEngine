@@ -48,7 +48,7 @@ namespace he
 
     struct Face
     {
-        //TODO: store material + maybe normals/smoothing data
+        //TODO: store normals/smoothing data
     public:
         float textureNudgeU = 0.0f;
         float textureNudgeV = 0.0f;
@@ -59,6 +59,8 @@ namespace he
         float textureRot = 0.0f;
 
         Material material;
+        
+        bool flipFace = false; // Whether this face should be rendered with reversed winding order, used for faces that have been flipped by the user to avoid having to recalculate halfedge connectivity
 
         HalfEdge* halfEdge = nullptr;
     };
@@ -74,6 +76,8 @@ namespace he
         virtual bool DrawInspectorPanel() override;
         virtual Transform* GetTransform() override;
         virtual void DeleteObject() override;
+
+        virtual void ApplyMaterial(Material& inMaterial);
 
     private:
 
@@ -151,6 +155,10 @@ namespace he
 
         void SubDivideFace(Face* inFace);
 
+        void DeleteFace(Face* inFace);
+
+        void FlipFace(Face* inFace);
+
         void ExtrudeFace(he::Face* inFace);
 
         void EditorDraw();
@@ -174,6 +182,7 @@ namespace he
 
         RayCastHit ClickCastFaces(Ray mouseRay, ISelectedObject*& outSelectedObject);
         RayCastHit ClickCastVerts(Ray mouseRay, ISelectedObject*& outSelectedObject);
+
 
 
         virtual RayCastHit ClickCast(Ray mouseRay, ISelectedObject*& outSelectedObject) override;

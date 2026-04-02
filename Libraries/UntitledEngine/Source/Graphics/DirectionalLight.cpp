@@ -35,13 +35,15 @@ bool SelectedDirectionalLight::DrawInspectorPanel()
 {
     UIModule* UI = UIModule::Get();
 
-    static std::string ColourString = "Colour";
 
-    UI->TextEntry("Colour", ColourString, Vec2f(250.0f, 20.0f), c_InspectorColour);
+    UI->Text("Colour", c_InspectorColour);
 
     UI->FloatSlider("R", Vec2f(400.0f, 20.0f), DirLightPtr->colour.r);
     UI->FloatSlider("G", Vec2f(400.0f, 20.0f), DirLightPtr->colour.g);
     UI->FloatSlider("B", Vec2f(400.0f, 20.0f), DirLightPtr->colour.b);
+
+    UI->FloatDragger("Intensity", Vec2f(400.0f, 20.0f), DirLightPtr->intensity, 0.1f, 0.0f);
+    UI->FloatDragger("Shadow Blur Mult", Vec2f(400.0f, 20.0f), DirLightPtr->shadowBlurMult, 0.001f, 0.0f);
 
     UI->NewLine();
 

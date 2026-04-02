@@ -103,6 +103,7 @@ Font TextModule::LoadFont(std::string filePath, int pixelSize)
 
     newFont.m_TextureAtlas = m_Renderer.CreateEmptyTexture(fontAtlasSize, ColourFormat::Red);
     newFont.m_AtlasSize = fontAtlasSize;
+    newFont.m_FontSize = pixelSize;
 
     int currentXPos = 0;
     for (unsigned char c = 0; c < 128; ++c)
@@ -163,12 +164,16 @@ void TextModule::DrawText(std::string text, Font* font, Vec2f position, Vec3f co
         position.y -= meshInfo.m_Bounds.size.y;
         break;
     case Anchor::CENTER:
-        position.x -= meshInfo.m_Bounds.size.x / 2;
-        position.y -= meshInfo.m_Bounds.size.y / 2;
+        position.x -= meshInfo.m_Bounds.size.x / 2.0f;
+        position.y -= (float)font->m_FontSize * 0.33f;
+        //position.y -= meshInfo.m_Bounds.size.y / 2;
         break;
     case Anchor::TOP_RIGHT:
         position.x -= meshInfo.m_Bounds.size.x;
         position.y -= meshInfo.m_Bounds.size.y;
+        break;
+    case Anchor::DEFAULT:
+        position.x -= meshInfo.m_Bounds.size.x / 2.0f;
         break;
     default:
         break;

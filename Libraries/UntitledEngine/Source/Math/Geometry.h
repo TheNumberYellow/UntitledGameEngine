@@ -120,6 +120,40 @@ struct Rect
         if (point.y > (location.y + size.y)) size.y = point.y - location.y;
     }
 
+    // Expand the rect to include this rect
+    void expand(Rect other)
+    {
+        expand(other.location);
+        expand(other.location + other.size);
+    }
+
+    void shrinkOverlap(Rect other)
+    {
+        if (!Overlaps(other)) return;
+        float overlapLeft = (location.x + size.x) - other.location.x;
+        float overlapRight = (other.location.x + other.size.x) - location.x;
+        float overlapTop = (location.y + size.y) - other.location.y;
+        float overlapBottom = (other.location.y + other.size.y) - location.y;
+        if (overlapLeft < overlapRight && overlapLeft < overlapTop && overlapLeft < overlapBottom)
+        {
+            size.x -= overlapLeft;
+        }
+        else if (overlapRight < overlapLeft && overlapRight < overlapTop && overlapRight < overlapBottom)
+        {
+            location.x += overlapRight;
+            size.x -= overlapRight;
+        }
+        else if (overlapTop < overlapLeft && overlapTop < overlapRight && overlapTop < overlapBottom)
+        {
+            size.y -= overlapTop;
+        }
+        else
+        {
+            location.y += overlapBottom;
+            size.y -= overlapBottom;
+        }
+    }
+
     friend bool operator==(const Rect& lhs, const Rect& rhs)
     {
         return lhs.location == rhs.location && lhs.size == rhs.size;

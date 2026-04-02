@@ -49,6 +49,8 @@ struct GBuffer
     StaticMesh_ID QuadMesh;
 
     Framebuffer_ID FinalOutput;
+
+    Vec2f Size;
 };
 
 enum class Vis
@@ -238,7 +240,6 @@ private:
     Framebuffer_ID m_ShadowBuffer;
     Framebuffer_ID m_SpotLightShadowBuffer;
     Cubemap_ID m_PointLightShadowCubemap;
-    //Framebuffer_ID m_ShadowBufferPointLight[6];
 
     Camera m_ShadowCamera;
     Shader_ID m_PosShader;
@@ -250,6 +251,9 @@ private:
     std::vector<PointLightRenderCommand> m_PointLightRenderCommands;
     std::vector<SpotLightRenderCommand> m_SpotLightRenderCommands;
     std::vector<DirectionalLightRenderCommand> m_DirectionalLightRenderCommands;
+
+    // Deferred rendering meshes
+    StaticMesh m_UnitSphereMesh;
 
     // GBuffer stuff
     Shader_ID m_GBufferShader;

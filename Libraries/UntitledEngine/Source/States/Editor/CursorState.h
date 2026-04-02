@@ -41,7 +41,8 @@ enum class GeometryMode : uint8_t
 {
     Box,
     Plane,
-    HalfEdge
+    HalfEdge,
+    Water
 };
 
 enum class DraggingMode : uint8_t
@@ -113,6 +114,8 @@ public:
     void StartDraggingNewMaterial(Material* NewMaterial);
     void StartDraggingNewBehaviour(std::string NewBehaviourName);
 
+    void StopDragging();
+
     void DrawTransientModels();
 
     void DrawToolSettingsPanel();
@@ -137,6 +140,7 @@ private:
     void UpdateBoxTool();
     void UpdatePlaneTool();
     void UpdateHalfEdgeTool();
+    void UpdateWaterTool();
 
     void UpdateSelectedObjects();
     void DrawSelectedObjects();
@@ -154,6 +158,8 @@ private:
     std::vector<ISelectedObject*> ClickCastHalfEdgeMesh(Ray mouseRay);
 
     bool ClickCastApplyMaterial(Ray mouseRay, Material* material);
+
+    void ApplyMaterialToSelectedObjects(Material& material);
 
     ToolMode Tool = ToolMode::Select;
     DraggingMode Dragging = DraggingMode::None;
@@ -221,6 +227,8 @@ private:
     Vec3f NewPlaneStartPoint;
     Vec3f NewPlaneMin, NewPlaneMax;
     int NewPlaneSubdivisions = 1;
+
+    bool IsCreatingNewWater = false;
 
     // Sculpt mode state
     float SculptSpeed = 3.0f;

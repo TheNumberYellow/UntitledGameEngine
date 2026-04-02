@@ -85,11 +85,14 @@ private:
 
     void DrawMaterialEditor();
 
+    void DrawHotSpotMaterialEditor();
+
     void DrawNewTabScreen();
 
     void DrawEditorUI();
 
     void DrawTopPanel();
+    void DrawToolSettingsPanel();
     void DrawDrawerSettingsPanel();
     void DrawResourcesPanel(Scene& FocusedScene);
     void DrawInspectorPanel();
@@ -135,6 +138,7 @@ private:
 
     Texture boxToolTexture;
     Texture planeToolTexture;
+    Texture waterToolTexture;
 
     Texture translateToolTexture;
     Texture rotateToolTexture;
@@ -213,6 +217,16 @@ private:
     float MaterialPreviewCamDistance = 4.0f;
     float MaterialPreviewCamXAxis = 0.0f;
     float MaterialPreviewCamYAxis = 0.0f;
+
+    //--------------------
+    // Hotspot Material Editor Stuff
+    //--------------------
+    Material* SelectedHotspotMaterial = nullptr;
+    std::vector<Rect> HotspotRects;
+    int SelectedHotspotRectIndex = -1;
+    bool DraggingNewHotspotRect = false;
+    Vec2f NewHotspotRectStartPos = Vec2f(0.0f, 0.0f);
+    Rect NewHotspotRect = Rect(Vec2f(0.0f, 0.0f), Vec2f(0.0f, 0.0f));
 
     //--------------------
     // Resource Tab Stuff

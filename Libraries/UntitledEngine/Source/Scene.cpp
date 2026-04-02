@@ -413,6 +413,7 @@ void Scene::EditorDraw(GraphicsModule& graphics, GBuffer gBuffer, Camera* editor
     }
     for (DirectionalLight* Light : m_DirectionalLights)
     {
+
         StaticMeshRenderCommand RenderCommand;
         RenderCommand.m_Mesh = DirectionalLightMesh->Id;
         RenderCommand.m_Material = *DirectionalLightMaterial;
@@ -1181,6 +1182,10 @@ void Scene::PushSceneRenderCommandsInternal(GraphicsModule& graphics)
         LightRC.m_Position = Light->position;
         LightRC.m_Intensity = Light->intensity;
 
+        LightRC.m_ConstantAttenuation = Light->constantAttenuation;
+        LightRC.m_LinearAttenuation = Light->linearAttenuation;
+        LightRC.m_QuadraticAttenuation = Light->quadraticAttenuation;
+
         graphics.AddRenderCommand(LightRC);
     }
     for (SpotLight* SLight : m_SpotLights)
@@ -1206,6 +1211,7 @@ void Scene::PushSceneRenderCommandsInternal(GraphicsModule& graphics)
         DirectionalLightRenderCommand RC;
         RC.m_Colour = Light->colour;
         RC.m_Direction = Light->direction;
+        RC.m_ShadowBlurMult = Light->shadowBlurMult;
 
         graphics.AddRenderCommand(RC);
     }
@@ -1353,6 +1359,8 @@ void Scene::SaveHEMesh(json& JsonObject, he::HalfEdgeMesh* HeMesh, std::vector<M
         
         FaceJson["TSU"] = face->textureScaleU;
         FaceJson["TSV"] = face->textureScaleV;
+
+        FaceJson["Flip"] = face->flipFace;
 
         FaceJson["R"] = face->textureRot;
 
@@ -1639,6 +1647,10 @@ he::HalfEdgeMesh* Scene::LoadHEMesh(json& JsonObject, std::vector<Material>& Mat
         newFace->textureScaleV = FaceJson["TSV"];
 
         newFace->textureRot = FaceJson["R"];
+        if (FaceJson.contains("Flip"))
+        {
+            newFace->flipFace = FaceJson["Flip"];
+        }
 
         NewHEMesh->m_Faces.push_back(newFace);
     }

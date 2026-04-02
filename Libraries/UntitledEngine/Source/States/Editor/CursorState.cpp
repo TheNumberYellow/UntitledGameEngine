@@ -378,6 +378,9 @@ void CursorState::CycleGeometryMode()
         GeoMode = GeometryMode::HalfEdge;
         break;
     case GeometryMode::HalfEdge:
+        GeoMode = GeometryMode::Water;
+        break;
+    case GeometryMode::Water:
         GeoMode = GeometryMode::Box;
         break;
     default:
@@ -510,6 +513,17 @@ void CursorState::StartDraggingNewBehaviour(std::string NewBehaviourName)
     DraggingBehaviourName = NewBehaviourName;
 }
 
+void CursorState::StopDragging()
+{
+    Dragging = DraggingMode::None;
+    DraggingModelPtr = nullptr;
+    DraggingPointLightPtr = nullptr;
+    DraggingDirectionalLightPtr = nullptr;
+    DraggingSpotLightPtr = nullptr;
+    DraggingMaterialPtr = nullptr;
+    DraggingBehaviourName = "";
+}
+
 void CursorState::DrawTransientModels()
 {
     if (SelectedObjects.empty())
@@ -549,22 +563,77 @@ void CursorState::DrawToolSettingsPanel()
 {
     UIModule* UI = UIModule::Get();
 
+    Colour titleTextColour = MakeColour(255, 255, 255);
+    Colour textColour = MakeColour(200, 200, 200);
+    Colour darkTextColour = MakeColour(100, 100, 100);
+
+    Colour selectedColour = MakeColour(100, 200, 255);
+    Colour unselectedColour = MakeColour(200, 200, 200);
+
     switch (Tool)
     {
     case ToolMode::Select:
-        UI->Text("Select Tool Settings:");
+        UI->Text("Select Tool Settings", PlacementType::FIT_WIDTH, titleTextColour);
+        UI->Text("Select Mode", PlacementType::FIT_WIDTH, textColour);
+        UI->NewLine();
+        if (UI->TextButton("Generic", PlacementType::FIT_WIDTH, 4.0f, Select == SelectMode::GenericSelect ? selectedColour : unselectedColour, darkTextColour))
+        {
+            Select = SelectMode::GenericSelect;
+        }
+        if (UI->TextButton("Face", PlacementType::FIT_WIDTH, 4.0f, Select == SelectMode::FaceSelect ? selectedColour : unselectedColour, darkTextColour))
+        {
+            Select = SelectMode::FaceSelect;
+        }
+        if (UI->TextButton("Vertex", PlacementType::FIT_WIDTH, 4.0f, Select == SelectMode::VertSelect ? selectedColour : unselectedColour, darkTextColour))
+        {
+            Select = SelectMode::VertSelect;
+        }
         break;
     case ToolMode::Transform:
-        UI->Text("Transform Tool Settings:");
+        UI->Text("Transform Tool Settings", PlacementType::FIT_WIDTH, titleTextColour);
+        UI->Text("Transform Mode", PlacementType::FIT_WIDTH, textColour);
+        UI->NewLine();
+        if (UI->TextButton("Translate", PlacementType::FIT_WIDTH, 4.0f, TransMode == TransformMode::Translate ? selectedColour : unselectedColour, darkTextColour))
+        {
+            TransMode = TransformMode::Translate;
+        }
+        if (UI->TextButton("Rotate", PlacementType::FIT_WIDTH, 4.0f, TransMode == TransformMode::Rotate ? selectedColour : unselectedColour, darkTextColour))
+        {
+            TransMode = TransformMode::Rotate;
+        }
+        if (UI->TextButton("Scale", PlacementType::FIT_WIDTH, 4.0f, TransMode == TransformMode::Scale ? selectedColour : unselectedColour, darkTextColour))
+        {
+            TransMode = TransformMode::Scale;
+        }
         break;
     case ToolMode::Geometry:
-        UI->Text("Geometry Tool Settings:");
+        UI->Text("Geometry Tool Settings", PlacementType::FIT_WIDTH, titleTextColour);
+        UI->Text("Geometry Mode", PlacementType::FIT_WIDTH, textColour);
+        UI->NewLine();
+        if (UI->TextButton("Box", PlacementType::FIT_WIDTH, 4.0f, GeoMode == GeometryMode::Box ? selectedColour : unselectedColour, darkTextColour))
+        {
+            GeoMode = GeometryMode::Box;
+        }
+        if (UI->TextButton("Plane", PlacementType::FIT_WIDTH, 4.0f, GeoMode == GeometryMode::Plane ? selectedColour : unselectedColour, darkTextColour))
+        {
+            GeoMode = GeometryMode::Plane;
+        }
+        if (UI->TextButton("Half-Edge", PlacementType::FIT_WIDTH, 4.0f, GeoMode == GeometryMode::HalfEdge ? selectedColour : unselectedColour, darkTextColour))
+        {
+            GeoMode = GeometryMode::HalfEdge;
+        }
+        if (UI->TextButton("Water", PlacementType::FIT_WIDTH, 4.0f, GeoMode == GeometryMode::Water ? selectedColour : unselectedColour, darkTextColour))
+        {
+            GeoMode = GeometryMode::Water;
+        }
         break;
     case ToolMode::Vertex:
-        UI->Text("Vertex Tool Settings:");
+        UI->Text("Vertex Tool Settings", PlacementType::FIT_WIDTH, titleTextColour);
         break;
     case ToolMode::Sculpt:
-        UI->Text("Sculpt Tool Settings:");
+        UI->Text("Sculpt Tool Settings", PlacementType::FIT_WIDTH, titleTextColour);
+        UI->FloatDragger("Sculpt Radius", PlacementType::FIT_WIDTH, SculptRadius, 0.1f, 0.0f, 100.0f);
+        UI->FloatDragger("Sculpt Speed", PlacementType::FIT_WIDTH, SculptSpeed, 0.1f, 0.0f, 100.0f);
         break;
     default:
 
@@ -636,6 +705,9 @@ void CursorState::UpdateGeometryTool()
         break;
     case GeometryMode::HalfEdge:
         UpdateHalfEdgeTool();
+        break;
+    case GeometryMode::Water:
+        UpdateWaterTool();
         break;
     default:
         break;
@@ -1553,6 +1625,89 @@ void CursorState::UpdateHalfEdgeTool()
     }
 }
 
+void CursorState::UpdateWaterTool()
+{
+    InputModule* Input = InputModule::Get();
+    CollisionModule* Collisions = CollisionModule::Get();
+    GraphicsModule* Graphics = GraphicsModule::Get();
+
+    KeyState ClickState = Input->GetMouseState().GetMouseButtonState(MouseButton::LMB);
+
+    if (Dragging != DraggingMode::None)
+    {
+        IsCreatingNewWater = false;
+    }
+
+    if (IsCreatingNewWater)
+    {
+        if (ClickState.justReleased)
+        {
+            IsCreatingNewWater = false;
+            if (BoxBeingCreated.XSize() <= 0.0001f
+                || BoxBeingCreated.YSize() <= 0.0001f)
+            {
+                // Box too smol
+            }
+            else
+            {
+                // Create the water volume, add to scene
+                //EditorScenePtr->AddWaterVolume(new WaterVolume(BoxBeingCreated));
+            }
+        }
+        else
+        {
+            Vec2i MousePos = Input->GetMouseState().GetMousePos();
+            Ray MouseRay = EditorStatePtr->GetMouseRay(*CameraPtr, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+            RayCastHit PlaneHit = Collisions->RayCast(MouseRay, Plane(NewBoxStartPoint, Vec3f(0.0f, 0.0f, 1.0f)));
+            if (PlaneHit.hit)
+            {
+                int DeltaMouseWheel = Input->GetMouseState().GetDeltaMouseWheel();
+                if (DeltaMouseWheel > 0 || Input->GetKeyState(Key::Plus).justPressed)
+                {
+                    NewBoxHeight += GeoPlaceSnap;
+                }
+                else if (DeltaMouseWheel < 0 || Input->GetKeyState(Key::Minus).justPressed)
+                {
+                    NewBoxHeight -= GeoPlaceSnap;
+                }
+
+                if (NewBoxHeight < GeoPlaceSnap) NewBoxHeight = GeoPlaceSnap;
+
+                Vec3f HitPoint = PlaneHit.hitPoint;
+                HitPoint.x = NewBoxStartPoint.x + Math::Round(HitPoint.x - NewBoxStartPoint.x, GeoPlaceSnap);
+                HitPoint.y = NewBoxStartPoint.y + Math::Round(HitPoint.y - NewBoxStartPoint.y, GeoPlaceSnap);
+                HitPoint.z = NewBoxStartPoint.z + Math::Round(HitPoint.z - NewBoxStartPoint.z, GeoPlaceSnap);
+                float minX = std::min(HitPoint.x, NewBoxStartPoint.x);
+                float minY = std::min(HitPoint.y, NewBoxStartPoint.y);
+                float maxX = std::max(HitPoint.x, NewBoxStartPoint.x);
+                float maxY = std::max(HitPoint.y, NewBoxStartPoint.y);
+                BoxBeingCreated.min = Vec3f(minX, minY, HitPoint.z);
+                BoxBeingCreated.max = Vec3f(maxX, maxY, HitPoint.z + NewBoxHeight);
+                Graphics->DebugDrawAABB(BoxBeingCreated, Vec3f(0.1f, 0.3f, 1.0f));
+            }
+        }
+    }
+    else {
+        Vec2i MousePos = Input->GetMouseState().GetMousePos();
+        if (ClickState.justPressed && Dragging == DraggingMode::None && EditorStatePtr->GetEditorSceneViewportRect().Contains(MousePos))
+        {
+            Ray MouseRay = EditorStatePtr->GetMouseRay(*CameraPtr, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+            RayCastHit PlaneHit = Collisions->RayCast(MouseRay, Plane(Vec3f(0.0f, 0.0f, 0.0f), Vec3f(0.0f, 0.0f, 1.0f)));
+            RayCastHit SceneHit = EditorScenePtr->RayCast(MouseRay).rayCastHit;
+            RayCastHit FinalHit = PlaneHit.hitDistance < SceneHit.hitDistance ? PlaneHit : SceneHit;
+            if (FinalHit.hit)
+            {
+                Vec3f HitPoint = FinalHit.hitPoint;
+                HitPoint.x = Math::Round(HitPoint.x, GeoPlaceSnap);
+                HitPoint.y = Math::Round(HitPoint.y, GeoPlaceSnap);
+                HitPoint.z = Math::Round(HitPoint.z, GeoPlaceSnap);
+                IsCreatingNewWater = true;
+                NewBoxStartPoint = HitPoint;
+            }
+        }
+    }
+}
+
 void CursorState::UpdateSelectedObjects()
 {
     for (auto& Object : SelectedObjects)
@@ -1819,5 +1974,12 @@ bool CursorState::ClickCastApplyMaterial(Ray mouseRay, Material* material)
         return true;
     }
     return false;
+}
+void CursorState::ApplyMaterialToSelectedObjects(Material& material)
+{
+    for (auto& Object : SelectedObjects)
+    {
+        Object.second->ApplyMaterial(material);
+    }
 }
 #endif

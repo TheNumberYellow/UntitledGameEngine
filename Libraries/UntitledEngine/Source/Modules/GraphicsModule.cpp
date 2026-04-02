@@ -941,7 +941,9 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
 
 	uniform vec3 SunDirection;
     uniform vec3 SunColour;
-
+    
+    uniform float ShadowBlurMult;
+    
     uniform vec3 CameraPos;
     
     const float PI = 3.14159265359;
@@ -993,7 +995,7 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
         return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
     }
 
-    float ShadowCalculation(vec4 fragPosLightSpace, vec3 FragNormal)
+    float ShadowCalculation(vec4 fragPosLightSpace, vec3 FragNormal, vec3 FragPos)
     {
         // perform perspective divide
         vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
@@ -1007,10 +1009,10 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
         float bias = max(0.0009 * (1.0 - dot(FragNormal.xyz, sun)), 0.0002);         
         
         float totalShadow = 0.0;
-        float randomRotation = random(FragNormal);
+        float randomRotation = random(FragPos);
         for (int i = 0; i < 16; ++i)
         {
-            vec2 offset = poissonDisk[i] / 4000.0;
+            vec2 offset = (poissonDisk[i] / 4000.0) * ShadowBlurMult;
             // Rotate offset by random rotation
             float angle = randomRotation * 2.0 * PI;
             float cosAngle = cos(angle);
@@ -1083,7 +1085,7 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
         float NdotL = max(dot(N, L), 0.0);        
 
         vec4 FragPosLightSpace = LightSpaceMatrix * vec4(Position, 1.0);
-        float shadow = ShadowCalculation(FragPosLightSpace, Normal);
+        float shadow = ShadowCalculation(FragPosLightSpace, Normal, Position);
 
         // add to outgoing radiance Lo
         Lo += (kD / PI + specular) * radiance * NdotL;  // note that we already multiplied the BRDF by the Fresnel (kS) so we won't multiply by kS again
@@ -1243,18 +1245,34 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
     m_GBufferPointLightShader = m_Renderer.LoadShader(vertShaderSource, fragShaderSource);
 
     // ~~~~~~~~~~~~~~~~~~~~~GBuffer point light shader code (with shadows)~~~~~~~~~~~~~~~~~~~~~ //
+    //vertShaderSource = R"(
+    //#version 400
+
+    //in vec2 VertPosition;
+    //in vec2 VertUV;
+
+    //smooth out vec2 FragUV;
+
+    //void main()
+    //{
+    //    gl_Position = vec4(VertPosition, 0.0, 1.0);
+    //    FragUV = VertUV;    
+    //}
+
+    //)";
+
     vertShaderSource = R"(
     #version 400
+    
+    uniform mat4x4 Transformation;
+	uniform mat4x4 Camera;
 
-    in vec2 VertPosition;
-    in vec2 VertUV;
+    in vec4 VertPosition;
 
-    smooth out vec2 FragUV;
 
     void main()
     {
-        gl_Position = vec4(VertPosition, 0.0, 1.0);
-        FragUV = VertUV;    
+        gl_Position = (Camera * Transformation) * VertPosition;
     }
 
     )";
@@ -1284,7 +1302,7 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
 
     out vec4 OutColour;
 
-    smooth in vec2 FragUV;
+    uniform vec2 Resolution;
 
     uniform sampler2D gPosition;
     uniform sampler2D gNormal;
@@ -1298,6 +1316,10 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
 
     uniform vec3 LightPosition;
     uniform vec3 LightColour;
+
+    uniform float ConstantAtten;
+    uniform float LinearAtten;
+    uniform float QuadraticAtten;
 
     uniform vec3 CameraPos;
     
@@ -1357,40 +1379,37 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
         vec3 fragToLight = FragPos - LightPos;
         vec3 lightDir = normalize(fragToLight);
         float bias = max(0.0009 * (1.0 - dot(Normal, lightDir)), 0.0002);         
-        // Sample the cubemap in the direction from the fragment to the light
-        vec3 fixedLightDir = vec3(lightDir.x, lightDir.y, lightDir.z);
+
+        //float currentDepth = length(fragToLight);        
+
+        //float totalShadow = 0.0;
+
+        //for (int i = 0; i < 16; ++i)
+        //{
+        //    // Rotate sampling offset by random rotation
+        //    float randomRotation = random(FragPos);
+        //    float angle = randomRotation * 2.0 * PI;
+        //    float cosAngle = cos(angle);
+        //    float sinAngle = sin(angle);
+        //    vec2 offset = (poissonDisk[i] / 512.0);
+        //    vec2 rotatedOffset = vec2(
+        //        offset.x * cosAngle - offset.y * sinAngle,
+        //        offset.x * sinAngle + offset.y * cosAngle
+        //    );
+        //    float closestDepth = texture(ShadowMap, lightDir + vec3(rotatedOffset, 0.0)).r * FarPlane;
+        //    totalShadow += currentDepth - bias > closestDepth ? 1.0 : 0.0;
+        //}
+        //totalShadow /= 16.0;
+        //return totalShadow;        
         
-        float totalShadow = 0.0;
 
-        for (int i = 0; i < 16; ++i)
-        {
-            vec2 offset = poissonDisk[i] / 2000.0;
-            // Rotate offset by random rotation
-            float randomRotation = random(Normal);
-            float angle = randomRotation * 2.0 * PI;
-            float cosAngle = cos(angle);
-            float sinAngle = sin(angle);
-            // Get a 3d offset for sampling the cubemap by rotating the 2d offset around the light direction
-            vec3 rotatedOffset = vec3(
-                offset.x * cosAngle - offset.y * sinAngle,
-                offset.x * sinAngle + offset.y * cosAngle,
-                0.0
-            );
-            
-            // Rotate the light direction by the rotated offset
-            vec3 sampleDir = fixedLightDir + rotatedOffset;
-            float closestDepth = texture(ShadowMap, sampleDir).r * FarPlane; 
-            totalShadow += length(fragToLight) - bias > closestDepth ? 1.0 : 0.0;
-        }
-        totalShadow /= 16.0;
-        //float closestDepth = texture(ShadowMap, fixedLightDir).r * FarPlane; 
+        float closestDepth = texture(ShadowMap, lightDir).r * FarPlane; 
 
-        return totalShadow;        
-        //float currentDepth = length(fragToLight);
-        //
-        //float shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;  
-        //
-        //return shadow;
+        float currentDepth = length(fragToLight);
+        
+        float shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;  
+        
+        return shadow;
         
         //float tex = closestDepth;
         //return tex;
@@ -1398,6 +1417,8 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
 
     void main()
     {
+        vec2 FragUV = gl_FragCoord.xy / Resolution;
+
         vec3 Position = texture(gPosition, FragUV).xyz;
         vec3 Normal = texture(gNormal, FragUV).xyz;
         vec3 Albedo = texture(gAlbedo, FragUV).xyz;
@@ -1420,14 +1441,20 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
         vec3 L = normalize(LightPosition - Position);
         vec3 H = normalize(V + L);
         float distance = length(LightPosition - Position);
-        float attenuation = 1.0 / (distance * distance);
+        
+        // calculate attenuation
+        float constant = ConstantAtten;
+        float linear = LinearAtten;
+        float quadratic = QuadraticAtten;
+
+        float attenuation = 1.0 / (constant + linear * distance + quadratic * distance * distance);        
         //float linear = 0.001;
         //float quadratic = 0.02;
         //float attenuation = 1.0 / (1.0 + linear * distance + quadratic * distance * distance);
-        attenuation *= 20.0;
+        //attenuation *= 20.0;
         
         vec3 radiance = LightColour * attenuation;
-        float randomTiny = (random(Position) - 0.5) * 0.1;
+        float randomTiny = (random(Position) - 0.5) * 0.05;
         radiance += randomTiny;
 
 
@@ -1456,8 +1483,6 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
 
         // add to outgoing radiance Lo
         Lo += (kD / PI + specular) * radiance * NdotL;  // note that we already multiplied the BRDF by the Fresnel (kS) so we won't multiply by kS again
-
-        //float randomTiny = 0.000001 * (Position.x + Normal.x + Albedo.x + Metallic + Roughness + AO + SunDirection.x + SunColour.r + CameraPos.x);
 
         float shadow = ShadowCalculation(Position, LightPosition, Normal);
         vec3 color = (1.0 - shadow) * Lo * AO;
@@ -1607,7 +1632,7 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
         {
             vec2 offset = poissonDisk[i] / 256.0;
             // Rotate offset by random rotation
-            float randomRotation = random(FragNormal);
+            float randomRotation = random(FragPos);
             float angle = randomRotation * 2.0 * PI;
             float cosAngle = cos(angle);
             float sinAngle = sin(angle);
@@ -1655,11 +1680,11 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
         float constant = ConstantAtten;
         float linear = LinearAtten;
         float quadratic = QuadraticAtten;
-        float attenuation = 1.0 / (ConstantAtten + linear * distance + quadratic * distance * distance);
+        float attenuation = 1.0 / (constant + linear * distance + quadratic * distance * distance);
 
         vec3 radiance = LightColour * attenuation;
         
-        float randomTiny = (random(Position) - 0.5) * 0.0001;
+        float randomTiny = (random(Position) - 0.5) * 0.01;
         radiance += randomTiny; // Add a tiny random value to prevent banding
 
         // Cook-Torrance BRDF
@@ -1860,6 +1885,9 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
 
     m_LightTexture = m_Renderer.LoadTexture("Assets/images/light.png", TextureMode::LINEAR, TextureMode::NEAREST);
 
+    //AssetRegistry* Registry = AssetRegistry::Get();
+    m_UnitSphereMesh = LoadMesh("Assets/models/UVBall.obj");
+
     s_Instance = this;
 }
 
@@ -1903,6 +1931,8 @@ GBuffer GraphicsModule::CreateGBuffer(Vec2i Size)
     newGBuffer.DebugTex = m_Renderer.AttachColourAttachmentToFrameBuffer(newGBuffer.DebugBuffer, TextureCreateInfo(Size, ColourFormat::RGBA, ColourFormat::RGBA, DataFormat::FLOAT), 0);
 
     newGBuffer.FinalOutput = m_Renderer.CreateFrameBuffer(Size, FBufferFormat::COLOUR);
+
+    newGBuffer.Size = Size;
 
     VertexBufferFormat quadMeshFormat = VertexBufferFormat({ VertAttribute::Vec2f, VertAttribute::Vec2f });
     MeshData quadMeshData = GetVertexDataForQuad();
@@ -2167,6 +2197,7 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam)
 
                 m_Renderer.SetShaderUniformVec3f(m_GBufferDirectionalLightShader, "SunDirection", Command.m_Direction);
                 m_Renderer.SetShaderUniformVec3f(m_GBufferDirectionalLightShader, "SunColour", Command.m_Colour);
+                m_Renderer.SetShaderUniformFloat(m_GBufferDirectionalLightShader, "ShadowBlurMult", Command.m_ShadowBlurMult);
 
                 m_Renderer.DrawMesh(Buffer.QuadMesh);
             }
@@ -2176,20 +2207,34 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam)
         
         for (PointLightRenderCommand& Command : m_PointLightRenderCommands)
         {
-            float maxLightDistance = Command.m_Intensity * 100.0f;
+            float lightRange;
+
+            // TODO(fraser): test attenuation ranges
+            if (Command.m_QuadraticAttenuation > 0.0f)
+            {
+                lightRange = sqrt(Command.m_Intensity / (Command.m_QuadraticAttenuation * 0.01f));
+            }
+            else if (Command.m_LinearAttenuation > 0.0f)
+            {
+                lightRange = Command.m_Intensity / (Command.m_LinearAttenuation * 0.01f);
+            }
+            else
+            {
+                lightRange = 200.0f; // Arbitrary large distance if no attenuation
+            }
 
             m_Renderer.SetActiveShader(m_PointShadowShader);
             for (int i = 0; i < 6; i++)
             {
                 SetActiveCubemapFace(m_PointLightShadowCubemap, i);
-                Mat4x4f shadowProj = Math::GenerateProjectionMatrix(90.0f, 1.0f, 0.001f, maxLightDistance);
+                Mat4x4f shadowProj = Math::GenerateProjectionMatrix(90.0f, 1.0f, 0.001f, lightRange);
                 Mat4x4f shadowView = Math::GenerateViewMatrix(Command.m_Position, GetPointLightDirectionForCubemapFace(i), 
                     GetPointLightUpVecForCubemapFace(i));
 
                 Mat4x4f shadowVP = shadowProj * shadowView;
                 m_Renderer.SetShaderUniformMat4x4f(m_PointShadowShader, "ShadowVP", shadowVP);
                 m_Renderer.SetShaderUniformVec3f(m_PointShadowShader, "LightPos", Command.m_Position);
-                m_Renderer.SetShaderUniformFloat(m_PointShadowShader, "FarPlane", maxLightDistance);
+                m_Renderer.SetShaderUniformFloat(m_PointShadowShader, "FarPlane", lightRange);
                 for (StaticMeshRenderCommand& MeshCommand : m_StaticMeshRenderCommands)
                 {
                     if (!MeshCommand.m_CastShadows)
@@ -2207,6 +2252,14 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam)
             m_Renderer.SetActiveShader(m_GBufferPointLightShaderWithShadow);
             SetActiveFrameBuffer(Buffer.LightBuffer, false);
             {
+                m_Renderer.SetShaderUniformVec2f(m_GBufferPointLightShaderWithShadow, "Resolution", Buffer.Size);
+                m_Renderer.SetShaderUniformMat4x4f(m_GBufferPointLightShaderWithShadow, "Camera", Cam.GetCamMatrix());
+                
+                Transform lightTransform;
+                lightTransform.SetPosition(Command.m_Position);
+                lightTransform.SetScale(Vec3f(lightRange / 2.f, lightRange / 2.f, lightRange / 2.f));
+                m_Renderer.SetShaderUniformMat4x4f(m_GBufferPointLightShaderWithShadow, "Transformation", lightTransform.GetTransformMatrix());
+
                 m_Renderer.SetShaderUniformVec3f(m_GBufferPointLightShaderWithShadow, "CameraPos", Cam.GetPosition());
                 m_Renderer.SetActiveCubemap(m_PointLightShadowCubemap, "ShadowMap");
 
@@ -2220,9 +2273,18 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam)
 
                 m_Renderer.SetShaderUniformVec3f(m_GBufferPointLightShaderWithShadow, "LightPosition", Command.m_Position);
                 m_Renderer.SetShaderUniformVec3f(m_GBufferPointLightShaderWithShadow, "LightColour", Command.m_Colour * Command.m_Intensity);
-                m_Renderer.SetShaderUniformFloat(m_GBufferPointLightShaderWithShadow, "FarPlane", maxLightDistance);
+                m_Renderer.SetShaderUniformFloat(m_GBufferPointLightShaderWithShadow, "FarPlane", lightRange);
 
-                m_Renderer.DrawMesh(Buffer.QuadMesh);
+                m_Renderer.SetShaderUniformFloat(m_GBufferPointLightShaderWithShadow, "ConstantAtten", Command.m_ConstantAttenuation);
+                m_Renderer.SetShaderUniformFloat(m_GBufferPointLightShaderWithShadow, "LinearAtten", Command.m_LinearAttenuation);
+                m_Renderer.SetShaderUniformFloat(m_GBufferPointLightShaderWithShadow, "QuadraticAtten", Command.m_QuadraticAttenuation);
+
+                m_Renderer.DisableDepthTesting();
+                m_Renderer.SetCulling(Cull::Front);
+                m_Renderer.DrawMesh(m_UnitSphereMesh.Id);
+                m_Renderer.SetCulling(Cull::Back);
+                m_Renderer.EnableDepthTesting();
+                //m_Renderer.DrawMesh(Buffer.QuadMesh);
             }
 
         }
@@ -2297,9 +2359,6 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam)
                 m_Renderer.SetShaderUniformFloat(m_GBufferSpotLightShaderWithShadow, "QuadraticAtten", Command.m_QuadraticAttenuation);
 
                 m_Renderer.SetShaderUniformFloat(m_GBufferSpotLightShaderWithShadow, "FarPlane", lightRange);
-
-                //m_Renderer.SetShaderUniformFloat(m_GBufferSpotLightShaderWithShadow, "InnerAngle", cos(Deg2Rad(Command.m_InnerAngle * 2.0f)));
-                //m_Renderer.SetShaderUniformFloat(m_GBufferSpotLightShaderWithShadow, "OuterAngle", cos(Deg2Rad(Command.m_OuterAngle * 2.0f)));
 
                 m_Renderer.SetShaderUniformFloat(m_GBufferSpotLightShaderWithShadow, "InnerAngle", cos(Deg2Rad(Command.m_InnerAngle)));
                 m_Renderer.SetShaderUniformFloat(m_GBufferSpotLightShaderWithShadow, "OuterAngle", cos(Deg2Rad(Command.m_OuterAngle)));
@@ -2705,7 +2764,8 @@ void GraphicsModule::UpdateHEMeshModel(he::HalfEdgeMesh* mesh)
     for (auto& face : mesh->m_Faces)
     {
         std::vector<float> Vertices;
-        
+        std::vector<unsigned int> Indices;
+
         std::vector<Vec3f> positions;
         
         he::HalfEdge* initialHalfEdge = face->halfEdge;
@@ -2752,6 +2812,11 @@ void GraphicsModule::UpdateHEMeshModel(he::HalfEdgeMesh* mesh)
             Vec3f cross = Math::cross(ca, ba);
             normal = Math::normalize(cross);
 
+            if (face->flipFace)
+            {
+                normal = -normal;
+            }
+
             Vec2f texCoords;
             Vec3f planeOrigin = positions[0];
             Vec3f planeNormal = normal;
@@ -2778,13 +2843,6 @@ void GraphicsModule::UpdateHEMeshModel(he::HalfEdgeMesh* mesh)
             texCoords.x = Math::dot(relativePoint, leftVec);
             texCoords.y = Math::dot(relativePoint, upVec);
 
-            // TEMP: apply uv scaling (UV values way too large as-is)
-            //if (face->material)
-            //{
-            //    texCoords.x *= 0.2f;
-            //    texCoords.y *= 0.2f;
-            //}
-            //else
             {
                 texCoords.x *= 0.2f;
                 texCoords.y *= 0.2f;
@@ -2803,9 +2861,21 @@ void GraphicsModule::UpdateHEMeshModel(he::HalfEdgeMesh* mesh)
                     // Positions            // Normals (TBD)                // Colours                  // Texcoords
                     pos.x, pos.y, pos.z,    normal.x, normal.y, normal.z,   1.0f, 1.0f, 1.0f, 1.0f,     texCoords.x, texCoords.y
                 });
+            std::vector<unsigned int> newIndices;
+
+        }
+        for (unsigned int i = 0; i < positions.size(); ++i)
+        {
+            Indices.insert(Indices.end(), i);
+        }
+        //Indices.insert(Indices.end(), 0);
+
+        if (face->flipFace)
+        {
+            std::reverse(Indices.begin(), Indices.end());
         }
 
-        StaticMesh_ID heMeshId = m_Renderer.LoadMesh(m_TexturedMeshFormat, Vertices);
+        StaticMesh_ID heMeshId = m_Renderer.LoadMesh(m_TexturedMeshFormat, Vertices, Indices);
         m_Renderer.SetMeshDrawType(heMeshId, DrawType::TriangleFan);
 
         StaticMesh heMesh;
