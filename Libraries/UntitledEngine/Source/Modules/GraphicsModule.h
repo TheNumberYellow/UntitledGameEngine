@@ -254,6 +254,7 @@ private:
 
     // Deferred rendering meshes
     StaticMesh m_UnitSphereMesh;
+    StaticMesh m_UnitCubeMesh;
 
     // GBuffer stuff
     Shader_ID m_GBufferShader;

@@ -1299,7 +1299,8 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
     vec2(0.19984126, 0.78641367),
     vec2(0.14383161, -0.14100790)
     );
-
+    
+    //smooth in vec2 FragUV;
     out vec4 OutColour;
 
     uniform vec2 Resolution;
@@ -1495,19 +1496,34 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
     m_GBufferPointLightShaderWithShadow = m_Renderer.LoadShader(vertShaderSource, fragShaderSource);
 
     // ~~~~~~~~~~~~~~~~~~~~~GBuffer spot light shader code (with shadows)~~~~~~~~~~~~~~~~~~~~~ //
+    //vertShaderSource = R"(
+    //#version 400
+
+    //in vec2 VertPosition;
+    //in vec2 VertUV;
+
+    //smooth out vec2 FragUV;
+    //void main()
+    //{
+    //    gl_Position = vec4(VertPosition, 0.0, 1.0);
+    //    FragUV = VertUV;    
+    //}
+    //)";
 
     vertShaderSource = R"(
     #version 400
+    
+	uniform mat4x4 FrustumMat;
+    uniform mat4x4 Camera;
 
-    in vec2 VertPosition;
-    in vec2 VertUV;
+    in vec4 VertPosition;
 
-    smooth out vec2 FragUV;
+
     void main()
     {
-        gl_Position = vec4(VertPosition, 0.0, 1.0);
-        FragUV = VertUV;    
+        gl_Position = (Camera * FrustumMat) * VertPosition;
     }
+
     )";
 
     fragShaderSource = R"(
@@ -1535,7 +1551,7 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
 
     out vec4 OutColour;
 
-    smooth in vec2 FragUV;
+    uniform vec2 Resolution;
 
     uniform sampler2D gPosition;
     uniform sampler2D gNormal;
@@ -1652,6 +1668,8 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
 
     void main()
     {
+        vec2 FragUV = gl_FragCoord.xy / Resolution;
+
         vec3 Position = texture(gPosition, FragUV).xyz;
         vec3 Normal = texture(gNormal, FragUV).xyz;
         vec3 Albedo = texture(gAlbedo, FragUV).xyz;
@@ -1886,7 +1904,8 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
     m_LightTexture = m_Renderer.LoadTexture("Assets/images/light.png", TextureMode::LINEAR, TextureMode::NEAREST);
 
     //AssetRegistry* Registry = AssetRegistry::Get();
-    m_UnitSphereMesh = LoadMesh("Assets/models/UVBall.obj");
+    m_UnitSphereMesh = LoadMesh("Assets/models/UnitSphere.obj");
+    m_UnitCubeMesh = LoadMesh("Assets/models/UnitCube.obj");
 
     s_Instance = this;
 }
@@ -2257,7 +2276,7 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam)
                 
                 Transform lightTransform;
                 lightTransform.SetPosition(Command.m_Position);
-                lightTransform.SetScale(Vec3f(lightRange / 2.f, lightRange / 2.f, lightRange / 2.f));
+                lightTransform.SetScale(Vec3f(lightRange, lightRange, lightRange));
                 m_Renderer.SetShaderUniformMat4x4f(m_GBufferPointLightShaderWithShadow, "Transformation", lightTransform.GetTransformMatrix());
 
                 m_Renderer.SetShaderUniformVec3f(m_GBufferPointLightShaderWithShadow, "CameraPos", Cam.GetPosition());
@@ -2284,6 +2303,7 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam)
                 m_Renderer.DrawMesh(m_UnitSphereMesh.Id);
                 m_Renderer.SetCulling(Cull::Back);
                 m_Renderer.EnableDepthTesting();
+                
                 //m_Renderer.DrawMesh(Buffer.QuadMesh);
             }
 
@@ -2338,6 +2358,12 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam)
             m_Renderer.SetActiveShader(m_GBufferSpotLightShaderWithShadow);
             SetActiveFrameBuffer(Buffer.LightBuffer, false);
             {
+                m_Renderer.SetShaderUniformVec2f(m_GBufferSpotLightShaderWithShadow, "Resolution", Buffer.Size);
+                m_Renderer.SetShaderUniformMat4x4f(m_GBufferSpotLightShaderWithShadow, "Camera", Cam.GetCamMatrix());
+
+                Mat4x4f invShadowVP = Math::inv(shadowVP);
+                m_Renderer.SetShaderUniformMat4x4f(m_GBufferSpotLightShaderWithShadow, "FrustumMat", invShadowVP);
+
                 m_Renderer.SetShaderUniformVec3f(m_GBufferSpotLightShaderWithShadow, "CameraPos", Cam.GetPosition());
 
                 m_Renderer.SetActiveTexture(Buffer.PositionTex, "gPosition");
@@ -2363,7 +2389,12 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam)
                 m_Renderer.SetShaderUniformFloat(m_GBufferSpotLightShaderWithShadow, "InnerAngle", cos(Deg2Rad(Command.m_InnerAngle)));
                 m_Renderer.SetShaderUniformFloat(m_GBufferSpotLightShaderWithShadow, "OuterAngle", cos(Deg2Rad(Command.m_OuterAngle)));
 
-                m_Renderer.DrawMesh(Buffer.QuadMesh);
+                m_Renderer.DisableDepthTesting();
+                //m_Renderer.SetCulling(Cull::Front);
+                m_Renderer.DrawMesh(m_UnitCubeMesh.Id);
+                //m_Renderer.SetCulling(Cull::Back);
+                m_Renderer.EnableDepthTesting();
+                //m_Renderer.DrawMesh(Buffer.QuadMesh);
             }
 
         }
