@@ -1364,6 +1364,16 @@ void Scene::SaveHEMesh(json& JsonObject, he::HalfEdgeMesh* HeMesh, std::vector<M
 
         FaceJson["R"] = face->textureRot;
 
+        FaceJson["OverrideUV"] = face->useUVOverride;
+        if (face->useUVOverride)
+        {
+            for (Vec2f& UV : face->uvOverrides)
+            {
+                FaceJson["UVOverride"].push_back({ UV.x, UV.y });
+            }
+        }
+
+
         int64_t HEIndex = 0;
 
         auto HalfEdgeIt = std::find(HalfEdges.begin(), HalfEdges.end(), face->halfEdge);
@@ -1404,7 +1414,8 @@ void Scene::SaveHEMesh(json& JsonObject, he::HalfEdgeMesh* HeMesh, std::vector<M
         }
         else
         {
-            Engine::FatalError("Could not find Twin Half Edge Index, this should never happen");
+            TwinIndex = -1;
+            //Engine::FatalError("Could not find Twin Half Edge Index, this should never happen");
         }
 
         int64_t VertIndex = 0;
@@ -1652,6 +1663,15 @@ he::HalfEdgeMesh* Scene::LoadHEMesh(json& JsonObject, std::vector<Material>& Mat
             newFace->flipFace = FaceJson["Flip"];
         }
 
+        if (FaceJson.contains("OverrideUV") && FaceJson["OverrideUV"])
+        {
+            for (json& UVJson : FaceJson["UVOverride"])
+            {
+                newFace->uvOverrides.push_back(Vec2f(UVJson[0], UVJson[1]));
+            }
+            newFace->useUVOverride = true;
+        }
+
         NewHEMesh->m_Faces.push_back(newFace);
     }
 
@@ -1681,7 +1701,14 @@ he::HalfEdgeMesh* Scene::LoadHEMesh(json& JsonObject, std::vector<Material>& Mat
     for (json& HalfEdgeJson : JsonObject["HalfEdges"])
     {
         NewHEMesh->m_HalfEdges[index]->next = NewHEMesh->m_HalfEdges[HalfEdgeJson["Next"]];
-        NewHEMesh->m_HalfEdges[index]->twin = NewHEMesh->m_HalfEdges[HalfEdgeJson["Twin"]];
+        if (HalfEdgeJson["Twin"] == -1)
+        {
+            NewHEMesh->m_HalfEdges[index]->twin = nullptr;
+        }
+        else
+        {
+            NewHEMesh->m_HalfEdges[index]->twin = NewHEMesh->m_HalfEdges[HalfEdgeJson["Twin"]];
+        }
         NewHEMesh->m_HalfEdges[index]->vert = NewHEMesh->m_Verts[HalfEdgeJson["Vert"]];
         NewHEMesh->m_HalfEdges[index]->face = NewHEMesh->m_Faces[HalfEdgeJson["Face"]];
 

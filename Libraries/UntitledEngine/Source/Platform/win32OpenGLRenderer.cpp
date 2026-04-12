@@ -636,8 +636,8 @@ namespace
             glGenerateMipmap(GL_TEXTURE_2D);
 
             glBindTexture(GL_TEXTURE_2D, 0);
-        }
 
+        }
         GLuint texture;
         TextureCreateInfo createInfo;
     };
@@ -686,14 +686,14 @@ namespace
             //temp(fraser) obviously
             std::vector<std::string> faces
             {
-                "Assets/textures/right.jpg",
-                "Assets/textures/left.jpg",
+                "Assets/textures/right.png",
+                "Assets/textures/left.png",
                 
-                "Assets/textures/front.jpg",
-                "Assets/textures/back.jpg",
+                "Assets/textures/front.png",
+                "Assets/textures/back.png",
 
-                "Assets/textures/top.jpg",
-                "Assets/textures/bottom.jpg",
+                "Assets/textures/top.png",
+                "Assets/textures/bottom.png",
             };
 
             glGenTextures(1, &texture);
@@ -1626,6 +1626,13 @@ std::vector<unsigned int> Renderer::GetMeshIndexData(StaticMesh_ID meshID)
     delete[] elementBuffer;
 
     return elements;
+}
+
+Vec2i Renderer::GetTextureSize(Texture_ID textureID)
+{
+    OpenGLTexture* texture = GetGLTextureFromTextureID(textureID);
+
+    return texture->createInfo.Size;
 }
 
 void Renderer::SetActiveFBuffer(Framebuffer_ID fBufferID)

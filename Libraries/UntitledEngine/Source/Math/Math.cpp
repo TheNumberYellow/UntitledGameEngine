@@ -523,6 +523,14 @@ Mat4x4f::Mat4x4f()
     m_Rows[3] = Vec4f(0.0f, 0.0f, 0.0f, 1.0f);
 }
 
+Mat4x4f::Mat4x4f(Vec4f row0, Vec4f row1, Vec4f row2, Vec4f row3)
+{
+    m_Rows[0] = row0;
+    m_Rows[1] = row1;
+    m_Rows[2] = row2;
+    m_Rows[3] = row3;
+}
+
 Vec4f& Mat4x4f::operator[](int index)
 {
     return m_Rows[index];
@@ -548,6 +556,19 @@ Mat4x4f Mat4x4f::operator*(Mat4x4f rhs)
         }
     }
     return result;
+}
+
+bool Mat4x4f::operator==(const Mat4x4f& rhs) const
+{
+    for (int i = 0; i < 4; ++i)
+    {
+        if (m_Rows[i] != rhs.m_Rows[i])
+        {
+            return false;
+        }
+
+    }
+    return true;
 }
 
 float Math::PerlinNoise1D(float seed)

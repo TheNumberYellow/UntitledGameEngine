@@ -343,4 +343,9 @@ Vec4f Vec4f::operator*(Mat4x4f rhs)
     return Math::mult(*this, rhs);
 }
 
+bool Vec4f::operator==(const Vec4f& rhs) const
+{
+    return x == rhs.x && y == rhs.y && z == rhs.z && w == rhs.w;
+}
+
 

@@ -17,6 +17,26 @@ void Behaviour::SetSystemInputState(SystemInputState* InSystemInputState)
     InputState = InSystemInputState;
 }
 
+void Behaviour::SetRunningLocally(bool inRunningLocally)
+{
+    RunningLocally = inRunningLocally;
+}
+
+bool Behaviour::IsRunningLocally()
+{
+    return RunningLocally;
+}
+
+void Behaviour::SetCamera(Camera* inCamera)
+{
+    Cam = inCamera;
+}
+
+Camera* Behaviour::GetCamera()
+{
+    return Cam;
+}
+
 BehaviourRegistry* BehaviourRegistry::Get()
 {
     if (!Instance)

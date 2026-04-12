@@ -27,11 +27,14 @@ struct Range
 struct Mat4x4f
 {
     Mat4x4f();
+    Mat4x4f(Vec4f row0, Vec4f row1, Vec4f row2, Vec4f row3);
     Vec4f m_Rows[4];
 
     Vec4f& operator[](int index);
 
     Mat4x4f operator*(Mat4x4f rhs);
+
+    bool operator==(const Mat4x4f& rhs) const;
 };
 
 class Math

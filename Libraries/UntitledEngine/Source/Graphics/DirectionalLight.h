@@ -9,6 +9,7 @@ struct DirectionalLightRenderCommand
     Vec3f m_Direction;
     Vec3f m_Colour;
     float m_Intensity;
+    bool m_CastShadows;
     float m_ShadowBlurMult;
 };
 
@@ -37,6 +38,7 @@ struct DirectionalLight : public IEditorClickable
     Vec3f direction = Vec3f(0.0f, 0.0f, -1.0f);
     Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f);
     float intensity = 1.0f;
+    bool castShadows = true;
     float shadowBlurMult = 1.0f;
 
     bool debugDrawFrustum = false;

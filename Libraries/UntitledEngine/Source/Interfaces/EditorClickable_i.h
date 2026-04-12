@@ -9,6 +9,7 @@
 class Scene;
 class ISelectedObject;
 struct EditorClickContext;
+struct HotspotTexture;
 
 class IEditorClickable
 {
@@ -38,6 +39,7 @@ public:
 
     // Drag'n'drop functionalities
     virtual void ApplyMaterial(Material& inMaterial) {}
+    virtual void ApplyHotspotTexture(HotspotTexture& inHotspotTexture) {}
 
     void SetScene(Scene* inScene) { ScenePtr = inScene; }
 

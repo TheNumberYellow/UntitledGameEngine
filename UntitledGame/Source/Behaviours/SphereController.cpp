@@ -227,8 +227,10 @@ void SphereController::Update(Scene* Scene, double DeltaTime)
 
     Vec3f NewCamDir = (CamCenterPoint - NewCamPos).GetNormalized();
 
-    Scene->GetCamera()->SetPosition(NewCamPos);
-    Scene->GetCamera()->SetDirection(NewCamDir);
+    GetCamera()->SetPosition(NewCamPos);
+    GetCamera()->SetDirection(NewCamDir);
+    //Scene->GetCamera()->SetPosition(NewCamPos);
+    //Scene->GetCamera()->SetDirection(NewCamDir);
 
     CamFacingDir = Math::ProjectVecOnPlane(NewCamDir, Plane(Vec3f(0.0f, 0.0f, 0.0f), Vec3f(0.0f, 0.0f, 1.0f)));
     CamFacingDir = CamFacingDir.GetNormalized();
@@ -256,10 +258,17 @@ void SphereController::DrawInspectorPanel()
 
 void SphereController::Initialize(Scene* Scene)
 {
-    Engine::LockCursor();
-    Engine::HideCursor();
+    if (IsRunningLocally())
+    {
+        Engine::LockCursor();
+        Engine::HideCursor();
+        
+        SetCamera(Scene->GetCamera());
 
-    InputState = &InputModule::Get()->m_LocalSystemInputState;
+        // Temp: make this default
+        InputState = &InputModule::Get()->m_LocalSystemInputState;
+    }
+
 
     if (LightEnabled)
     {

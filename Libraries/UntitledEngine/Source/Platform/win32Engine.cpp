@@ -224,23 +224,30 @@ bool Engine::IsWindowFocused()
     return GetFocus() == WindowHandle;
 }
 
-bool Engine::FileOpenDialog(std::string& OutFileString)
+bool Engine::FileOpenDialog(std::string& OutFileString, std::string DialogTitle, std::string FileTypeName, std::string FileTypeExt)
 {
     OPENFILENAME ofn;
     wchar_t szFileName[MAX_PATH];
     szFileName[0] = '\0';
 
+    // This can fail?
+    std::wstring wDialogTitle = std::wstring(DialogTitle.begin(), DialogTitle.end());
+    std::wstring wFileTypeName = std::wstring(FileTypeName.begin(), FileTypeName.end());
+    std::wstring wFileTypeExt = std::wstring(FileTypeExt.begin(), FileTypeExt.end());
+
+    std::wstring wFilter = std::format(L"{0} Files (*.{1})\0*.{1}\0All Files (*.*)\0*.*\0"sv, wFileTypeName, wFileTypeExt);
+
     ZeroMemory(&ofn, sizeof(ofn));
 
     ofn.lStructSize = sizeof(ofn);
     ofn.hwndOwner = WindowHandle;
-    ofn.lpstrFilter = L"Level Files (*.lvl)\0*.lvl\0All Files (*.*)\0*.*\0";
     ofn.lpstrFile = szFileName;
     ofn.nMaxFile = MAX_PATH;
     ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY | OFN_NOCHANGEDIR;
-    ofn.lpstrDefExt = L"lvl";
 
-    ofn.lpstrTitle = L"Open Level";
+    ofn.lpstrTitle = wDialogTitle.c_str();
+    ofn.lpstrDefExt = wFileTypeExt.c_str();
+    ofn.lpstrFilter = wFilter.c_str();
 
     if (GetOpenFileName(&ofn))
     {

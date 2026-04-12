@@ -1,6 +1,10 @@
 #pragma once
 #include "Asset/AssetRegistry.h"
 
+#include <json.hpp>
+
+using json = nlohmann::json;
+
 struct Material
 {
     Material() {}
@@ -12,6 +16,9 @@ struct Material
     Texture* m_Roughness;
     Texture* m_AO;
     Texture* m_Height;
+
+    void Save(json& JsonObject);
+    static Material Load(json& JsonObject);
 
     friend bool operator<(const Material& lhs, const Material& rhs)
     {

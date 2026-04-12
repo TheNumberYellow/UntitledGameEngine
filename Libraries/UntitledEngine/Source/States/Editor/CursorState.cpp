@@ -1208,7 +1208,7 @@ void CursorState::UpdateRotateTool()
 
         float DeltaAngle = InitialAngle - CurrentAngle;
 
-        if (ShouldSnapToGrid)
+        if (ShouldSnapToRotationGrid)
         {
             DeltaAngle = Math::Round(DeltaAngle, RotSnap);
         }
@@ -1556,20 +1556,20 @@ void CursorState::UpdateHalfEdgeTool()
                 int DeltaMouseWheel = Input->GetMouseState().GetDeltaMouseWheel();
                 if (DeltaMouseWheel > 0 || Input->GetKeyState(Key::Plus).justPressed)
                 {
-                    NewBoxHeight += GeoPlaceSnap;
+                    NewBoxHeight += TransSnap;
                 }
                 else if (DeltaMouseWheel < 0 || Input->GetKeyState(Key::Minus).justPressed)
                 {
-                    NewBoxHeight -= GeoPlaceSnap;
+                    NewBoxHeight -= TransSnap;
                 }
 
-                if (NewBoxHeight < GeoPlaceSnap) NewBoxHeight = GeoPlaceSnap;
+                if (NewBoxHeight < TransSnap) NewBoxHeight = TransSnap;
 
                 Vec3f HitPoint = PlaneHit.hitPoint;
 
-                HitPoint.x = NewBoxStartPoint.x + Math::Round(HitPoint.x - NewBoxStartPoint.x, GeoPlaceSnap);
-                HitPoint.y = NewBoxStartPoint.y + Math::Round(HitPoint.y - NewBoxStartPoint.y, GeoPlaceSnap);
-                HitPoint.z = NewBoxStartPoint.z + Math::Round(HitPoint.z - NewBoxStartPoint.z, GeoPlaceSnap);
+                HitPoint.x = NewBoxStartPoint.x + Math::Round(HitPoint.x - NewBoxStartPoint.x, TransSnap);
+                HitPoint.y = NewBoxStartPoint.y + Math::Round(HitPoint.y - NewBoxStartPoint.y, TransSnap);
+                HitPoint.z = NewBoxStartPoint.z + Math::Round(HitPoint.z - NewBoxStartPoint.z, TransSnap);
 
                 float minX = std::min(HitPoint.x, NewBoxStartPoint.x);
                 float minY = std::min(HitPoint.y, NewBoxStartPoint.y);
@@ -1609,8 +1609,8 @@ void CursorState::UpdateHalfEdgeTool()
 
                 if (xAligned || yAligned || zAligned)
                 {
-                    if (!xAligned) HitPoint.x = Math::Round(HitPoint.x, GeoPlaceSnap);
-                    if (!yAligned) HitPoint.y = Math::Round(HitPoint.y, GeoPlaceSnap);
+                    if (!xAligned) HitPoint.x = Math::Round(HitPoint.x, TransSnap);
+                    if (!yAligned) HitPoint.y = Math::Round(HitPoint.y, TransSnap);
                     if (!zAligned) HitPoint.z = Math::Round(HitPoint.z, GeoPlaceSnap);
                 }
 
@@ -1712,7 +1712,13 @@ void CursorState::UpdateSelectedObjects()
 {
     for (auto& Object : SelectedObjects)
     {
+        // Check if the update changes the transform of the object, if so, re-calculate proxy and offsets so that the proxy doesn't get out of sync with the objects
+        Mat4x4f OldTransform = Object.second->GetTransform()->GetTransformMatrix();
         Object.second->Update();
+        if (Object.second->GetTransform()->GetTransformMatrix() != OldTransform)
+        {
+            RecalculateProxyAndObjectOffsets();
+        }
     }
 }
 
@@ -1981,5 +1987,30 @@ void CursorState::ApplyMaterialToSelectedObjects(Material& material)
     {
         Object.second->ApplyMaterial(material);
     }
+}
+void CursorState::ApplyHotspotTextureToSelectedObjects(HotspotTexture& hotspotTexture)
+{
+    for (auto& Object : SelectedObjects)
+    {
+        Object.second->ApplyHotspotTexture(hotspotTexture);
+    }
+}
+void CursorState::IncrementTransSnap()
+{
+    TransSnapIndex++;
+    if (TransSnapIndex >= TransSnaps.size())
+    {
+        TransSnapIndex = TransSnaps.size() - 1;
+    }
+    TransSnap = TransSnaps[TransSnapIndex];
+}
+void CursorState::DecrementTransSnap()
+{
+    TransSnapIndex--;
+    if (TransSnapIndex < 0)
+    {
+        TransSnapIndex = 0;
+    }
+    TransSnap = TransSnaps[TransSnapIndex];
 }
 #endif

@@ -148,4 +148,6 @@ struct Vec4f
     float& operator[] (int index);
 
     Vec4f operator*(Mat4x4f rhs);
+
+    bool operator==(const Vec4f& rhs) const;
 };

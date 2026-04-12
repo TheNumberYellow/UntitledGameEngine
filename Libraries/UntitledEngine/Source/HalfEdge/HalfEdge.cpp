@@ -1,9 +1,223 @@
 #include "HalfEdge.h"
 
+#include "Graphics/HotspotTexture.h"
 #include "Modules/CollisionModule.h"
 #include "Modules/GraphicsModule.h"
 #include "Modules/InputModule.h"
 #include "Modules/UIModule.h"
+#include "Scene.h"
+
+void he::Face::ApplyHotspotTexture(HotspotTexture& inHotspotTexture)
+{
+    // Assume face is convex for now
+
+    // Collect all verts and half edges for this face
+    std::vector<he::Vertex*> faceVerts;
+    std::vector<he::HalfEdge*> faceHalfEdges;
+    he::HalfEdge* startEdge = halfEdge;
+    he::HalfEdge* currentEdge = startEdge;
+    do
+    {
+        faceVerts.push_back(currentEdge->vert);
+        faceHalfEdges.push_back(currentEdge);
+        currentEdge = currentEdge->next;
+    } while (currentEdge != startEdge);
+
+    // Determine containing rect for this face which minimizes area
+    // Use rotating calipers method to find best rect orientation
+    // 
+    // Loop through face edges, for each edge project all verts onto edge direction 
+    // and edge normal to get min/max in both directions, which gives us a rect for this edge orientation, 
+    // then find the rect with the smallest area and use that as the face rect to compare against hotspot texture rects
+    Vec2f bestRectSize = Vec2f(FLT_MAX, FLT_MAX);
+    Vec3f bestRectUp = Vec3f(0.0f, 0.0f, 1.0f);
+    Vec3f bestRectRight = Vec3f(1.0f, 0.0f, 0.0f);
+    Vec3f bestRectStartPos = Vec3f(0.0f);
+    float bestNormalAlignmentScore = -FLT_MAX;
+
+    // Get face plane normal (assuming for now that the face is planar and convex, so we can just use the normal of the first 3 verts)
+    Vec3f edge1 = faceVerts[1]->vec - faceVerts[0]->vec;
+    Vec3f edge2 = faceVerts[2]->vec - faceVerts[0]->vec;
+    Vec3f faceNormal = Math::cross(edge1, edge2).GetNormalized();
+
+    for(he::HalfEdge* edge : faceHalfEdges)
+    {
+        Vec3f edgeDir = (edge->next->vert->vec - edge->vert->vec).GetNormalized();
+        Vec3f edgeNormal = Math::cross(faceNormal, edgeDir).GetNormalized();
+
+        // Project verts onto edge direction and normal to get rect size for this orientation
+        float minEdge = FLT_MAX;
+        float maxEdge = -FLT_MAX;
+        float minNormal = FLT_MAX;
+        float maxNormal = -FLT_MAX;
+
+        
+        Vec3f currentBestRectStartPos = edge->vert->vec;
+
+        for (he::Vertex* vert : faceVerts)
+        {
+            Vec3f vertToEdge = vert->vec - edge->vert->vec;
+            float edgeProj = Math::dot(vertToEdge, edgeDir);
+            float normalProj = Math::dot(vertToEdge, edgeNormal);
+            if (edgeProj < minEdge)
+            {
+                minEdge = edgeProj;
+            }
+            if (edgeProj > maxEdge)
+            {
+                maxEdge = edgeProj;
+            }
+            if (normalProj < minNormal)
+            {
+                minNormal = normalProj;
+            }
+            if (normalProj > maxNormal)
+            {
+                maxNormal = normalProj;
+            }
+
+            if (minEdge < 0.0f)
+            {
+                currentBestRectStartPos = edge->vert->vec + (edgeDir * minEdge);
+            }
+            if (minNormal < 0.0f)
+            {
+                currentBestRectStartPos = edge->vert->vec + (edgeNormal * minNormal);
+            }
+        }
+
+        Vec2f rectSize = Vec2f(maxEdge - minEdge, maxNormal - minNormal);
+        // Prefer rects with normals facing up (since our hotspot textures will be designed with that in mind) by giving them a score boost based on how closely the rect normal aligns with the world up vector
+        float normalAlignmentScore = Math::dot(edgeNormal, Vec3f::Up());
+
+
+        if ((rectSize.x * rectSize.y) - (0.1f * normalAlignmentScore) < (bestRectSize.x * bestRectSize.y) - bestNormalAlignmentScore)
+        {
+            bestNormalAlignmentScore = normalAlignmentScore;
+            bestRectStartPos = currentBestRectStartPos;
+            bestRectSize = rectSize;
+            
+            bestRectRight = edgeDir;
+            bestRectUp = edgeNormal;
+            
+            // Temp debugging
+            m_bestRectStartPos = bestRectStartPos;
+            m_bestRectSize = bestRectSize;
+            m_bestRectRight = bestRectRight;
+            m_bestRectUp = bestRectUp;
+        }
+
+    }
+
+    // Loop through the hotspot texture's rects and find the one that best matches the aspect ratio of the face rect, 
+    // then apply the hotspot texture to the face using the best rect orientation and size
+    
+    Vec2f faceRectSize = bestRectSize;
+    float bestScore = 0.0f;
+    Rect bestHotspotRect;
+    bool foundHotspotRect = false;
+    bool shouldRotateHotspotUVs = false;
+    
+    const float aspectScoreWeight = 0.8f;
+    const float sizeScoreWeight = 0.2f;
+    const float randomScoreWeight = 0.01f;
+
+    for (Rect hotspotRect : inHotspotTexture.m_Hotspots)
+    {
+        float hotspotAspect = hotspotRect.size.x / hotspotRect.size.y;
+        float idealAspect = faceRectSize.x / faceRectSize.y;
+        float aspectScore = 1.0f - abs(hotspotAspect - idealAspect) / idealAspect;
+
+        float randomScore = Math::RandomFloat(0.0f, 1.0f);
+
+        // Barf
+        Vec2f textureSize = GraphicsModule::Get()->m_Renderer.GetTextureSize(inHotspotTexture.m_Material.m_Albedo->GetID());
+        Vec2f hotspotTextureSize = hotspotRect.size * textureSize;
+
+        // For now our ideal is 1m = 100 texels
+        Vec2f idealHotspotSize = faceRectSize * 100.0f;
+        float sizeScore = 1.0f - (hotspotTextureSize - idealHotspotSize).Magnitude() / idealHotspotSize.Magnitude();
+
+        float totalScore = aspectScore * aspectScoreWeight + sizeScore * sizeScoreWeight + randomScore * randomScoreWeight;
+
+        if (!foundHotspotRect || totalScore > bestScore)
+        {
+            bestHotspotRect = hotspotRect;
+            bestScore = totalScore;
+            foundHotspotRect = true;
+            shouldRotateHotspotUVs = false;
+        }
+    
+        // Also check rotated hotspot rect
+        if (inHotspotTexture.m_AllowRotation)
+        {
+            float rotatedHotspotAspect = hotspotRect.size.y / hotspotRect.size.x;
+            aspectScore = 1.0f - abs(rotatedHotspotAspect - idealAspect) / idealAspect;
+            sizeScore = 1.0f - (Vec2f(hotspotTextureSize.y, hotspotTextureSize.x) - idealHotspotSize).Magnitude() / idealHotspotSize.Magnitude();
+
+            totalScore = aspectScore * aspectScoreWeight + sizeScore * sizeScoreWeight + randomScore * randomScoreWeight;
+            if (totalScore > bestScore)
+            {
+                bestHotspotRect = hotspotRect;
+                bestScore = totalScore;
+                foundHotspotRect = true;
+                shouldRotateHotspotUVs = true;
+            }
+        }
+
+    }
+    // Apply the hotspot texture to the face using the best rect and orientation
+    if (foundHotspotRect)
+    {
+        uvOverrides.clear();
+        useUVOverride = true;
+        material = inHotspotTexture.m_Material;
+
+        if (shouldRotateHotspotUVs)
+        {
+            // Swap right and up for UV projection
+            Vec3f temp = bestRectRight;
+            bestRectRight = bestRectUp;
+            bestRectUp = temp;
+            // Swap rect size for UV projection
+            float tempSize = bestRectSize.x;
+            bestRectSize.x = bestRectSize.y;
+            bestRectSize.y = tempSize;
+        }
+
+        for (he::Vertex* vert : faceVerts)
+        {
+            // Project vert onto best rect orientation to get UVs
+            
+            Vec3f vertToEdge = vert->vec - bestRectStartPos;
+            float edgeProj = Math::dot(vertToEdge, bestRectRight);
+            float normalProj = Math::dot(vertToEdge, bestRectUp);
+
+            Rect bestHotspotRectDebug = bestHotspotRect;
+            //bestHotspotRectDebug.location -= Vec2f(0.01f, 0.01f);
+            //bestHotspotRectDebug.size += Vec2f(0.02f, 0.02f);
+            
+            Vec2f uvOverride;
+
+            uvOverride.x = Math::Remap(0.0f, bestRectSize.x, bestHotspotRectDebug.location.x, bestHotspotRectDebug.location.x + bestHotspotRectDebug.size.x, edgeProj);
+            uvOverride.y = Math::Remap(0.0f, bestRectSize.y, bestHotspotRectDebug.location.y, bestHotspotRectDebug.location.y + bestHotspotRectDebug.size.y, normalProj);
+
+            //vert->uv.x = Math::Remap(0.0f, 1.0f, 1.0f, 0.0f, uvOverride.x);
+            uvOverride.y = Math::Remap(0.0f, 1.0f, 1.0f, 0.0f, uvOverride.y);
+
+            uvOverrides.push_back(uvOverride);
+        }
+
+    }
+}
+
+Vec3f he::Face::GetNormal()
+{
+    // Just get normal from first 3 verts for now, since we are assuming faces are planar and convex
+    Vec3f edge1 = halfEdge->next->vert->vec - halfEdge->vert->vec;
+    Vec3f edge2 = halfEdge->next->next->vert->vec - halfEdge->vert->vec;
+    return -Math::cross(edge1, edge2).GetNormalized();
+}
 
 he::SelectedHalfEdgeMesh::SelectedHalfEdgeMesh(HalfEdgeMesh* inMeshPtr)
 {
@@ -43,6 +257,8 @@ void he::SelectedHalfEdgeMesh::Draw()
 
 void he::SelectedHalfEdgeMesh::Update()
 {
+    InputModule* Input = InputModule::Get();
+
     m_HalfEdgeMesh->m_RepModelsNeedUpdate = true;
 
     for (size_t i = 0; i < m_HalfEdgeMesh->m_Verts.size(); i++)
@@ -51,8 +267,6 @@ void he::SelectedHalfEdgeMesh::Update()
         he::Vertex* vert = m_HalfEdgeMesh->m_Verts[i];
         vert->vec = Vec3f(0.0f, 0.0f, 0.0f) * (m_Transform.GetTransformMatrix() * offset);
     }
-
-    InputModule* Input = InputModule::Get();
 
     if (Input->GetKeyState(Key::F).justPressed)
     {
@@ -84,7 +298,16 @@ void he::SelectedHalfEdgeMesh::ApplyMaterial(Material& inMaterial)
 {
     for (Face* face : m_HalfEdgeMesh->m_Faces)
     {
+        face->useUVOverride = false; 
         face->material = inMaterial;
+    }
+}
+
+void he::SelectedHalfEdgeMesh::ApplyHotspotTexture(HotspotTexture& inHotspotTexture)
+{
+    for (Face* face : m_HalfEdgeMesh->m_Faces)
+    {
+        face->ApplyHotspotTexture(inHotspotTexture);
     }
 }
 
@@ -231,13 +454,38 @@ void he::SelectedHalfEdgeFace::Draw()
         graphics->DebugDrawSphere(currentHalfEdge->vert->vec, 0.25f, Vec3f(0.0f, 1.0f, 1.0f));
         currentHalfEdge = currentHalfEdge->next;
     } while (currentHalfEdge != firstHalfEdge);
+
+    // Temp debugging
+    // Debug draw the best rect
+    if (shouldDebugDrawHotspotRect)
+    {
+        Vec3f rectCorners[4];
+        rectCorners[0] = m_FacePtr->m_bestRectStartPos;
+        rectCorners[1] = m_FacePtr->m_bestRectStartPos + (m_FacePtr->m_bestRectRight * m_FacePtr->m_bestRectSize.x);
+        rectCorners[2] = m_FacePtr->m_bestRectStartPos + (m_FacePtr->m_bestRectRight * m_FacePtr->m_bestRectSize.x) + (m_FacePtr->m_bestRectUp * m_FacePtr->m_bestRectSize.y);
+        rectCorners[3] = m_FacePtr->m_bestRectStartPos + (m_FacePtr->m_bestRectUp * m_FacePtr->m_bestRectSize.y);
+        for (int i = 0; i < 4; i++)
+        {
+            graphics->DebugDrawLine(rectCorners[i], rectCorners[(i + 1) % 4], MakeColour(255, 0, 255));
+        }
+        graphics->DebugDrawArrow(m_FacePtr->m_bestRectStartPos, m_FacePtr->m_bestRectStartPos + m_FacePtr->m_bestRectUp, MakeColour(255, 255, 0));
+    }
 }
 
 void he::SelectedHalfEdgeFace::Update()
 {
+    InputModule* Input = InputModule::Get();
+
     m_HalfEdgeMesh->m_RepModelsNeedUpdate = true;
 
     he::Face* face = m_FacePtr;
+
+    if (true)
+    {
+        Vec3f faceNormal = face->GetNormal();
+        m_Transform.SetPosition(m_Transform.GetPosition() + faceNormal * Input->GetMouseState().GetDeltaMouseWheel() * 0.25f);
+    }
+
     he::HalfEdge* firstHalfEdge = face->halfEdge;
 
     he::HalfEdge* currentHalfEdge = firstHalfEdge;
@@ -253,16 +501,22 @@ void he::SelectedHalfEdgeFace::Update()
         i++;
     } while (currentHalfEdge != firstHalfEdge);
 
-    InputModule* Input = InputModule::Get();
+    
 
     if (Input->GetKeyState(Key::E).justReleased)
     {
+        isUserExtruding = false;
+    }
+    if (Input->GetKeyState(Key::E).justPressed)
+    {
+        isUserExtruding = true;
         m_HalfEdgeMesh->ExtrudeFace(m_FacePtr);
     }
     if (Input->GetKeyState(Key::F).justReleased)
     {
         m_HalfEdgeMesh->FlipFace(m_FacePtr);
     }
+
 }
 
 bool he::SelectedHalfEdgeFace::DrawInspectorPanel()
@@ -297,6 +551,8 @@ bool he::SelectedHalfEdgeFace::DrawInspectorPanel()
     //ui->NewLine();
     ui->FloatSlider("TextureRotation", Vec2f(240.0f, 40.0f), m_FacePtr->textureRot, -3.14f, 3.14f);
 
+    ui->CheckBox("Debug Draw HotspotRect", shouldDebugDrawHotspotRect);
+
     return false;
 }
 
@@ -314,11 +570,17 @@ void he::SelectedHalfEdgeFace::ApplyMaterial(Material& inMaterial)
 {
     if (m_FacePtr)
     {
-        //if (m_FacePtr->material)
-        //{
-        //    delete m_FacePtr->material;
-        //}
+        m_FacePtr->useUVOverride = false;
         m_FacePtr->material = Material(inMaterial);
+        m_HalfEdgeMesh->m_RepModelsNeedUpdate = true;
+    }
+}
+
+void he::SelectedHalfEdgeFace::ApplyHotspotTexture(HotspotTexture& inHotspotTexture)
+{
+    if (m_FacePtr)
+    {
+        m_FacePtr->ApplyHotspotTexture(inHotspotTexture);
         m_HalfEdgeMesh->m_RepModelsNeedUpdate = true;
     }
 }

@@ -5,6 +5,7 @@
 
 #include "HalfEdge/HalfEdge.h"
 #include "Entities/Entity.h"
+#include "Graphics/HotspotTexture.h"
 
 #include "GameEngine.h"
 
@@ -74,6 +75,9 @@ private:
 
     std::vector<Material> LoadMaterials(GraphicsModule& graphics);
     Material LoadMaterial(std::filesystem::path materialPath);
+    std::vector<HotspotTexture> LoadHotspotTextures(GraphicsModule& graphics);
+
+    void ReloadHotspotTextures(GraphicsModule& graphics);
 
     void MoveCamera(Camera* Camera, float PixelToRadians, double DeltaTime);
 
@@ -86,6 +90,9 @@ private:
     void DrawMaterialEditor();
 
     void DrawHotSpotMaterialEditor();
+
+    void SaveHotspotTexture(std::string TextureName, HotspotTexture& HotspotTex);
+    HotspotTexture LoadHotspotTexture(std::string TextureName);
 
     void DrawNewTabScreen();
 
@@ -189,6 +196,7 @@ private:
     //--------------------
     std::vector<Material> LoadedMaterials;
     std::vector<Model> LoadedModels;
+    std::vector<HotspotTexture> LoadedHotspotTextures;
 
     //--------------------
     // Editor Frame Buffers (Come back here when I change how framebuffers are used)
@@ -221,12 +229,16 @@ private:
     //--------------------
     // Hotspot Material Editor Stuff
     //--------------------
-    Material* SelectedHotspotMaterial = nullptr;
-    std::vector<Rect> HotspotRects;
+    //Material* SelectedHotspotMaterial = nullptr;
+    //std::vector<Rect> HotspotRects;
+    bool HasSelectedMaterial = false;
     int SelectedHotspotRectIndex = -1;
     bool DraggingNewHotspotRect = false;
     Vec2f NewHotspotRectStartPos = Vec2f(0.0f, 0.0f);
     Rect NewHotspotRect = Rect(Vec2f(0.0f, 0.0f), Vec2f(0.0f, 0.0f));
+    HotspotTexture CurrentHotspotTexture;
+    float HotspotTextureZoom = 1.0f;
+    Vec2f HotspotTextureOffset = Vec2f(0.0f);
 
     //--------------------
     // Resource Tab Stuff

@@ -2792,24 +2792,32 @@ void GraphicsModule::UpdateHEMeshModel(he::HalfEdgeMesh* mesh)
     }
     mesh->m_RepModels.clear();
 
+    
     for (auto& face : mesh->m_Faces)
     {
         std::vector<float> Vertices;
         std::vector<unsigned int> Indices;
 
         std::vector<Vec3f> positions;
-        
+        std::vector<Vec2f> uvCoords;
+
         he::HalfEdge* initialHalfEdge = face->halfEdge;
 
         he::HalfEdge* currentHalfEdge = initialHalfEdge;
 
+        int uvOverrideCounter = 0;
         do
         {
             he::Vertex* thisVert = currentHalfEdge->vert;
 
             positions.push_back(thisVert->vec);
+            if (face->useUVOverride)
+            {
+                uvCoords.push_back(face->uvOverrides[uvOverrideCounter]);
+            }
 
             currentHalfEdge = currentHalfEdge->next;
+            uvOverrideCounter++;
 
         } while (currentHalfEdge != initialHalfEdge);
     
@@ -2887,13 +2895,17 @@ void GraphicsModule::UpdateHEMeshModel(he::HalfEdgeMesh* mesh)
             texCoords.x *= face->textureScaleU;
             texCoords.y *= face->textureScaleV;
 
+            if (face->useUVOverride)
+            {
+                texCoords = uvCoords[i];
+            }
+
             Vertices.insert(Vertices.end(),
                 {
                     // Positions            // Normals (TBD)                // Colours                  // Texcoords
                     pos.x, pos.y, pos.z,    normal.x, normal.y, normal.z,   1.0f, 1.0f, 1.0f, 1.0f,     texCoords.x, texCoords.y
                 });
             std::vector<unsigned int> newIndices;
-
         }
         for (unsigned int i = 0; i < positions.size(); ++i)
         {

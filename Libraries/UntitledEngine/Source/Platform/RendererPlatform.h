@@ -217,6 +217,8 @@ public:
     std::vector<float> GetMeshVertexData(StaticMesh_ID meshID);
     std::vector<unsigned int> GetMeshIndexData(StaticMesh_ID meshID);
 
+    Vec2i GetTextureSize(Texture_ID textureID);
+
     void SetActiveFBuffer(Framebuffer_ID fBufferID);
     void ResizeFBuffer(Framebuffer_ID fBufferID, Vec2i newSize);
     void ResetToScreenBuffer();

@@ -46,10 +46,10 @@ void ServerGameState::Update(double DeltaTime)
         {
             json PacketData = json::parse(packet.packet.Data);
 
-            std::string typeStr = PacketData["Type"];
-            if (typeStr == "Input")
+            std::string typeStr = PacketData["T"];
+            if (typeStr == "I")
             {
-                json DataPacket = PacketData["Data"];
+                json DataPacket = PacketData["D"];
 
                 for (json& InputData : DataPacket)
                 {
@@ -65,6 +65,23 @@ void ServerGameState::Update(double DeltaTime)
                     if (inputString == "S-") clientInputState.SetKeyDown(Key::S, false);
                     if (inputString == "D+") clientInputState.SetKeyDown(Key::D, true);
                     if (inputString == "D-") clientInputState.SetKeyDown(Key::D, false);
+                    if (inputString == "SP+") clientInputState.SetKeyDown(Key::Space, true);
+                    if (inputString == "SP-") clientInputState.SetKeyDown(Key::Space, false);
+
+                    if (inputString.starts_with("M:"))
+                    {
+                        std::string mouseData = inputString.substr(2);
+                        size_t commaPos = mouseData.find(',');
+                        if (commaPos != std::string::npos)
+                        {
+                            std::string xStr = mouseData.substr(0, commaPos);
+                            std::string yStr = mouseData.substr(commaPos + 1);
+                            int x = std::stoi(xStr);
+                            int y = std::stoi(yStr);
+                            clientInputState.GetMouseState().SetDeltaPos(Vec2i(x, y));
+                            
+                        }
+                    }
                 }
             }
         }
@@ -103,7 +120,7 @@ void ServerGameState::Update(double DeltaTime)
                 {
                     std::string fileName = entry.path().generic_string();
 
-                    if (ui->TextButton(fileName, Vec2f(400.0f, 50.0f), 8.0f, MakeColour(200, 100, 75)))
+                    if (ui->TextButton(fileName, PlacementType::FIT_WIDTH, 8.0f, MakeColour(200, 100, 75)))
                     {
                         SendLevelChangePacket(fileName);
                         CurrentScene.Load(fileName);
@@ -141,8 +158,14 @@ void ServerGameState::Update(double DeltaTime)
 
         SendSceneUpdatePacket();
 
-        CurrentScene.Draw(*graphics, ViewportBuffer);
+        //CurrentScene.Draw(*graphics, ViewportBuffer);
         graphics->ResetFrameBuffer();
+
+        if (ui->TextButton("Return to Lobby"))
+        {
+            SendReturnToLobbyPacket();
+            InScene = false;
+        }
     }
 
 }
@@ -157,13 +180,25 @@ void ServerGameState::SendLevelChangePacket(std::string levelName)
 
     json PacketData;
 
-    PacketData["Type"] = "LvlChange";
-    PacketData["Lvl"] = levelName;
+    PacketData["T"] = "LC";
+    PacketData["L"] = levelName;
 
     std::string packetStr = PacketData.dump();
 
     network->ServerSendDataAll(packetStr);
+}
 
+void ServerGameState::SendReturnToLobbyPacket()
+{
+    NetworkModule* network = NetworkModule::Get();
+
+    json PacketData;
+
+    PacketData["T"] = "RTL";
+
+    std::string packetStr = PacketData.dump();
+
+    network->ServerSendDataAll(packetStr);
 }
 
 void ServerGameState::SendSceneUpdatePacket()
@@ -171,7 +206,7 @@ void ServerGameState::SendSceneUpdatePacket()
     NetworkModule* network = NetworkModule::Get();
 
     json PacketData;
-    PacketData["Type"] = "SceneUpdate";
+    PacketData["T"] = "SU";
     
     json ModelList;
     
@@ -184,7 +219,7 @@ void ServerGameState::SendSceneUpdatePacket()
 
             Mat4x4f ModTrans = it.second->GetTransform().GetTransformMatrix();
 
-            ModelInfo["Transform"] = {
+            ModelInfo["T"] = {
                 ModTrans[0].x, ModTrans[0].y, ModTrans[0].z, ModTrans[0].w,
                 ModTrans[1].x, ModTrans[1].y, ModTrans[1].z, ModTrans[1].w,
                 ModTrans[2].x, ModTrans[2].y, ModTrans[2].z, ModTrans[2].w,
@@ -195,25 +230,31 @@ void ServerGameState::SendSceneUpdatePacket()
         }
     }
 
-    PacketData["Models"] = ModelList;
+    PacketData["ML"] = ModelList;
 
     std::string packetStr = PacketData.dump();
 
     network->ServerSendDataAll(packetStr);
 
+    for (auto& it : ClientNames)
+    {
+        SendCameraInfo(it.first);
+    }
 
-    json CamPacket;
-    CamPacket["Type"] = "Cam";
+    //json CamPacket;
+    //CamPacket["T"] = "C";
 
-    //CamPacket["CamPos"] = { ViewportCamera->GetPosition().x, ViewportCamera->GetPosition().y, ViewportCamera->GetPosition().z };
-    //CamPacket["CamDir"] = { ViewportCamera->GetDirection().x, ViewportCamera->GetDirection().y, ViewportCamera->GetDirection().z };
+    ////CamPacket["CamPos"] = { ViewportCamera->GetPosition().x, ViewportCamera->GetPosition().y, ViewportCamera->GetPosition().z };
+    ////CamPacket["CamDir"] = { ViewportCamera->GetDirection().x, ViewportCamera->GetDirection().y, ViewportCamera->GetDirection().z };
 
-    CamPacket["CamPos"] = { 0.0f, -16.0f, 22.0f };
-    CamPacket["CamDir"] = { 0.0f, 0.35f, -0.7f };
+    //// Cam position
+    //CamPacket["CP"] = { 0.0f, -16.0f, 22.0f };
+    //// Cam direction
+    //CamPacket["CD"] = { 0.0f, 0.35f, -0.7f };
 
-    std::string camPacketStr = CamPacket.dump();
+    //std::string camPacketStr = CamPacket.dump();
 
-    network->ServerSendDataAll(camPacketStr);
+    //network->ServerSendDataAll(camPacketStr);
 }
 
 void ServerGameState::SpawnSphere(ClientID id)
@@ -227,21 +268,41 @@ void ServerGameState::SpawnSphere(ClientID id)
     NewSphereModel = CurrentScene.AddModel(NewSphereModel);
 
     SphereController* NewBehaviour = static_cast<SphereController*>(BehaviourRegistry::Get()->AttachNewBehaviour("SphereController", NewSphereModel));
+    NewBehaviour->SetRunningLocally(false);
     NewBehaviour->Initialize(&CurrentScene);
 
     NewBehaviour->SetSystemInputState(&ClientInputStates[id]);
-
-    //SphereController* SphereBehaviour = static_cast<SphereController*>(BehaviourRegistry::Get()->AttachNewBehaviour("SphereController", NewSphereModel));
-
-    //CurrentScene.AddMo
+    
+    Camera* NewCamera = new Camera();
+    NewBehaviour->SetCamera(NewCamera);
+    ClientCameras[id] = NewCamera;
 
 
     // Notify clients of new model
     json NewModelPacket;
-    NewModelPacket["Type"] = "NewModel";
+    NewModelPacket["T"] = "NM";
 
     NewModelPacket["Mesh"] = "Assets/models/UVBall.obj";
     NewModelPacket["Texture"] = "Assets/textures/marble.jpg";
 
     network->ServerSendDataAll(NewModelPacket.dump());
+}
+
+void ServerGameState::SendCameraInfo(ClientID id)
+{
+    if (Camera* clientCamera = ClientCameras[id])
+    {
+        NetworkModule* network = NetworkModule::Get();
+
+        json CamPacket;
+
+        Vec3f camPos = clientCamera->GetPosition();
+        Vec3f camDir = clientCamera->GetDirection();
+
+        CamPacket["T"] = "C";
+        CamPacket["CP"] = { camPos.x, camPos.y, camPos.z };
+        CamPacket["CD"] = { camDir.x, camDir.y, camDir.z };
+
+        network->ServerSendData(CamPacket.dump(), id);
+    }
 }

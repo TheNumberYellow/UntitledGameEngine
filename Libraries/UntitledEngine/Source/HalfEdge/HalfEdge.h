@@ -2,10 +2,12 @@
 #include "Interfaces/EditorClickable_i.h"
 #include "Math/Math.h"
 
+
 #include "States/Editor/CursorState.h"
 
 class Model;
 struct HalfEdgeMesh;
+struct HotspotTexture;
 
 namespace he
 {
@@ -43,6 +45,7 @@ namespace he
     {
         Vertex(Vec3f inVec) : vec(inVec) {};
         Vec3f vec;
+
         HalfEdge* halfEdge = nullptr;
     };
 
@@ -58,9 +61,22 @@ namespace he
 
         float textureRot = 0.0f;
 
+        bool useUVOverride = false;
+        std::vector<Vec2f> uvOverrides;
+
+        // Temp debugging
+        Vec3f m_bestRectStartPos;
+        Vec2f m_bestRectSize;
+        Vec3f m_bestRectRight;
+        Vec3f m_bestRectUp;
+
+
         Material material;
         
         bool flipFace = false; // Whether this face should be rendered with reversed winding order, used for faces that have been flipped by the user to avoid having to recalculate halfedge connectivity
+
+        void ApplyHotspotTexture(HotspotTexture& inHotspotTexture);
+        Vec3f GetNormal();
 
         HalfEdge* halfEdge = nullptr;
     };
@@ -77,7 +93,8 @@ namespace he
         virtual Transform* GetTransform() override;
         virtual void DeleteObject() override;
 
-        virtual void ApplyMaterial(Material& inMaterial);
+        virtual void ApplyMaterial(Material& inMaterial) override;
+        virtual void ApplyHotspotTexture(HotspotTexture& inHotspotTexture) override;
 
     private:
 
@@ -132,14 +149,18 @@ namespace he
         virtual void DeleteObject() override;
 
         virtual void ApplyMaterial(Material& inMaterial);
+        virtual void ApplyHotspotTexture(HotspotTexture& inHotspotTexture) override;
         
     private:
 
         virtual bool IsEqual(const ISelectedObject& other) const override;
 
+        bool isUserExtruding = false;
+
         he::Face* m_FacePtr = nullptr;
         Transform m_Transform;
         
+        bool shouldDebugDrawHotspotRect = false;
         std::vector<Mat4x4f> m_VertTransOffsets;
         
     public:

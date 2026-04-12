@@ -21,6 +21,7 @@ public:
 private:
 
     void SendLevelChangePacket(std::string levelName);
+    void SendReturnToLobbyPacket();
 
     void SendSceneUpdatePacket();
 
@@ -28,6 +29,8 @@ private:
     void SpawnSphere(ClientID id);
     Model SphereModelPrototype;
     // end TEMP
+
+    void SendCameraInfo(ClientID id);
 
     bool InScene = false;
     Scene CurrentScene;
@@ -39,5 +42,6 @@ private:
 
     std::unordered_map<ClientID, std::string> ClientNames;
     std::unordered_map<ClientID, SystemInputState> ClientInputStates;
+    std::unordered_map<ClientID, Camera*> ClientCameras;
 };
 

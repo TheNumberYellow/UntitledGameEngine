@@ -213,6 +213,11 @@ void MouseState::UpdateMouseWheel(int delta)
 	m_DeltaMouseWheel = delta;
 }
 
+void MouseState::SetDeltaPos(Vec2i newDelta)
+{
+	m_DeltaMouse = newDelta;
+}
+
 void MouseState::ClearDeltaMousePos()
 {
 	m_DeltaMouse = Vec2i(0, 0);

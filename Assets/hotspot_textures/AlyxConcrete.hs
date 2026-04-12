@@ -1,0 +1,133 @@
+{
+    "AllowRotation": true,
+    "Hotspots": [
+        {
+            "Location": [
+                0.0,
+                0.0
+            ],
+            "Size": [
+                0.5,
+                0.49960869550704956
+            ]
+        },
+        {
+            "Location": [
+                0.5,
+                0.0
+            ],
+            "Size": [
+                0.2514837086200714,
+                0.49960869550704956
+            ]
+        },
+        {
+            "Location": [
+                0.0,
+                0.49960869550704956
+            ],
+            "Size": [
+                0.5010434985160828,
+                0.5003913044929504
+            ]
+        },
+        {
+            "Location": [
+                0.751483678817749,
+                0.0
+            ],
+            "Size": [
+                0.1252201497554779,
+                0.49960869550704956
+            ]
+        },
+        {
+            "Location": [
+                0.8767038583755493,
+                0.0
+            ],
+            "Size": [
+                0.0646970197558403,
+                0.5006521940231323
+            ]
+        },
+        {
+            "Location": [
+                0.9414008855819702,
+                0.0
+            ],
+            "Size": [
+                0.02921805903315544,
+                0.5006521940231323
+            ]
+        },
+        {
+            "Location": [
+                0.9706189632415771,
+                0.0
+            ],
+            "Size": [
+                0.029381029307842255,
+                0.5006521940231323
+            ]
+        },
+        {
+            "Location": [
+                0.5010434985160828,
+                0.49960869550704956
+            ],
+            "Size": [
+                0.24939671158790588,
+                0.4998369514942169
+            ]
+        },
+        {
+            "Location": [
+                0.751483678817749,
+                0.49960869550704956
+            ],
+            "Size": [
+                0.12417663633823395,
+                0.5003913640975952
+            ]
+        },
+        {
+            "Location": [
+                0.8767038583755493,
+                0.5006521940231323
+            ],
+            "Size": [
+                0.0615665465593338,
+                0.4993478059768677
+            ]
+        },
+        {
+            "Location": [
+                0.9382703900337219,
+                0.5006521940231323
+            ],
+            "Size": [
+                0.03234855830669403,
+                0.49934783577919006
+            ]
+        },
+        {
+            "Location": [
+                0.9706189632415771,
+                0.5006521940231323
+            ],
+            "Size": [
+                0.029381047934293747,
+                0.4993478059768677
+            ]
+        }
+    ],
+    "Material": [
+        "C:/Users/Fraser/source/repos/TheNumberYellow/UntitledGameEngine/Assets/textures/concrete_alyx.png",
+        "C:/Users/Fraser/source/repos/TheNumberYellow/UntitledGameEngine/Assets/textures/concrete_alyx.norm.png",
+        "C:/Users/Fraser/source/repos/TheNumberYellow/UntitledGameEngine/Assets/textures/concrete_alyx.rough.png",
+        "C:/Users/Fraser/source/repos/TheNumberYellow/UntitledGameEngine/Assets/textures/default_metallic.png",
+        "C:/Users/Fraser/source/repos/TheNumberYellow/UntitledGameEngine/Assets/textures/default_ao.png"
+    ],
+    "TexturePath": "C:/Users/Fraser/source/repos/TheNumberYellow/UntitledGameEngine/Assets/textures/concrete_alyx.png"
+}

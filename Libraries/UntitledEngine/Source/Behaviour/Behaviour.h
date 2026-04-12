@@ -22,6 +22,12 @@ public:
 
     void SetSystemInputState(SystemInputState* InSystemInputState);
 
+    void SetRunningLocally(bool inRunningLocally);
+    bool IsRunningLocally();
+
+    void SetCamera(Camera* inCamera);
+    Camera* GetCamera();
+
     virtual Behaviour* Clone() const = 0;
 
     virtual void Initialize(Scene* Scene) {}
@@ -34,6 +40,8 @@ public:
 
 protected:
     SystemInputState* InputState;
+    Camera* Cam;
+    bool RunningLocally = true;
 };
 
 class BehaviourRegistry

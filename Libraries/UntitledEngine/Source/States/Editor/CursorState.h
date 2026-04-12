@@ -149,6 +149,7 @@ private:
     void UnselectSelectedObjects();
 
     void AddToSelectedObjects(ISelectedObject* NewSelectedObject);
+    
     void RecalculateProxyAndObjectOffsets();
 
     void UpdateSelectedTransformsBasedOnProxy();
@@ -160,6 +161,7 @@ private:
     bool ClickCastApplyMaterial(Ray mouseRay, Material* material);
 
     void ApplyMaterialToSelectedObjects(Material& material);
+    void ApplyHotspotTextureToSelectedObjects(HotspotTexture& hotspotTexture);
 
     ToolMode Tool = ToolMode::Select;
     DraggingMode Dragging = DraggingMode::None;
@@ -187,7 +189,25 @@ private:
     Vec3f ObjectRelativeHitPoint;
     Vec3f InitialObjectPosition;
     float ObjectDistanceAtHit;
-    float TransSnap = 0.5f;
+
+    std::vector<float> TransSnaps =
+    {
+        0.01f,
+        0.05f,
+        0.1f,
+        0.5f,
+        1.0f
+    };
+    
+
+    int TransSnapIndex = 4;
+    float TransSnap = TransSnaps[TransSnapIndex];
+
+    bool ShouldSnapToGrid = true;
+    bool ShouldSnapToRotationGrid = true;
+
+    void IncrementTransSnap();
+    void DecrementTransSnap();
 
     // Rotate
     Quaternion ObjectInitialRotation;
@@ -235,7 +255,6 @@ private:
     float SculptRadius = 1.0f;
 
     friend class EditorState;
-    bool ShouldSnapToGrid = false;
 
     EditorClickContext ClickContext;
 

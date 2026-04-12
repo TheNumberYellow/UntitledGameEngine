@@ -22,6 +22,7 @@ public:
     virtual void OnResize() override;
 
 private:
+    Rect GetViewportRect();
 
     void SendInputPacket();
     void ProcessPacketData(const std::string& data);
