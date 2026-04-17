@@ -149,6 +149,8 @@ private:
 
     std::vector<Camera> m_Cameras;
 
+    Vec3f m_AmbientLight = Vec3f(0.2f);
+
 #ifdef USE_EDITOR
     std::vector<IEditorClickable*> m_GenericEditorClickables;
 #endif

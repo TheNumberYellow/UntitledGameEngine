@@ -577,6 +577,12 @@ void Scene::DrawSettingsPanel()
     //UI->FloatSlider("G", Vec2f(400.0f, 20.0f), m_DirLight.colour.g);
     //UI->FloatSlider("B", Vec2f(400.0f, 20.0f), m_DirLight.colour.b);
 
+    // Ambient light colour setting
+    UI->Text("Ambient Light:");
+    UI->NewLine();
+    UI->FloatSlider("R", Vec2f(400.0f, 20.0f), m_AmbientLight.r);
+    UI->FloatSlider("G", Vec2f(400.0f, 20.0f), m_AmbientLight.g);
+    UI->FloatSlider("B", Vec2f(400.0f, 20.0f), m_AmbientLight.b);
 
 }
 
@@ -717,6 +723,7 @@ void Scene::Save(std::string FileName)
     SceneJson["SpotLights"] = SpotLightList;
     SceneJson["Models"] = ModelList;
     SceneJson["HEMeshes"] = HEMeshList;
+    SceneJson["AmbientLight"] = { m_AmbientLight.x, m_AmbientLight.y, m_AmbientLight.z };
 
     // Uncomment to beautify json - makes it easier to debug but makes files much larger
     //File << std::setw(4) << SceneJson;
@@ -798,6 +805,12 @@ void Scene::Load(std::string FileName)
     for (json& HEMeshJson : HEMeshesJson)
     {
         AddHalfEdgeMesh(LoadHEMesh(HEMeshJson, MaterialVec));
+    }
+
+    if (SceneJson.contains("AmbientLight"))
+    {
+        auto Ambient = SceneJson["AmbientLight"];
+        m_AmbientLight = Vec3f(Ambient[0], Ambient[1], Ambient[2]);
     }
 }
 
@@ -1081,6 +1094,7 @@ void Scene::Clear()
     m_DirectionalLights.clear();
     m_Cameras.clear();
     m_HEMeshes.clear();
+    m_AmbientLight = Vec3f(0.2f);
 
 #ifdef USE_EDITOR
     m_GenericEditorClickables.clear();
@@ -1131,6 +1145,8 @@ void Scene::CopyInternal(const Scene& other)
     {
         AddDirectionalLight(*directionalLight);
     }
+
+    m_AmbientLight = other.m_AmbientLight;
 }
 
 bool Scene::IsIgnored(Model* model, std::vector<Model*>& ignoredModels)
@@ -1186,6 +1202,8 @@ void Scene::PushSceneRenderCommandsInternal(GraphicsModule& graphics)
         LightRC.m_LinearAttenuation = Light->linearAttenuation;
         LightRC.m_QuadraticAttenuation = Light->quadraticAttenuation;
 
+        LightRC.m_CastShadows = Light->castShadows;
+
         graphics.AddRenderCommand(LightRC);
     }
     for (SpotLight* SLight : m_SpotLights)
@@ -1215,6 +1233,9 @@ void Scene::PushSceneRenderCommandsInternal(GraphicsModule& graphics)
 
         graphics.AddRenderCommand(RC);
     }
+    AmbientLightRenderCommand ARC;
+    ARC.m_Light = m_AmbientLight;
+    graphics.AddRenderCommand(ARC);
 }
 
 bool Scene::GetReaderStateFromToken(std::string Token, FileReaderState& OutState)
@@ -1240,16 +1261,16 @@ bool Scene::GetReaderStateFromToken(std::string Token, FileReaderState& OutState
 
 void Scene::SaveMaterial(json& JsonObject, Material& Mat)
 {
-    JsonObject[0] = Mat.m_Albedo->Path.GetFullPath();
-    JsonObject[1] = Mat.m_Normal->Path.GetFullPath();
-    JsonObject[2] = Mat.m_Roughness->Path.GetFullPath();
-    JsonObject[3] = Mat.m_Metallic->Path.GetFullPath();
-    JsonObject[4] = Mat.m_AO->Path.GetFullPath();
+    JsonObject[0] = "textures/" + Mat.m_Albedo->Path.GetFileName();
+    JsonObject[1] = "textures/" + Mat.m_Normal->Path.GetFileName();
+    JsonObject[2] = "textures/" + Mat.m_Roughness->Path.GetFileName();
+    JsonObject[3] = "textures/" + Mat.m_Metallic->Path.GetFileName();
+    JsonObject[4] = "textures/" + Mat.m_AO->Path.GetFileName();
 }
 
 void Scene::SaveStaticMesh(json& JsonObject, StaticMesh& Mesh)
 {
-    JsonObject = { Mesh.Path.GetFullPath() };
+    JsonObject = { "models/" + Mesh.Path.GetFileName() };
 }
 
 void Scene::SavePointLight(json& JsonObject, PointLight& PointLight)

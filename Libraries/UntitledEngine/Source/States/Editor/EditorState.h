@@ -240,6 +240,17 @@ private:
     float HotspotTextureZoom = 1.0f;
     Vec2f HotspotTextureOffset = Vec2f(0.0f);
 
+    std::vector<int> HotspotPixelSnaps =
+    {
+        1,
+        2,
+        4,
+        8,
+        16
+    };
+    size_t SelectedHotspotPixelSnapIndex = 4;
+    int HotspotPixelSnap = HotspotPixelSnaps[SelectedHotspotPixelSnapIndex];
+
     //--------------------
     // Resource Tab Stuff
     //--------------------

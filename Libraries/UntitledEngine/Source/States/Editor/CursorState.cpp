@@ -605,6 +605,26 @@ void CursorState::DrawToolSettingsPanel()
         {
             TransMode = TransformMode::Scale;
         }
+        switch (TransMode)
+        {
+        case TransformMode::Translate:
+            break;
+        case TransformMode::Rotate:
+            UI->StartFrame("Rotate Settings", PlacementType::FIT_BOTH, 14.0f, MakeColour(23, 169, 239), false);
+            {
+                UI->CheckBox("Rotate Individually", RotateIndividually);
+            }
+            UI->EndFrame();
+            break;
+        case TransformMode::Scale:
+            UI->StartFrame("Scale Settings", PlacementType::FIT_BOTH, 14.0f, MakeColour(23, 169, 239), false);
+            {
+                UI->CheckBox("Scale Individually", ScaleIndividually);
+            }
+            UI->EndFrame();
+            break;
+        }
+
         break;
     case ToolMode::Geometry:
         UI->Text("Geometry Tool Settings", PlacementType::FIT_WIDTH, titleTextColour);
@@ -1838,6 +1858,13 @@ void CursorState::UpdateSelectedTransformsBasedOnProxy()
     {
         SelectedObjects[0].second->GetTransform()->SetScale(SelectedProxyTransform.GetScale() * SelectedObjects[0].first.InitialScale);
     }
+    else if (ScaleIndividually)
+    {
+        for (auto& Object : SelectedObjects)
+        {
+            Object.second->GetTransform()->SetScale(SelectedProxyTransform.GetScale() * Object.first.InitialScale);
+        }
+    }
     else
     {
         for (auto& Object : SelectedObjects)
@@ -1858,15 +1885,23 @@ void CursorState::UpdateSelectedTransformsBasedOnProxy()
     }
 
     // Handle rotation
-    for (auto& Object : SelectedObjects)
+    if (RotateIndividually)
     {
-
-        Object.second->GetTransform()->RotateAroundPoint(ProxyPos, SelectedProxyTransform.GetRotation());
-
-        Object.second->GetTransform()->SetRotation(SelectedProxyTransform.GetRotation() * Object.first.RotationDiff);
+        for (auto& Object : SelectedObjects)
+        {
+            Object.second->GetTransform()->SetRotation(SelectedProxyTransform.GetRotation() * Object.first.RotationDiff);
+        }
     }
+    else
+    {
+        for (auto& Object : SelectedObjects)
+        {
 
+            Object.second->GetTransform()->RotateAroundPoint(ProxyPos, SelectedProxyTransform.GetRotation());
 
+            Object.second->GetTransform()->SetRotation(SelectedProxyTransform.GetRotation() * Object.first.RotationDiff);
+        }
+    }
 }
 
 void CursorState::RotateSelectedTransforms(Quaternion Rotation)

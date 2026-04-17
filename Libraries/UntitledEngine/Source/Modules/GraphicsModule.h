@@ -74,6 +74,11 @@ struct BillboardRenderCommand
     float m_Size = 1.0f;
 };
 
+struct AmbientLightRenderCommand
+{
+    Vec3f m_Light;
+};
+
 class GraphicsModule
     : public IResizeable
 {
@@ -91,6 +96,7 @@ public:
     void AddRenderCommand(PointLightRenderCommand Command);
     void AddRenderCommand(SpotLightRenderCommand Command);
     void AddRenderCommand(DirectionalLightRenderCommand Command);
+    void AddRenderCommand(AmbientLightRenderCommand Command);
 
     // Render all submitted render commands into the specified buffer
     //void Render(Framebuffer_ID OutBuffer, Camera Cam, DirectionalLight DirLight);
@@ -251,6 +257,7 @@ private:
     std::vector<PointLightRenderCommand> m_PointLightRenderCommands;
     std::vector<SpotLightRenderCommand> m_SpotLightRenderCommands;
     std::vector<DirectionalLightRenderCommand> m_DirectionalLightRenderCommands;
+    std::vector<AmbientLightRenderCommand> m_AmbientLightRenderCommands;
 
     // Deferred rendering meshes
     StaticMesh m_UnitSphereMesh;

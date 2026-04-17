@@ -1805,6 +1805,8 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
 
     uniform vec3 CameraPos;
 
+    uniform vec3 Ambient;
+
     void main()
     {
         vec3 BaseColour = texture(UnlitTex, FragUV).xyz;
@@ -1817,7 +1819,7 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
         vec3 I = normalize(Position - CameraPos);
         vec3 R = reflect(I, normalize(Normal));
         vec3 reflectColour = texture(SkyBox, R).rgb * Metallic;
-        vec3 ambient = max(reflectColour, vec3(0.2)) * BaseColour;
+        vec3 ambient = max(reflectColour, Ambient) * BaseColour;
 
         OutColour.xyz = ambient; // Ambient
         OutColour.xyz += BaseColour * Light; // Lighting
@@ -2010,6 +2012,11 @@ void GraphicsModule::AddRenderCommand(DirectionalLightRenderCommand Command)
     m_DirectionalLightRenderCommands.push_back(Command);
 }
 
+void GraphicsModule::AddRenderCommand(AmbientLightRenderCommand Command)
+{
+    m_AmbientLightRenderCommands.push_back(Command);
+}
+
 static Vec3f GetPointLightDirectionForCubemapFace(int faceIndex)
 {
     switch (faceIndex)
@@ -2166,6 +2173,11 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam)
 
     // ~~~~~~~ Render lights ~~~~~~~
 
+    // Sort point light commands by whether they have shadows or not, so we can batch them better
+    std::sort(m_PointLightRenderCommands.begin(), m_PointLightRenderCommands.end(), [](const PointLightRenderCommand& a, const PointLightRenderCommand& b) {
+        return a.m_CastShadows > b.m_CastShadows; // Sort with shadow-casting lights first
+    });
+
     m_Renderer.SetBlendFunction(BlendFunc::ADDITIVE);
     {
         // Directional lights
@@ -2226,85 +2238,92 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam)
         
         for (PointLightRenderCommand& Command : m_PointLightRenderCommands)
         {
-            float lightRange;
+            if (Command.m_CastShadows)
+            {
+                float lightRange;
 
-            // TODO(fraser): test attenuation ranges
-            if (Command.m_QuadraticAttenuation > 0.0f)
-            {
-                lightRange = sqrt(Command.m_Intensity / (Command.m_QuadraticAttenuation * 0.01f));
-            }
-            else if (Command.m_LinearAttenuation > 0.0f)
-            {
-                lightRange = Command.m_Intensity / (Command.m_LinearAttenuation * 0.01f);
+                // TODO(fraser): test attenuation ranges
+                if (Command.m_QuadraticAttenuation > 0.0f)
+                {
+                    lightRange = sqrt(Command.m_Intensity / (Command.m_QuadraticAttenuation * 0.01f));
+                }
+                else if (Command.m_LinearAttenuation > 0.0f)
+                {
+                    lightRange = Command.m_Intensity / (Command.m_LinearAttenuation * 0.01f);
+                }
+                else
+                {
+                    lightRange = 200.0f; // Arbitrary large distance if no attenuation
+                }
+
+                m_Renderer.SetActiveShader(m_PointShadowShader);
+                for (int i = 0; i < 6; i++)
+                {
+                    SetActiveCubemapFace(m_PointLightShadowCubemap, i);
+                    Mat4x4f shadowProj = Math::GenerateProjectionMatrix(90.0f, 1.0f, 0.001f, lightRange);
+                    Mat4x4f shadowView = Math::GenerateViewMatrix(Command.m_Position, GetPointLightDirectionForCubemapFace(i),
+                        GetPointLightUpVecForCubemapFace(i));
+
+                    Mat4x4f shadowVP = shadowProj * shadowView;
+                    m_Renderer.SetShaderUniformMat4x4f(m_PointShadowShader, "ShadowVP", shadowVP);
+                    m_Renderer.SetShaderUniformVec3f(m_PointShadowShader, "LightPos", Command.m_Position);
+                    m_Renderer.SetShaderUniformFloat(m_PointShadowShader, "FarPlane", lightRange);
+                    for (StaticMeshRenderCommand& MeshCommand : m_StaticMeshRenderCommands)
+                    {
+                        if (!MeshCommand.m_CastShadows)
+                        {
+                            continue;
+                        }
+                        // Set mesh-specific transform uniform
+                        m_Renderer.SetShaderUniformMat4x4f(m_PointShadowShader, "Transformation", MeshCommand.m_TransMat);
+                        // Draw mesh to shadow map
+                        m_Renderer.DrawMesh(MeshCommand.m_Mesh);
+                    }
+                }
+
+                // Point lights
+                m_Renderer.SetActiveShader(m_GBufferPointLightShaderWithShadow);
+                SetActiveFrameBuffer(Buffer.LightBuffer, false);
+                {
+                    m_Renderer.SetShaderUniformVec2f(m_GBufferPointLightShaderWithShadow, "Resolution", Buffer.Size);
+                    m_Renderer.SetShaderUniformMat4x4f(m_GBufferPointLightShaderWithShadow, "Camera", Cam.GetCamMatrix());
+
+                    Transform lightTransform;
+                    lightTransform.SetPosition(Command.m_Position);
+                    lightTransform.SetScale(Vec3f(lightRange, lightRange, lightRange));
+                    m_Renderer.SetShaderUniformMat4x4f(m_GBufferPointLightShaderWithShadow, "Transformation", lightTransform.GetTransformMatrix());
+
+                    m_Renderer.SetShaderUniformVec3f(m_GBufferPointLightShaderWithShadow, "CameraPos", Cam.GetPosition());
+                    m_Renderer.SetActiveCubemap(m_PointLightShadowCubemap, "ShadowMap");
+
+                    // Needed?
+                    m_Renderer.SetActiveTexture(Buffer.PositionTex, "gPosition");
+                    m_Renderer.SetActiveTexture(Buffer.NormalTex, "gNormal");
+                    m_Renderer.SetActiveTexture(Buffer.AlbedoTex, "gAlbedo");
+                    m_Renderer.SetActiveTexture(Buffer.MetallicTex, "gMetallic");
+                    m_Renderer.SetActiveTexture(Buffer.RoughnessTex, "gRoughness");
+                    m_Renderer.SetActiveTexture(Buffer.AOTex, "gAO");
+
+                    m_Renderer.SetShaderUniformVec3f(m_GBufferPointLightShaderWithShadow, "LightPosition", Command.m_Position);
+                    m_Renderer.SetShaderUniformVec3f(m_GBufferPointLightShaderWithShadow, "LightColour", Command.m_Colour * Command.m_Intensity);
+                    m_Renderer.SetShaderUniformFloat(m_GBufferPointLightShaderWithShadow, "FarPlane", lightRange);
+
+                    m_Renderer.SetShaderUniformFloat(m_GBufferPointLightShaderWithShadow, "ConstantAtten", Command.m_ConstantAttenuation);
+                    m_Renderer.SetShaderUniformFloat(m_GBufferPointLightShaderWithShadow, "LinearAtten", Command.m_LinearAttenuation);
+                    m_Renderer.SetShaderUniformFloat(m_GBufferPointLightShaderWithShadow, "QuadraticAtten", Command.m_QuadraticAttenuation);
+
+                    m_Renderer.DisableDepthTesting();
+                    m_Renderer.SetCulling(Cull::Front);
+                    m_Renderer.DrawMesh(m_UnitSphereMesh.Id);
+                    m_Renderer.SetCulling(Cull::Back);
+                    m_Renderer.EnableDepthTesting();
+
+                    //m_Renderer.DrawMesh(Buffer.QuadMesh);
+                }
             }
             else
             {
-                lightRange = 200.0f; // Arbitrary large distance if no attenuation
-            }
 
-            m_Renderer.SetActiveShader(m_PointShadowShader);
-            for (int i = 0; i < 6; i++)
-            {
-                SetActiveCubemapFace(m_PointLightShadowCubemap, i);
-                Mat4x4f shadowProj = Math::GenerateProjectionMatrix(90.0f, 1.0f, 0.001f, lightRange);
-                Mat4x4f shadowView = Math::GenerateViewMatrix(Command.m_Position, GetPointLightDirectionForCubemapFace(i), 
-                    GetPointLightUpVecForCubemapFace(i));
-
-                Mat4x4f shadowVP = shadowProj * shadowView;
-                m_Renderer.SetShaderUniformMat4x4f(m_PointShadowShader, "ShadowVP", shadowVP);
-                m_Renderer.SetShaderUniformVec3f(m_PointShadowShader, "LightPos", Command.m_Position);
-                m_Renderer.SetShaderUniformFloat(m_PointShadowShader, "FarPlane", lightRange);
-                for (StaticMeshRenderCommand& MeshCommand : m_StaticMeshRenderCommands)
-                {
-                    if (!MeshCommand.m_CastShadows)
-                    {
-                        continue;
-                    }
-                    // Set mesh-specific transform uniform
-                    m_Renderer.SetShaderUniformMat4x4f(m_PointShadowShader, "Transformation", MeshCommand.m_TransMat);
-                    // Draw mesh to shadow map
-                    m_Renderer.DrawMesh(MeshCommand.m_Mesh);
-                }
-            }
-
-            // Point lights
-            m_Renderer.SetActiveShader(m_GBufferPointLightShaderWithShadow);
-            SetActiveFrameBuffer(Buffer.LightBuffer, false);
-            {
-                m_Renderer.SetShaderUniformVec2f(m_GBufferPointLightShaderWithShadow, "Resolution", Buffer.Size);
-                m_Renderer.SetShaderUniformMat4x4f(m_GBufferPointLightShaderWithShadow, "Camera", Cam.GetCamMatrix());
-                
-                Transform lightTransform;
-                lightTransform.SetPosition(Command.m_Position);
-                lightTransform.SetScale(Vec3f(lightRange, lightRange, lightRange));
-                m_Renderer.SetShaderUniformMat4x4f(m_GBufferPointLightShaderWithShadow, "Transformation", lightTransform.GetTransformMatrix());
-
-                m_Renderer.SetShaderUniformVec3f(m_GBufferPointLightShaderWithShadow, "CameraPos", Cam.GetPosition());
-                m_Renderer.SetActiveCubemap(m_PointLightShadowCubemap, "ShadowMap");
-
-                // Needed?
-                m_Renderer.SetActiveTexture(Buffer.PositionTex, "gPosition");
-                m_Renderer.SetActiveTexture(Buffer.NormalTex, "gNormal");
-                m_Renderer.SetActiveTexture(Buffer.AlbedoTex, "gAlbedo");
-                m_Renderer.SetActiveTexture(Buffer.MetallicTex, "gMetallic");
-                m_Renderer.SetActiveTexture(Buffer.RoughnessTex, "gRoughness");
-                m_Renderer.SetActiveTexture(Buffer.AOTex, "gAO");
-
-                m_Renderer.SetShaderUniformVec3f(m_GBufferPointLightShaderWithShadow, "LightPosition", Command.m_Position);
-                m_Renderer.SetShaderUniformVec3f(m_GBufferPointLightShaderWithShadow, "LightColour", Command.m_Colour * Command.m_Intensity);
-                m_Renderer.SetShaderUniformFloat(m_GBufferPointLightShaderWithShadow, "FarPlane", lightRange);
-
-                m_Renderer.SetShaderUniformFloat(m_GBufferPointLightShaderWithShadow, "ConstantAtten", Command.m_ConstantAttenuation);
-                m_Renderer.SetShaderUniformFloat(m_GBufferPointLightShaderWithShadow, "LinearAtten", Command.m_LinearAttenuation);
-                m_Renderer.SetShaderUniformFloat(m_GBufferPointLightShaderWithShadow, "QuadraticAtten", Command.m_QuadraticAttenuation);
-
-                m_Renderer.DisableDepthTesting();
-                m_Renderer.SetCulling(Cull::Front);
-                m_Renderer.DrawMesh(m_UnitSphereMesh.Id);
-                m_Renderer.SetCulling(Cull::Back);
-                m_Renderer.EnableDepthTesting();
-                
-                //m_Renderer.DrawMesh(Buffer.QuadMesh);
             }
 
         }
@@ -2401,6 +2420,12 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam)
     }
     m_Renderer.SetBlendFunction(BlendFunc::TRANS);
 
+    Vec3f tempAmbientLight = Vec3f(0.1f);
+    for (AmbientLightRenderCommand& Command : m_AmbientLightRenderCommands)
+    {
+        tempAmbientLight = Command.m_Light;
+    }
+
     // Combine everything
     m_Renderer.SetActiveFBuffer(Buffer.FinalOutput);
     {
@@ -2409,6 +2434,8 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam)
 
         m_Renderer.SetShaderUniformVec3f(m_GBufferCombinerShader, "CameraPos", Cam.GetPosition());
         
+        m_Renderer.SetShaderUniformVec3f(m_GBufferCombinerShader, "Ambient", tempAmbientLight);
+
         m_Renderer.SetActiveTexture(Buffer.PositionTex, "PositionTex");
         m_Renderer.SetActiveTexture(Buffer.NormalTex, "NormalTex");
         m_Renderer.SetActiveTexture(Buffer.MetallicTex, "MetallicTex");
@@ -2795,6 +2822,97 @@ void GraphicsModule::UpdateHEMeshModel(he::HalfEdgeMesh* mesh)
     
     for (auto& face : mesh->m_Faces)
     {
+        // Collect all verts and half edges for this face
+        std::vector<he::Vertex*> faceVerts;
+        std::vector<he::HalfEdge*> faceHalfEdges;
+        he::HalfEdge* startEdge = face->halfEdge;
+        he::HalfEdge* currentEdge = startEdge;
+        do
+        {
+            faceVerts.push_back(currentEdge->vert);
+            faceHalfEdges.push_back(currentEdge);
+            currentEdge = currentEdge->next;
+        } while (currentEdge != startEdge);
+
+        // Determine containing rect for this face which minimizes area
+        // Use rotating calipers method to find best rect orientation
+        // 
+        // Loop through face edges, for each edge project all verts onto edge direction 
+        // and edge normal to get min/max in both directions, which gives us a rect for this edge orientation, 
+        // then find the rect with the smallest area and use that as the face rect to compare against hotspot texture rects
+        Vec2f bestRectSize = Vec2f(FLT_MAX, FLT_MAX);
+        Vec3f bestRectUp = Vec3f(0.0f, 0.0f, 1.0f);
+        Vec3f bestRectRight = Vec3f(1.0f, 0.0f, 0.0f);
+        Vec3f bestRectStartPos = Vec3f(0.0f);
+        float bestNormalAlignmentScore = -FLT_MAX;
+
+        // Get face plane normal (assuming for now that the face is planar and convex, so we can just use the normal of the first 3 verts)
+        Vec3f edge1 = faceVerts[1]->vec - faceVerts[0]->vec;
+        Vec3f edge2 = faceVerts[2]->vec - faceVerts[0]->vec;
+        Vec3f faceNormal = Math::cross(edge1, edge2).GetNormalized();
+
+        for (he::HalfEdge* edge : faceHalfEdges)
+        {
+            Vec3f edgeDir = (edge->next->vert->vec - edge->vert->vec).GetNormalized();
+            Vec3f edgeNormal = Math::cross(faceNormal, edgeDir).GetNormalized();
+
+            // Project verts onto edge direction and normal to get rect size for this orientation
+            float minEdge = FLT_MAX;
+            float maxEdge = -FLT_MAX;
+            float minNormal = FLT_MAX;
+            float maxNormal = -FLT_MAX;
+
+
+            Vec3f currentBestRectStartPos = edge->vert->vec;
+
+            for (he::Vertex* vert : faceVerts)
+            {
+                Vec3f vertToEdge = vert->vec - edge->vert->vec;
+                float edgeProj = Math::dot(vertToEdge, edgeDir);
+                float normalProj = Math::dot(vertToEdge, edgeNormal);
+                if (edgeProj < minEdge)
+                {
+                    minEdge = edgeProj;
+                }
+                if (edgeProj > maxEdge)
+                {
+                    maxEdge = edgeProj;
+                }
+                if (normalProj < minNormal)
+                {
+                    minNormal = normalProj;
+                }
+                if (normalProj > maxNormal)
+                {
+                    maxNormal = normalProj;
+                }
+
+                if (minEdge < 0.0f)
+                {
+                    currentBestRectStartPos = edge->vert->vec + (edgeDir * minEdge);
+                }
+                if (minNormal < 0.0f)
+                {
+                    currentBestRectStartPos = edge->vert->vec + (edgeNormal * minNormal);
+                }
+            }
+
+            Vec2f rectSize = Vec2f(maxEdge - minEdge, maxNormal - minNormal);
+            // Prefer rects with normals facing up (since our hotspot textures will be designed with that in mind) by giving them a score boost based on how closely the rect normal aligns with the world up vector
+            float normalAlignmentScore = Math::dot(edgeNormal, Vec3f::Up());
+
+
+            if ((rectSize.x * rectSize.y) - (0.1f * normalAlignmentScore) < (bestRectSize.x * bestRectSize.y) - bestNormalAlignmentScore)
+            {
+                bestNormalAlignmentScore = normalAlignmentScore;
+                bestRectStartPos = currentBestRectStartPos;
+                bestRectSize = rectSize;
+
+                bestRectRight = edgeDir;
+                bestRectUp = edgeNormal;
+            }
+        }
+
         std::vector<float> Vertices;
         std::vector<unsigned int> Indices;
 
@@ -2856,37 +2974,56 @@ void GraphicsModule::UpdateHEMeshModel(he::HalfEdgeMesh* mesh)
                 normal = -normal;
             }
 
+            //Vec2f texCoords;
+            //Vec3f planeOrigin = positions[0];
+            //Vec3f planeNormal = normal;
+
+            //// Get closest vector on plane to up vector
+            //Vec3f upVec = Math::ProjectVecOnPlane(Vec3f::Up(), Plane(planeOrigin, planeNormal));
+            //
+            //if (upVec.IsNearlyZero())
+            //{
+            //    upVec = Vec3f(1.0f, 0.0f, 0.0f);
+            //}
+            //else
+            //{
+            //    upVec = upVec.GetNormalized();
+            //}
+
+            //// Rotate by face uv rotation
+            //upVec = Math::rotate(upVec, face->textureRot, planeNormal);
+
+            //Vec3f leftVec = Math::cross(normal, upVec);
+
+            //Vec3f relativePoint = pos - planeOrigin;
+
+            //texCoords.x = Math::dot(relativePoint, leftVec);
+            //texCoords.y = Math::dot(relativePoint, upVec);
+
+            //{
+            //    texCoords.x *= 0.2f;
+            //    texCoords.y *= 0.2f;
+            //}
+            //
+            //// Apply uv nudge
+            //texCoords.x += face->textureNudgeU;
+            //texCoords.y += face->textureNudgeV;
+
+            //// Apply uv scale
+            //texCoords.x *= face->textureScaleU;
+            //texCoords.y *= face->textureScaleV;
+
             Vec2f texCoords;
-            Vec3f planeOrigin = positions[0];
-            Vec3f planeNormal = normal;
+            Vec3f vertToOrigin = pos;// -bestRectStartPos;
+            float edgeProj = Math::dot(vertToOrigin, bestRectRight);
+            float normalProj = Math::dot(vertToOrigin, bestRectUp);
 
-            // Get closest vector on plane to up vector
-            Vec3f upVec = Math::ProjectVecOnPlane(Vec3f::Up(), Plane(planeOrigin, planeNormal));
-            
-            if (upVec.IsNearlyZero())
-            {
-                upVec = Vec3f(1.0f, 0.0f, 0.0f);
-            }
-            else
-            {
-                upVec = upVec.GetNormalized();
-            }
+            texCoords.x = edgeProj;
+            texCoords.y = normalProj;
 
-            // Rotate by face uv rotation
-            upVec = Math::rotate(upVec, face->textureRot, planeNormal);
+            texCoords.x *= 0.25f;
+            texCoords.y *= 0.25f;
 
-            Vec3f leftVec = Math::cross(normal, upVec);
-
-            Vec3f relativePoint = pos - planeOrigin;
-
-            texCoords.x = Math::dot(relativePoint, leftVec);
-            texCoords.y = Math::dot(relativePoint, upVec);
-
-            {
-                texCoords.x *= 0.2f;
-                texCoords.y *= 0.2f;
-            }
-            
             // Apply uv nudge
             texCoords.x += face->textureNudgeU;
             texCoords.y += face->textureNudgeV;
@@ -2894,6 +3031,15 @@ void GraphicsModule::UpdateHEMeshModel(he::HalfEdgeMesh* mesh)
             // Apply uv scale
             texCoords.x *= face->textureScaleU;
             texCoords.y *= face->textureScaleV;
+            
+            // Apply uv rotation
+            float cosRot = cosf(face->textureRot);
+            float sinRot = sinf(face->textureRot);
+            Vec2f rotatedTexCoords;
+            rotatedTexCoords.x = texCoords.x * cosRot - texCoords.y * sinRot;
+            rotatedTexCoords.y = texCoords.x * sinRot + texCoords.y * cosRot;
+
+            texCoords = rotatedTexCoords;
 
             if (face->useUVOverride)
             {

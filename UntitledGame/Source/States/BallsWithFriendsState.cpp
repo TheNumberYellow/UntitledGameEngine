@@ -24,16 +24,22 @@ void BallsWithFriendsState::OnExit()
 void BallsWithFriendsState::Update(double DeltaTime)
 {
     UIModule* ui = UIModule::Get();
-    if (ui->TextButton("Client", Vec2f(200.0f, 80.0f), 8.0f))
+    ui->StartFrame("Selector", PlacementType::FIT_BOTH, 8.0f, MakeColour(25, 230, 150), false);
     {
-        ClientGameState* ClientState = new ClientGameState();
-        Machine->PushState(ClientState);
+        Vec2f frameSize = ui->GetCurrentFrameSize();
+        if (ui->TextButton("Client", PlacementSettings(PlacementType::FIT_HEIGHT, frameSize.x / 2.0f), 8.0f))
+        {
+            ClientGameState* ClientState = new ClientGameState();
+            Machine->PushState(ClientState);
+        }
+        if (ui->TextButton("Server", PlacementSettings(PlacementType::FIT_HEIGHT, frameSize.x / 2.0f), 8.0f))
+        {
+            ServerGameState* ServerState = new ServerGameState();
+            Machine->PushState(ServerState);
+        }
+
     }
-    if (ui->TextButton("Server", Vec2f(200.0f, 80.0f), 8.0f))
-    {
-        ServerGameState* ServerState = new ServerGameState();
-        Machine->PushState(ServerState);
-    }
+    ui->EndFrame();
 }
 
 void BallsWithFriendsState::OnResize()

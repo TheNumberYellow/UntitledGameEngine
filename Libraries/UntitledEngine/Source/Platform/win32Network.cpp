@@ -425,7 +425,7 @@ void NetworkInterface::ServerReceiveData(ClientID clientID)
 
         if (iResult <= 0)
         {
-            Engine::Error("Client closed connection.");
+            Engine::DEBUGPrint("Client closed connection.");
             closesocket(ServerConnectionSockets[clientID]);
 
             ServerConnectionSockets.erase(clientID);

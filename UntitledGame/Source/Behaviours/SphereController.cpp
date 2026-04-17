@@ -37,6 +37,12 @@ void SphereController::Update(Scene* Scene, double DeltaTime)
 
             Velocity += InputForce * (float)DeltaTime;
         }
+
+        if (Gamepad.GetButtonState(Button::Face_North))
+        {
+            m_Model->GetTransform().SetPosition(Vec3f(0.0f, 0.0f, 5.0f));
+            Velocity = Vec3f(0.0f, 0.0f, 0.0f);
+        }
     }
     else
     {
@@ -66,6 +72,12 @@ void SphereController::Update(Scene* Scene, double DeltaTime)
             InputForce *= ImpulseForce;
 
             Velocity += InputForce * (float)DeltaTime;
+        }
+
+        if (InputState->GetKeyState(Key::R))
+        {
+            m_Model->GetTransform().SetPosition(Vec3f(0.0f, 0.0f, 5.0f));
+            Velocity = Vec3f(0.0f, 0.0f, 0.0f);
         }
     }
 

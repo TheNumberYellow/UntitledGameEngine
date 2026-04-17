@@ -370,6 +370,15 @@ bool he::SelectedHalfEdgeVertex::DrawInspectorPanel()
 
     ui->TextButton("Vert", Vec2f(80, 40), 0.5f);
 
+    bool positionChanged = false;
+    positionChanged |= ui->FloatDragger("X", PlacementType::FIT_WIDTH, m_Transform.GetPosition().x, 0.1f);
+    positionChanged |= ui->FloatDragger("Y", PlacementType::FIT_WIDTH, m_Transform.GetPosition().y, 0.1f);
+    positionChanged |= ui->FloatDragger("Z", PlacementType::FIT_WIDTH, m_Transform.GetPosition().z, 0.1f);
+
+    if (positionChanged)
+    {
+        return true;
+    }
     if (m_Dirty)
     {
         m_Dirty = false;
@@ -548,8 +557,11 @@ bool he::SelectedHalfEdgeFace::DrawInspectorPanel()
     ui->NewLine();
     
     ui->Text("Texture Rotation", PlacementType::FIT_WIDTH);
-    //ui->NewLine();
-    ui->FloatSlider("TextureRotation", Vec2f(240.0f, 40.0f), m_FacePtr->textureRot, -3.14f, 3.14f);
+    ui->NewLine();
+    
+    ui->FloatDragger("TextureRotation_Dragger", PlacementType::FIT_WIDTH, m_FacePtr->textureRot, 0.001f);
+    //ui->FloatSlider("TextureRotation", Vec2f(240.0f, 40.0f), m_FacePtr->textureRot, -3.14f, 3.14f);
+    
 
     ui->CheckBox("Debug Draw HotspotRect", shouldDebugDrawHotspotRect);
 

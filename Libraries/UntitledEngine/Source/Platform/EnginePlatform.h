@@ -62,6 +62,8 @@ namespace Engine
 
     extern void CreateNewWindow();
 
+    extern std::string GetClipboardString();
+
     extern void RunCommand(std::string Command);
 
 }

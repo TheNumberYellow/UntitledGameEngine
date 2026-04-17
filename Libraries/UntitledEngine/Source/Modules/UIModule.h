@@ -155,7 +155,7 @@ public:
     void EndTab();
 
     void FloatSlider(std::string name, Vec2f size, float& outNum, float min = 0.0f, float max = 1.0f, bool vertical = false, bool drawText = true, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
-    void FloatDragger(std::string name, PlacementSettings placeSettings, float& outNum, float speed = 0.1f, float min = std::numeric_limits<float>::lowest(), float max = std::numeric_limits<float>::max());
+    bool FloatDragger(std::string name, PlacementSettings placeSettings, float& outNum, float speed = 0.1f, float min = std::numeric_limits<float>::lowest(), float max = std::numeric_limits<float>::max());
 
 
     void NewLine(float lineHeight = 0.0f);
@@ -178,7 +178,7 @@ private:
 
     void FloatSliderInternal(std::string name, Rect rect, float& outNum, float min = 0.0f, float max = 1.0f, bool vertical = false, bool drawText = true, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
 
-    void FloatDraggerInternal(std::string name, PlacementSettings placeSettings, float& outNum, float speed, float min, float max);
+    bool FloatDraggerInternal(std::string name, PlacementSettings placeSettings, float& outNum, float speed, float min, float max);
 
     // Returns the bounds of an element given a placement setting, without advancing the cursor
     Rect SizeElement(PlacementSettings settings);

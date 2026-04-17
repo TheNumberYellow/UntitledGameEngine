@@ -12,6 +12,8 @@ void ClientGameState::OnInitialized(ArgsList args)
 
     Rect ViewportRect = GetViewportRect();
     Input->SetMouseCenter(ViewportRect.Center());
+
+    TestFont = TextModule::Get()->LoadFont("Assets/fonts/ARLRDBD.TTF", 30);
 }
 
 void ClientGameState::OnUninitialized()
@@ -34,20 +36,26 @@ void ClientGameState::Update(double DeltaTime)
 
     if (!Connected)
     {
-        ui->TextEntry("Name", NameEntry, Vec2f(200.0f, 80.0f));
-        ui->TextEntry("IP", IPEntry, Vec2f(200.0f, 80.0f));
-
-        if (ui->TextButton("Connect", Vec2f(200.0f, 80.0f), 8.0f))
+        ui->StartFrame("Greetings", PlacementType::FIT_BOTH, 8.0f, MakeColour(32, 107, 239), false);
         {
-            if (IPEntry == "") IPEntry = "localhost";
+            ui->Text("Name                                         IP");
+            ui->NewLine();
+            ui->TextEntry("Name", NameEntry, Vec2f(200.0f, 80.0f));
+            ui->TextEntry("IP", IPEntry, Vec2f(200.0f, 80.0f));
 
-            if (network->StartClient(IPEntry))
+            if (ui->TextButton("Connect", Vec2f(200.0f, 80.0f), 8.0f))
             {
-                Connected = true;
+                if (IPEntry == "") IPEntry = "localhost";
+
+                if (network->StartClient(IPEntry))
+                {
+                    Connected = true;
             
-                network->ClientSendData("Name:" + NameEntry);
+                    network->ClientSendData("Name:" + NameEntry);
+                }
             }
         }
+        ui->EndFrame();
     }
     else
     {
@@ -63,7 +71,9 @@ void ClientGameState::Update(double DeltaTime)
             {
                 for (std::string& m : ReceivedMessages)
                 {
-                    ui->TextButton(m, Vec2f(400.0f, 50.0f), 8.0f, MakeColour(155, 185, 190));
+                    ui->Text(m);
+                    ui->NewLine();
+                    //ui->TextButton(m, Vec2f(400.0f, 50.0f), 8.0f, MakeColour(155, 185, 190));
                 }
             }
 
@@ -99,6 +109,21 @@ void ClientGameState::Update(double DeltaTime)
         Rect viewportRect = GetViewportRect();
 
         ui->BufferPanel(ViewportBuffer.FinalOutput, viewportRect);
+        
+        TextModule::Get()->DrawText("Frame Time: " + std::to_string(DeltaTime), &TestFont, Vec2f(0.0f, 0.0f));
+
+        PrevFrameTimeCount++;
+        PrevFrameTimeSum += DeltaTime;
+
+        if (PrevFrameTimeSum > 0.5f)
+        {
+            PrevAveFPS = (int)round(1.0f / (PrevFrameTimeSum / PrevFrameTimeCount));
+            PrevFrameTimeCount = 0;
+            PrevFrameTimeSum -= 0.5f;
+        }
+
+        TextModule::Get()->DrawText("FPS: " + std::to_string(PrevAveFPS), &TestFont, Vec2f(0.0f, 30.0f));
+
     }
 
 }
@@ -143,6 +168,7 @@ void ClientGameState::SendInputPacket()
     KeyState sKeyState = input->GetKeyState(Key::S);
     KeyState dKeyState = input->GetKeyState(Key::D);
     KeyState spaceKeyState = input->GetKeyState(Key::Space);
+    KeyState rKeyState = input->GetKeyState(Key::R);
 
     if (wKeyState.justPressed) KeyData.push_back("W+");
     else if (wKeyState.justReleased) KeyData.push_back("W-");
@@ -159,8 +185,44 @@ void ClientGameState::SendInputPacket()
     if (spaceKeyState.justPressed) KeyData.push_back("SP+");
     else if (spaceKeyState.justReleased) KeyData.push_back("SP-");
 
+    if (rKeyState.justPressed) KeyData.push_back("R+");
+    else if (rKeyState.justReleased) KeyData.push_back("R-");
+
+
     Vec2i deltaMousePos = input->GetMouseState().GetDeltaMousePos();
     KeyData.push_back("M:" + std::to_string(deltaMousePos.x) + "," + std::to_string(deltaMousePos.y));
+
+    if (input->GetGamepadState().IsEnabled())
+    {
+        KeyData.push_back("G_E+");
+        GamepadState& gPadState = input->GetGamepadState();
+        
+        KeyState northButtonState = gPadState.GetButtonState(Button::Face_North);
+        KeyState eastButtonState = gPadState.GetButtonState(Button::Face_East);
+        KeyState southButtonState = gPadState.GetButtonState(Button::Face_South);
+        KeyState westButtonState = gPadState.GetButtonState(Button::Face_West);
+        
+        if (northButtonState.justPressed) KeyData.push_back("GN+");
+        else if (northButtonState.justReleased) KeyData.push_back("GN-");
+
+        if (eastButtonState.justPressed) KeyData.push_back("GE+");
+        else if (eastButtonState.justReleased) KeyData.push_back("GE-");
+
+        if (southButtonState.justPressed) KeyData.push_back("GS+");
+        else if (southButtonState.justReleased) KeyData.push_back("GS-");
+
+        if (westButtonState.justPressed) KeyData.push_back("GW+");
+        else if (westButtonState.justReleased) KeyData.push_back("GW-");
+
+        Vec2f leftStickAxis = gPadState.GetLeftStickAxis();
+        Vec2f rightStickAxis = gPadState.GetRightStickAxis();
+
+        KeyData.push_back("GL:" + std::to_string(leftStickAxis.x) + "," + std::to_string(leftStickAxis.y));
+        KeyData.push_back("GR:" + std::to_string(rightStickAxis.x) + "," + std::to_string(rightStickAxis.y));
+    }
+    else {
+        KeyData.push_back("G_E-");
+    }
 
     PacketData["D"] = KeyData;
 
@@ -177,8 +239,8 @@ void ClientGameState::ProcessPacketData(const std::string& data)
 
         if (typeStr == "LC")
         {
-            Engine::LockCursor();
-            Engine::HideCursor();
+            //Engine::LockCursor();
+            //Engine::HideCursor();
 
             CurrentScene.Load(PacketData["L"].get<std::string>());
             CurrentScene.Initialize();
@@ -223,10 +285,66 @@ void ClientGameState::ProcessPacketData(const std::string& data)
             AssetRegistry* Registry = AssetRegistry::Get();
             GraphicsModule* Graphics = GraphicsModule::Get();
 
-            Model NewModel = Graphics->CreateModel(*Registry->LoadStaticMesh(PacketData["Mesh"].get<std::string>()), Graphics->CreateMaterial(Registry->LoadTexture(PacketData["Texture"].get<std::string>())));
+            if (PacketData.contains("TextureO"))
+            {
+                Model NewModel = Graphics->CreateModel(
+                    *Registry->LoadStaticMesh(PacketData["Mesh"].get<std::string>()),
+                    Graphics->CreateMaterial(
+                        Registry->LoadTexture(PacketData["TextureA"].get<std::string>()),
+                        Registry->LoadTexture(PacketData["TextureN"].get<std::string>()),
+                        Registry->LoadTexture(PacketData["TextureR"].get<std::string>()),
+                        Registry->LoadTexture(PacketData["TextureM"].get<std::string>()),
+                        Registry->LoadTexture(PacketData["TextureO"].get<std::string>())
+                    ));
 
-            CurrentScene.AddModel(new Model(NewModel));
+                CurrentScene.AddModel(new Model(NewModel));
+            }
+            else if (PacketData.contains("TextureM"))
+            {
+                Model NewModel = Graphics->CreateModel(
+                    *Registry->LoadStaticMesh(PacketData["Mesh"].get<std::string>()), 
+                    Graphics->CreateMaterial(
+                        Registry->LoadTexture(PacketData["TextureA"].get<std::string>()),
+                        Registry->LoadTexture(PacketData["TextureN"].get<std::string>()),
+                        Registry->LoadTexture(PacketData["TextureR"].get<std::string>()),
+                        Registry->LoadTexture(PacketData["TextureM"].get<std::string>())
+                    ));
 
+                CurrentScene.AddModel(new Model(NewModel));
+            }
+            else if (PacketData.contains("TextureR"))
+            {
+                Model NewModel = Graphics->CreateModel(
+                    *Registry->LoadStaticMesh(PacketData["Mesh"].get<std::string>()), 
+                    Graphics->CreateMaterial(
+                        Registry->LoadTexture(PacketData["TextureA"].get<std::string>()),
+                        Registry->LoadTexture(PacketData["TextureN"].get<std::string>()),
+                        Registry->LoadTexture(PacketData["TextureR"].get<std::string>())
+                    ));
+
+                CurrentScene.AddModel(new Model(NewModel));
+            }
+            else if (PacketData.contains("TextureN"))
+            {
+                Model NewModel = Graphics->CreateModel(
+                    *Registry->LoadStaticMesh(PacketData["Mesh"].get<std::string>()), 
+                    Graphics->CreateMaterial(
+                        Registry->LoadTexture(PacketData["TextureA"].get<std::string>()),
+                        Registry->LoadTexture(PacketData["TextureN"].get<std::string>())
+                    ));
+
+                CurrentScene.AddModel(new Model(NewModel));
+            }
+            else
+            {
+                Model NewModel = Graphics->CreateModel(
+                    *Registry->LoadStaticMesh(PacketData["Mesh"].get<std::string>()), 
+                    Graphics->CreateMaterial(
+                        Registry->LoadTexture(PacketData["TextureA"].get<std::string>())
+                    ));
+
+                CurrentScene.AddModel(new Model(NewModel));
+            }
         }
         if (typeStr == "RTL" && InScene)
         {

@@ -67,6 +67,8 @@ void ServerGameState::Update(double DeltaTime)
                     if (inputString == "D-") clientInputState.SetKeyDown(Key::D, false);
                     if (inputString == "SP+") clientInputState.SetKeyDown(Key::Space, true);
                     if (inputString == "SP-") clientInputState.SetKeyDown(Key::Space, false);
+                    if (inputString == "R+") clientInputState.SetKeyDown(Key::R, true);
+                    if (inputString == "R-") clientInputState.SetKeyDown(Key::R, false);
 
                     if (inputString.starts_with("M:"))
                     {
@@ -80,6 +82,59 @@ void ServerGameState::Update(double DeltaTime)
                             int y = std::stoi(yStr);
                             clientInputState.GetMouseState().SetDeltaPos(Vec2i(x, y));
                             
+                        }
+                    }
+
+                    GamepadState& gamepadState = clientInputState.GetGamepadState();
+
+                    if (inputString == "G_E+")
+                    {
+                        gamepadState.SetEnabled(true);
+                    }
+                    else if (inputString == "G_E-")
+                    {
+                        gamepadState.SetEnabled(false);
+                    }
+
+                    if (gamepadState.IsEnabled())
+                    {
+                        if (inputString == "GN+") gamepadState.SetButtonDown(Button::Face_North, true);
+                        if (inputString == "GN-") gamepadState.SetButtonDown(Button::Face_North, false);
+                        if (inputString == "GE+") gamepadState.SetButtonDown(Button::Face_East, true);
+                        if (inputString == "GE-") gamepadState.SetButtonDown(Button::Face_East, false);
+                        if (inputString == "GS+") gamepadState.SetButtonDown(Button::Face_South, true);
+                        if (inputString == "GS-") gamepadState.SetButtonDown(Button::Face_South, false);
+                        if (inputString == "GW+") gamepadState.SetButtonDown(Button::Face_West, true);
+                        if (inputString == "GW-") gamepadState.SetButtonDown(Button::Face_West, false);
+
+                        if (inputString.starts_with("GL:"))
+                        {
+                            std::string stickData = inputString.substr(3);
+                            size_t commaPos = stickData.find(',');
+                            if (commaPos != std::string::npos)
+                            {
+                                std::string xStr = stickData.substr(0, commaPos);
+                                std::string yStr = stickData.substr(commaPos + 1);
+                                float x = std::stof(xStr);
+                                float y = std::stof(yStr);
+
+                                gamepadState.UpdateLeftStickAxis(Vec2f(x, y));
+                            }
+                        }
+
+                        if (inputString.starts_with("GR:"))
+                        {
+                            std::string stickData = inputString.substr(3);
+                            size_t commaPos = stickData.find(',');
+                            if (commaPos != std::string::npos)
+                            {
+                                std::string xStr = stickData.substr(0, commaPos);
+                                std::string yStr = stickData.substr(commaPos + 1);
+                                float x = std::stof(xStr);
+                                float y = std::stof(yStr);
+
+                                gamepadState.UpdateRightStickAxis(Vec2f(x, y));
+                            }
                         }
                     }
                 }
@@ -283,7 +338,38 @@ void ServerGameState::SpawnSphere(ClientID id)
     NewModelPacket["T"] = "NM";
 
     NewModelPacket["Mesh"] = "Assets/models/UVBall.obj";
-    NewModelPacket["Texture"] = "Assets/textures/marble.jpg";
+
+    std::string playerName = ClientNames[id];
+    std::transform(playerName.begin(), playerName.end(), playerName.begin(), ::tolower);
+
+    if (playerName == "fraser")
+    {
+        NewModelPacket["TextureA"] = "Assets/textures/PencilBlack.png";
+        NewModelPacket["TextureN"] = "Assets/textures/PencilBlack.norm.png";
+        NewModelPacket["TextureR"] = "Assets/textures/PencilBlack.rough.png";
+        NewModelPacket["TextureM"] = "Assets/textures/PencilBlack.metal.png";
+    }
+    else if (playerName == "erik")
+    {
+        NewModelPacket["TextureA"] = "Assets/textures/rusted-grate.png";
+        NewModelPacket["TextureN"] = "Assets/textures/rusted-grate.norm.png";
+        NewModelPacket["TextureR"] = "Assets/textures/rusted-grate.rough.png";
+        NewModelPacket["TextureM"] = "Assets/textures/rusted-grate.metal.png";
+        NewModelPacket["TextureO"] = "Assets/textures/rusted-grate.ao.png";
+    }
+    else if (playerName == "shadow")
+    {
+        NewModelPacket["TextureA"] = "Assets/textures/pirate-gold.png";
+        NewModelPacket["TextureN"] = "Assets/textures/pirate-gold.norm.png";
+        NewModelPacket["TextureR"] = "Assets/textures/pirate-gold.rough.png";
+        NewModelPacket["TextureM"] = "Assets/textures/pirate-gold.metal.png";
+        NewModelPacket["TextureO"] = "Assets/textures/pirate-gold.ao.png";
+    }
+    else
+    {
+        NewModelPacket["TextureA"] = "Assets/textures/marble.jpg";
+        NewModelPacket["TextureN"] = "Assets/textures/marble.norm.png";
+    }
 
     network->ServerSendDataAll(NewModelPacket.dump());
 }

@@ -524,6 +524,11 @@ void UIModule::TextEntry(std::string name, std::string& stringRef, Vec2f size, V
                     stringRef.pop_back();
                 }
             }
+            // Paste
+            else if (Character == '\x16')
+            {
+                stringRef += Engine::GetClipboardString();
+            }
             // Escape/Enter
             else if (Character == '\x1b' || Character == '\r')
             {
@@ -608,7 +613,7 @@ bool UIModule::StartFrame(std::string name, PlacementSettings placeSettings, flo
     {
         Rect r = FrameRect;
         //TODO: hard coded text colour
-        m_Text.DrawText(name, &m_FrameFont, r.location, Vec3f(0.0f, 0.0f, 0.0f));
+        m_Text.DrawText(name, &m_FrameFont, r.location + Vec2f(borderWidth, 0.0f), Vec3f(0.0f, 0.0f, 0.0f));
     }
 
     m_Renderer.EnableDepthTesting();
@@ -764,14 +769,14 @@ void UIModule::FloatSlider(std::string name, Vec2f size, float& outNum, float mi
     FloatSliderInternal(name, TotalSize, outNum, min, max, vertical, drawText, colour);
 }
 
-void UIModule::FloatDragger(std::string name, PlacementSettings placeSettings, float& outNum, float speed, float min, float max)
+bool UIModule::FloatDragger(std::string name, PlacementSettings placeSettings, float& outNum, float speed, float min, float max)
 {
     if (!IsActive())
     {
-        return;
+        return false;
     }
     
-    FloatDraggerInternal(name, placeSettings, outNum, speed, min, max);
+    return FloatDraggerInternal(name, placeSettings, outNum, speed, min, max);
 }
 
 void UIModule::NewLine(float lineHeight)
@@ -1024,11 +1029,11 @@ void UIModule::FloatSliderInternal(std::string name, Rect rect, float& outNum, f
 
 }
 
-void UIModule::FloatDraggerInternal(std::string name, PlacementSettings placeSettings, float& outNum, float speed, float min, float max)
+bool UIModule::FloatDraggerInternal(std::string name, PlacementSettings placeSettings, float& outNum, float speed, float min, float max)
 {
     if (!IsActive())
     {
-        return;
+        return false;
     }
 
     FloatDraggerState* DraggerState = GetFloatDraggerState(name);
@@ -1090,6 +1095,7 @@ void UIModule::FloatDraggerInternal(std::string name, PlacementSettings placeSet
 
         // Hide mouse cursor while dragging
         Engine::HideCursor();
+        return true;
     }
 
     if (ShouldDraw(rect))
@@ -1104,7 +1110,7 @@ void UIModule::FloatDraggerInternal(std::string name, PlacementSettings placeSet
         //m_Renderer.EnableDepthTesting();
     }
 
-
+    return false;
 }
 
 Rect UIModule::SizeElement(PlacementSettings settings)

@@ -41,4 +41,11 @@ private:
     std::vector<std::string> ReceivedMessages;
 
     bool InLobby = true;
+
+    // TEMP
+    int PrevFrameTimeCount = 0;
+    double PrevFrameTimeSum = 0.0f;
+    int PrevAveFPS = 0;
+
+    Font TestFont;
 };

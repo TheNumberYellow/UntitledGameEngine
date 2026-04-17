@@ -47,7 +47,7 @@ struct PointLight : public IEditorClickable
     float linearAttenuation = 0.1f;
     float quadraticAttenuation = 0.1f;
 
-    bool castShadows = false;
+    bool castShadows = true;
 
     virtual RayCastHit ClickCast(Ray mouseRay, ISelectedObject*& outSelectedObject) override;
 };

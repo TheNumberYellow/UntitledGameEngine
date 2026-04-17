@@ -1129,45 +1129,7 @@ void EditorState::DrawHotSpotMaterialEditor()
 
     Vec2f FrameSize = UI->GetCurrentFrameSize();
 
-    UI->StartFrame("Hotspot Material Toolbar", PlacementSettings(PlacementType::FIT_WIDTH, 50.0f), 0.0f, c_FrameLight);
-    {
-        if (UI->TextButton("Save Hotspots", PlacementSettings(PlacementType::FIT_HEIGHT, 120.0f), 8.0f, c_NiceBrightGreen))
-        {
-            if (CurrentHotspotTexture.m_Hotspots.empty() || !HasSelectedMaterial)
-            {
-                Engine::DEBUGPrint("No hotspots to save!");
-            }
-            else
-            {
-                std::string SavePath;
-                if (Engine::FileSaveDialog(SavePath, "Save Hotspot Texture", "Hotspots", "hs"))
-                {
-                    SaveHotspotTexture(SavePath, CurrentHotspotTexture);
-                }
-                ReloadHotspotTextures(*GraphicsModule::Get());
-            }
-        }
-        if (UI->TextButton("Load Hotspots", PlacementSettings(PlacementType::FIT_HEIGHT, 120.0f), 8.0f, c_NiceBrightGreen))
-        {
-            std::string LoadPath;
-            if (Engine::FileOpenDialog(LoadPath, "Load Hotspot Texture", "Hotspots", "hs"))
-            {
-                CurrentHotspotTexture = LoadHotspotTexture(LoadPath);
-                HasSelectedMaterial = true;
-            }
-        }
-        if (UI->TextButton("Clear Hotspots", PlacementSettings(PlacementType::FIT_HEIGHT, 120.0f), 8.0f, c_NiceYellow))
-        {
-            CurrentHotspotTexture.m_Hotspots.clear();
-        }
-        if (HasSelectedMaterial)
-        {
-            UI->CheckBox("Allow Rotation", CurrentHotspotTexture.m_AllowRotation);
-        }
-    }
-    UI->EndFrame();
-
-    UI->StartFrame("Hotspot Material Editor", PlacementSettings(PlacementType::FIT_WIDTH, FrameSize.y * 0.75f), 12.0f, c_NiceLighterBlue);
+    UI->StartFrame("Hotspot Material Editor", PlacementSettings(Vec2f(FrameSize.x * 0.75f, FrameSize.y * 0.75f)), 14.0f, c_NiceLighterBlue);
     {
         if (HasSelectedMaterial)
         {
@@ -1214,9 +1176,15 @@ void EditorState::DrawHotSpotMaterialEditor()
 
             UI->ImgPanel(CurrentHotspotTexture.m_Material.m_Albedo->GetID(), PlacementSettings(PlacementType::RECT_ABSOLUTE, imgRect));
 
+            Vec2f NormalizedPixelSnap;
+            NormalizedPixelSnap.x = (float)HotspotPixelSnap / imageSize.x;
+            NormalizedPixelSnap.y = (float)HotspotPixelSnap / imageSize.y;
+
+
             // If the user clicks on the frame, start dragging out a new hotspot rect if they didn't click on an existing one
             if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).justPressed && !DraggingNewHotspotRect)
             {
+
                 Vec2f MousePos = Input->GetMouseState().GetMousePos();
                 Rect frameRect = UI->GetCurrentFrameRect();
                 if (frameRect.Contains(MousePos))
@@ -1246,6 +1214,10 @@ void EditorState::DrawHotSpotMaterialEditor()
                         //NewHotspotRectStartPos -= imgRect.location;
                         NewHotspotRectStartPos.x /= imgRect.size.x;
                         NewHotspotRectStartPos.y /= imgRect.size.y;
+
+                        // Snap rect position
+                        NewHotspotRectStartPos.x = Math::Round(NewHotspotRectStartPos.x, NormalizedPixelSnap.x);
+                        NewHotspotRectStartPos.y = Math::Round(NewHotspotRectStartPos.y, NormalizedPixelSnap.y);
                     }
                 }
             }
@@ -1263,11 +1235,14 @@ void EditorState::DrawHotSpotMaterialEditor()
                 if (NewHotspotRectEndPos.x > 1.0f) NewHotspotRectEndPos.x = 1.0f;
                 if (NewHotspotRectEndPos.y > 1.0f) NewHotspotRectEndPos.y = 1.0f;
 
+                // Snap rect position
+                NewHotspotRectEndPos.x = Math::Round(NewHotspotRectEndPos.x, NormalizedPixelSnap.x);
+                NewHotspotRectEndPos.y = Math::Round(NewHotspotRectEndPos.y, NormalizedPixelSnap.y);
+
                 Rect NewHotspotRect = Rect(
                     Vec2f(std::min(NewHotspotRectStartPos.x, NewHotspotRectEndPos.x), std::min(NewHotspotRectStartPos.y, NewHotspotRectEndPos.y)),
                     Vec2f(std::abs(NewHotspotRectEndPos.x - NewHotspotRectStartPos.x), std::abs(NewHotspotRectEndPos.y - NewHotspotRectStartPos.y))
                 );
-
 
                 if (NewHotspotRect.size.x > 0.0001f && NewHotspotRect.size.y > 0.0001f)
                 {
@@ -1305,6 +1280,10 @@ void EditorState::DrawHotSpotMaterialEditor()
                 if (NewHotspotRectCurrentPos.x > 1.0f) NewHotspotRectCurrentPos.x = 1.0f;
                 if (NewHotspotRectCurrentPos.y > 1.0f) NewHotspotRectCurrentPos.y = 1.0f;
 
+                // Snap rect position
+                NewHotspotRectCurrentPos.x = Math::Round(NewHotspotRectCurrentPos.x, NormalizedPixelSnap.x);
+                NewHotspotRectCurrentPos.y = Math::Round(NewHotspotRectCurrentPos.y, NormalizedPixelSnap.y);
+
                 NewHotspotRect = Rect(
                     Vec2f(std::min(NewHotspotRectStartPos.x, NewHotspotRectCurrentPos.x), std::min(NewHotspotRectStartPos.y, NewHotspotRectCurrentPos.y)),
                     Vec2f(std::abs(NewHotspotRectCurrentPos.x - NewHotspotRectStartPos.x), std::abs(NewHotspotRectCurrentPos.y - NewHotspotRectStartPos.y))
@@ -1326,7 +1305,7 @@ void EditorState::DrawHotSpotMaterialEditor()
             {
                 Rect& hotspotRect = CurrentHotspotTexture.m_Hotspots[i];
                 Rect hotspotRectAbsolute = Rect(imgRect.location + (hotspotRect.location * imgRect.size), hotspotRect.size * imgRect.size);
-                UI->DrawBorder(PlacementSettings(PlacementType::RECT_ABSOLUTE, hotspotRectAbsolute), 1.0f, c_NiceBrightGreen);
+                UI->DrawBorder(PlacementSettings(PlacementType::RECT_ABSOLUTE, hotspotRectAbsolute), 4.0f, c_NiceBrightGreen);
                 //if (UI->TextButton("Wee", PlacementSettings(PlacementType::RECT_ABSOLUTE, hotspotRectAbsolute), 0.0f))
                 //{
                 //    HotspotRects.erase(HotspotRects.begin() + i);
@@ -1337,7 +1316,7 @@ void EditorState::DrawHotSpotMaterialEditor()
             if (DraggingNewHotspotRect)
             {
                 Rect hotspotRectAbsolute = Rect(imgRect.location + (NewHotspotRect.location * imgRect.size), NewHotspotRect.size * imgRect.size);
-                UI->DrawBorder(PlacementSettings(PlacementType::RECT_ABSOLUTE, hotspotRectAbsolute), 1.0f, c_NicePurple);
+                UI->DrawBorder(PlacementSettings(PlacementType::RECT_ABSOLUTE, hotspotRectAbsolute), 4.0f, c_NicePurple);
                 //UI->TextButton("Wee", PlacementSettings(PlacementType::RECT_ABSOLUTE, hotspotRectAbsolute), 0.0f);
             }
         }
@@ -1348,11 +1327,72 @@ void EditorState::DrawHotSpotMaterialEditor()
     }
     UI->EndFrame();
 
+    UI->StartFrame("Hotspot Editor Settings", PlacementSettings(Vec2f(FrameSize.x * 0.25f, FrameSize.y * 0.75f)), 14.0f, MakeColour(102, 232, 12));
+    {
+        if (UI->TextButton("Save Hotspots", PlacementSettings(PlacementType::FIT_WIDTH, 40.0f), 8.0f, c_NiceBrightGreen))
+        {
+            if (CurrentHotspotTexture.m_Hotspots.empty() || !HasSelectedMaterial)
+            {
+                Engine::DEBUGPrint("No hotspots to save!");
+            }
+            else
+            {
+                std::string SavePath;
+                if (Engine::FileSaveDialog(SavePath, "Save Hotspot Texture", "Hotspots", "hs"))
+                {
+                    SaveHotspotTexture(SavePath, CurrentHotspotTexture);
+                }
+                ReloadHotspotTextures(*GraphicsModule::Get());
+            }
+        }
+        if (UI->TextButton("Load Hotspots", PlacementSettings(PlacementType::FIT_WIDTH, 40.0f), 8.0f, c_NiceBrightGreen))
+        {
+            std::string LoadPath;
+            if (Engine::FileOpenDialog(LoadPath, "Load Hotspot Texture", "Hotspots", "hs"))
+            {
+                CurrentHotspotTexture = LoadHotspotTexture(LoadPath);
+                HasSelectedMaterial = true;
+            }
+        }
+        if (UI->TextButton("Clear Hotspots", PlacementSettings(PlacementType::FIT_WIDTH, 40.0f), 8.0f, c_NiceYellow))
+        {
+            CurrentHotspotTexture.m_Hotspots.clear();
+        }
+        if (HasSelectedMaterial)
+        {
+            UI->CheckBox("Allow Rotation", CurrentHotspotTexture.m_AllowRotation);
+            UI->NewLine();
+        }
+
+        std::string PixelSnapString = "Hotspot Pixel Snap: " + std::to_string(HotspotPixelSnap);
+        UI->Text(PixelSnapString);
+        UI->NewLine();
+        if (UI->TextButton("<"))
+        {
+            SelectedHotspotPixelSnapIndex--;
+            if (SelectedHotspotPixelSnapIndex < 0)
+            {
+                SelectedHotspotPixelSnapIndex = 0;
+            }
+        }
+        if (UI->TextButton(">"))
+        {
+            SelectedHotspotPixelSnapIndex++;
+            if (SelectedHotspotPixelSnapIndex > HotspotPixelSnaps.size() - 1)
+            {
+                SelectedHotspotPixelSnapIndex = HotspotPixelSnaps.size() - 1;
+            }
+        }
+        HotspotPixelSnap = HotspotPixelSnaps[SelectedHotspotPixelSnapIndex];
+
+    }
+    UI->EndFrame();
+
+    //UI->NewLine();
+
     // Draw resource drawer for materials
     UI->StartFrame("Materials", PlacementType::FIT_BOTH, 12.0f, c_NiceYellow);
     {
-        UI->StartFrame("Inner Materials Frame Test", PlacementType::FIT_BOTH, 12.0f, c_NiceYellow);
-
         Vec2f frameSize = UI->GetCurrentFrameSize();
 
         for (auto& Mat : LoadedMaterials)
@@ -1365,7 +1405,6 @@ void EditorState::DrawHotSpotMaterialEditor()
                 HasSelectedMaterial = true;
             }
         }
-        UI->EndFrame();
     }
     UI->EndFrame();
 }

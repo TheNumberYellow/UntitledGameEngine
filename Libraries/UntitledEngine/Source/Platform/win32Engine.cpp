@@ -748,6 +748,34 @@ void Engine::CreateNewWindow()
     ShowWindow(NewWindowHandle, SW_SHOW);
 }
 
+std::string Engine::GetClipboardString()
+{
+    if (!OpenClipboard(nullptr))
+    {
+        return "";
+    }
+
+    HANDLE hData = GetClipboardData(CF_TEXT);
+    if (hData == nullptr)
+    {
+        return "";
+    }
+
+    char* pszText = static_cast<char*>(GlobalLock(hData));
+    if (pszText == nullptr)
+    {
+        return "";
+    }
+
+    std::string text(pszText);
+
+    GlobalUnlock(hData);
+
+    CloseClipboard();
+
+    return text;
+}
+
 void Engine::RunCommand(std::string Command)
 {
     STARTUPINFOA si;

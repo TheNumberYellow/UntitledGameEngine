@@ -213,11 +213,13 @@ private:
     Quaternion ObjectInitialRotation;
     float InitialAngle;
     float RotSnap = M_PI_2 / 8.0f;
+    bool RotateIndividually = false;
 
     // Scale
     float InitialDistFromObjectCenter;
     float InitialScale;
     float ScaleWidgetModifier = 1.0f;
+    bool ScaleIndividually = false;
 
     // Models
     Model* XAxisTrans;
