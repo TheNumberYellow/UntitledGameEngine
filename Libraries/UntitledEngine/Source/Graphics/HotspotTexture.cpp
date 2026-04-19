@@ -8,7 +8,7 @@
 void HotspotTexture::Save(std::string fileName)
 {
     json HotspotTextureJson;
-    HotspotTextureJson["TexturePath"] = m_Material.m_Albedo->Path.GetFullPath();
+    HotspotTextureJson["TexturePath"] = m_Material.m_Albedo->Path.GetRelativePath();
 
     json MaterialJson;
     m_Material.Save(MaterialJson);

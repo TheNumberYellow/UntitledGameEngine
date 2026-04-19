@@ -123,11 +123,11 @@
         }
     ],
     "Material": [
-        "C:/Users/Fraser/source/repos/TheNumberYellow/UntitledGameEngine/Assets/textures/concrete_alyx.png",
-        "C:/Users/Fraser/source/repos/TheNumberYellow/UntitledGameEngine/Assets/textures/concrete_alyx.norm.png",
-        "C:/Users/Fraser/source/repos/TheNumberYellow/UntitledGameEngine/Assets/textures/concrete_alyx.rough.png",
-        "C:/Users/Fraser/source/repos/TheNumberYellow/UntitledGameEngine/Assets/textures/default_metallic.png",
-        "C:/Users/Fraser/source/repos/TheNumberYellow/UntitledGameEngine/Assets/textures/default_ao.png"
+        "Assets/textures/concrete_alyx.png",
+        "Assets/textures/concrete_alyx.norm.png",
+        "Assets/textures/concrete_alyx.rough.png",
+        "Assets/textures/default_metallic.png",
+        "Assets/textures/default_ao.png"
     ],
-    "TexturePath": "C:/Users/Fraser/source/repos/TheNumberYellow/UntitledGameEngine/Assets/textures/concrete_alyx.png"
+    "TexturePath": "Assets/textures/concrete_alyx.png"
 }

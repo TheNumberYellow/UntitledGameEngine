@@ -123,11 +123,11 @@
         }
     ],
     "Material": [
-        "C:/Users/Fraser/source/repos/TheNumberYellow/UntitledGameEngine/Assets/textures/interior_plaster.png",
-        "C:/Users/Fraser/source/repos/TheNumberYellow/UntitledGameEngine/Assets/textures/interior_plaster.norm.png",
-        "C:/Users/Fraser/source/repos/TheNumberYellow/UntitledGameEngine/Assets/textures/interior_plaster.rough.png",
-        "C:/Users/Fraser/source/repos/TheNumberYellow/UntitledGameEngine/Assets/textures/default_metallic.png",
-        "C:/Users/Fraser/source/repos/TheNumberYellow/UntitledGameEngine/Assets/textures/default_ao.png"
+        "Assets/textures/interior_plaster.png",
+        "Assets/textures/interior_plaster.norm.png",
+        "Assets/textures/interior_plaster.rough.png",
+        "Assets/textures/default_metallic.png",
+        "Assets/textures/default_ao.png"
     ],
-    "TexturePath": "C:/Users/Fraser/source/repos/TheNumberYellow/UntitledGameEngine/Assets/textures/interior_plaster.png"
+    "TexturePath": "Assets/textures/interior_plaster.png"
 }

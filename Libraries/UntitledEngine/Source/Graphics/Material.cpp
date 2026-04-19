@@ -2,11 +2,11 @@
 
 void Material::Save(json& JsonObject)
 {
-    JsonObject[0] = m_Albedo->Path.GetFullPath();
-    JsonObject[1] = m_Normal->Path.GetFullPath();
-    JsonObject[2] = m_Roughness->Path.GetFullPath();
-    JsonObject[3] = m_Metallic->Path.GetFullPath();
-    JsonObject[4] = m_AO->Path.GetFullPath();
+    JsonObject[0] = m_Albedo->Path.GetRelativePath();
+    JsonObject[1] = m_Normal->Path.GetRelativePath();
+    JsonObject[2] = m_Roughness->Path.GetRelativePath();
+    JsonObject[3] = m_Metallic->Path.GetRelativePath();
+    JsonObject[4] = m_AO->Path.GetRelativePath();
 }
 
 Material Material::Load(json& JsonObject)

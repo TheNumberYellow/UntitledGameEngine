@@ -1023,11 +1023,11 @@
         }
     ],
     "Material": [
-        "C:/Users/Fraser/source/repos/TheNumberYellow/UntitledGameEngine/Assets/textures/metal_trim.png",
-        "C:/Users/Fraser/source/repos/TheNumberYellow/UntitledGameEngine/Assets/textures/metal_trim.norm.png",
-        "C:/Users/Fraser/source/repos/TheNumberYellow/UntitledGameEngine/Assets/textures/metal_trim.rough.png",
-        "C:/Users/Fraser/source/repos/TheNumberYellow/UntitledGameEngine/Assets/textures/metal_trim.metal.png",
-        "C:/Users/Fraser/source/repos/TheNumberYellow/UntitledGameEngine/Assets/textures/default_ao.png"
+        "Assets/textures/metal_trim.png",
+        "Assets/textures/metal_trim.norm.png",
+        "Assets/textures/metal_trim.rough.png",
+        "Assets/textures/metal_trim.metal.png",
+        "Assets/textures/default_ao.png"
     ],
-    "TexturePath": "C:/Users/Fraser/source/repos/TheNumberYellow/UntitledGameEngine/Assets/textures/metal_trim.png"
+    "TexturePath": "Assets/textures/metal_trim.png"
 }
