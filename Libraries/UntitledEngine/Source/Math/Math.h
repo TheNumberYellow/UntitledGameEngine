@@ -126,6 +126,7 @@ public:
     static Vec3f ClosestPointOnPlaneToPoint(Plane plane, Vec3f point);
 
     static Vec3f ProjectVecOnPlane(Vec3f Vec, Plane P);
+    static Vec3f ProjectVecOnVec(Vec3f A, Vec3f B);
 
     static float DistancePointToAABB(Vec3f p, AABB b);
     static float SquaredDistancePointToAABB(Vec3f p, AABB b);

@@ -1,0 +1,25 @@
+{
+    "Models": [
+        {
+            "Mesh": "C:/Users/Fraser/source/repos/TheNumberYellow/UntitledGameEngine/Assets/models/ButterBoat.obj",
+            "OffsetTrans": [
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                1.0
+            ]
+        }
+    ]
+}

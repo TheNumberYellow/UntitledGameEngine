@@ -10,12 +10,12 @@
 #include "GUID.hpp"
 
 // Opaque handles for platform-specifically defined types
-typedef GUID Framebuffer_ID;
-typedef GUID Texture_ID;
-typedef GUID Cubemap_ID;
-typedef GUID Shader_ID;
-typedef GUID StaticMesh_ID;
-typedef GUID GBuffer_ID;
+typedef uGUID Framebuffer_ID;
+typedef uGUID Texture_ID;
+typedef uGUID Cubemap_ID;
+typedef uGUID Shader_ID;
+typedef uGUID StaticMesh_ID;
+typedef uGUID GBuffer_ID;
 
 typedef unsigned int ElementIndex;
 
@@ -289,10 +289,10 @@ public:
 
 private:
 
-    GUIDGenerator textureIDGenerator;
-    GUIDGenerator cubemapIDGenerator;
-    GUIDGenerator frameBufferIDGenerator;
-    GUIDGenerator shaderIDGenerator;
-    GUIDGenerator staticMeshIDGenerator;
+    uGUIDGenerator textureIDGenerator;
+    uGUIDGenerator cubemapIDGenerator;
+    uGUIDGenerator frameBufferIDGenerator;
+    uGUIDGenerator shaderIDGenerator;
+    uGUIDGenerator staticMeshIDGenerator;
     //TODO(fraser): functions for deleting/freeing memory of fbuffers/textures/meshes/shaders/etc
 };

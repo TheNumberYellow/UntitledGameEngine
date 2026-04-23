@@ -2,7 +2,7 @@
 
 #include "EnginePlatform.h"
 
-//#include "..\GUID.hpp"
+//#include "..\uGUID.hpp"
 
 struct Packet;
 struct ClientPacket;

@@ -119,9 +119,21 @@ void SphereController::Update(Scene* Scene, double DeltaTime)
 
     if (SceneIntersection.hit)
     {
+        // Get velocity in direction of hit surface
+        Vec3f surface = -SceneIntersection.penetrationNormal;
+
+        Vec3f velTowardSurface = Math::ProjectVecOnVec(Velocity, surface);
+        if (velTowardSurface.Magnitude() > 16.0f)
+        {
+            Engine::DEBUGPrint("X: " + std::to_string(velTowardSurface.x) + ", Y: " + std::to_string(velTowardSurface.y) + ", Z: " + std::to_string(velTowardSurface.z));
+            AudioModule::Get()->PlayAsyncSound("Assets/sound/Jump.wav");
+        }
+
+
         if (Math::dot(SceneIntersection.penetrationNormal, Vec3f(0.0f, 0.0f, -1.0f)) > 0.6f)
         {
             Grounded = true;
+
         }
         m_Model->GetTransform().Move((SceneIntersection.penetrationNormal * 0.001f) + (SceneIntersection.penetrationNormal * -SceneIntersection.penetrationDepth));
         Velocity = Velocity - ((1.f + Restitution) * (Math::dot(Velocity, SceneIntersection.penetrationNormal)) * SceneIntersection.penetrationNormal);

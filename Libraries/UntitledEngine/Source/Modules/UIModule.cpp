@@ -4,7 +4,9 @@ UIModule* UIModule::s_Instance = nullptr;
 
 void Click::Update(Rect bounds, Rect frameRect)
 {
-    Vec2i mousePos = Engine::GetMousePosition();
+    InputModule* input = InputModule::Get();
+    Vec2i mousePos = input->GetMouseState().GetMousePos();
+    bool mouseDown = input->GetMouseState().GetMouseButtonState(MouseButton::LMB).pressed;
 
     if (!frameRect.IsZero() && !frameRect.Contains(mousePos))
     {
@@ -27,7 +29,7 @@ void Click::Update(Rect bounds, Rect frameRect)
             clicking = false;
             clicked = false;
         }
-        if (!Engine::GetMouseDown())
+        if (!mouseDown)
         {
             // Mouse stopped clicking while on element, element was clicked
             clicking = false;
@@ -36,11 +38,11 @@ void Click::Update(Rect bounds, Rect frameRect)
     }
     else
     {
-        if (Engine::GetMouseDown() && hovering)
+        if (mouseDown && hovering)
         {
             clicking = true;
         }
-        if (!Engine::GetMouseDown() && bounds.Contains(mousePos))
+        if (!mouseDown && bounds.Contains(mousePos))
         {
             hovering = true;
         }

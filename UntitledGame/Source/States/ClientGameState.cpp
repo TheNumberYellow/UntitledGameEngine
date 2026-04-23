@@ -256,7 +256,7 @@ void ClientGameState::ProcessPacketData(const std::string& data)
 
             for (auto& ModelInfo : ModelList)
             {
-                GUID modelID = ModelInfo["ID"];
+                uGUID modelID = ModelInfo["ID"];
 
                 auto& Trans = ModelInfo["T"];
                 

@@ -864,27 +864,24 @@ void he::HalfEdgeMesh::DeleteFace(Face* inFace)
         currentHalfEdge = currentHalfEdge->next;
     } while (currentHalfEdge != firstHalfEdge);
 
-    // Hook up adjacent faces to each other by connecting half edge twins of deleted face to each other
+
     for (he::HalfEdge* halfEdge : adjacentEdges)
     {
         if (halfEdge->twin)
         {
-            halfEdge->twin->twin = halfEdge->next;
-        }
-        if (halfEdge->next)
-        {
-            halfEdge->next->twin = halfEdge->twin;
+            halfEdge->twin->twin = nullptr;
         }
     }
 
     // Remove half edges and face
-    for (he::HalfEdge* halfEdge : adjacentEdges)
+    for (he::HalfEdge*& halfEdge : adjacentEdges)
     {
         auto it = std::find(m_HalfEdges.begin(), m_HalfEdges.end(), halfEdge);
         if (it != m_HalfEdges.end())
         {
             m_HalfEdges.erase(it);
             delete halfEdge;
+            halfEdge = nullptr;
         }
     }
     
@@ -937,6 +934,11 @@ void he::HalfEdgeMesh::ExtrudeFace(he::Face* inFace)
         he::HalfEdge* innerEdge = innerEdges[i];
         he::HalfEdge* outerEdge = outerEdges[i];
         
+        if (!outerEdge)
+        {
+            continue;
+        }
+
         // Add 4 half edges making up new face between the inner and outer half edges
         he::HalfEdge* outerTwin = new he::HalfEdge();
         he::HalfEdge* innerTwin = new he::HalfEdge();

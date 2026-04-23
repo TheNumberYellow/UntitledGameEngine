@@ -85,7 +85,9 @@ private:
     void DrawProjectSettingsEditor();
 
     void DrawEntityEditor();
+    void ClearEntity();
     void SaveEntity(std::string Entityname);
+    void LoadEntity(std::string Filename);
 
     void DrawMaterialEditor();
 
@@ -213,6 +215,8 @@ private:
     float EntityCamDistance = 4.0f;
     float EntityCamXAxis = 0.0f;
     float EntityCamYAxis = 0.0f;
+
+    bool UseStaticLight = false;
 
     Scene EntityEditorScene;
     Entity CurrentEntity;

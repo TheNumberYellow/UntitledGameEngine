@@ -438,6 +438,15 @@ Vec3f Math::ProjectVecOnPlane(Vec3f Vec, Plane P)
     return Vec - (Math::dot(Vec, P.normal) * P.normal);
 }
 
+Vec3f Math::ProjectVecOnVec(Vec3f A, Vec3f B)
+{
+    float magB = B.Magnitude();
+    if (magB == 0) return Vec3f(0.0f);
+
+    float scalar = Math::dot(A, B) / (magB * magB);
+    return Vec3f(B.x * scalar, B.y * scalar, B.z * scalar);
+}
+
 float Math::DistancePointToAABB(Vec3f p, AABB b)
 {
     return sqrt(SquaredDistancePointToAABB(p, b));

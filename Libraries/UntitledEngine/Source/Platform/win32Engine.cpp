@@ -4,6 +4,8 @@
 #include <locale>
 #include <codecvt>
 #include <string_view>
+#include <iostream>
+#include <shobjidl.h>
 
 #include "..\GameEngine.h"
 
@@ -17,6 +19,8 @@ static ModuleManager Modules;
 static Vec2i cursorCenter;
 static bool cursorLocked = false;
 static bool cursorHidden = false;
+
+static bool inFocus = false;
 
 static int64_t TICKS_PER_SECOND;
 static int64_t LAST_FRAME_TICK_COUNT;
@@ -221,78 +225,188 @@ bool Engine::IsGameStopped()
 
 bool Engine::IsWindowFocused()
 {
-    return GetFocus() == WindowHandle;
+    return inFocus;
 }
 
-bool Engine::FileOpenDialog(std::string& OutFileString, std::string DialogTitle, std::string FileTypeName, std::string FileTypeExt)
+bool Engine::FileOpenDialog(std::string& OutFileString, std::string DialogTitle, std::string FileTypeName, std::string FileTypeExt, std::string InitialDirectory)
 {
-    OPENFILENAME ofn;
-    wchar_t szFileName[MAX_PATH];
-    szFileName[0] = '\0';
+    HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+    if (FAILED(hr))
+    {
+        Engine::Error("Failed to initialize COM library for file dialog.");
+        return false;
+    }
 
-    // This can fail?
-    std::wstring wDialogTitle = std::wstring(DialogTitle.begin(), DialogTitle.end());
+    IFileOpenDialog* pFileOpen;
+
+    hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL, IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
+
+    if (FAILED(hr))
+    {
+        Engine::Error("Failed to create file open dialog instance.");
+        CoUninitialize();
+        return false;
+    }
+
+    // Set the file types to display
     std::wstring wFileTypeName = std::wstring(FileTypeName.begin(), FileTypeName.end());
     std::wstring wFileTypeExt = std::wstring(FileTypeExt.begin(), FileTypeExt.end());
+    COMDLG_FILTERSPEC filterSpec;
+    filterSpec.pszName = wFileTypeName.c_str();
+    filterSpec.pszSpec = wFileTypeExt.c_str();
+    pFileOpen->SetFileTypes(1, &filterSpec);
 
-    std::wstring wFilter = std::format(L"{0} Files (*.{1})\0*.{1}\0All Files (*.*)\0*.*\0"sv, wFileTypeName, wFileTypeExt);
+    // Set the dialog title
+    std::wstring wDialogTitle = std::wstring(DialogTitle.begin(), DialogTitle.end());
+    pFileOpen->SetTitle(wDialogTitle.c_str());
 
-    ZeroMemory(&ofn, sizeof(ofn));
-
-    ofn.lStructSize = sizeof(ofn);
-    ofn.hwndOwner = WindowHandle;
-    ofn.lpstrFile = szFileName;
-    ofn.nMaxFile = MAX_PATH;
-    ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY | OFN_NOCHANGEDIR;
-
-    ofn.lpstrTitle = wDialogTitle.c_str();
-    ofn.lpstrDefExt = wFileTypeExt.c_str();
-    ofn.lpstrFilter = wFilter.c_str();
-
-    if (GetOpenFileName(&ofn))
+    // Set the initial directory if provided
+    if (!InitialDirectory.empty())
     {
-        // Do something useful with the filename stored in szFileName
-        std::wstring WideString(szFileName);
-        OutFileString = utf8_encode(WideString);
-        return true;
+        std::wstring wInitialDirectory = std::wstring(InitialDirectory.begin(), InitialDirectory.end());
+        std::wstring wInitialDirectoryAbsolute = std::filesystem::absolute(wInitialDirectory).wstring();
+        IShellItem* pInitialDir;
+        hr = SHCreateItemFromParsingName(wInitialDirectoryAbsolute.c_str(), NULL, IID_PPV_ARGS(&pInitialDir));
+        if (SUCCEEDED(hr))
+        {
+            pFileOpen->SetFolder(pInitialDir);
+            pInitialDir->Release();
+        }
     }
-    return false;
+
+    // Show the dialog
+    hr = pFileOpen->Show(WindowHandle);
+    if (FAILED(hr))
+    {
+        pFileOpen->Release();
+        CoUninitialize();
+        return false; // User cancelled or an error occurred
+    }
+
+    // Get the selected file
+    IShellItem* pSelectedItem;
+    hr = pFileOpen->GetResult(&pSelectedItem);
+    if (FAILED(hr))
+    {
+        pFileOpen->Release();
+        CoUninitialize();
+        return false;
+    }
+
+    PWSTR pszFilePath;
+    hr = pSelectedItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
+    if (FAILED(hr))
+    {
+        pSelectedItem->Release();
+        pFileOpen->Release();
+        CoUninitialize();
+        return false;
+    }
+
+    std::wstring wFilePath(pszFilePath);
+    OutFileString = utf8_encode(wFilePath);
+
+    CoTaskMemFree(pszFilePath);
+    pSelectedItem->Release();
+    pFileOpen->Release();
+    CoUninitialize();
+    return true;
 }
 
-bool Engine::FileSaveDialog(std::string& OutFileString, std::string DialogTitle, std::string FileTypeName, std::string FileTypeExt)
+bool Engine::FileSaveDialog(std::string& OutFileString, std::string DialogTitle, std::string FileTypeName, std::string FileTypeExt, std::string InitialDirectory)
 {
-    OPENFILENAME ofn;
-    wchar_t szFileName[MAX_PATH];
+    HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+    if (FAILED(hr))
+    {
+        Engine::Error("Failed to initialize COM library for file dialog.");
+        return false;
+    }
 
-    // This can fail?
-    std::wstring wDialogTitle = std::wstring(DialogTitle.begin(), DialogTitle.end());
+    IFileSaveDialog* pFileSave;
+
+    hr = CoCreateInstance(CLSID_FileSaveDialog, NULL, CLSCTX_ALL, IID_IFileSaveDialog, reinterpret_cast<void**>(&pFileSave));
+
+    if (FAILED(hr))
+    {
+        Engine::Error("Failed to create file save dialog instance.");
+        CoUninitialize();
+        return false;
+    }
+    // Set the file type extension to save
+    std::wstring wDefaultExtension = std::wstring(FileTypeExt.begin(), FileTypeExt.end());
+    // Remove the leading '*' and '.' characters if present
+    if (!wDefaultExtension.empty() && wDefaultExtension[0] == L'*')
+    {
+        wDefaultExtension.erase(0, 1);
+    }
+    if (!wDefaultExtension.empty() && wDefaultExtension[0] == L'.')
+    {
+        wDefaultExtension.erase(0, 1);
+    }
+    pFileSave->SetDefaultExtension(wDefaultExtension.c_str());
+
+    // Set the file types to display
     std::wstring wFileTypeName = std::wstring(FileTypeName.begin(), FileTypeName.end());
     std::wstring wFileTypeExt = std::wstring(FileTypeExt.begin(), FileTypeExt.end());
+    COMDLG_FILTERSPEC filterSpec;
+    filterSpec.pszName = wFileTypeName.c_str();
+    filterSpec.pszSpec = wFileTypeExt.c_str();
+    pFileSave->SetFileTypes(1, &filterSpec);
 
-    std::wstring wFilter = std::format(L"{0} Files (*.{1})\0*.{1}\0All Files (*.*)\0*.*\0"sv, wFileTypeName, wFileTypeExt);
+    // Set the dialog title
+    std::wstring wDialogTitle = std::wstring(DialogTitle.begin(), DialogTitle.end());
+    pFileSave->SetTitle(wDialogTitle.c_str());
 
-
-    ZeroMemory(&ofn, sizeof(ofn));
-
-    ofn.lStructSize = sizeof(ofn);
-    ofn.hwndOwner = WindowHandle;
-
-    ofn.lpstrFile = szFileName;
-    ofn.lpstrFile[0] = '\0';
-    ofn.nMaxFile = MAX_PATH;
-    ofn.Flags = OFN_EXPLORER | OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
-
-    ofn.lpstrTitle = wDialogTitle.c_str();
-    ofn.lpstrDefExt = wFileTypeExt.c_str();
-    ofn.lpstrFilter = wFilter.c_str();
-
-    if (GetSaveFileName(&ofn))
+    // Set the initial directory if provided
+    if (!InitialDirectory.empty())
     {
-        std::wstring WideString(szFileName);
-        OutFileString = utf8_encode(WideString);
-        return true;
+        std::wstring wInitialDirectory = std::wstring(InitialDirectory.begin(), InitialDirectory.end());
+        std::wstring wInitialDirectoryAbsolute = std::filesystem::absolute(wInitialDirectory).wstring();
+        IShellItem* pInitialDir;
+        hr = SHCreateItemFromParsingName(wInitialDirectoryAbsolute.c_str(), NULL, IID_PPV_ARGS(&pInitialDir));
+        if (SUCCEEDED(hr))
+        {
+            pFileSave->SetFolder(pInitialDir);
+            pInitialDir->Release();
+        }
     }
-    return false;
+
+    // Show the dialog
+    hr = pFileSave->Show(WindowHandle);
+    if (FAILED(hr))
+    {
+        pFileSave->Release();
+        CoUninitialize();
+        return false; // User cancelled or an error occurred
+    }
+    // Get the selected file
+    IShellItem* pSelectedItem;
+    hr = pFileSave->GetResult(&pSelectedItem);
+    if (FAILED(hr))
+    {
+        pFileSave->Release();
+        CoUninitialize();
+        return false;
+    }
+
+    PWSTR pszFilePath;
+    hr = pSelectedItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
+    if (FAILED(hr))
+    {
+        pSelectedItem->Release();
+        pFileSave->Release();
+        CoUninitialize();
+        return false;
+    }
+
+    std::wstring wFilePath(pszFilePath);
+    OutFileString = utf8_encode(wFilePath);
+
+    CoTaskMemFree(pszFilePath);
+    pSelectedItem->Release();
+    pFileSave->Release();
+    CoUninitialize();
+    return true;
 }
 
 void Engine::SetWindowTitleText(std::string Text)
@@ -534,26 +648,39 @@ LRESULT CALLBACK WindowProc(_In_ HWND WindowHandle, _In_ UINT Message, _In_ WPAR
     case WM_CHAR:
         if (modules->AreAllModulesInitialized())
         {
-            InputModule* input = modules->GetInput();
-            input->InputCharacter((char)wParam);
+            if (Engine::IsWindowFocused())
+            {
+                InputModule* input = modules->GetInput();
+                input->InputCharacter((char)wParam);
+            }
         }
         break;
 
     case WM_MOUSEWHEEL:
     {
-        InputModule* input = modules->GetInput();
+        if (Engine::IsWindowFocused())
+        {
+            InputModule* input = modules->GetInput();
 
-        int zDelta = GET_WHEEL_DELTA_WPARAM(wParam);
+            int zDelta = GET_WHEEL_DELTA_WPARAM(wParam);
 
-        zDelta /= WHEEL_DELTA;
+            zDelta /= WHEEL_DELTA;
 
-        input->UpdateMouseWheel(zDelta);
+            input->UpdateMouseWheel(zDelta);
+        }
         break;
     }
     case WM_SYSCOMMAND:
         // Catch the behaviour of pressing the ALT button and discard it
         if (wParam == SC_KEYMENU && (lParam >> 16) <= 0) return 0;
         return DefWindowProc(WindowHandle, Message, wParam, lParam);
+    case WM_SETFOCUS:
+        inFocus = true;
+        
+        break;
+    case WM_KILLFOCUS:
+        inFocus = false;
+        break;
     default:
         return DefWindowProc(WindowHandle, Message, wParam, lParam);
     }
@@ -676,11 +803,12 @@ int WinMain(_In_ HINSTANCE InInstance, _In_opt_ HINSTANCE InPreviousInstance, _I
             DispatchMessage(&Message);
         }
 
-        Input.UpdateMousePos(Engine::GetMousePosition());
-        Input.SetMouseLocked(cursorLocked);
 
         if (Engine::IsWindowFocused())
         {
+            Input.UpdateMousePos(Engine::GetMousePosition());
+            Input.SetMouseLocked(cursorLocked);
+
             GetKeyboardState(Input);
             GetControllerState(Input);
 

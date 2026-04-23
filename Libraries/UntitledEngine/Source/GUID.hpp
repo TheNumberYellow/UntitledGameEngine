@@ -3,22 +3,22 @@
 #include <mutex>
 #include <stack>
 
-#define GUID unsigned int
+#define uGUID unsigned int
 
-class GUIDGenerator
+class uGUIDGenerator
 {
 public:
-    GUIDGenerator();
-    GUIDGenerator(GUID initialGUID);
+    uGUIDGenerator();
+    uGUIDGenerator(uGUID initialuGUID);
 
-    GUID Generate();
-    void FreeID(GUID inID);
+    uGUID Generate();
+    void FreeID(uGUID inID);
 
     void Reset();
 private:
-    GUID currentGUID;
+    uGUID currentuGUID;
 
-    std::stack<GUID> freedGUIDs;
+    std::stack<uGUID> freeduGUIDs;
 
     std::mutex guidMtx;
 };

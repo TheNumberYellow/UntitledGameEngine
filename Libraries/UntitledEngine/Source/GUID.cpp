@@ -1,44 +1,44 @@
 #include "GUID.hpp"
 
-GUIDGenerator::GUIDGenerator()
+uGUIDGenerator::uGUIDGenerator()
 {
-    currentGUID = 0;
+    currentuGUID = 0;
 }
 
-GUIDGenerator::GUIDGenerator(GUID initialGUID)
+uGUIDGenerator::uGUIDGenerator(uGUID initialuGUID)
 {
-    currentGUID = initialGUID;
+    currentuGUID = initialuGUID;
 }
 
-GUID GUIDGenerator::Generate()
+uGUID uGUIDGenerator::Generate()
 {
     std::lock_guard<std::mutex> lock(guidMtx);
-    if (freedGUIDs.empty())
+    if (freeduGUIDs.empty())
     {
-        return currentGUID++;
+        return currentuGUID++;
     }
     else
     {
-        GUID ret = freedGUIDs.top();
-        freedGUIDs.pop();
+        uGUID ret = freeduGUIDs.top();
+        freeduGUIDs.pop();
         return ret;
     }
 }
 
-void GUIDGenerator::FreeID(GUID inID)
+void uGUIDGenerator::FreeID(uGUID inID)
 {
     std::lock_guard<std::mutex> lock(guidMtx);
-    freedGUIDs.push(inID);
+    freeduGUIDs.push(inID);
 }
 
-void GUIDGenerator::Reset()
+void uGUIDGenerator::Reset()
 {
     std::lock_guard<std::mutex> lock(guidMtx);
 
-    while (!freedGUIDs.empty())
+    while (!freeduGUIDs.empty())
     {
-        freedGUIDs.pop();
+        freeduGUIDs.pop();
     }
 
-    currentGUID = 0;
+    currentuGUID = 0;
 }

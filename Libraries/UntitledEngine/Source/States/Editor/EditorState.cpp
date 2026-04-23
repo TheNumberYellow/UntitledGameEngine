@@ -11,6 +11,7 @@
 #include <future>
 #include <ctime>
 
+
 static std::filesystem::path CurrentResourceDirectoryPath;
 
 void EditorState::OnInitialized(ArgsList args)
@@ -912,6 +913,25 @@ void EditorState::DrawEntityEditor()
                 Cursor.SetToolMode(ToolMode::Transform);
             }
         }
+        UI->CheckBox("Grid Snap", Cursor.ShouldSnapToGrid);
+        UI->NewLine();
+
+        UI->Text(std::to_string(Cursor.TransSnap));
+        UI->NewLine();
+
+        if (UI->TextButton("<"))
+        {
+            Cursor.DecrementTransSnap();
+        }
+        if (UI->TextButton(">"))
+        {
+            Cursor.IncrementTransSnap();
+        }
+        UI->NewLine();
+
+        UI->CheckBox("Rot Snap", Cursor.ShouldSnapToRotationGrid);
+        UI->NewLine();
+        UI->CheckBox("Static Light", UseStaticLight);
     }
     UI->EndFrame();
 
@@ -943,16 +963,20 @@ void EditorState::DrawEntityEditor()
 
     // End entity camera stuff
 
-    // Render entity in viewport
-    // TEMP (draw a ball)
-    //StaticMeshRenderCommand command;
-    //command.m_Material = TranslateBall.m_TexturedMeshes[0].m_Material;
-    //command.m_Mesh = TranslateBall.m_TexturedMeshes[0].m_Mesh.Id;
-    //command.m_TransMat = Mat4x4f();
+    // Add directional light in direction of camera
+    DirectionalLightRenderCommand dlCommand;
+    if (UseStaticLight)
+    {
+        dlCommand.m_Direction = Vec3f(0.0f, 0.0f, -1.0f);
+    }
+    else
+    {
+        dlCommand.m_Direction = EntityCamera.GetDirection();
+    }
+    dlCommand.m_Colour = Vec3f(1.0f);
+    dlCommand.m_ShadowBlurMult = 0.5f;
 
-    //Graphics->AddRenderCommand(command);
-
-    //Graphics->Render(ViewportBuffer, EntityCamera, EntityLight);
+    Graphics->AddRenderCommand(dlCommand);
 
     EntityEditorScene.EditorDraw(*Graphics, ViewportBuffer, &EntityCamera, false);
 
@@ -976,16 +1000,20 @@ void EditorState::DrawEntityEditor()
     // Save/Load/etc. toolbar
     if (UI->TextButton("New", Vec2f(40.0f, 40.0f), 8.0f, c_TopButton, Vec3f(1.0f, 1.0f, 1.0f)))
     {
-
+        ClearEntity();
     }
     if (UI->TextButton("Open", Vec2f(40.0f, 40.0f), 8.0f, c_TopButton, Vec3f(1.0f, 1.0f, 1.0f)))
     {
-
+        std::string EntityName;
+        if (Engine::FileOpenDialog(EntityName, "Open Entity", "Entity", "*.ntt", "./Assets/entities"))
+        {
+            LoadEntity(EntityName);
+        }
     }
     if (UI->TextButton("Save", Vec2f(40.0f, 40.0f), 8.0f, c_TopButton, Vec3f(1.0f, 1.0f, 1.0f)))
     {
         std::string EntityName;
-        if (Engine::FileSaveDialog(EntityName, "Save Entity", "Entity", "ntt"))
+        if (Engine::FileSaveDialog(EntityName, "Save Entity", "Entity", "*.ntt", "./Assets/entities"))
         {
             SaveEntity(EntityName);
         }
@@ -1050,7 +1078,7 @@ void EditorState::DrawEntityEditor()
             }
             if (UI->ImgButton("DirectionalLightEntity", directionalLightEntityTexture, Vec2f(80.0f, 80.0f), 12.0f, c_ResourceButton))
             {
-
+                EntityEditorScene.AddDirectionalLight(DirectionalLight());
             }
             if (UI->ImgButton("CameraEntity", cameraEntityTexture, Vec2f(80.0f, 80.0f), 12.0f, c_ResourceButton))
             {
@@ -1069,6 +1097,11 @@ void EditorState::DrawEntityEditor()
     // End Entity resource drawer stuff
 
     //DrawResourcesPanel(EntityEditorScene);
+}
+
+void EditorState::ClearEntity()
+{
+    EntityEditorScene.Clear();
 }
 
 void EditorState::SaveEntity(std::string EntityName)
@@ -1093,7 +1126,7 @@ void EditorState::SaveEntity(std::string EntityName)
         
         json ModelJson;
 
-        ModelJson["Mesh"] = Mod.m_StaticMesh.Path.GetFullPath();
+        ModelJson["Mesh"] = Mod.m_StaticMesh.Path.GetRelativePath();
 
         Mat4x4f ModTrans = Mod.GetTransform().GetTransformMatrix();
         ModelJson["OffsetTrans"] = {
@@ -1113,6 +1146,42 @@ void EditorState::SaveEntity(std::string EntityName)
 
     // Uncomment to normalness
     //File << EntityJson;
+}
+
+void EditorState::LoadEntity(std::string Filename)
+{
+    std::ifstream File(Filename, std::ifstream::in);
+    if (!File.is_open())
+    {
+        Engine::DEBUGPrint("Failed to load entity :(");
+        return;
+    }
+
+    json EntityJson;
+    File >> EntityJson;
+
+    // Clear the current entity before loading a new one
+    ClearEntity();
+
+    auto& ModelsList = EntityJson["Models"];
+    for (auto& ModelJson : ModelsList)
+    {
+        Model* Mod = new Model();
+        AssetRegistry* Registry = AssetRegistry::Get();
+
+        Mod->m_StaticMesh = *Registry->LoadStaticMesh(ModelJson["Mesh"].get<std::string>());
+        Mat4x4f ModTrans;
+        auto& OffsetTrans = ModelJson["OffsetTrans"];
+        for (int i = 0; i < 4; ++i)
+        {
+            for (int j = 0; j < 4; ++j)
+            {
+                ModTrans[i][j] = OffsetTrans[i * 4 + j];
+            }
+        }
+        Mod->GetTransform().SetTransformMatrix(ModTrans);
+        EntityEditorScene.AddModel(Mod);
+    }
 }
 
 void EditorState::DrawMaterialEditor()
@@ -1338,7 +1407,7 @@ void EditorState::DrawHotSpotMaterialEditor()
             else
             {
                 std::string SavePath;
-                if (Engine::FileSaveDialog(SavePath, "Save Hotspot Texture", "Hotspots", "hs"))
+                if (Engine::FileSaveDialog(SavePath, "Save Hotspot Texture", "Hotspots", "*.hs", "./Assets/hotspot_textures"))
                 {
                     SaveHotspotTexture(SavePath, CurrentHotspotTexture);
                 }
@@ -1348,7 +1417,7 @@ void EditorState::DrawHotSpotMaterialEditor()
         if (UI->TextButton("Load Hotspots", PlacementSettings(PlacementType::FIT_WIDTH, 40.0f), 8.0f, c_NiceBrightGreen))
         {
             std::string LoadPath;
-            if (Engine::FileOpenDialog(LoadPath, "Load Hotspot Texture", "Hotspots", "hs"))
+            if (Engine::FileOpenDialog(LoadPath, "Load Hotspot Texture", "Hotspots", "*.hs", "./Assets/hotspot_textures"))
             {
                 CurrentHotspotTexture = LoadHotspotTexture(LoadPath);
                 HasSelectedMaterial = true;
@@ -1617,7 +1686,8 @@ void EditorState::DrawTopPanel()
         {
             Cursor.UnselectAll();
             std::string FileName;
-            if (Engine::FileOpenDialog(FileName, "Load Level", "Level", "lvl"))
+
+            if (Engine::FileOpenDialog(FileName, "Load Level", "Level", "*.lvl", "./Assets/levels"))
             {
                 std::filesystem::path LevelPath = FileName;
                 EditorScene.Load(FileName);
@@ -1636,7 +1706,7 @@ void EditorState::DrawTopPanel()
         if (UI->TextButton("Save", Vec2f(40.0f, 40.0f), 8.0f, c_TopButton, Vec3f(1.0f, 1.0f, 1.0f)))
         {
             std::string FileName;
-            if (Engine::FileSaveDialog(FileName, "Save Level", "Level", "lvl"))
+            if (Engine::FileSaveDialog(FileName, "Save Level", "Level", "*.lvl", "./Assets/levels"))
             {
                 EditorScene.Save(FileName);
                 Engine::SetWindowTitleText(FileName);

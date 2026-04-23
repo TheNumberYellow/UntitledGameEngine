@@ -55,8 +55,8 @@ namespace Engine
 
     extern bool IsWindowFocused();
 
-    extern bool FileOpenDialog(std::string& OutFileString, std::string DialogTitle, std::string FileTypeName, std::string FileTypeExt);
-    extern bool FileSaveDialog(std::string& OutFileString, std::string DialogTitle, std::string FileTypeName, std::string FileTypeExt);
+    extern bool FileOpenDialog(std::string& OutFileString, std::string DialogTitle, std::string FileTypeName, std::string FileTypeExt, std::string InitialDirectory = "");
+    extern bool FileSaveDialog(std::string& OutFileString, std::string DialogTitle, std::string FileTypeName, std::string FileTypeExt, std::string InitialDirectory = "");
 
     extern void SetWindowTitleText(std::string Text);
 

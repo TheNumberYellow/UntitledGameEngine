@@ -118,22 +118,22 @@ struct KeyState
 		}
 		if (!this->pressed && !pressed)
 		{
-			justReleased = false;
-			justPressed = false;
-		}
+            justReleased = false;
+            justPressed = false;
+        }
 
-		this->pressed = pressed;
-	}
+        this->pressed = pressed;
+    }
 
-	bool pressed = false;
-	bool justPressed = false;
-	bool justReleased = false;
+    bool pressed = false;
+    bool justPressed = false;
+    bool justReleased = false;
 };
 
 class MouseState
 {
 public:
-	MouseState();
+    MouseState();
 
 	MouseState(Vec2i initPos);
 	void UpdateMousePos(Vec2i newPos, bool mouseLocked, Vec2i center);

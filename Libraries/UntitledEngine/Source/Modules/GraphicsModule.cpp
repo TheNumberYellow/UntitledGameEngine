@@ -2197,6 +2197,8 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam)
             {
                 m_Renderer.SetShaderUniformMat4x4f(m_DirShadowShader, "LightSpaceMatrix", m_ShadowCamera.GetCamMatrix());
 
+                m_Renderer.DisableCulling();
+
                 for (StaticMeshRenderCommand& Command : m_StaticMeshRenderCommands)
                 {
                     if (!Command.m_CastShadows)
@@ -2209,6 +2211,8 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam)
                     // Draw mesh to shadow map
                     m_Renderer.DrawMesh(Command.m_Mesh);
                 }
+
+                m_Renderer.EnableCulling();
             }
 
             m_Renderer.SetActiveShader(m_GBufferDirectionalLightShader);

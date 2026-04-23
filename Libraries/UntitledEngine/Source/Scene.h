@@ -136,7 +136,7 @@ private:
 
     // Temp
 public:
-    std::unordered_map<GUID, Model*> m_Models;
+    std::unordered_map<uGUID, Model*> m_Models;
     //std::vector<Model*> m_UntrackedModels;
 private:
 
@@ -191,7 +191,7 @@ private:
     static Material* SpotLightMaterial;
 #endif
 
-    GUIDGenerator m_ModelIDGenerator;
+    uGUIDGenerator m_ModelIDGenerator;
 
     // Special case just for saving scenes "as" entities in the editor - will likely come back to this
     friend class EditorState;
