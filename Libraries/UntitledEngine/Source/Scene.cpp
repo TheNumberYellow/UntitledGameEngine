@@ -740,7 +740,7 @@ void Scene::Load(std::string FileName)
 
     if (!File.is_open())
     {
-        Engine::Alert("Failed to open level " + FileName);
+        Engine::Alert("Failed to open level " + FileName + ". Error code: " + strerror(errno));
         return;
     }
 

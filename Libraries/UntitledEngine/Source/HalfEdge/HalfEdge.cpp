@@ -361,6 +361,16 @@ void he::SelectedHalfEdgeVertex::Update()
         }
     }
 
+    // Test edge split
+    if (InputModule::Get()->GetKeyState(Key::E).justPressed)
+    {
+        if (m_VertPtr->halfEdge)
+        {
+            m_HalfEdgeMesh->SplitEdge(m_VertPtr->halfEdge);
+            m_Dirty = true;
+        }
+    }
+
     m_VertPtr->vec = m_Transform.GetPosition();
 }
 
@@ -1006,6 +1016,174 @@ void he::HalfEdgeMesh::ExtrudeFace(he::Face* inFace)
     newInnerEdges[newInnerEdges.size() - 1]->twin = newInnerEdges[0];
     newInnerEdges[0]->twin = newInnerEdges[newInnerEdges.size() - 1];
     
+}
+
+void he::HalfEdgeMesh::SplitEdge(HalfEdge* inEdge)
+{
+    he::HalfEdge* twinEdge = inEdge->twin;
+
+    he::Vertex* v0 = inEdge->vert;
+    he::Vertex* v1 = inEdge->next->vert;
+
+    // Create midpoint vertex
+    Vec3f mid = (v0->vec + v1->vec) * 0.5f;
+    he::Vertex* midVert = new he::Vertex(mid);
+    m_Verts.push_back(midVert);
+
+    // Create new half-edges
+    he::HalfEdge* newEdge = new he::HalfEdge();
+    he::HalfEdge* newTwinEdge = new he::HalfEdge();
+    m_HalfEdges.push_back(newEdge);
+    m_HalfEdges.push_back(newTwinEdge);
+
+    he::HalfEdge* inNext = inEdge->next;
+
+    newEdge->vert = midVert;
+    newEdge->face = inEdge->face;
+    newEdge->next = inNext;
+
+    inEdge->next = newEdge;
+
+    he::HalfEdge* twinNext = twinEdge->next;
+
+    newTwinEdge->vert = midVert;
+    newTwinEdge->face = twinEdge->face;
+    newTwinEdge->next = twinNext;
+
+    twinEdge->next = newTwinEdge;
+
+    inEdge->twin = newTwinEdge;
+    newEdge->twin = twinEdge;
+
+    midVert->halfEdge = newEdge;
+
+    //// Rewire original half-edge
+    //inEdge->vert = midVert;
+
+    //// Setup new half-edge
+    //newEdge->vert = v1;
+    //newEdge->face = inEdge->face;
+    //newEdge->next = inEdge->next;
+
+    //inEdge->next = newEdge;
+
+    //// Rewire twin half-edge
+    //he::HalfEdge* twinNext = twinEdge->next;
+
+    //twinEdge->vert = midVert;
+
+    //newTwinEdge->vert = v0;
+    //newTwinEdge->face = twinEdge->face;
+    //newTwinEdge->next = twinNext;
+
+    //twinEdge->next = newTwinEdge;
+
+    //// Fix twins
+    //inEdge->twin = newTwinEdge;
+    //newTwinEdge->twin = inEdge;
+
+    //newEdge->twin = twinEdge;
+    //twinEdge->twin = newEdge;
+
+    //midVert->halfEdge = newEdge;
+}
+
+void he::HalfEdgeMesh::SliceFaces(Plane inPlane)
+{
+    CollisionModule* collision = CollisionModule::Get();
+    GraphicsModule* graphics = GraphicsModule::Get();
+
+    for (auto& face : m_Faces)
+    {
+        // Get all adjacent edges
+        std::vector<he::HalfEdge*> adjacentEdges;
+        HalfEdge* firstHalfEdge = face->halfEdge;
+        HalfEdge* currentHalfEdge = firstHalfEdge;
+        do
+        {
+            adjacentEdges.push_back(currentHalfEdge);
+            currentHalfEdge = currentHalfEdge->next;
+        } while (currentHalfEdge != firstHalfEdge);
+
+        // Classify verts as in front or behind plane
+        std::vector<he::Vertex*> frontVerts;
+        std::vector<he::Vertex*> backVerts;
+
+        for (he::HalfEdge* halfEdge : adjacentEdges)
+        {
+            he::Vertex* vert = halfEdge->vert;
+
+            float DistanceToPlane = Math::VecDistToPlane(vert->vec, inPlane);
+            if (DistanceToPlane > 0.0f)
+            {
+                frontVerts.push_back(vert);
+            }
+            else
+            {
+                backVerts.push_back(vert);
+            }
+        }
+
+        // Temp debugging: draw verts classified in front of plane as green, behind as red
+        
+        for (he::Vertex* vert : frontVerts)
+        {
+            graphics->DebugDrawSphere(vert->vec, 0.2f, MakeColour(0, 255, 0));
+        }
+        for (he::Vertex* vert : backVerts)
+        {
+            graphics->DebugDrawSphere(vert->vec, 0.2f, MakeColour(255, 0, 0));
+        }
+
+        // If all verts are on the same side of the plane, no need to slice
+        if (frontVerts.size() == 0 || backVerts.size() == 0)
+        {
+            continue;
+        }
+
+        // Loop through front verts to find edges that intersect with plane, add new verts at intersection points
+        he::Vertex* currentVert = frontVerts[0];
+        do
+        {
+            he::HalfEdge* currentHalfEdge = currentVert->halfEdge;
+            he::Vertex* nextVert = currentHalfEdge->next->vert;
+            bool nextVertInFront = std::find(frontVerts.begin(), frontVerts.end(), nextVert) != frontVerts.end();
+            if (!nextVertInFront)
+            {
+                // If the next vertex is behind the plane, find intersection point and add new vertex
+                Vec3f lineStart = currentVert->vec;
+                Vec3f lineEnd = nextVert->vec;
+
+                Vec3f lineDir = lineEnd - lineStart;
+
+                LineCastHit hit = collision->LineCast(lineStart, lineDir, inPlane);
+                if (hit.hit)
+                {
+                    Vec3f newVertPos = hit.hitPoint;
+                    // Before adding new vertex, find the next half edge it should connect to by searching for the 
+                    // next edge which connects to a vertex back on the front side of the plane
+                    he::HalfEdge* nextFrontHalfEdge = currentHalfEdge->next;
+                    while (std::find(frontVerts.begin(), frontVerts.end(), nextFrontHalfEdge->vert) == frontVerts.end())
+                    {
+                        nextFrontHalfEdge = nextFrontHalfEdge->next;
+                    }
+
+
+
+
+
+                }
+                else
+                {
+                    // This should never happen
+                    Engine::FatalError("Expected to find intersection point between edge and plane, but no hit was found.");
+                }
+
+
+            }
+            currentVert = currentHalfEdge->next->vert;
+        } while (currentVert != frontVerts[0]);
+    }
 }
 
 void he::HalfEdgeMesh::EditorDraw()

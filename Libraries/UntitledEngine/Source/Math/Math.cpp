@@ -81,7 +81,7 @@ Quaternion Math::normalize(Quaternion quat)
     return Quaternion(quat.x / n, quat.y / n, quat.z / n, quat.w / n);
 }
 
-Vec3f orthogonal(Vec3f v)
+Vec3f Math::orthogonal(Vec3f v)
 {
     Vec3f X_AXIS = Vec3f(1.0f, 0.0f, 0.0f);
     Vec3f Y_AXIS = Vec3f(0.0f, 1.0f, 0.0f);
@@ -465,6 +465,11 @@ float Math::SquaredDistancePointToAABB(Vec3f p, AABB b)
         if (v > b.max[i]) sqDist += (v - b.max[i]) * (v - b.max[i]);
     }
     return sqDist;
+}
+
+float Math::VecDistToPlane(Vec3f point, Plane plane)
+{
+    return Math::dot(plane.normal, point) - Math::dot(plane.normal, plane.center);
 }
 
 float Math::Remap(float iMin, float iMax, float oMin, float oMax, float v)

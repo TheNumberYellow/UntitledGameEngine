@@ -130,7 +130,7 @@ public:
     void BufferPanel(Framebuffer_ID fBuffer, Rect rect);
     void BufferPanel(Framebuffer_ID fBuffer, Vec2f size);
 
-    void CheckBox(std::string name, bool& boolRef);
+    bool CheckBox(std::string name, bool& boolRef);
 
     Click TextButton(std::string text, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f), Vec3f textColour = Vec3f(0.0f, 0.0f, 0.0f));
     Click TextButton(std::string text, PlacementSettings placeSettings, float borderWidth, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f), Vec3f textColour = Vec3f(0.0f, 0.0f, 0.0f));

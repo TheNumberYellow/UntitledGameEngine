@@ -737,6 +737,26 @@ Intersection CollisionModule::SphereIntersection(Sphere sphere, OctreeNode* node
     return DeepestIntersection;
 }
 
+LineCastHit CollisionModule::LineCast(Vec3f start, Vec3f end, Plane plane)
+{
+    LineCastHit result;
+    Vec3f lineDir = end - start;
+    float lineLength = Math::magnitude(lineDir);
+    lineDir = Math::normalize(lineDir);
+    float denom = Math::dot(plane.normal, lineDir);
+    if (abs(denom) > 0.0001f)
+    {
+        float t = Math::dot((plane.center - start), plane.normal) / denom;
+        if (t >= 0 && t <= lineLength)
+        {
+            result.hit = true;
+            result.hitPoint = start + (lineDir * t);
+            result.hitNormal = plane.normal;
+        }
+    }
+    return result;
+}
+
 Intersection CollisionModule::AABBTriangleIntersection(AABB box, Triangle tri)
 {
     return Intersects(tri, box);

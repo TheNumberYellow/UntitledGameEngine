@@ -88,12 +88,53 @@ void EditorState::OnInitialized(ArgsList args)
     // Set up material editor preview stuff
     MaterialPreviewCamera = Camera(Projection::Perspective);
 
-    
+    // Check if there's an editor config file, if so load settings from it
+    std::filesystem::path EditorConfigPath = "EditorConfig";
+    if (std::filesystem::exists(EditorConfigPath))
+    {
+        std::ifstream EditorConfigFile(EditorConfigPath);
+        if (EditorConfigFile.is_open())
+        {
+            EditorConfigFile >> EditorConfig;
 
+            if (EditorConfig.contains("LastOpenLevel"))
+            {
+                CurrentLevelName = EditorConfig["LastOpenLevel"].get<std::string>();
+                EditorScene.Load(CurrentLevelName);
+            }
+            if (EditorConfig.contains("LastEditorCameraPos"))
+            {
+                std::vector<float> LastCameraPos = EditorConfig["LastEditorCameraPos"].get<std::vector<float>>();
+                if (LastCameraPos.size() == 3)
+                {
+                    ViewportCamera.SetPosition(Vec3f(LastCameraPos[0], LastCameraPos[1], LastCameraPos[2]));
+                }
+            }
+            if (EditorConfig.contains("LastEditorCameraDir"))
+            {
+                std::vector<float> LastCameraDir = EditorConfig["LastEditorCameraDir"].get<std::vector<float>>();
+                if (LastCameraDir.size() == 3)
+                {
+                    ViewportCamera.SetDirection(Vec3f(LastCameraDir[0], LastCameraDir[1], LastCameraDir[2]));
+                }
+            }
+        }
+    }
 }
 
 void EditorState::OnUninitialized()
 {
+    Engine::DEBUGPrint("EditorState Uninitialized");
+    // Save editor config file
+    std::filesystem::path EditorConfigPath = "EditorConfig";
+    std::ofstream EditorConfigFile(EditorConfigPath);
+    if (EditorConfigFile.is_open())
+    {
+        EditorConfig["LastOpenLevel"] = CurrentLevelName;
+        EditorConfig["LastEditorCameraPos"] = { ViewportCamera.GetPosition().x, ViewportCamera.GetPosition().y, ViewportCamera.GetPosition().z };
+        EditorConfig["LastEditorCameraDir"] = { ViewportCamera.GetDirection().x, ViewportCamera.GetDirection().y, ViewportCamera.GetDirection().z };
+        EditorConfigFile << EditorConfig.dump(4);
+    }
 }
 
 void EditorState::OnEnter()
@@ -104,6 +145,7 @@ void EditorState::OnEnter()
 
 void EditorState::OnExit()
 {
+    Engine::DEBUGPrint("EditorState Exited");
 }
 
 void EditorState::Update(double DeltaTime)
@@ -702,7 +744,7 @@ void EditorState::DrawLevelEditor(GraphicsModule* Graphics, UIModule* UI, double
     {
     }
 
-    bool drawHeMeshDebug = Cursor.GetSelectMode() == SelectMode::FaceSelect || Cursor.GetSelectMode() == SelectMode::VertSelect;
+    bool drawHeMeshDebug = Cursor.GetSelectMode() == SelectMode::FaceSelect || Cursor.GetSelectMode() == SelectMode::VertSelect || Cursor.GetToolMode() == ToolMode::Vertex;
 
     EditorScene.EditorDraw(*Graphics, ViewportBuffer, &ViewportCamera, true, drawHeMeshDebug);
     //EditorScene.Update(DeltaTime);
@@ -1614,6 +1656,12 @@ void EditorState::DrawEditorUI()
             {
                 Cursor.SetToolMode(ToolMode::Geometry);
             }
+        }
+
+        if (UI->ImgButton("VertexTool", vertexToolTexture, Vec2f(80.0f, 80.0f), 12.0f,
+            Cursor.GetToolMode() == ToolMode::Vertex ? SelectedColour : UnSelectedColour))
+        {
+            Cursor.SetToolMode(ToolMode::Vertex);
         }
 
         if (UI->ImgButton("SculptTool", sculptToolTexture, Vec2f(80.0f, 80.0f), 12.0f,

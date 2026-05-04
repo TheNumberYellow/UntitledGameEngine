@@ -182,6 +182,10 @@ namespace he
 
         void ExtrudeFace(he::Face* inFace);
 
+        void SplitEdge(HalfEdge* inEdge);
+
+        void SliceFaces(Plane inPlane);
+
         void EditorDraw();
 
         void Clear();

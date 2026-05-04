@@ -91,6 +91,7 @@ public:
     static float lenSquared(Vec3f vec);
 
     static Quaternion normalize(Quaternion quat);
+    static Vec3f orthogonal(Vec3f vec);
     static Quaternion VecDiffToQuat(Vec3f v1, Vec3f v2);
     static Quaternion LookRotation(Vec3f forward, Vec3f up = Vec3f(0.0f, 0.0f, 1.0f));
 
@@ -131,6 +132,7 @@ public:
     static float DistancePointToAABB(Vec3f p, AABB b);
     static float SquaredDistancePointToAABB(Vec3f p, AABB b);
 
+    static float VecDistToPlane(Vec3f point, Plane plane);
 
     // Noise functions
     static float PerlinNoise1D(float seed);

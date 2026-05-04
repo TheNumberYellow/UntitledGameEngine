@@ -173,6 +173,9 @@ public:
     void DebugDrawPoint(Vec3f p, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
     void DebugDrawSphere(Vec3f p, float radius = 1.0f, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
     void DebugDrawArrow(Vec3f a, Vec3f b, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
+    
+    void DebugDrawPlane(Vec3f pointOnPlane, Vec3f planeNormal, float planeSize = 1.0f, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
+    void DebugDrawPlane(Plane plane, float planeSize = 1.0f, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
 
     Vec2i GetViewportSize();
 

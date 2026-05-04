@@ -24,8 +24,8 @@ void SphereController::Update(Scene* Scene, double DeltaTime)
 
         Vec2f Stick = Gamepad.GetLeftStickAxis();
 
-        InputForce += CamFacingDir * Stick.y;
-        InputForce += Math::cross(CamFacingDir, Vec3f(0.0f, 0.0f, 1.0f)) * Stick.x;
+        InputForce += CamFacingDir * (Stick.y * abs(Stick.y));
+        InputForce += Math::cross(CamFacingDir, Vec3f(0.0f, 0.0f, 1.0f)) * (Stick.x * abs(Stick.x));
 
         JumpPressed = Gamepad.GetButtonState(Button::Face_South).justPressed;
 
@@ -86,6 +86,7 @@ void SphereController::Update(Scene* Scene, double DeltaTime)
 
     if (Grounded && JumpPressed)
     {
+        AudioModule::Get()->PlayAudioSource(JumpSound);
         Vec3f t = Math::ProjectVecOnPlane(Velocity, Plane(Vec3f(0.0f, 0.0f, 0.0f), Vec3f(0.0f, 0.0f, 1.0f)));
         if (!t.IsNearlyZero())
         {
@@ -126,7 +127,7 @@ void SphereController::Update(Scene* Scene, double DeltaTime)
         if (velTowardSurface.Magnitude() > 16.0f)
         {
             Engine::DEBUGPrint("X: " + std::to_string(velTowardSurface.x) + ", Y: " + std::to_string(velTowardSurface.y) + ", Z: " + std::to_string(velTowardSurface.z));
-            AudioModule::Get()->PlayAsyncSound("Assets/sound/Jump.wav");
+            AudioModule::Get()->PlayAudioSource(LandSound);
         }
 
 
@@ -134,6 +135,14 @@ void SphereController::Update(Scene* Scene, double DeltaTime)
         {
             Grounded = true;
 
+            // Apply some friction when grounded based on delta time
+            //Velocity = Velocity * (1.0f - (0.2f * (float)DeltaTime));
+
+            //if (Velocity.XYOnly().Magnitude() < 0.1f)
+            //{
+            //    Velocity.x = 0.0f;
+            //    Velocity.y = 0.0f;
+            //}
         }
         m_Model->GetTransform().Move((SceneIntersection.penetrationNormal * 0.001f) + (SceneIntersection.penetrationNormal * -SceneIntersection.penetrationDepth));
         Velocity = Velocity - ((1.f + Restitution) * (Math::dot(Velocity, SceneIntersection.penetrationNormal)) * SceneIntersection.penetrationNormal);
@@ -308,4 +317,9 @@ void SphereController::Initialize(Scene* Scene)
     }
 
     CamDistance = DefaultCamDistance;
+
+    // Load sounds
+    AudioModule* Audio = AudioModule::Get();
+    JumpSound = Audio->CreateAudioSource(Audio->LoadWaveFile("Assets/sound/Jump.wav"), 0.5f, 1.0f, false);
+    LandSound = Audio->CreateAudioSource(Audio->LoadWaveFile("Assets/sound/Land.wav"), 1.0f, 1.0f, false);
 }

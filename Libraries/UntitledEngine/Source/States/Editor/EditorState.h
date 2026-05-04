@@ -136,6 +136,8 @@ private:
     int CurrentCustomStateIndex = 0;
     bool UsingCustomGameState = false;
 
+    json EditorConfig;
+
     //--------------------
     // Editor Textures
     //--------------------

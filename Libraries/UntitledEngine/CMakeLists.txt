@@ -31,4 +31,5 @@ target_link_libraries( UntitledEngine PUBLIC
     XInput
     glew32s
     freetype
+    OpenAL32
 )

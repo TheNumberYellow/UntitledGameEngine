@@ -43,5 +43,12 @@ private:
     std::unordered_map<ClientID, std::string> ClientNames;
     std::unordered_map<ClientID, SystemInputState> ClientInputStates;
     std::unordered_map<ClientID, Camera*> ClientCameras;
+
+    // TEMP
+    int PrevFrameTimeCount = 0;
+    double PrevFrameTimeSum = 0.0f;
+    int PrevAveFPS = 0;
+
+    Font TestFont;
 };
 

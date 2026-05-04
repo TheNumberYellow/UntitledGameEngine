@@ -2,6 +2,8 @@
 
 #include "Behaviour\Behaviour.h"
 
+#include "Modules/AudioModule.h"
+
 class SphereController :
     public Behaviour
 {
@@ -45,5 +47,8 @@ private:
     int QueueSize = 100000;
 
     bool Grounded = false;
+
+    AudioSource JumpSound;
+    AudioSource LandSound;
 };
 

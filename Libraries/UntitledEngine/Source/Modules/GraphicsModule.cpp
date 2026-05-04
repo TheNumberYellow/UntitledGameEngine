@@ -1926,8 +1926,8 @@ void GraphicsModule::Initialize()
     m_DefaultAOMap = *Registry->LoadTexture("Assets/textures/default_ao.png");
     m_DefaultHeightMap = *Registry->LoadTexture("Assets/textures/default_height.png");
 
-    m_DebugMaterial = CreateMaterial(Registry->LoadTexture("Assets/textures/debugTexture0.png"),
-        Registry->LoadTexture("Assets/textures/debugTexture0.norm.png"));
+    m_DebugMaterial = CreateMaterial(Registry->LoadTexture("Assets/textures/White_Debug.png"),
+        Registry->LoadTexture("Assets/textures/White_Debug.norm.png"));
 }
 
 GBuffer GraphicsModule::CreateGBuffer(Vec2i Size)
@@ -3472,6 +3472,30 @@ void GraphicsModule::DebugDrawArrow(Vec3f a, Vec3f b, Vec3f colour)
     //DebugDrawLine(b, Math::rotate(head, -0.08f, Math::cross(dir, Vec3f(0.0f, 0.0f, 1.0f))), colour);
 
     // TODO: not correct, come back to this
+}
+
+void GraphicsModule::DebugDrawPlane(Vec3f pointOnPlane, Vec3f planeNormal, float planeSize, Vec3f colour)
+{
+    Vec3f planeRight = Math::cross(planeNormal, Vec3f(0.0f, 0.0f, 1.0f));
+    if (planeRight.IsNearlyZero())
+    {
+        planeRight = Math::cross(planeNormal, Vec3f(0.0f, 1.0f, 0.0f));
+    }
+    planeRight = planeRight.GetNormalized();
+    Vec3f planeUp = Math::cross(planeRight, planeNormal).GetNormalized();
+    Vec3f corner1 = pointOnPlane + (planeRight * planeSize) + (planeUp * planeSize);
+    Vec3f corner2 = pointOnPlane - (planeRight * planeSize) + (planeUp * planeSize);
+    Vec3f corner3 = pointOnPlane - (planeRight * planeSize) - (planeUp * planeSize);
+    Vec3f corner4 = pointOnPlane + (planeRight * planeSize) - (planeUp * planeSize);
+    DebugDrawLine(corner1, corner2, colour);
+    DebugDrawLine(corner2, corner3, colour);
+    DebugDrawLine(corner3, corner4, colour);
+    DebugDrawLine(corner4, corner1, colour);
+}
+
+void GraphicsModule::DebugDrawPlane(Plane plane, float planeSize, Vec3f colour)
+{
+    DebugDrawPlane(plane.center, plane.normal, planeSize, colour);
 }
 
 Vec2i GraphicsModule::GetViewportSize()

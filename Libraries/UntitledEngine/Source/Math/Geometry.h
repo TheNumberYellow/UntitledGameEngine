@@ -247,6 +247,9 @@ struct RayCastHit
     }
 };
 
+// Make LineCastHit as alias for RayCastHit since they have the same data, just different semantics
+using LineCastHit = RayCastHit;
+
 struct Intersection
 {
     bool hit = false;

@@ -65,6 +65,7 @@ enum class Key
 	Left,
 	Right,
 	Delete,
+	Enter,
 
 	Plus,
 	Minus,

@@ -225,6 +225,9 @@ void CursorState::Update(double DeltaTime)
     case ToolMode::Geometry:
         UpdateGeometryTool();
         break;
+    case ToolMode::Vertex:
+        UpdateVertexTool();
+        break;
     case ToolMode::Sculpt:
         UpdateSculptTool(DeltaTime);
         break;
@@ -612,14 +615,20 @@ void CursorState::DrawToolSettingsPanel()
         case TransformMode::Rotate:
             UI->StartFrame("Rotate Settings", PlacementType::FIT_BOTH, 14.0f, MakeColour(23, 169, 239), false);
             {
-                UI->CheckBox("Rotate Individually", RotateIndividually);
+                if (UI->CheckBox("Rotate Individually", RotateIndividually))
+                {
+                    RecalculateProxyAndObjectOffsets();
+                }
             }
             UI->EndFrame();
             break;
         case TransformMode::Scale:
             UI->StartFrame("Scale Settings", PlacementType::FIT_BOTH, 14.0f, MakeColour(23, 169, 239), false);
             {
-                UI->CheckBox("Scale Individually", ScaleIndividually);
+                if (UI->CheckBox("Scale Individually", ScaleIndividually))
+                {
+                    RecalculateProxyAndObjectOffsets();
+                }
             }
             UI->EndFrame();
             break;
@@ -736,6 +745,12 @@ void CursorState::UpdateGeometryTool()
 
 void CursorState::UpdateVertexTool()
 {
+    switch (VertMode)
+    {
+    case VertexMode::Slice:
+        UpdateSliceTool();
+        break;
+    }
 }
 
 void CursorState::UpdateSculptTool(double DeltaTime)
@@ -1725,6 +1740,119 @@ void CursorState::UpdateWaterTool()
                 NewBoxStartPoint = HitPoint;
             }
         }
+    }
+}
+
+void CursorState::UpdateSliceTool()
+{
+    InputModule* Input = InputModule::Get();
+    GraphicsModule* Graphics = GraphicsModule::Get();
+    CollisionModule* Collisions = CollisionModule::Get();
+
+    auto& HalfEdgeMeshVec = EditorScenePtr->GetHalfEdgeMeshes();
+
+    Vec2i MousePos = Input->GetMouseState().GetMousePos();
+
+    if ((CurrentSliceState == SliceState::NotSlicing || CurrentSliceState == SliceState::AwaitingFirstClick) && Input->GetMouseState().GetMouseButtonState(MouseButton::LMB) && EditorStatePtr->GetEditorSceneViewportRect().Contains(MousePos))
+    {
+        Ray MouseRay = EditorStatePtr->GetMouseRay(*CameraPtr, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+
+        RayCastHit closestHit;
+
+        for (auto& heMesh : HalfEdgeMeshVec)
+        {
+            RayCastHit Hit = heMesh->RayCast(MouseRay);
+
+            if (Hit.hit && Hit.hitDistance < closestHit.hitDistance)
+            {
+                closestHit = Hit;
+                SliceTargetMesh = heMesh;
+            }
+        }
+
+        if (closestHit.hit)
+        {
+            Vec3f HitPoint = closestHit.hitPoint;
+            Vec3f HitPlaneNormal = closestHit.hitNormal;
+
+            // Snap hit point to grid while keeping it on the plane defined by the hit normal
+            Vec3f TangentVec = Math::orthogonal(HitPlaneNormal).GetNormalized();
+            Vec3f BitangentVec = Math::cross(HitPlaneNormal, TangentVec).GetNormalized();
+
+            Vec2f HitPoint2D = Vec2f(Math::dot(HitPoint, BitangentVec), Math::dot(HitPoint, TangentVec));
+            HitPoint2D.x = Math::Round(HitPoint2D.x, TransSnap);
+            HitPoint2D.y = Math::Round(HitPoint2D.y, TransSnap);
+            Vec3f SnappedHitPoint = (BitangentVec * HitPoint2D.x) + (TangentVec * HitPoint2D.y) + (HitPlaneNormal * Math::dot(HitPoint, HitPlaneNormal));
+
+            Graphics->DebugDrawArrow(SnappedHitPoint, SnappedHitPoint + closestHit.hitNormal, Vec3f(1.0f, 0.5f, 0.5f));
+            
+            CurrentSliceState = SliceState::AwaitingFirstClick;
+            
+            SliceStartPoint = SnappedHitPoint;
+            SliceHitPlane = Plane(SnappedHitPoint, HitPlaneNormal);
+        }
+    }
+    if (CurrentSliceState == SliceState::AwaitingFirstClick && Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).justReleased)
+    {
+        CurrentSliceState = SliceState::AwaitingSecondClick;
+    }
+    if (CurrentSliceState == SliceState::AwaitingSecondClick)
+    {
+        // Draw the slice plane as the mouse moves
+        Ray MouseRay = EditorStatePtr->GetMouseRay(*CameraPtr, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+        RayCastHit PlaneHit = Collisions->RayCast(MouseRay, SliceHitPlane);
+        if (PlaneHit.hit)
+        {
+            Vec3f HitPoint = PlaneHit.hitPoint;
+            // Snap hit point to grid while keeping it on the plane defined by the hit normal
+            Vec3f TangentVec = Math::orthogonal(SliceHitPlane.normal).GetNormalized();
+            Vec3f BitangentVec = Math::cross(SliceHitPlane.normal, TangentVec).GetNormalized();
+
+            Vec2f HitPoint2D = Vec2f(Math::dot(HitPoint, BitangentVec), Math::dot(HitPoint, TangentVec));
+            HitPoint2D.x = Math::Round(HitPoint2D.x, TransSnap);
+            HitPoint2D.y = Math::Round(HitPoint2D.y, TransSnap);
+            Vec3f SnappedHitPoint = (BitangentVec * HitPoint2D.x) + (TangentVec * HitPoint2D.y) + (SliceHitPlane.normal * Math::dot(HitPoint, SliceHitPlane.normal));
+
+
+            Graphics->DebugDrawArrow(SnappedHitPoint, SnappedHitPoint + SliceHitPlane.normal, Vec3f(1.0f, 0.5f, 0.5f));
+            Graphics->DebugDrawArrow(SliceStartPoint, SliceStartPoint + SliceHitPlane.normal, Vec3f(0.5f, 1.0f, 0.5f));
+            Graphics->DebugDrawLine(SliceStartPoint + (SliceHitPlane.normal * 0.01f), SnappedHitPoint + (SliceHitPlane.normal * 0.01f), Vec3f(1.0f, 1.0f, 1.0f));
+
+            MouseState mouseState = Input->GetMouseState();
+            if (mouseState.GetMouseButtonState(MouseButton::LMB).justPressed)
+            {
+                SliceEndPoint = SnappedHitPoint;
+                CurrentSliceState = SliceState::AwaitingConfirmation;
+            }
+        }
+    }
+    if (CurrentSliceState == SliceState::AwaitingConfirmation)
+    {
+        Graphics->DebugDrawArrow(SliceEndPoint, SliceEndPoint + SliceHitPlane.normal, Vec3f(0.5f, 1.0f, 0.5f));
+        Graphics->DebugDrawArrow(SliceStartPoint, SliceStartPoint + SliceHitPlane.normal, Vec3f(0.5f, 1.0f, 0.5f));
+        Graphics->DebugDrawLine(SliceStartPoint + (SliceHitPlane.normal * 0.01f), SliceEndPoint + (SliceHitPlane.normal * 0.01f), Vec3f(1.0f, 1.0f, 1.0f));
+
+        Plane SlicePlane;
+        SlicePlane.center = SliceStartPoint + ((SliceEndPoint - SliceStartPoint) * 0.5f);
+        SlicePlane.normal = Math::cross((SliceEndPoint - SliceStartPoint).GetNormalized(), SliceHitPlane.normal).GetNormalized();
+
+        Graphics->DebugDrawPlane(SlicePlane, (SliceEndPoint - SliceStartPoint).Magnitude(), Vec3f(0.5f, 1.0f, 0.5f));
+
+        if (Input->GetKeyState(Key::Enter).pressed)
+        {
+            SliceTargetMesh->SliceFaces(SlicePlane);
+            // TODO: slice operation
+
+            //EditorStatePtr->EditorScene.DeleteHalfEdgeMesh(SliceTargetMesh);
+            //SliceTargetMesh = nullptr;
+            //CurrentSliceState = SliceState::NotSlicing;
+        }
+    }
+
+    if (Input->GetKeyState(Key::Escape).justPressed)
+    {
+        CurrentSliceState = SliceState::NotSlicing;
+        SliceTargetMesh = nullptr;
     }
 }
 

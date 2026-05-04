@@ -6,6 +6,14 @@ StateMachine::StateMachine()
 {
 }
 
+StateMachine::~StateMachine()
+{
+    while (!StateStack.empty())
+    {
+        PopState();
+    }
+}
+
 void StateMachine::Initialize(ArgsList args)
 {
     Arguments = args;
@@ -46,7 +54,10 @@ void StateMachine::PopState()
 
     StateStack.pop();
 
-    StateStack.top()->OnEnter();
+    if (!StateStack.empty())
+    {
+        StateStack.top()->OnEnter();
+    }
 }
 
 void StateMachine::Resize()

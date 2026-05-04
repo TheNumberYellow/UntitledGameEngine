@@ -88,6 +88,8 @@ public:
     Intersection SphereIntersection(Sphere sphere, AABB aabb);
     Intersection SphereIntersection(Sphere sphere, OctreeNode* node, const Mat4x4f& tempTrans);
 
+    LineCastHit LineCast(Vec3f start, Vec3f end, Plane plane);
+
     Intersection AABBTriangleIntersection(AABB box, Triangle tri);
 
     static const RayCastHit* Closest(std::initializer_list<RayCastHit> hitList);

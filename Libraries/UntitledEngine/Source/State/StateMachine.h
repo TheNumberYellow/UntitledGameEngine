@@ -13,6 +13,7 @@ class StateMachine
     //--------------------
 public:
     StateMachine();
+    ~StateMachine();
 
     void Initialize(ArgsList args);
 

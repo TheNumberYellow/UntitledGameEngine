@@ -45,6 +45,19 @@ enum class GeometryMode : uint8_t
     Water
 };
 
+enum class VertexMode : uint8_t
+{
+    Slice,
+};
+
+enum class SliceState : uint8_t
+{
+    NotSlicing,
+    AwaitingFirstClick,
+    AwaitingSecondClick,
+    AwaitingConfirmation
+};
+
 enum class DraggingMode : uint8_t
 {
     None,
@@ -142,6 +155,8 @@ private:
     void UpdateHalfEdgeTool();
     void UpdateWaterTool();
 
+    void UpdateSliceTool();
+
     void UpdateSelectedObjects();
     void DrawSelectedObjects();
     void DrawSelectedInspectorPanels();
@@ -170,6 +185,7 @@ private:
 
     TransformMode TransMode = TransformMode::Translate;
     GeometryMode GeoMode = GeometryMode::Box;
+    VertexMode VertMode = VertexMode::Slice;
 
     Model* DraggingModelPtr = nullptr;
     PointLight* DraggingPointLightPtr = nullptr;
@@ -251,6 +267,13 @@ private:
     int NewPlaneSubdivisions = 1;
 
     bool IsCreatingNewWater = false;
+
+    // Vertex mode state
+    SliceState CurrentSliceState = SliceState::NotSlicing;
+    Vec3f SliceStartPoint;
+    Vec3f SliceEndPoint;
+    Plane SliceHitPlane;
+    he::HalfEdgeMesh* SliceTargetMesh = nullptr;
 
     // Sculpt mode state
     float SculptSpeed = 3.0f;

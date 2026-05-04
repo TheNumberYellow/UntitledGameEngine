@@ -16,6 +16,9 @@ void ServerGameState::OnInitialized(ArgsList args)
 
     AssetRegistry* Registry = AssetRegistry::Get();
     SphereModelPrototype = graphics->CreateModel(*Registry->LoadStaticMesh("Assets/models/UVBall.obj"), graphics->CreateMaterial(Registry->LoadTexture("Assets/textures/marble.jpg")));
+
+
+    TestFont = TextModule::Get()->LoadFont("Assets/fonts/ARLRDBD.TTF", 30);
 }
 
 void ServerGameState::OnUninitialized()
@@ -160,7 +163,7 @@ void ServerGameState::Update(double DeltaTime)
         }
     }
 
-    ui->BufferPanel(ViewportBuffer.FinalOutput, Vec2f(800.0f, 600.0f));
+    //ui->BufferPanel(ViewportBuffer.FinalOutput, Vec2f(800.0f, 600.0f));
     
     if (true)
     {
@@ -221,6 +224,20 @@ void ServerGameState::Update(double DeltaTime)
             SendReturnToLobbyPacket();
             InScene = false;
         }
+
+        TextModule::Get()->DrawText("Frame Time: " + std::to_string(DeltaTime), &TestFont, Vec2f(0.0f, 0.0f));
+
+        PrevFrameTimeCount++;
+        PrevFrameTimeSum += DeltaTime;
+
+        if (PrevFrameTimeSum > 0.5f)
+        {
+            PrevAveFPS = (int)round(1.0f / (PrevFrameTimeSum / PrevFrameTimeCount));
+            PrevFrameTimeCount = 0;
+            PrevFrameTimeSum -= 0.5f;
+        }
+
+        TextModule::Get()->DrawText("FPS: " + std::to_string(PrevAveFPS), &TestFont, Vec2f(0.0f, 30.0f));
     }
 
 }

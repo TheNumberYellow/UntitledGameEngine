@@ -1,15 +1,18 @@
 GRAPHICS
-    -Improve light performance
-    -Add omni-directional shadow casting point lights
-    -Add shadow casting spotlights
+    -Improve light performance further
+        -Change point light attenuation to make smaller sphere
 
 EDITOR
     -Drag to select (using frustum intersections)
+    -Callback for directory updates to automatically update loaded meshes/textures (ReadDirectoryChangesW )
 
+HALF-EDGE
+    -"Carve" tool
+    -Edge select
 
 UI
-    -Infinite float sliders
-    -Numerical text entry
+    -Clean up/debug positioning + float dragger/slider behaviour specifically
+    -Numerical text entry (add to float dragger)
 
 
 ENTITY/BEHAVIOUR/COMPONENT SYSTEM
@@ -18,9 +21,11 @@ ENTITY/BEHAVIOUR/COMPONENT SYSTEM
 
 COLLISIONS
     -Continuous (swept) sphere collisions
-    -Inprove sphere collision performance using octrees
 
 
+NETWORKING
+    -Track transforms of scene objects to only send when updated
+    -Add FTP using windows' TransmitFile
 
 CHANGE HOW I DO SHADERS SO CHANGES ARE EASIER
     -First: Move shaders into separate source files rather than in code

@@ -311,10 +311,10 @@ void UIModule::BufferPanel(Framebuffer_ID fBuffer, Vec2f size)
     BufferPanel(fBuffer, BufferRect);
 }
 
-void UIModule::CheckBox(std::string name, bool& boolRef)
+bool UIModule::CheckBox(std::string name, bool& boolRef)
 {
     if (!IsActive())
-        return;
+        return false;
 
     Texture checkBoxTexture = boolRef ? m_CheckedBoxTexture : m_UncheckedBoxTexture;
     
@@ -324,8 +324,9 @@ void UIModule::CheckBox(std::string name, bool& boolRef)
     if (ImgButton(name, checkBoxTexture.GetID(), Vec2f(20.0f, 20.0f), 0.0f).clicked)
     {
         boolRef = !boolRef;
+        return true;
     }
-
+    return false;
 }
 
 Click UIModule::TextButton(std::string text, Vec3f colour, Vec3f textColour)

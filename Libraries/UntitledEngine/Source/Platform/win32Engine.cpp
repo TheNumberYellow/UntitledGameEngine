@@ -471,6 +471,7 @@ void GetKeyboardState(InputModule& inputs)
     inputs.SetKeyDown(Key::Right, GetAsyncKeyState(VK_RIGHT));
 
     inputs.SetKeyDown(Key::Delete, GetAsyncKeyState(VK_DELETE));
+    inputs.SetKeyDown(Key::Enter, GetAsyncKeyState(VK_RETURN));
 
     inputs.SetKeyDown(Key::Plus, GetAsyncKeyState(VK_OEM_PLUS));
     inputs.SetKeyDown(Key::Minus, GetAsyncKeyState(VK_OEM_MINUS));
@@ -775,6 +776,9 @@ int WinMain(_In_ HINSTANCE InInstance, _In_opt_ HINSTANCE InPreviousInstance, _I
     UIModule UI(Graphics, Text, Input, renderer);
     NetworkModule Network(networkInterface);
     AudioModule Audio;
+
+    // Temp audio test
+    Audio.LoadWaveFile("Assets/sound/Jump.wav");
 
     Graphics.Initialize();
 
