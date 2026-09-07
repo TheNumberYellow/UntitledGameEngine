@@ -13,6 +13,7 @@
 #include "Graphics/PointLight.h"
 #include "Graphics/DirectionalLight.h"
 #include "Graphics/SpotLight.h"
+#include "Graphics/Decal.h"
 
 #include <unordered_map>
 #include <vector>
@@ -66,6 +67,19 @@ enum class RenderMode
     DEFAULT
 };
 
+struct DebugDrawLineInfo
+{
+    Vec3f a, b;
+    Vec4f colour;
+    float thickness;
+};
+
+struct DebugDrawTriangleInfo
+{
+    Vec3f a, b, c;
+    Vec4f colour;
+};
+
 struct BillboardRenderCommand
 {
     Texture_ID m_Texture;
@@ -97,6 +111,7 @@ public:
     void AddRenderCommand(SpotLightRenderCommand Command);
     void AddRenderCommand(DirectionalLightRenderCommand Command);
     void AddRenderCommand(AmbientLightRenderCommand Command);
+
 
     // Render all submitted render commands into the specified buffer
     //void Render(Framebuffer_ID OutBuffer, Camera Cam, DirectionalLight DirLight);
@@ -131,20 +146,20 @@ public:
     Material CreateMaterial(Texture* AlbedoMap, Texture* NormalMap);
     Material CreateMaterial(Texture* AlbedoMap);
 
-    Model CreateModel(StaticMesh inStaticMesh, Material inMaterial);
+    Model CreateModel(Scene* inScene, StaticMesh inStaticMesh, Material inMaterial);
 
-    Model CloneModel(const Model& original);
+    Model CloneModel(Scene* inScene, const Model& original);
 
-    Model LoadModel(std::vector<float>& BufferData, std::vector<unsigned int>& IndexData, Material Mat);
+    Model LoadModel(Scene* inScene, std::vector<float>& BufferData, std::vector<unsigned int>& IndexData, Material Mat);
 
     //TODO(fraser) Going to want something that's not a model for level geometry like this, something that can be edited easily (and which doesn't need use a transform matrix)
-    Model CreateBoxModel(AABB box);
-    Model CreateBoxModel(AABB box, Material texture);
+    Model CreateBoxModel(Scene* inScene, AABB box);
+    Model CreateBoxModel(Scene* inScene, AABB box, Material texture);
 
-    void UpdateHEMeshModel(he::HalfEdgeMesh* mesh);
+    void UpdateHEMeshModel(Scene* inScene, he::HalfEdgeMesh* mesh);
 
-    Model CreatePlaneModel(Vec2f min, Vec2f max, float elevation = 0.0f, int subsections = 1);
-    Model CreatePlaneModel(Vec2f min, Vec2f max, Material material, float elevation = 0.0f, int subsections = 1);
+    Model CreatePlaneModel(Scene* inScene, Vec2f min, Vec2f max, float elevation = 0.0f, int subsections = 1);
+    Model CreatePlaneModel(Scene* inScene, Vec2f min, Vec2f max, Material material, float elevation = 0.0f, int subsections = 1);
 
     void RecalculateTerrainModelNormals(Model& model);
 
@@ -153,6 +168,8 @@ public:
     void SetCamera(Camera* camera);
 
     void SetDirectionalLight(DirectionalLight dirLight);
+
+    StaticMesh CreateStaticMesh(std::vector<float>& BufferData, std::vector<unsigned int>& IndexData);
 
     std::vector<float> GetModelVertexBuffer(Model& model);
     std::vector<unsigned int> GetModelIndexBuffer(Model& model);
@@ -164,8 +181,8 @@ public:
 
     void InitializeDebugDraw();
     void InitializeDebugDraw(Framebuffer_ID fBuffer);
-    void DebugDrawLine(Vec3f a, Vec3f b, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
-    void DebugDrawLine(LineSegment line, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
+    void DebugDrawLine(Vec3f a, Vec3f b, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f), float thickness = 0.03f);
+    void DebugDrawLine(LineSegment line, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f), float thickness = 0.03f);
     
     // Extremely slow, basically never use this
     void DebugDrawModelMesh(Model model, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
@@ -173,7 +190,12 @@ public:
     void DebugDrawPoint(Vec3f p, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
     void DebugDrawSphere(Vec3f p, float radius = 1.0f, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
     void DebugDrawArrow(Vec3f a, Vec3f b, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
-    
+    void DebugDrawCylinder(Vec3f base, Vec3f tip, float radius, int numSegments, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
+    void DebugDrawFrustum(Vec3f pos, Vec3f forward, Vec3f up, float fov, float aspectRatio, float nearPlane, float farPlane, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
+    void DebugDrawCone(Vec3f base, Vec3f tip, float baseRadius, int numSegments, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
+
+    void DebugDrawTriangle(Vec3f a, Vec3f b, Vec3f c, Vec4f colour = Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
+
     void DebugDrawPlane(Vec3f pointOnPlane, Vec3f planeNormal, float planeSize = 1.0f, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
     void DebugDrawPlane(Plane plane, float planeSize = 1.0f, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
 
@@ -239,7 +261,11 @@ private:
     MeshData GetVertexDataForQuad();
     MeshData GetVertexDataFor3DQuad();
 
-    std::unordered_map<Vec3f, std::vector<float>, Vec3fHash> m_DebugLineMap;
+    //std::unordered_map<Vec3f, std::vector<float>, Vec3fHash> m_DebugLineMap;
+    std::vector<DebugDrawLineInfo> m_DebugLineInfos;
+
+    std::vector<DebugDrawTriangleInfo> m_DebugTriangleInfos;
+
     VertexBufferFormat m_DebugVertFormat;
     StaticMesh_ID m_DebugDrawMesh;
 

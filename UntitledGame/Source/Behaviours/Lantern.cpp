@@ -4,12 +4,11 @@ REGISTER_BEHAVIOUR(Lantern);
 
 void Lantern::Initialize(Scene* Scene)
 {
-    PointLight Light;
-    Light.position = m_Model->GetTransform().GetPosition() + lightOffset;
-    Light.colour = Vec3f(255.f / 255.f, 191.f / 255.f, 0.f / 255.f);
-    Light.intensity = 2.0f;
-    LanternLight = Scene->AddPointLight(Light);
-
+    PointLight* Light = Scene->AddPointLight();
+    Light->position = m_Model->GetTransform().GetPosition() + lightOffset;
+    Light->colour = Vec3f(255.f / 255.f, 191.f / 255.f, 0.f / 255.f);
+    Light->intensity = 2.0f;
+    LanternLight = Light;
 }
 
 void Lantern::Update(Scene* Scene, double DeltaTime)

@@ -2,7 +2,7 @@
 
 #ifdef USE_EDITOR
 
-#include "Scene.h"
+#include "Scene/Scene.h"
 #include "Interfaces/EditorClickable_i.h"
 
 class EditorState;
@@ -27,6 +27,7 @@ enum class SelectMode : uint8_t
 {
     GenericSelect,
     FaceSelect,
+    EdgeSelect,
     VertSelect
 };
 
@@ -40,9 +41,17 @@ enum class TransformMode : uint8_t
 enum class GeometryMode : uint8_t
 {
     Box,
+    Cylinder,
     Plane,
-    HalfEdge,
     Water
+};
+
+enum class CylinderState : uint8_t
+{
+    NotCreating,
+    AwaitingFirstClick,
+    AwaitingSecondClick,
+    AwaitingConfirmation
 };
 
 enum class VertexMode : uint8_t
@@ -58,6 +67,13 @@ enum class SliceState : uint8_t
     AwaitingConfirmation
 };
 
+enum class SliceOption : uint8_t
+{
+    KeepBoth,
+    KeepFront,
+    KeepBack
+};
+
 enum class DraggingMode : uint8_t
 {
     None,
@@ -66,7 +82,8 @@ enum class DraggingMode : uint8_t
     NewBehaviour,
     NewPointLight,
     NewDirectionalLight,
-    NewSpotLight
+    NewSpotLight,
+    NewDecal
 };
 
 enum class EditingAxis : uint8_t
@@ -124,6 +141,7 @@ public:
     void StartDraggingNewPointLight(PointLight* NewPointLight);
     void StartDraggingNewDirectionalLight(DirectionalLight* NewDirLight);
     void StartDraggingNewSpotLight(SpotLight* NewSpotLight);
+    void StartDraggingNewDecal(Decal* NewDecal);
     void StartDraggingNewMaterial(Material* NewMaterial);
     void StartDraggingNewBehaviour(std::string NewBehaviourName);
 
@@ -151,11 +169,12 @@ private:
     void UpdateScaleTool();
 
     void UpdateBoxTool();
+    void UpdateCylinderTool();
     void UpdatePlaneTool();
-    void UpdateHalfEdgeTool();
     void UpdateWaterTool();
 
     void UpdateSliceTool();
+    void PreviewSlice(he::HalfEdgeMesh* TargetMesh, Plane SlicePlane);
 
     void UpdateSelectedObjects();
     void DrawSelectedObjects();
@@ -165,10 +184,15 @@ private:
 
     void AddToSelectedObjects(ISelectedObject* NewSelectedObject);
     
+    // Temp public
+public:
     void RecalculateProxyAndObjectOffsets();
+private:
 
     void UpdateSelectedTransformsBasedOnProxy();
     void RotateSelectedTransforms(Quaternion Rotation);
+
+    RayCastHit SceneRayCastWithScenePlane(Ray mouseRay);
 
     ISelectedObject* ClickCastGeneric(Ray mouseRay);
     std::vector<ISelectedObject*> ClickCastHalfEdgeMesh(Ray mouseRay);
@@ -191,6 +215,7 @@ private:
     PointLight* DraggingPointLightPtr = nullptr;
     DirectionalLight* DraggingDirectionalLightPtr = nullptr;
     SpotLight* DraggingSpotLightPtr = nullptr;
+    Decal* DraggingDecalPtr = nullptr;
 
     Material* DraggingMaterialPtr = nullptr;
     std::string DraggingBehaviourName;
@@ -255,25 +280,41 @@ private:
     Model* ScaleRing;
 
     // Geometry mode state
+
+    // Box tool state
     bool IsCreatingNewBox = false;
     Vec3f NewBoxStartPoint;
     float NewBoxHeight = 1.0f;
     AABB BoxBeingCreated;
     float GeoPlaceSnap = 1.0f;
 
+    // Plane tool state
     bool IsCreatingNewPlane = false;
     Vec3f NewPlaneStartPoint;
     Vec3f NewPlaneMin, NewPlaneMax;
     int NewPlaneSubdivisions = 1;
 
+    // Cylinder tool state
+    //bool IsCreatingNewCylinder = false;
+    CylinderState CurrentCylinderState = CylinderState::NotCreating;
+    Vec3f NewCylinderStartPoint;
+    float NewCylinderHeight = 1.0f;
+    float NewCylinderRadius = 1.0f;
+    Cylinder CylinderBeingCreated;
+
+    int NumCylinderSegments = 16;
+
+    // Water tool state
     bool IsCreatingNewWater = false;
 
     // Vertex mode state
     SliceState CurrentSliceState = SliceState::NotSlicing;
+    SliceOption CurrentSliceOption = SliceOption::KeepBoth;
     Vec3f SliceStartPoint;
     Vec3f SliceEndPoint;
     Plane SliceHitPlane;
     he::HalfEdgeMesh* SliceTargetMesh = nullptr;
+    bool SliceAddCaps = true;
 
     // Sculpt mode state
     float SculptSpeed = 3.0f;

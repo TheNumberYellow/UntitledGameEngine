@@ -391,6 +391,23 @@ RayCastHit CollisionModule::RayCast(Ray ray, Sphere sphere)
     return result;
 }
 
+RayCastHit CollisionModule::RayCast(Ray ray, Cylinder cyl)
+{
+    RayCastHit result;
+
+    Vec3f cylinderCenter = (cyl.top + cyl.bottom) * 0.5f;
+    Vec3f cylinderAxis = Math::normalize(cyl.top - cyl.bottom);
+    float cylinderHeight = Math::magnitude(cyl.top - cyl.bottom);
+    float cylinderRadius = cyl.radius;
+
+
+    // Rotate cylinder + ray so that cylinder axis aligns with Z axis
+
+
+
+    return result;
+}
+
 RayCastHit CollisionModule::RayCast(Ray ray, OctreeNode* node, const Mat4x4f& tempTrans)
 {
     if (!RayCast(ray, node->Bounds).hit)
@@ -741,13 +758,11 @@ LineCastHit CollisionModule::LineCast(Vec3f start, Vec3f end, Plane plane)
 {
     LineCastHit result;
     Vec3f lineDir = end - start;
-    float lineLength = Math::magnitude(lineDir);
-    lineDir = Math::normalize(lineDir);
     float denom = Math::dot(plane.normal, lineDir);
     if (abs(denom) > 0.0001f)
     {
-        float t = Math::dot((plane.center - start), plane.normal) / denom;
-        if (t >= 0 && t <= lineLength)
+        float t = Math::dot(plane.normal, plane.center - start) / denom;
+        if (t >= 0 && t <= 1)
         {
             result.hit = true;
             result.hitPoint = start + (lineDir * t);

@@ -15,7 +15,7 @@ void ServerGameState::OnInitialized(ArgsList args)
     graphics->InitializeDebugDraw(ViewportBuffer.FinalOutput);
 
     AssetRegistry* Registry = AssetRegistry::Get();
-    SphereModelPrototype = graphics->CreateModel(*Registry->LoadStaticMesh("Assets/models/UVBall.obj"), graphics->CreateMaterial(Registry->LoadTexture("Assets/textures/marble.jpg")));
+    SphereModelPrototype = graphics->CreateModel(&CurrentScene, *Registry->LoadStaticMesh("Assets/models/UVBall.obj"), graphics->CreateMaterial(Registry->LoadTexture("Assets/textures/marble.jpg")));
 
 
     TestFont = TextModule::Get()->LoadFont("Assets/fonts/ARLRDBD.TTF", 30);
@@ -334,10 +334,8 @@ void ServerGameState::SpawnSphere(ClientID id)
     GraphicsModule* graphics = GraphicsModule::Get();
     NetworkModule* network = NetworkModule::Get();
 
-    Model* NewSphereModel = new Model(graphics->CloneModel(SphereModelPrototype));
+    Model* NewSphereModel = CurrentScene.AddModel(SphereModelPrototype);
     NewSphereModel->GetTransform().SetPosition(Vec3f(0.0f, 0.0f, 5.0f));
-
-    NewSphereModel = CurrentScene.AddModel(NewSphereModel);
 
     SphereController* NewBehaviour = static_cast<SphereController*>(BehaviourRegistry::Get()->AttachNewBehaviour("SphereController", NewSphereModel));
     NewBehaviour->SetRunningLocally(false);

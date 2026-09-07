@@ -56,10 +56,6 @@ void EditorState::OnInitialized(ArgsList args)
     
     WidgetBuffer = Graphics->CreateFBuffer(ViewportRect.size);
 
-    Vec2i NewCenter = Vec2i(ViewportRect.Center());
-    //TODO(fraser): clean up mouse constrain/input code
-    Input->SetMouseCenter(NewCenter);
-
     Graphics->InitializeDebugDraw(ViewportBuffer.FinalOutput);
 
     Graphics->SetRenderMode(RenderMode::DEFAULT);
@@ -118,6 +114,18 @@ void EditorState::OnInitialized(ArgsList args)
                     ViewportCamera.SetDirection(Vec3f(LastCameraDir[0], LastCameraDir[1], LastCameraDir[2]));
                 }
             }
+            if (EditorConfig.contains("LastTransSnapEnabled"))
+            {
+                Cursor.ShouldSnapToGrid = EditorConfig["LastTransSnapEnabled"].get<bool>();
+            }
+            if (EditorConfig.contains("LastRotSnapEnabled"))
+            {
+                Cursor.ShouldSnapToRotationGrid = EditorConfig["LastRotSnapEnabled"].get<bool>();
+            }
+            if (EditorConfig.contains("TransSnapIndex"))
+            {
+                Cursor.TransSnapIndex = EditorConfig["TransSnapIndex"].get<int>();
+            }
         }
     }
 }
@@ -133,6 +141,9 @@ void EditorState::OnUninitialized()
         EditorConfig["LastOpenLevel"] = CurrentLevelName;
         EditorConfig["LastEditorCameraPos"] = { ViewportCamera.GetPosition().x, ViewportCamera.GetPosition().y, ViewportCamera.GetPosition().z };
         EditorConfig["LastEditorCameraDir"] = { ViewportCamera.GetDirection().x, ViewportCamera.GetDirection().y, ViewportCamera.GetDirection().z };
+        EditorConfig["LastTransSnapEnabled"] = Cursor.ShouldSnapToGrid;
+        EditorConfig["LastRotSnapEnabled"] = Cursor.ShouldSnapToRotationGrid;
+        EditorConfig["TransSnapIndex"] = Cursor.TransSnapIndex;
         EditorConfigFile << EditorConfig.dump(4);
     }
 }
@@ -197,7 +208,6 @@ void EditorState::OnResize()
 
     ViewportCamera.SetScreenSize(ViewportRect.size);
     graphics->ResizeGBuffer(ViewportBuffer, ViewportRect.size);
-    input->SetMouseCenter(ViewportRect.Center());
 
     EntityCamera.SetScreenSize(ViewportRect.size);
 }
@@ -212,13 +222,7 @@ void EditorState::UpdateEditor(double DeltaTime)
 
     if (CursorLocked)
     {
-        MoveCamera(&ViewportCamera, 0.001f, DeltaTime);
-    }
-
-    if (Input->IsKeyDown(Key::Q))
-    {
-        //EditorScene.SetDirectionalLight(DirectionalLight{ ViewportCamera.GetDirection(), EditorScene.m_DirLight.colour });
-        //EntityEditorScene.SetDirectionalLight(DirectionalLight{ EntityCamera.GetDirection(), EntityEditorScene.m_DirLight.colour });
+        MoveCamera(&ViewportCamera, 0.003f, DeltaTime);
     }
 
     if (Engine::IsWindowFocused())
@@ -230,14 +234,65 @@ void EditorState::UpdateEditor(double DeltaTime)
         {
             if (CursorLocked)
             {
-                Engine::UnlockCursor();
+                Input->SetMouseLocked(false);
                 Engine::ShowCursor();
                 CursorLocked = false;
             }
             else {
-                Engine::LockCursor();
+                Input->SetMouseLocked(true);
                 Engine::HideCursor();
                 CursorLocked = true;
+            }
+        }
+
+        if (Input->GetMouseState().GetMouseButtonState(MouseButton::RMB).pressed)
+        {
+            Input->SetMouseLocked(true);
+            Engine::HideCursor();
+            CursorLocked = true;
+        }
+        else if (Input->GetMouseState().GetMouseButtonState(MouseButton::RMB).justReleased)
+        {
+            Input->SetMouseLocked(false);
+            Engine::ShowCursor();
+            CursorLocked = false;
+        }
+
+        if (Input->GetMouseState().GetMouseButtonState(MouseButton::MIDDLE).pressed)
+        {
+            Input->SetMouseLocked(true);
+            Engine::HideCursor();
+            
+            // Click and drag to pan the camera
+            Vec2i MouseDelta = Input->GetMouseState().GetDeltaMousePos();
+            
+            Vec3f Right = Math::normalize(ViewportCamera.GetPerpVector());
+            Vec3f Up = Math::normalize(Math::cross(ViewportCamera.GetDirection(), Right));
+
+            ViewportCamera.Move(Right * MouseDelta.x * 0.05f);
+            ViewportCamera.Move(Up * MouseDelta.y * 0.05f);
+        }
+        else if (Input->GetMouseState().GetMouseButtonState(MouseButton::MIDDLE).justReleased)
+        {
+            Input->SetMouseLocked(false);
+            Engine::ShowCursor();
+            //CursorLocked = false;
+        }
+
+        // "Zoom" the camera with the mouse wheel
+        ToolMode ToolMode = Cursor.GetToolMode();
+        // Only allow zooming when not in geometry mode, since that mode uses the mouse wheel for scaling the geometry
+        if (ToolMode != ToolMode::Geometry)
+        {
+            if (CursorLocked)
+            {
+                int MouseWheelDelta = Input->GetMouseState().GetDeltaMouseWheel();
+
+                if (MouseWheelDelta != 0)
+                {
+                    Vec3f Forward = Math::normalize(ViewportCamera.GetDirection());
+                    ViewportCamera.Move(Forward * MouseWheelDelta * 0.5f);
+                }
             }
         }
     }
@@ -340,8 +395,17 @@ Ray EditorState::GetMouseRay(Camera& cam, Vec2i mousePosition, Rect viewPort)
     Vec2i screenSize = viewPort.size;
 
     Vec2i mousePos;
-    mousePos.x = mousePosition.x - (int)viewPort.location.x;
-    mousePos.y = mousePosition.y - (int)viewPort.location.y;
+    if (CursorLocked)
+    {
+        // If the cursor is locked, treat it as being in the center of the viewport
+        mousePos.x = (int)viewPort.size.x / 2;
+        mousePos.y = (int)viewPort.size.y / 2;
+    }
+    else
+    {
+        mousePos.x = mousePosition.x - (int)viewPort.location.x;
+        mousePos.y = mousePosition.y - (int)viewPort.location.y;
+    }
 
     float x = ((2.0f * (float)mousePos.x) / (float)screenSize.x) - 1.0f;
     float y = 1.0f - ((2.0f * (float)mousePos.y) / (float)screenSize.y);
@@ -380,12 +444,13 @@ void EditorState::LoadEditorResources()
 
     // Create translation gizmo models
     xAxisArrow = Graphics->CreateModel(
+        &EditorScene,
         *Registry->LoadStaticMesh("Assets/models/ArrowSmooth.obj"),
         Graphics->CreateMaterial(RedTexture)
     );
 
-    yAxisArrow = Graphics->CloneModel(xAxisArrow);
-    zAxisArrow = Graphics->CloneModel(xAxisArrow);
+    yAxisArrow = Graphics->CloneModel(&EditorScene, xAxisArrow);
+    zAxisArrow = Graphics->CloneModel(&EditorScene, xAxisArrow);
     
     xAxisArrow.GetTransform().SetScale(Vec3f(0.2f, 1.0f, 0.2f));
     yAxisArrow.GetTransform().SetScale(Vec3f(0.2f, 1.0f, 0.2f));
@@ -398,18 +463,20 @@ void EditorState::LoadEditorResources()
     zAxisArrow.SetMaterial(Graphics->CreateMaterial(BlueTexture));
 
     TranslateBall = Graphics->CreateModel(
+        &EditorScene,
         *Registry->LoadStaticMesh("Assets/models/Buckyball.obj"),
         Graphics->CreateMaterial(PurpleTexture)
     );
 
     // Create rotation gizmo models
     xAxisRing = Graphics->CreateModel(
+        &EditorScene,
         *Registry->LoadStaticMesh("Assets/models/RotationHoop.obj"),
         Graphics->CreateMaterial(RedTexture)
     );
 
-    yAxisRing = Graphics->CloneModel(xAxisRing);
-    zAxisRing = Graphics->CloneModel(xAxisRing);
+    yAxisRing = Graphics->CloneModel(&EditorScene, xAxisRing);
+    zAxisRing = Graphics->CloneModel(&EditorScene, xAxisRing);
 
     xAxisRing.GetTransform().Rotate(Quaternion(Vec3f(0.0f, 0.0f, 1.0f), -(float)M_PI_2));
     zAxisRing.GetTransform().Rotate(Quaternion(Vec3f(1.0f, 0.0f, 0.0f), (float)M_PI_2));
@@ -419,12 +486,13 @@ void EditorState::LoadEditorResources()
 
     // Create scaling gizmo models
     xScaleWidget = Graphics->CreateModel(
+        &EditorScene,
         *Registry->LoadStaticMesh("Assets/models/ScaleWidget.obj"),
         Graphics->CreateMaterial(RedTexture)
     );
 
-    yScaleWidget = Graphics->CloneModel(xScaleWidget);
-    zScaleWidget = Graphics->CloneModel(xScaleWidget);
+    yScaleWidget = Graphics->CloneModel(&EditorScene, xScaleWidget);
+    zScaleWidget = Graphics->CloneModel(&EditorScene, xScaleWidget);
 
     xScaleWidget.GetTransform().Rotate(Quaternion(Vec3f(0.0f, 1.0f, 0.0f), (float)M_PI_2));
     yScaleWidget.GetTransform().Rotate(Quaternion(Vec3f(1.0f, 0.0f, 0.0f), -(float)M_PI_2));
@@ -437,6 +505,7 @@ void EditorState::LoadEditorResources()
     zScaleWidget.SetMaterial(Graphics->CreateMaterial(BlueTexture));
 
     ScaleRing = Graphics->CreateModel(
+        &EditorScene,
         *Registry->LoadStaticMesh("Assets/models/ScaleRing.obj"),
         Graphics->CreateMaterial(PurpleTexture)
     );
@@ -446,9 +515,11 @@ void EditorState::LoadEditorResources()
 
     genericSelectToolTexture = *Registry->LoadTexture("Assets/images/cursorTool.png");
     vertexSelectToolTexture = *Registry->LoadTexture("Assets/images/vertSelectTool.png");
+    edgeSelectToolTexture = *Registry->LoadTexture("Assets/images/edgeSelectTool.png");
     faceSelectToolTexture = *Registry->LoadTexture("Assets/images/faceSelectTool.png");
 
     boxToolTexture = *Registry->LoadTexture("Assets/images/boxTool.png");
+    cylinderToolTexture = *Registry->LoadTexture("Assets/images/cylinderTool.png");
     planeToolTexture = *Registry->LoadTexture("Assets/images/planeTool.png");
     waterToolTexture = *Registry->LoadTexture("Assets/images/waterTool.png");
 
@@ -465,6 +536,7 @@ void EditorState::LoadEditorResources()
     cameraEntityTexture = *Registry->LoadTexture("Assets/images/cameraButton.png");
     brainEntityTexture = *Registry->LoadTexture("Assets/images/brainTool.png");
     billboardEntityTexture = *Registry->LoadTexture("Assets/images/billboardTool.png");
+    decalEntityTexture = *Registry->LoadTexture("Assets/images/decalTool.png");
 
     // Load editor fonts
     DefaultFont = Text->LoadFont("Assets/fonts/ARLRDBD.TTF", 30);
@@ -489,7 +561,7 @@ std::vector<Model> EditorState::LoadModels(GraphicsModule& graphics)
             StaticMesh newMesh = *Registry->LoadStaticMesh(fileName);
             
             // For now we load all models with a temporary white texture
-            Model newModel = graphics.CreateModel(newMesh, WhiteMaterial);
+            Model newModel = graphics.CreateModel(&EditorScene, newMesh, WhiteMaterial);
 
             LoadedModels.push_back(newModel);
         }
@@ -737,16 +809,15 @@ void EditorState::DrawLevelEditor(GraphicsModule* Graphics, UIModule* UI, double
     }
     if (Input->GetKeyState(Key::Four).justPressed)
     {
-        Cursor.SetToolMode(ToolMode::Sculpt);
+        Cursor.SetToolMode(ToolMode::Vertex);
     }
 
     if (Input->GetKeyState(Key::Five).justPressed)
     {
+        Cursor.SetToolMode(ToolMode::Sculpt);
     }
 
-    bool drawHeMeshDebug = Cursor.GetSelectMode() == SelectMode::FaceSelect || Cursor.GetSelectMode() == SelectMode::VertSelect || Cursor.GetToolMode() == ToolMode::Vertex;
-
-    EditorScene.EditorDraw(*Graphics, ViewportBuffer, &ViewportCamera, true, drawHeMeshDebug);
+    EditorScene.EditorDraw(*Graphics, ViewportBuffer, &ViewportCamera, true);
     //EditorScene.Update(DeltaTime);
 
     Graphics->SetActiveFrameBuffer(WidgetBuffer);
@@ -903,11 +974,14 @@ void EditorState::DrawEntityEditor()
         case SelectMode::GenericSelect:
             SelectModeTexture = genericSelectToolTexture;
             break;
-        case SelectMode::FaceSelect:
-            SelectModeTexture = faceSelectToolTexture;
-            break;
         case SelectMode::VertSelect:
             SelectModeTexture = vertexSelectToolTexture;
+            break;
+        case SelectMode::EdgeSelect:
+            SelectModeTexture = edgeSelectToolTexture;
+            break;
+        case SelectMode::FaceSelect:
+            SelectModeTexture = faceSelectToolTexture;
             break;
         default:
             break;
@@ -973,6 +1047,8 @@ void EditorState::DrawEntityEditor()
 
         UI->CheckBox("Rot Snap", Cursor.ShouldSnapToRotationGrid);
         UI->NewLine();
+        UI->CheckBox("Light Enabled", LightEnabled);
+        UI->NewLine();
         UI->CheckBox("Static Light", UseStaticLight);
     }
     UI->EndFrame();
@@ -994,6 +1070,22 @@ void EditorState::DrawEntityEditor()
         EntityCamYAxis = Math::ClampRadians(EntityCamYAxis, -M_PI_2 + 0.001f, M_PI_2 - 0.001f);
     }
 
+    if (Input->GetMouseState().GetMouseButtonState(MouseButton::MIDDLE).pressed)
+    {
+        Vec2f DeltaMouse = Input->GetMouseState().GetDeltaMousePos();
+        
+        Vec3f Right = Math::normalize(EntityCamera.GetPerpVector());
+        Vec3f Up = Math::normalize(Math::cross(EntityCamera.GetDirection(), Right));
+
+        EntityCamCenterPoint += (Right * DeltaMouse.x * 0.01f);
+        EntityCamCenterPoint += (Up * DeltaMouse.y * 0.01f);
+    }
+
+    if (Input->GetKeyState(Key::R).justPressed)
+    {
+        EntityCamCenterPoint = Vec3f(0.0f, 0.0f, 0.0f);
+    }
+
     Quaternion Rotation = Quaternion::FromEuler(EntityCamYAxis, 0.0f, EntityCamXAxis);
     Vec3f NegDistance = Vec3f(0.0f, -EntityCamDistance, 0.0f);
 
@@ -1006,19 +1098,22 @@ void EditorState::DrawEntityEditor()
     // End entity camera stuff
 
     // Add directional light in direction of camera
-    DirectionalLightRenderCommand dlCommand;
-    if (UseStaticLight)
+    if (LightEnabled)
     {
-        dlCommand.m_Direction = Vec3f(0.0f, 0.0f, -1.0f);
-    }
-    else
-    {
-        dlCommand.m_Direction = EntityCamera.GetDirection();
-    }
-    dlCommand.m_Colour = Vec3f(1.0f);
-    dlCommand.m_ShadowBlurMult = 0.5f;
+        DirectionalLightRenderCommand dlCommand;
+        if (UseStaticLight)
+        {
+            dlCommand.m_Direction = Vec3f(0.0f, 0.0f, -1.0f);
+        }
+        else
+        {
+            dlCommand.m_Direction = EntityCamera.GetDirection();
+        }
+        dlCommand.m_Colour = Vec3f(1.0f);
+        dlCommand.m_ShadowBlurMult = 0.5f;
 
-    Graphics->AddRenderCommand(dlCommand);
+        Graphics->AddRenderCommand(dlCommand);
+    }
 
     EntityEditorScene.EditorDraw(*Graphics, ViewportBuffer, &EntityCamera, false);
 
@@ -1083,7 +1178,7 @@ void EditorState::DrawEntityEditor()
             {
                 if (UI->TextButton(AModel.m_StaticMesh.Path.GetFileNameNoExt(), Vec2f(120.0f, 40.0f), 10.0f, c_ResourceButton))
                 {
-                    EntityEditorScene.AddModel(new Model(AModel));
+                    EntityEditorScene.AddModel(AModel);
                 }
             }
         }
@@ -1116,7 +1211,7 @@ void EditorState::DrawEntityEditor()
         {
             if (UI->ImgButton("LightEntity", lightEntityTexture, Vec2f(80.0f, 80.0f), 12.0f, c_ResourceButton))
             {
-                EntityEditorScene.AddPointLight(PointLight());
+                EntityEditorScene.AddPointLight();
             }
             if (UI->ImgButton("DirectionalLightEntity", directionalLightEntityTexture, Vec2f(80.0f, 80.0f), 12.0f, c_ResourceButton))
             {
@@ -1129,6 +1224,9 @@ void EditorState::DrawEntityEditor()
             {
             }
             if (UI->ImgButton("BillboardEntity", billboardEntityTexture, Vec2f(80.0f, 80.0f), 12.0f, c_ResourceButton))
+            {
+            }
+            if (UI->ImgButton("DecalEntity", decalEntityTexture, Vec2f(80.0f, 80.0f), 12.0f, c_ResourceButton))
             {
             }
         }
@@ -1148,82 +1246,12 @@ void EditorState::ClearEntity()
 
 void EditorState::SaveEntity(std::string EntityName)
 {
-    std::ofstream File(EntityName, std::ofstream::out | std::ofstream::trunc);
-    
-    if (!File.is_open())
-    {
-        Engine::DEBUGPrint("Failed to save entity :(");
-        return;
-    }
-
-    json EntityJson;
-
-    auto& SceneModelMap = EntityEditorScene.m_Models;
-
-    json ModelsList;
-
-    for (auto& it : SceneModelMap)
-    {
-        Model& Mod = *it.second;
-        
-        json ModelJson;
-
-        ModelJson["Mesh"] = Mod.m_StaticMesh.Path.GetRelativePath();
-
-        Mat4x4f ModTrans = Mod.GetTransform().GetTransformMatrix();
-        ModelJson["OffsetTrans"] = {
-            ModTrans[0].x, ModTrans[0].y, ModTrans[0].z, ModTrans[0].w,
-            ModTrans[1].x, ModTrans[1].y, ModTrans[1].z, ModTrans[1].w,
-            ModTrans[2].x, ModTrans[2].y, ModTrans[2].z, ModTrans[2].w,
-            ModTrans[3].x, ModTrans[3].y, ModTrans[3].z, ModTrans[3].w,
-        };
-
-        ModelsList.push_back(ModelJson);
-    }
-
-    EntityJson["Models"] = ModelsList;
-
-    // Uncomment to beautify json - makes it easier to debug but makes files much larger
-    File << std::setw(4) << EntityJson;
-
-    // Uncomment to normalness
-    //File << EntityJson;
+    EntityEditorScene.Save(EntityName);
 }
 
 void EditorState::LoadEntity(std::string Filename)
 {
-    std::ifstream File(Filename, std::ifstream::in);
-    if (!File.is_open())
-    {
-        Engine::DEBUGPrint("Failed to load entity :(");
-        return;
-    }
-
-    json EntityJson;
-    File >> EntityJson;
-
-    // Clear the current entity before loading a new one
-    ClearEntity();
-
-    auto& ModelsList = EntityJson["Models"];
-    for (auto& ModelJson : ModelsList)
-    {
-        Model* Mod = new Model();
-        AssetRegistry* Registry = AssetRegistry::Get();
-
-        Mod->m_StaticMesh = *Registry->LoadStaticMesh(ModelJson["Mesh"].get<std::string>());
-        Mat4x4f ModTrans;
-        auto& OffsetTrans = ModelJson["OffsetTrans"];
-        for (int i = 0; i < 4; ++i)
-        {
-            for (int j = 0; j < 4; ++j)
-            {
-                ModTrans[i][j] = OffsetTrans[i * 4 + j];
-            }
-        }
-        Mod->GetTransform().SetTransformMatrix(ModTrans);
-        EntityEditorScene.AddModel(Mod);
-    }
+    EntityEditorScene.Load(Filename);
 }
 
 void EditorState::DrawMaterialEditor()
@@ -1574,11 +1602,14 @@ void EditorState::DrawEditorUI()
         case SelectMode::GenericSelect:
             SelectModeTexture = genericSelectToolTexture;
             break;
-        case SelectMode::FaceSelect:
-            SelectModeTexture = faceSelectToolTexture;
-            break;
         case SelectMode::VertSelect:
             SelectModeTexture = vertexSelectToolTexture;
+            break;
+        case SelectMode::EdgeSelect:
+            SelectModeTexture = edgeSelectToolTexture;
+            break;
+        case SelectMode::FaceSelect:
+            SelectModeTexture = faceSelectToolTexture;
             break;
         default:
             break;
@@ -1632,11 +1663,11 @@ void EditorState::DrawEditorUI()
         case GeometryMode::Box:
             GeoModeTexture = boxToolTexture;
             break;
+        case GeometryMode::Cylinder:
+            GeoModeTexture = cylinderToolTexture;
+            break;
         case GeometryMode::Plane:
             GeoModeTexture = planeToolTexture;
-            break;
-        case GeometryMode::HalfEdge:
-            GeoModeTexture = playButtonTexture;
             break;
         case GeometryMode::Water:
             GeoModeTexture = waterToolTexture;
@@ -1860,7 +1891,7 @@ void EditorState::DrawResourcesPanel(Scene& FocusedScene)
                     {
                         if (!Cursor.IsDraggingSomething())
                         {
-                            Model* AddedModel = FocusedScene.AddModel(new Model(AModel));
+                            Model* AddedModel = FocusedScene.AddModel(AModel);
                             Cursor.StartDraggingNewModel(AddedModel);
                         }
                     }
@@ -1931,7 +1962,7 @@ void EditorState::DrawResourcesPanel(Scene& FocusedScene)
                 {
                     if (!Cursor.IsDraggingSomething())
                     {
-                        PointLight NewLight = PointLight();
+                        PointLight NewLight = PointLight(&EditorScene);
 
                         PointLight* PointLightPtr = FocusedScene.AddPointLight(NewLight);
                         Cursor.StartDraggingNewPointLight(PointLightPtr);
@@ -1953,6 +1984,15 @@ void EditorState::DrawResourcesPanel(Scene& FocusedScene)
                         SpotLight NewSpotLight = SpotLight();
                         SpotLight* SpotLightPtr = FocusedScene.AddSpotLight(NewSpotLight);
                         Cursor.StartDraggingNewSpotLight(SpotLightPtr);
+                    }
+                }
+                if (UI->ImgButton("DecalEntity", decalEntityTexture, Vec2f(80.0f, 80.0f), 12.0f, c_ResourceButton).clicking)
+                {
+                    if (!Cursor.IsDraggingSomething())
+                    {
+                        Decal NewDecal = Decal();
+                        Decal* DecalPtr = FocusedScene.AddDecal(NewDecal);
+                        Cursor.StartDraggingNewDecal(DecalPtr);
                     }
                 }
                 if (UI->ImgButton("CameraEntity", cameraEntityTexture, Vec2f(80.0f, 80.0f), 12.0f, c_ResourceButton))
@@ -2077,6 +2117,22 @@ void EditorState::DrawEntityInspectorPanel()
 {
     UIModule* UI = UIModule::Get();
 
+    for (auto& model : EntityEditorScene.m_Models)
+    {
+        UI->Text(std::to_string(model.first));
+        UI->NewLine();
+        model.second->DrawInspectorPanel();
+        UI->NewLine();
+
+    }
+    for (auto& pointLight : EntityEditorScene.m_PointLights)
+    {
+        pointLight->DrawInspectorPanel();
+        UI->NewLine();
+    }
+
+
+    UI->NewLine();
     UI->TextButton("Add Component", Vec2f(120.0f, 60.0f), 12.0f, c_NiceYellow, c_FrameDark);
 }
 

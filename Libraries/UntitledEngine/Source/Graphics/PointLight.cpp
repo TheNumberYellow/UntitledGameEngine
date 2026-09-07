@@ -3,7 +3,7 @@
 #include "Modules/GraphicsModule.h"
 #include "Modules/UIModule.h"
 
-#include "Scene.h"
+#include "Scene/Scene.h"
 
 SelectedPointLight::SelectedPointLight(PointLight* InPointLight)
 {
@@ -20,21 +20,8 @@ void SelectedPointLight::Draw()
 
     Graphics->DebugDrawAABB(LightAABB, c_SelectedBoxColour);
 
-    float lightRange;
+    float lightRange = PointLightPtr->radius;
 
-    // TODO(fraser): test attenuation ranges
-    if (PointLightPtr->quadraticAttenuation > 0.0f)
-    {
-        lightRange = sqrt(PointLightPtr->intensity / (PointLightPtr->quadraticAttenuation * 0.01f));
-    }
-    else if (PointLightPtr->linearAttenuation > 0.0f)
-    {
-        lightRange = PointLightPtr->intensity / (PointLightPtr->linearAttenuation * 0.01f);
-    }
-    else
-    {
-        lightRange = 200.0f; // Arbitrary large distance if no attenuation
-    }
     Graphics->DebugDrawSphere(PointLightPtr->position, lightRange, PointLightPtr->colour);
 
 }
@@ -46,31 +33,7 @@ void SelectedPointLight::Update()
 
 bool SelectedPointLight::DrawInspectorPanel()
 {
-    UIModule* UI = UIModule::Get();
-
-    Vec3f Pos = PointLightPtr->position;
-    Vec3f Col = PointLightPtr->colour;
-
-
-    UI->Text("Colour", c_InspectorColour);
-    UI->NewLine();
-
-    UI->FloatSlider("R", Vec2f(400.0f, 20.0f), PointLightPtr->colour.r);
-    UI->FloatSlider("G", Vec2f(400.0f, 20.0f), PointLightPtr->colour.g);
-    UI->FloatSlider("B", Vec2f(400.0f, 20.0f), PointLightPtr->colour.b);
-
-    UI->Text("Intensity", c_InspectorColour);
-    UI->NewLine();
-
-    UI->FloatDragger("Intensity", Vec2f(400.0f, 20.0f), PointLightPtr->intensity, 0.1f, 0.0f);
-
-    UI->FloatDragger("Constant Attenuation", Vec2f(400.0f, 20.0f), PointLightPtr->constantAttenuation, 0.01f, 0.0f);
-    UI->FloatDragger("Linear Attenuation", Vec2f(400.0f, 20.0f), PointLightPtr->linearAttenuation, 0.01f, 0.0f);
-    UI->FloatDragger("Quadratic Attenuation", Vec2f(400.0f, 20.0f), PointLightPtr->quadraticAttenuation, 0.01f, 0.0f);
-
-    UI->CheckBox("CastShadows", PointLightPtr->castShadows);
-
-    return false;
+    return PointLightPtr->DrawInspectorPanel();
 }
 
 Transform* SelectedPointLight::GetTransform()
@@ -86,6 +49,35 @@ void SelectedPointLight::DeleteObject()
 bool SelectedPointLight::IsEqual(const ISelectedObject& Other) const
 {
     return PointLightPtr == static_cast<const SelectedPointLight&>(Other).PointLightPtr;
+}
+
+bool PointLight::DrawInspectorPanel()
+{
+    UIModule* UI = UIModule::Get();
+
+    Vec3f Pos = position;
+    Vec3f Col = colour;
+
+    UI->Text("Colour", Col);
+    UI->NewLine();
+
+    UI->FloatSlider("R", Vec2f(400.0f, 20.0f), colour.r);
+    UI->FloatSlider("G", Vec2f(400.0f, 20.0f), colour.g);
+    UI->FloatSlider("B", Vec2f(400.0f, 20.0f), colour.b);
+
+    UI->Text("Intensity", intensity * Vec3f(1.0f));
+    UI->NewLine();
+
+    UI->FloatDragger("Intensity", Vec2f(400.0f, 20.0f), intensity, 0.1f, 0.0f);
+
+    UI->FloatDragger("Radius", Vec2f(400.0f, 20.0f), radius, 0.1f, 0.0f);
+
+    //UI->FloatDragger("Constant Attenuation", Vec2f(400.0f, 20.0f), constantAttenuation, 0.01f, 0.0f);
+    //UI->FloatDragger("Linear Attenuation", Vec2f(400.0f, 20.0f), linearAttenuation, 0.01f, 0.0f);
+    //UI->FloatDragger("Quadratic Attenuation", Vec2f(400.0f, 20.0f), quadraticAttenuation, 0.01f, 0.0f);
+    UI->CheckBox("CastShadows", castShadows);
+
+    return false;
 }
 
 RayCastHit PointLight::ClickCast(Ray mouseRay, ISelectedObject*& outSelectedObject)

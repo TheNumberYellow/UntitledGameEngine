@@ -39,8 +39,6 @@ namespace Engine
     extern void Error(std::string errorMessage);
     extern void FatalError(std::string errorMessage);
 
-    extern void SetCursorCenter(Vec2i center);
-
     extern void LockCursor();
     extern void UnlockCursor();
 

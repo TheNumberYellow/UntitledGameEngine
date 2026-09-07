@@ -9,9 +9,6 @@ void GameState::OnInitialized(ArgsList args)
 
     Graphics->InitializeDebugDraw(ViewportBuffer.FinalOutput);
 
-    Rect ViewportRect = GetViewportRect();
-    Input->SetMouseCenter(ViewportRect.Center());
-
     TestFont = TextModule::Get()->LoadFont("Assets/fonts/ARLRDBD.TTF", 30);
 
     RuntimeScene.Initialize();
@@ -76,7 +73,6 @@ void GameState::OnResize()
     
     ViewportCamera->SetScreenSize(ViewportRect.size);
     Graphics->ResizeGBuffer(ViewportBuffer, ViewportRect.size);
-    Input->SetMouseCenter(ViewportRect.Center());
 }
 
 void GameState::LoadScene(Scene& InScene)

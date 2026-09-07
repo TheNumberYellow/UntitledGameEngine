@@ -426,6 +426,88 @@ std::pair<Vec3f, Vec3f> Math::ClosestPointsOnLines(Line a, Line b)
     return std::pair<Vec3f, Vec3f>(c1, c2);
 }
 
+std::pair<Vec3f, Vec3f> Math::ClosestPointsOnLineSegments(LineSegment a, LineSegment b)
+{
+    // Reference: https://stackoverflow.com/questions/2824478/shortest-distance-between-two-line-segments
+
+    Vec3f u = a.b - a.a;
+    Vec3f v = b.b - b.a;
+    Vec3f w = a.a - b.a;
+
+    float a_dot = Math::dot(u, u);
+    float b_dot = Math::dot(u, v);
+    float c_dot = Math::dot(v, v);
+    float d_dot = Math::dot(u, w);
+    float e_dot = Math::dot(v, w);
+
+    float D = a_dot * c_dot - b_dot * b_dot;
+
+    float sc, sN, sD = D;
+
+    float tc, tN, tD = D;
+
+    if (D < 1e-8f)
+    {
+        sN = 0.0f;
+        sD = 1.0f;
+        tN = e_dot;
+        tD = c_dot;
+    }
+    else
+    {
+        sN = (b_dot * e_dot - c_dot * d_dot);
+        tN = (a_dot * e_dot - b_dot * d_dot);
+        if (sN < 0.0f)
+        {
+            sN = 0.0f;
+            tN = e_dot;
+            tD = c_dot;
+        }
+        else if (sN > sD)
+        {
+            sN = sD;
+            tN = e_dot + b_dot;
+            tD = c_dot;
+        }
+    }
+
+    if (tN < 0.0f)
+    {
+        tN = 0.0f;
+        if (-d_dot < 0.0f)
+            sN = 0.0f;
+        else if (-d_dot > a_dot)
+            sN = sD;
+        else
+        {
+            sN = -d_dot;
+            sD = a_dot;
+        }
+    }
+    else if (tN > tD)
+    {
+        tN = tD;
+        if ((-d_dot + b_dot) < 0.0f)
+            sN = 0.0f;
+        else if ((-d_dot + b_dot) > a_dot)
+            sN = sD;
+        else
+        {
+            sN = (-d_dot + b_dot);
+            sD = a_dot;
+        }
+    }
+
+    sc = (abs(sN) < 1e-8f ? 0.0f : sN / sD);
+    tc = (abs(tN) < 1e-8f ? 0.0f : tN / tD);
+
+    Vec3f closestPointA = a.a + (u * sc);
+    Vec3f closestPointB = b.a + (v * tc);
+
+    return std::pair<Vec3f, Vec3f>(closestPointA, closestPointB);
+
+}
+
 Vec3f Math::ClosestPointOnPlaneToPoint(Plane plane, Vec3f point)
 {
     float dist = Math::dot(plane.normal, point) - Math::dot(plane.normal, plane.center);
@@ -470,6 +552,29 @@ float Math::SquaredDistancePointToAABB(Vec3f p, AABB b)
 float Math::VecDistToPlane(Vec3f point, Plane plane)
 {
     return Math::dot(plane.normal, point) - Math::dot(plane.normal, plane.center);
+}
+
+Vec3f Math::RotateVecAroundAxis(Vec3f vec, float angle, Vec3f axis, Vec3f axisPoint)
+{
+    Vec3f translatedVec = vec - axisPoint;
+    Vec3f rotatedVec = Math::rotate(translatedVec, angle, axis);
+
+    return rotatedVec + axisPoint;
+}
+
+float Math::GetSignedAngleBetweenVecsAroundAxis(Vec3f from, Vec3f to, Vec3f axis)
+{
+    from = Math::normalize(from);
+    to = Math::normalize(to);
+    axis = Math::normalize(axis);
+
+    float dot = Math::dot(from, to);
+
+    Vec3f cross = Math::cross(from, to);
+
+    float angleSign = Math::dot(cross, axis);
+
+    return std::atan2(angleSign, dot);
 }
 
 float Math::Remap(float iMin, float iMax, float oMin, float oMax, float v)

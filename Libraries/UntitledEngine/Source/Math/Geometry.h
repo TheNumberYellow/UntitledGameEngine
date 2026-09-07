@@ -29,6 +29,11 @@ struct Line
     Vec3f direction;
 };
 
+struct Triangle
+{
+    Vec3f a, b, c;
+};
+
 struct Plane
 {
     Plane() {}
@@ -40,6 +45,12 @@ struct Plane
 struct Sphere
 {
     Vec3f position;
+    float radius;
+};
+
+struct Cylinder
+{
+    Vec3f top, bottom;
     float radius;
 };
 

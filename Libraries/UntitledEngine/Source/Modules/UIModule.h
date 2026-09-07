@@ -81,6 +81,11 @@ struct FloatDraggerState : public ElementState
     bool dragging = false;
 };
 
+struct IntDraggerState : public ElementState
+{
+    bool dragging = false;
+};
+
 enum class PlacementType
 {
     SIZE,
@@ -155,7 +160,11 @@ public:
     void EndTab();
 
     void FloatSlider(std::string name, Vec2f size, float& outNum, float min = 0.0f, float max = 1.0f, bool vertical = false, bool drawText = true, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
+    void FloatSlider(std::string name, PlacementSettings placeSettings, float& outNum, float min = 0.0f, float max = 1.0f, bool vertical = false, bool drawText = true, Vec3f colour = Vec3f(1.0f, 1.0f, 1.0f));
+
     bool FloatDragger(std::string name, PlacementSettings placeSettings, float& outNum, float speed = 0.1f, float min = std::numeric_limits<float>::lowest(), float max = std::numeric_limits<float>::max());
+
+    bool IntDragger(std::string name, PlacementSettings placeSettings, int& outNum, float speed = 0.1f, int min = std::numeric_limits<int>::lowest(), int max = std::numeric_limits<int>::max());
 
 
     void NewLine(float lineHeight = 0.0f);
@@ -180,6 +189,8 @@ private:
 
     bool FloatDraggerInternal(std::string name, PlacementSettings placeSettings, float& outNum, float speed, float min, float max);
 
+    bool IntDraggerInternal(std::string name, PlacementSettings placeSettings, int& outNum, float speed, int min, int max);
+
     // Returns the bounds of an element given a placement setting, without advancing the cursor
     Rect SizeElement(PlacementSettings settings);
 
@@ -197,6 +208,7 @@ private:
     TextEntryState* GetTextEntryState(std::string name);
     FloatSliderState* GetFloatSliderState(std::string name);
     FloatDraggerState* GetFloatDraggerState(std::string name);
+    IntDraggerState* GetIntDraggerState(std::string name);
 
     Rect GetFrame();
 
@@ -220,6 +232,7 @@ private:
     std::unordered_map<ElementID, TextEntryState> m_TextEntryStates;
     std::unordered_map<ElementID, FloatSliderState> m_FloatSliderStates;
     std::unordered_map<ElementID, FloatDraggerState> m_FloatDraggerStates;
+    std::unordered_map<ElementID, IntDraggerState> m_IntDraggerStates;
 
     size_t m_HashCount = 0;
 

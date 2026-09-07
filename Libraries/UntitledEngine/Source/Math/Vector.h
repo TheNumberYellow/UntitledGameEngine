@@ -124,6 +124,7 @@ struct Vec3f
 using Colour = Vec3f;
 
 Colour MakeColour(int r, int g, int b);
+Colour MakeColourHSV(double h, double s, double v);
 
 class Vec3fHash
 {

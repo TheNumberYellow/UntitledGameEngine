@@ -124,6 +124,7 @@ public:
     static Vec3f ClosestPointOnLineToPoint(LineSegment line, Vec3f point);
     static Vec3f ClosestPointOnLineToPoint(Line line, Vec3f point);
     static std::pair<Vec3f, Vec3f> ClosestPointsOnLines(Line a, Line b);
+    static std::pair<Vec3f, Vec3f> ClosestPointsOnLineSegments(LineSegment a, LineSegment b);
     static Vec3f ClosestPointOnPlaneToPoint(Plane plane, Vec3f point);
 
     static Vec3f ProjectVecOnPlane(Vec3f Vec, Plane P);
@@ -133,6 +134,10 @@ public:
     static float SquaredDistancePointToAABB(Vec3f p, AABB b);
 
     static float VecDistToPlane(Vec3f point, Plane plane);
+
+    static Vec3f RotateVecAroundAxis(Vec3f vec, float angle, Vec3f axis, Vec3f axisPoint);
+
+    static float GetSignedAngleBetweenVecsAroundAxis(Vec3f from, Vec3f to, Vec3f axis);
 
     // Noise functions
     static float PerlinNoise1D(float seed);

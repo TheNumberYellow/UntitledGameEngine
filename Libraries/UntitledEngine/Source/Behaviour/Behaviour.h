@@ -2,7 +2,7 @@
 
 #include "GameEngine.h"
 #include "Modules/InputModule.h"
-#include "Scene.h"
+#include "Scene/Scene.h"
 
 #include <unordered_map>
 #include <string>

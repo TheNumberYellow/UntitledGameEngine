@@ -70,5 +70,7 @@ void HotspotTexture::Load(std::string fileName)
         m_AllowRotation = true;
     }
 
+    m_Path.SetPath(fileName);
+
     File.close();
 }

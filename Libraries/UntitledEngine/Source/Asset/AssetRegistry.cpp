@@ -79,3 +79,15 @@ StaticMesh* AssetRegistry::LoadStaticMesh(FilePath Path)
     m_LoadedStaticMeshes[Path.GetFullPath()] = m_GraphicsModule->LoadMesh(Path.GetFullPath());
     return &m_LoadedStaticMeshes[Path.GetFullPath()];
 }
+
+HotspotTexture* AssetRegistry::LoadHotspotTexture(FilePath Path)
+{
+    auto it = m_LoadedHotspotTextures.find(Path.GetFullPath());
+    if (it != m_LoadedHotspotTextures.end())
+    {
+        return &it->second;
+    }
+    m_LoadedHotspotTextures[Path.GetFullPath()] = HotspotTexture();
+    m_LoadedHotspotTextures[Path.GetFullPath()].Load(Path.GetFullPath());
+    return &m_LoadedHotspotTextures[Path.GetFullPath()];
+}

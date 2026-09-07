@@ -5,10 +5,422 @@
 #include "Modules/GraphicsModule.h"
 #include "Modules/InputModule.h"
 #include "Modules/UIModule.h"
-#include "Scene.h"
+#include "Scene/Scene.h"
+
+void he::ConvertHalfEdgeMeshToPolys(HalfEdgeMesh& mesh, std::vector<PolygonFace>& outPolys)
+{
+    outPolys.clear();
+    for (Face* face : mesh.m_Faces)
+    {
+        PolygonFace poly;
+        poly.OriginalFace = face;
+        HalfEdge* startEdge = face->halfEdge;
+        HalfEdge* currentEdge = startEdge;
+        do
+        {
+            poly.Vertices.push_back(currentEdge->vert->vec);
+            currentEdge = currentEdge->next;
+        } while (currentEdge != startEdge);
+        outPolys.push_back(poly);
+    }
+}
+
+void he::SplitPolygonByPlane(PolygonFace& poly, Plane inPlane, PolygonFace& outFrontPoly, PolygonFace& outBackPoly, std::vector<Vec3f>* intersectionPoints)
+{
+    PolygonFace frontPoly;
+    PolygonFace backPoly;
+
+    if (poly.Vertices.empty())
+    {
+        return;
+    }
+
+    frontPoly.OriginalFace = poly.OriginalFace;
+    backPoly.OriginalFace = poly.OriginalFace;
+
+    size_t count = poly.Vertices.size();
+
+    for (int i = 0; i < count; ++i)
+    {
+        Vec3f currentVert = poly.Vertices[i];
+        Vec3f nextVert = poly.Vertices[(i + 1) % count];
+
+        float distCurrent = Math::dot(currentVert - inPlane.center, inPlane.normal);
+        float distNext = Math::dot(nextVert - inPlane.center, inPlane.normal);
+
+        bool currentInFront = distCurrent >= 0.00001f;
+        bool nextInFront = distNext >= 0.00001f;
+
+        if (currentInFront != nextInFront)
+        {
+            // Edge intersects the plane, calculate intersection point
+            float t = distCurrent / (distCurrent - distNext);
+            Vec3f intersectionPoint = currentVert + t * (nextVert - currentVert);
+            frontPoly.Vertices.push_back(intersectionPoint);
+
+            if (intersectionPoints && currentInFront)
+                intersectionPoints->push_back(intersectionPoint);
+        }
+        if (nextInFront)
+        {
+            frontPoly.Vertices.push_back(nextVert);
+        }
+    }
+
+    for (int i = 0 ; i < count; ++i)
+    {
+        Vec3f currentVert = poly.Vertices[i];
+        Vec3f nextVert = poly.Vertices[(i + 1) % count];
+        
+        float distCurrent = Math::dot(currentVert - inPlane.center, inPlane.normal);
+        float distNext = Math::dot(nextVert - inPlane.center, inPlane.normal);
+        
+        bool currentBehind = distCurrent <= -0.00001f;
+        bool nextBehind = distNext <= -0.00001f;
+        
+        if (currentBehind != nextBehind)
+        {
+            // Edge intersects the plane, calculate intersection point
+            float t = distCurrent / (distCurrent - distNext);
+            Vec3f intersectionPoint = currentVert + t * (nextVert - currentVert);
+            backPoly.Vertices.push_back(intersectionPoint);
+        }
+        if (nextBehind)
+        {
+            backPoly.Vertices.push_back(nextVert);
+        }
+    }
+
+
+    outFrontPoly = frontPoly;
+    outBackPoly = backPoly;
+}
+
+void he::AddPolygonToHalfEdgeMesh(HalfEdgeMesh& mesh, PolygonFace& poly, Material inMaterial)
+{
+    if (poly.Vertices.size() < 3)
+    {
+        return; // Not a valid polygon
+    }
+
+    he::Face* newFace = new he::Face();
+    // Copy over face material settings from original face if this polygon came from an existing half edge face (e.g. from slicing)
+
+    mesh.m_Faces.push_back(newFace);
+
+    std::vector<he::Vertex*> newVerts;
+    std::vector<he::HalfEdge*> newHalfEdges;
+
+    size_t count = poly.Vertices.size();
+
+    newVerts.resize(count);
+    newHalfEdges.resize(count);
+
+    for (int i = 0; i < count; ++i)
+    {
+        // Check if vert already exists in mesh and reuse it instead of creating a new one
+        bool vertExists = false;
+        for (he::Vertex* existingVert : mesh.m_Verts)
+        {
+            if ((existingVert->vec - poly.Vertices[i]).Magnitude() < 0.0001f)
+            {
+                newVerts[i] = existingVert;
+                vertExists = true;
+                break;
+            }
+        }
+        if (!vertExists)
+        {
+            he::Vertex* newVert = new he::Vertex(poly.Vertices[i]);
+            mesh.m_Verts.push_back(newVert);
+            newVerts[i] = newVert;
+        }
+        he::HalfEdge* newHalfEdge = new he::HalfEdge();
+        mesh.m_HalfEdges.push_back(newHalfEdge);
+        newHalfEdges[i] = newHalfEdge;
+    }
+
+    for (int i = 0; i < count; ++i)
+    {
+        size_t nextIndex = (i + 1) % count;
+
+        newHalfEdges[i]->vert = newVerts[i];
+        newHalfEdges[i]->next = newHalfEdges[nextIndex];
+        newHalfEdges[i]->face = newFace;
+
+        if (newVerts[i]->halfEdge == nullptr)
+        {
+            newVerts[i]->halfEdge = newHalfEdges[i];
+        }
+    }
+
+    newFace->halfEdge = newHalfEdges[0];
+    newFace->material = inMaterial;
+
+    // Set twins for new half edges by checking if there is already a half edge in the mesh that goes in the opposite direction (i.e. has the same verts but reversed)
+    for (he::HalfEdge* existingHalfEdge : mesh.m_HalfEdges)
+    {
+        for (he::HalfEdge* newHalfEdge : newHalfEdges)
+        {
+            if (existingHalfEdge->vert->vec == newHalfEdge->next->vert->vec 
+                && existingHalfEdge->next->vert->vec == newHalfEdge->vert->vec)
+            {
+                existingHalfEdge->twin = newHalfEdge;
+                newHalfEdge->twin = existingHalfEdge;
+                break;
+            }
+        }
+
+    }
+
+    // Copy over texture settings from original face if this polygon came from an existing half edge face (e.g. from slicing)
+    if (poly.OriginalFace)
+    {
+        newFace->textureNudgeU = poly.OriginalFace->textureNudgeU;
+        newFace->textureNudgeV = poly.OriginalFace->textureNudgeV;
+        newFace->textureScaleU = poly.OriginalFace->textureScaleU;
+        newFace->textureScaleV = poly.OriginalFace->textureScaleV;
+        newFace->textureRot = poly.OriginalFace->textureRot;
+
+        newFace->flipFace = poly.OriginalFace->flipFace;
+
+        if (poly.OriginalFace->appliedHotspotTexture)
+        {
+            newFace->ApplyHotspotTexture(*poly.OriginalFace->appliedHotspotTexture);
+        }
+
+    }
+}
+
+he::PolygonFace he::BuildCapPolygonForSlice(std::vector<Vec3f>& intersectionPoints, Plane slicePlane)
+{
+    he::PolygonFace capPoly;
+
+    if (intersectionPoints.size() < 3)
+    {
+        return capPoly; // Not a valid polygon
+    }
+
+    // Remove duplicates
+
+    std::vector<Vec3f> uniquePoints;
+    for (Vec3f point : intersectionPoints)
+    {
+        bool isDuplicate = false;
+        for (Vec3f uniquePoint : uniquePoints)
+        {
+            if (point == uniquePoint)
+            {
+                isDuplicate = true;
+                break;
+            }
+        }
+        if (!isDuplicate)
+        {
+            uniquePoints.push_back(point);
+        }
+    }
+
+    if (uniquePoints.size() < 3)
+    {
+        return capPoly; // Not a valid polygon
+    }
+
+    // Sort the intersection points in clockwise order around the centroid to form a valid polygon
+    Vec3f centroid(0.0f);
+    for (Vec3f point : uniquePoints)
+    {
+        centroid += point;
+    }
+
+    centroid /= static_cast<float>(uniquePoints.size());
+
+    // Build basis on plane to project points onto for sorting
+    Vec3f tangent;
+    if (std::abs(slicePlane.normal.x) > 0.5f)
+    {
+        tangent = Math::normalize(Math::cross(Vec3f(0.0f, 1.0f, 0.0f), slicePlane.normal));
+    }
+    else
+    {
+        tangent = Math::normalize(Math::cross(Vec3f(1.0f, 0.0f, 0.0f), slicePlane.normal));
+    }
+
+    Vec3f bitangent = Math::cross(slicePlane.normal, tangent);
+
+    std::sort(uniquePoints.begin(), uniquePoints.end(), [&](Vec3f a, Vec3f b)
+    {
+        Vec3f aDir = a - centroid;
+        Vec3f bDir = b - centroid;
+        float aAngle = std::atan2(Math::dot(aDir, bitangent), Math::dot(aDir, tangent));
+        float bAngle = std::atan2(Math::dot(bDir, bitangent), Math::dot(bDir, tangent));
+        return aAngle < bAngle;
+        });
+
+    capPoly.Vertices = uniquePoints;
+
+    return capPoly;
+}
+
+bool he::IsPolygonConvex(PolygonFace& poly)
+{
+    size_t count = poly.Vertices.size();
+    if (count < 3)
+    {
+        return false; // Not a valid polygon
+    }
+
+    Vec3f lastCross(0.0f);
+    bool firstCross = true;
+
+    for (int i = 0; i < count; ++i)
+    {
+        Vec3f a = poly.Vertices[i];
+        Vec3f b = poly.Vertices[(i + 1) % count];
+        Vec3f c = poly.Vertices[(i + 2) % count];
+        Vec3f ab = b - a;
+        Vec3f bc = c - b;
+
+        Vec3f cross = Math::cross(ab, bc);
+
+        if (firstCross)
+        {
+            lastCross = cross;
+            firstCross = false;
+        }
+        else
+        {
+            if (Math::dot(cross, lastCross) < 0.0f)
+            {
+                return false; // Cross products have different signs, so polygon is not convex
+            }
+        }
+    }
+    return true; // All cross products had the same sign, so polygon is convex
+}
+
+std::vector<he::FaceIsland> he::BuildFaceIslands(HalfEdgeMesh& mesh)
+{
+    std::vector<FaceIsland> faceIslands;
+
+    std::vector<Face*> unprocessedFaces = mesh.m_Faces;
+
+    while (!unprocessedFaces.empty())
+    {
+        Face* currentFace = unprocessedFaces.back();
+        unprocessedFaces.pop_back();
+        FaceIsland newIsland;
+        newIsland.Faces.push_back(currentFace);
+
+        // Recursively find all connected faces to this face and add them to the island IF
+        // 1. They are not already in the island or another island
+        // 2. Their normals are within a certain threshold of the current face's normal
+
+        std::function<void(Face*)> findConnectedFaces = [&](Face* face)
+            {
+                Vec3f faceNormal = face->GetNormal();
+                for (HalfEdge* halfEdge : mesh.m_HalfEdges)
+                {
+                    if (halfEdge->face == face && halfEdge->twin && halfEdge->twin->face)
+                    {
+                        Face* connectedFace = halfEdge->twin->face;
+                        if (std::find(newIsland.Faces.begin(), newIsland.Faces.end(), connectedFace) == newIsland.Faces.end())
+                        {
+                            Vec3f connectedNormal = connectedFace->GetNormal();
+                            float angle = std::acos(Math::dot(faceNormal, connectedNormal));
+                            if (abs(angle) < Deg2Rad(28.0f) && !halfEdge->isSeam)
+                            {
+                                newIsland.Faces.push_back(connectedFace);
+                                unprocessedFaces.erase(std::remove(unprocessedFaces.begin(), unprocessedFaces.end(), connectedFace), unprocessedFaces.end());
+                                findConnectedFaces(connectedFace);
+                            }
+                        }
+                    }
+                }
+            };
+
+        findConnectedFaces(currentFace);
+
+
+        faceIslands.push_back(newIsland);
+    }
+
+    return faceIslands;
+}
+
+std::vector<he::PolygonFace> he::GetFlattenedAttachedFaces(he::HalfEdgeMesh& mesh, he::Face* face)
+{
+    std::vector<FaceIsland> faceIslands = BuildFaceIslands(mesh);
+
+    std::vector<he::PolygonFace> polyFaces;
+
+    // Add this face, unaltered
+
+    PolygonFace poly;
+
+    HalfEdge* startEdge = face->halfEdge;
+
+    HalfEdge* currentEdge = startEdge;
+
+    do
+    {
+        poly.Vertices.push_back(currentEdge->vert->vec);
+        currentEdge = currentEdge->next;
+    } while (currentEdge != startEdge);
+
+    polyFaces.push_back(poly);
+
+    return polyFaces;
+}
+
+void he::DebugDrawSelectedHalfEdgeMeshFace(HalfEdgeMesh& mesh, Face* face, Vec3f colour)
+{
+    GraphicsModule* Graphics = GraphicsModule::Get();
+
+    HalfEdge* startEdge = face->halfEdge;
+
+    HalfEdge* currentEdge = startEdge;
+
+    std::vector<Vec3f> faceVerts;
+
+    do
+    {
+        faceVerts.push_back(currentEdge->vert->vec);
+        currentEdge = currentEdge->next;
+    } while (currentEdge != startEdge);
+
+    // Draw the face as a triangle fan
+    for (size_t i = 1; i < faceVerts.size() - 1; ++i)
+    {
+        Graphics->DebugDrawTriangle(faceVerts[0], faceVerts[i], faceVerts[i + 1], Vec4f(colour, 0.65f));
+    }
+    // Draw the edges of the face
+    for (size_t i = 0; i < faceVerts.size(); ++i)
+    {
+        size_t nextIndex = (i + 1) % faceVerts.size();
+        Graphics->DebugDrawLine(faceVerts[i], faceVerts[nextIndex], colour);
+    }
+
+}
+
+void he::DebugDrawSelectedHalfEdgeMeshEdge(HalfEdgeMesh& mesh, HalfEdge* edge, Vec3f colour)
+{
+    GraphicsModule* Graphics = GraphicsModule::Get();
+    Vec3f startVert = edge->vert->vec;
+    Vec3f endVert = edge->next->vert->vec;
+    Graphics->DebugDrawLine(startVert, endVert, colour);
+}
+
+void he::DebugDrawSelectedHalfEdgeMeshVertex(HalfEdgeMesh& mesh, he::Vertex* vert, Vec3f colour)
+{
+    GraphicsModule* Graphics = GraphicsModule::Get();
+    Graphics->DebugDrawSphere(vert->vec, 0.15f, colour);
+}
 
 void he::Face::ApplyHotspotTexture(HotspotTexture& inHotspotTexture)
 {
+    appliedHotspotTexture = &inHotspotTexture;
+
     // Assume face is convex for now
 
     // Collect all verts and half edges for this face
@@ -120,7 +532,7 @@ void he::Face::ApplyHotspotTexture(HotspotTexture& inHotspotTexture)
     
     const float aspectScoreWeight = 0.8f;
     const float sizeScoreWeight = 0.2f;
-    const float randomScoreWeight = 0.01f;
+    const float randomScoreWeight = 0.0f;
 
     for (Rect hotspotRect : inHotspotTexture.m_Hotspots)
     {
@@ -194,20 +606,16 @@ void he::Face::ApplyHotspotTexture(HotspotTexture& inHotspotTexture)
             float normalProj = Math::dot(vertToEdge, bestRectUp);
 
             Rect bestHotspotRectDebug = bestHotspotRect;
-            //bestHotspotRectDebug.location -= Vec2f(0.01f, 0.01f);
-            //bestHotspotRectDebug.size += Vec2f(0.02f, 0.02f);
             
             Vec2f uvOverride;
 
             uvOverride.x = Math::Remap(0.0f, bestRectSize.x, bestHotspotRectDebug.location.x, bestHotspotRectDebug.location.x + bestHotspotRectDebug.size.x, edgeProj);
             uvOverride.y = Math::Remap(0.0f, bestRectSize.y, bestHotspotRectDebug.location.y, bestHotspotRectDebug.location.y + bestHotspotRectDebug.size.y, normalProj);
 
-            //vert->uv.x = Math::Remap(0.0f, 1.0f, 1.0f, 0.0f, uvOverride.x);
             uvOverride.y = Math::Remap(0.0f, 1.0f, 1.0f, 0.0f, uvOverride.y);
 
             uvOverrides.push_back(uvOverride);
         }
-
     }
 }
 
@@ -245,14 +653,17 @@ he::SelectedHalfEdgeMesh::SelectedHalfEdgeMesh(HalfEdgeMesh* inMeshPtr)
 
 void he::SelectedHalfEdgeMesh::Draw()
 {
-    GraphicsModule* graphics = GraphicsModule::Get();
-    // Draw lines for each half edge
-    for (he::HalfEdge* halfEdge : m_HalfEdgeMesh->m_HalfEdges)
+    if (tempShowingIslands)
     {
-        Vec3f start = halfEdge->vert->vec;
-        Vec3f end = halfEdge->next ? halfEdge->next->vert->vec : start;
-        graphics->DebugDrawLine(start, end, MakeColour(125, 125, 255));
+        return;
     }
+
+    // Draw each face
+    for (he::Face* face : m_HalfEdgeMesh->m_Faces)
+    {
+        he::DebugDrawSelectedHalfEdgeMeshFace(*m_HalfEdgeMesh, face, MakeColour(100, 255, 255));
+    }
+
 }
 
 void he::SelectedHalfEdgeMesh::Update()
@@ -276,10 +687,47 @@ void he::SelectedHalfEdgeMesh::Update()
             m_HalfEdgeMesh->FlipFace(face);
         }
     }
+
+    // Test show face islands
+    if (Input->GetKeyState(Key::I).pressed)
+    {
+        tempShowingIslands = true;
+
+        std::vector<he::FaceIsland> faceIslands = he::BuildFaceIslands(*m_HalfEdgeMesh);
+        for (he::FaceIsland& island : faceIslands)
+        {
+            // Determine color for this island based on its index in the list of islands so that the island colors are consistent across frames
+            int islandIndex = &island - &faceIslands[0];
+
+            double hue = fmod(290.0 + islandIndex * 127389.325, 360.0);
+            double saturation = 1.0;
+            double brightness = 1.0;
+
+            //Colour islandColour = MakeColour((0 + (islandIndex * 167834169070)) % 255, (0 + (islandIndex * 78056439)) % 255, (255 + (islandIndex * 22391)) % 255);
+
+            Colour islandColour = MakeColourHSV(hue, saturation, brightness);
+
+            for (he::Face* face : island.Faces)
+            {
+                he::DebugDrawSelectedHalfEdgeMeshFace(*m_HalfEdgeMesh, face, islandColour);
+            }
+        }
+    }
+    else
+    {
+        tempShowingIslands = false;
+    }
+
 }
 
 bool he::SelectedHalfEdgeMesh::DrawInspectorPanel()
 {
+    UIModule* ui = UIModule::Get();
+
+    if (ui->CheckBox("Blend islands", m_HalfEdgeMesh->m_BlendIslands))
+    {
+        return true;
+    }
 
     return false;
 }
@@ -460,19 +908,14 @@ he::SelectedHalfEdgeFace::SelectedHalfEdgeFace(HalfEdgeMesh* inMeshPtr, he::Face
 
 void he::SelectedHalfEdgeFace::Draw()
 {
+    if (tempShowingFlattenedAttachedFaces)
+    {
+        return;
+    }
+
     GraphicsModule* graphics = GraphicsModule::Get();
 
-    graphics->DebugDrawSphere(m_Transform.GetPosition(), 0.15f);
-
-    HalfEdge* firstHalfEdge = m_FacePtr->halfEdge;
-
-    HalfEdge* currentHalfEdge = firstHalfEdge;
-
-    do
-    {
-        graphics->DebugDrawSphere(currentHalfEdge->vert->vec, 0.25f, Vec3f(0.0f, 1.0f, 1.0f));
-        currentHalfEdge = currentHalfEdge->next;
-    } while (currentHalfEdge != firstHalfEdge);
+    DebugDrawSelectedHalfEdgeMeshFace(*m_HalfEdgeMesh, m_FacePtr, MakeColour(100, 255, 255));
 
     // Temp debugging
     // Debug draw the best rect
@@ -536,6 +979,25 @@ void he::SelectedHalfEdgeFace::Update()
         m_HalfEdgeMesh->FlipFace(m_FacePtr);
     }
 
+    // Test show flattened attached faces
+    if (Input->GetKeyState(Key::O).pressed)
+    {
+        tempShowingFlattenedAttachedFaces = true;
+        std::vector<he::PolygonFace> flattenedPolys = he::GetFlattenedAttachedFaces(*m_HalfEdgeMesh, m_FacePtr);
+        for (he::PolygonFace& poly : flattenedPolys)
+        {
+            for (size_t i = 0; i < poly.Vertices.size(); ++i)
+            {
+                size_t nextIndex = (i + 1) % poly.Vertices.size();
+                GraphicsModule::Get()->DebugDrawLine(poly.Vertices[i], poly.Vertices[nextIndex], MakeColour(255, 255, 0));
+            }
+        }
+    }
+    else
+    {
+        tempShowingFlattenedAttachedFaces = false;
+    }
+
 }
 
 bool he::SelectedHalfEdgeFace::DrawInspectorPanel()
@@ -594,6 +1056,7 @@ void he::SelectedHalfEdgeFace::ApplyMaterial(Material& inMaterial)
     {
         m_FacePtr->useUVOverride = false;
         m_FacePtr->material = Material(inMaterial);
+        m_FacePtr->appliedHotspotTexture = nullptr;
         m_HalfEdgeMesh->m_RepModelsNeedUpdate = true;
     }
 }
@@ -613,6 +1076,84 @@ bool he::SelectedHalfEdgeFace::IsEqual(const ISelectedObject& other) const
 
     return otherSelection.m_HalfEdgeMesh == m_HalfEdgeMesh
         && otherSelection.m_FacePtr == m_FacePtr;
+}
+
+he::SelectedHalfEdgeEdge::SelectedHalfEdgeEdge(HalfEdgeMesh* inMeshPtr, he::HalfEdge* inEdgePtr)
+    : m_HalfEdgeMesh(inMeshPtr)
+    , m_EdgePtr(inEdgePtr)
+{
+
+    // Get edge pos
+    Vec3f edgePos = Vec3f(0.0f);
+    
+
+    edgePos += inEdgePtr->vert->vec;
+    edgePos += inEdgePtr->next->vert->vec;
+
+    edgePos /= 2;
+
+    m_Transform.SetPosition(edgePos);
+
+    // Get edge vert offset transforms
+
+    Vec3f offsetA = inEdgePtr->vert->vec - edgePos;
+    Vec3f offsetB = inEdgePtr->next->vert->vec - edgePos;
+
+    edgeOffsetA = Math::GenerateTransformMatrix(offsetA);
+    edgeOffsetB = Math::GenerateTransformMatrix(offsetB);
+
+}
+
+void he::SelectedHalfEdgeEdge::Draw()
+{
+    GraphicsModule* graphics = GraphicsModule::Get();
+
+    graphics->DebugDrawLine(m_EdgePtr->vert->vec, m_EdgePtr->next->vert->vec, MakeColour(100, 255, 255), 0.08f);
+
+}
+
+void he::SelectedHalfEdgeEdge::Update()
+{
+
+    m_HalfEdgeMesh->m_RepModelsNeedUpdate = true;
+
+    m_EdgePtr->vert->vec = Vec3f(0.0f, 0.0f, 0.0f) * (m_Transform.GetTransformMatrix() * edgeOffsetA);
+    m_EdgePtr->next->vert->vec = Vec3f(0.0f, 0.0f, 0.0f) * (m_Transform.GetTransformMatrix() * edgeOffsetB);
+
+}
+
+bool he::SelectedHalfEdgeEdge::DrawInspectorPanel()
+{
+    UIModule* ui = UIModule::Get();
+
+    if (ui->CheckBox("Is Seam", m_EdgePtr->isSeam))
+    {
+        // Update the twin edge's seam status to match this edge's seam status
+        if (m_EdgePtr->twin)
+        {
+            m_EdgePtr->twin->isSeam = m_EdgePtr->isSeam;
+        }
+        return true;
+    }
+
+    return false;
+}
+
+Transform* he::SelectedHalfEdgeEdge::GetTransform()
+{
+    return &m_Transform;
+}
+
+void he::SelectedHalfEdgeEdge::DeleteObject()
+{
+}
+
+bool he::SelectedHalfEdgeEdge::IsEqual(const ISelectedObject& other) const
+{
+    const SelectedHalfEdgeEdge& otherSelection = static_cast<const SelectedHalfEdgeEdge&>(other);
+
+    return otherSelection.m_HalfEdgeMesh == m_HalfEdgeMesh
+        && otherSelection.m_EdgePtr == m_EdgePtr;
 }
 
 
@@ -850,6 +1391,51 @@ void he::HalfEdgeMesh::MakeAABB(AABB inAABB, Material inMaterial)
     posYFace->halfEdge = m_HalfEdges[20];
 }
 
+void he::HalfEdgeMesh::MakeCylinder(Vec3f baseCenter, float radius, float height, int numSegments, Material inMaterial)
+{
+    std::vector<PolygonFace> faces;
+
+    for (int i = 0; i < numSegments; i++)
+    {
+        float angleStart = (static_cast<float>(i) / numSegments) * 2.0f * 3.14159265f;
+        float angleEnd = (static_cast<float>(i + 1) / numSegments) * 2.0f * 3.14159265f;
+        Vec3f offsetStart = Vec3f(cos(angleStart), sin(angleStart), 0.0f) * radius + baseCenter;
+        Vec3f offsetEnd = Vec3f(cos(angleEnd), sin(angleEnd), 0.0f) * radius + baseCenter;
+
+        PolygonFace face;
+        face.Vertices.push_back(offsetStart);
+        face.Vertices.push_back(offsetStart + Vec3f(0.0f, 0.0f, height));
+        face.Vertices.push_back(offsetEnd + Vec3f(0.0f, 0.0f, height));
+        face.Vertices.push_back(offsetEnd);
+        
+        faces.push_back(face);
+    }
+
+    // Add top/bottom caps
+    PolygonFace topFace;
+    PolygonFace bottomFace;
+
+    for (int i = 0; i < numSegments; i++)
+    {
+        float angle = (static_cast<float>(i) / numSegments) * 2.0f * 3.14159265f;
+        Vec3f offset = Vec3f(cos(angle), sin(angle), 0.0f) * radius + baseCenter;
+        bottomFace.Vertices.push_back(offset);
+        topFace.Vertices.push_back(offset + Vec3f(0.0f, 0.0f, height));
+    }
+
+    std::reverse(topFace.Vertices.begin(), topFace.Vertices.end()); // Reverse for correct winding order
+
+    faces.push_back(bottomFace);
+    faces.push_back(topFace);
+
+    Clear();
+
+    for (PolygonFace& face : faces)
+    {
+        AddPolygonToHalfEdgeMesh(*this, face, inMaterial);
+    }
+}
+
 void he::HalfEdgeMesh::SubDivide()
 {
 
@@ -971,6 +1557,11 @@ void he::HalfEdgeMesh::ExtrudeFace(he::Face* inFace)
 
         newFace->textureRot = inFace->textureRot;
 
+        if (inFace->appliedHotspotTexture)
+        {
+            newFace->appliedHotspotTexture = inFace->appliedHotspotTexture;
+        }
+
         m_Faces.push_back(newFace);
 
         outerTwin->vert = outerEdge->next->vert;
@@ -1088,6 +1679,93 @@ void he::HalfEdgeMesh::SplitEdge(HalfEdge* inEdge)
     //midVert->halfEdge = newEdge;
 }
 
+bool he::HalfEdgeMesh::Slice(Plane inPlane, HalfEdgeMesh* outFrontMesh, HalfEdgeMesh* outBackMesh, bool addCaps)
+{
+    // First turn half edge mesh into vector of polys for easier processing
+    std::vector<PolygonFace> polys;
+
+    ConvertHalfEdgeMeshToPolys(*this, polys);
+
+    std::vector<PolygonFace> frontPolys;
+    std::vector<PolygonFace> backPolys;
+
+    std::vector<Vec3f> intersectionPoints;
+
+    for (PolygonFace& poly : polys)
+    {
+        PolygonFace frontPoly;
+        PolygonFace backPoly;
+        SplitPolygonByPlane(poly, inPlane, frontPoly, backPoly, &intersectionPoints);
+        if (frontPoly.Vertices.size() >= 3)
+        {
+            frontPolys.push_back(frontPoly);
+        }
+        if (backPoly.Vertices.size() >= 3)
+        {
+            backPolys.push_back(backPoly);
+        }
+    }
+
+    if (frontPolys.size() == 0 || backPolys.size() == 0)
+    {
+        return false;
+    }
+
+    if (outFrontMesh)
+    {
+        outFrontMesh->Clear();
+    }
+    if (outBackMesh)
+    {
+        outBackMesh->Clear();
+    }
+
+    Material defaultMat = GraphicsModule::Get()->m_DebugMaterial;
+
+    if (outFrontMesh)
+    {
+        for (PolygonFace& frontPoly : frontPolys)
+        {
+            AddPolygonToHalfEdgeMesh(*outFrontMesh, frontPoly, frontPoly.OriginalFace ? frontPoly.OriginalFace->material : defaultMat);
+        }
+    }
+    if (outBackMesh)
+    {
+        for (PolygonFace& backPoly : backPolys)
+        {
+            AddPolygonToHalfEdgeMesh(*outBackMesh, backPoly, backPoly.OriginalFace ? backPoly.OriginalFace->material : defaultMat);
+        }
+    }
+
+    if (!addCaps)
+    {
+        return true;
+    }
+
+    // Add caps
+    if (outFrontMesh)
+    {
+        PolygonFace frontCapPoly = BuildCapPolygonForSlice(intersectionPoints, inPlane);
+        // Check if cap polys are convex - if not, we would need to triangulate them before adding to mesh. For now, just don't add a cap if it's not convex
+        //if (IsPolygonConvex(frontCapPoly))
+        {
+            AddPolygonToHalfEdgeMesh(*outFrontMesh, frontCapPoly, defaultMat);
+        }
+    }
+
+    if (outBackMesh)
+    {
+        PolygonFace backCapPoly = BuildCapPolygonForSlice(intersectionPoints, Plane(inPlane.center, inPlane.normal * -1.0f));
+        // Check if cap polys are convex - if not, we would need to triangulate them before adding to mesh. For now, just don't add a cap if it's not convex
+        //if (IsPolygonConvex(backCapPoly))
+        {
+            AddPolygonToHalfEdgeMesh(*outBackMesh, backCapPoly, defaultMat);
+        }
+    }
+
+    return true;
+}
+
 void he::HalfEdgeMesh::SliceFaces(Plane inPlane)
 {
     CollisionModule* collision = CollisionModule::Get();
@@ -1190,75 +1868,22 @@ void he::HalfEdgeMesh::EditorDraw()
 {  
     GraphicsModule* graphics = GraphicsModule::Get();
 
-    //for (auto& face : m_Faces)
-    //{
-    //    HalfEdge* initialHalfEdge = face->halfEdge;
-
-    //    HalfEdge* currentHalfEdge = initialHalfEdge;
-
-    //    do 
-    //    {
-    //        Vertex* thisVert = currentHalfEdge->vert;
-    //        Vertex* nextVert = currentHalfEdge->next->vert;
-
-    //        graphics->DebugDrawLine(thisVert->vec, nextVert->vec, MakeColour(0, 255, 0));
-
-    //        currentHalfEdge = currentHalfEdge->next;
-
-    //    } while (currentHalfEdge != initialHalfEdge);
-    //}
-
-    //for (auto& face : m_Faces)
-    //{
-    //    Vec3f averageFacePos = Vec3f(0.0f, 0.0f, 0.0f);
-    //    int numVertsInFace = 0;
-
-    //    HalfEdge* initialHalfEdge = face->halfEdge;
-
-    //    HalfEdge* currentHalfEdge = initialHalfEdge;
-
-    //    do {
-    //        Vec3f vertPos = currentHalfEdge->vert->vec;
-
-    //        averageFacePos += vertPos;
-    //        numVertsInFace++;
-
-    //        currentHalfEdge = currentHalfEdge->next;
-    //    } while (currentHalfEdge != initialHalfEdge);
-
-
-    //    averageFacePos /= numVertsInFace;
-
-    //    graphics->DebugDrawSphere(averageFacePos, 0.2f, MakeColour(255, 200, 200));
-
-    //    currentHalfEdge = initialHalfEdge;
-
-    //    do {
-    //        HalfEdge* nextHalfEdge = currentHalfEdge->next;
-
-    //        Vec3f pointA = currentHalfEdge->vert->vec;
-    //        Vec3f pointB = nextHalfEdge->vert->vec;
-
-    //        pointA = Math::Lerp(pointA, averageFacePos, 0.1f);
-    //        pointB = Math::Lerp(pointB, averageFacePos, 0.1f);
-
-    //        pointA = Math::Lerp(pointA, pointB, 0.1f);
-    //        pointB = Math::Lerp(pointB, pointA, 0.1f);
-
-
-    //        graphics->DebugDrawArrow(pointA, pointB, MakeColour(80, 255, 80));
-
-    //        currentHalfEdge = currentHalfEdge->next;
-
-    //    } while (currentHalfEdge != initialHalfEdge);
-    //}
-
     for (auto& halfEdge : m_HalfEdges)
     {
         Vec3f pointA = halfEdge->vert->vec;
         Vec3f pointB = halfEdge->next->vert->vec;
 
-        graphics->DebugDrawLine(pointA, pointB, MakeColour(255, 0, 120));
+        Colour edgeColour;
+        if (halfEdge->isSeam)
+        {
+            edgeColour = MakeColour(255, 0, 0);
+        }
+        else
+        {
+            edgeColour = MakeColour(255, 0, 200);
+        }
+
+        graphics->DebugDrawLine(pointA, pointB, edgeColour);
     }
 }
 
@@ -1453,6 +2078,46 @@ RayCastHit he::HalfEdgeMesh::ClickCastFaces(Ray mouseRay, ISelectedObject*& outS
     return closestHitFace;
 }
 
+RayCastHit he::HalfEdgeMesh::ClickCastEdges(Ray mouseRay, ISelectedObject*& outSelectedObject)
+{
+    he::HalfEdge* hitEdgePtr = nullptr;
+    RayCastHit closestHitEdge;
+
+    for (int i = 0; i < m_HalfEdges.size(); ++i)
+    {
+        Vec3f pointA = m_HalfEdges[i]->vert->vec;
+        Vec3f pointB = m_HalfEdges[i]->next->vert->vec;
+
+        std::pair<Vec3f, Vec3f> closestPoints = Math::ClosestPointsOnLineSegments(LineSegment(pointA, pointB), LineSegment(mouseRay.point, mouseRay.point + mouseRay.direction * 100.0f));
+        
+        RayCastHit edgeHit;
+        if ((closestPoints.first - closestPoints.second).Magnitude() < 0.2f)
+        {
+            //GraphicsModule::Get()->DebugDrawPoint(closestPoints.first, MakeColour(0, 255, 0));
+            //GraphicsModule::Get()->DebugDrawPoint(closestPoints.second, MakeColour(0, 0, 255));
+
+            //GraphicsModule::Get()->DebugDrawCylinder(pointA, pointB, 0.2f, 8);
+            //GraphicsModule::Get()->DebugDrawLine(pointA, pointB, Vec3f(1.0f, 1.0f, 1.0f));
+            edgeHit.hit = true;
+            edgeHit.hitPoint = closestPoints.first;
+            edgeHit.hitDistance = (edgeHit.hitPoint - mouseRay.point).Magnitude();
+        }
+
+        if (edgeHit.hit && edgeHit.hitDistance < closestHitEdge.hitDistance)
+        {
+            closestHitEdge = edgeHit;
+            hitEdgePtr = m_HalfEdges[i];
+        }
+    }
+
+    if (hitEdgePtr != nullptr)
+    {
+        outSelectedObject = new SelectedHalfEdgeEdge(this, hitEdgePtr);
+    }
+
+    return closestHitEdge;
+}
+
 RayCastHit he::HalfEdgeMesh::ClickCastVerts(Ray mouseRay, ISelectedObject*& outSelectedObject)
 {
     GraphicsModule* graphics = GraphicsModule::Get();
@@ -1482,6 +2147,104 @@ RayCastHit he::HalfEdgeMesh::ClickCastVerts(Ray mouseRay, ISelectedObject*& outS
     }
 
     return closestHitVert;
+}
+
+he::Face* he::HalfEdgeMesh::RayCastFaces(Ray mouseRay, Vec3f& outHitPoint, float& outHitDistance)
+{
+    CollisionModule* collisions = CollisionModule::Get();
+    he::Face* hitFacePtr = nullptr;
+    RayCastHit closestHitFace;
+    for (int i = 0; i < m_Faces.size(); ++i)
+    {
+        std::vector<Vec3f> faceVerts;
+        HalfEdge* initialHalfEdge = m_Faces[i]->halfEdge;
+        HalfEdge* currentHalfEdge = initialHalfEdge;
+        
+        do
+        {
+            HalfEdge& thisHalfEdge = *currentHalfEdge;
+            Vec3f faceVert = thisHalfEdge.vert->vec;
+            faceVerts.push_back(faceVert);
+            currentHalfEdge = thisHalfEdge.next;
+        } while (currentHalfEdge != initialHalfEdge);
+        assert(faceVerts.size() >= 3);
+        size_t numFaces = faceVerts.size();
+        for (int j = 1; j < numFaces - 1; ++j)
+        {
+            Triangle tri;
+            tri.a = faceVerts[0];
+            tri.b = faceVerts[j];
+            tri.c = faceVerts[j + 1];
+            RayCastHit newHit = collisions->RayCast(mouseRay, tri);
+            if (newHit.hit && newHit.hitDistance < closestHitFace.hitDistance)
+            {
+                closestHitFace = newHit;
+                hitFacePtr = m_Faces[i];
+            }
+        }
+    }
+    if (hitFacePtr != nullptr)
+    {
+        outHitPoint = closestHitFace.hitPoint;
+        outHitDistance = closestHitFace.hitDistance;
+    }
+    return hitFacePtr;
+}
+
+he::HalfEdge* he::HalfEdgeMesh::RayCastEdges(Ray mouseRay, Vec3f& outHitPoint, float& outHitDistance)
+{
+    he::HalfEdge* hitEdgePtr = nullptr;
+    RayCastHit closestHitEdge;
+    for (int i = 0; i < m_HalfEdges.size(); ++i)
+    {
+        Vec3f pointA = m_HalfEdges[i]->vert->vec;
+        Vec3f pointB = m_HalfEdges[i]->next->vert->vec;
+        std::pair<Vec3f, Vec3f> closestPoints = Math::ClosestPointsOnLineSegments(LineSegment(pointA, pointB), LineSegment(mouseRay.point, mouseRay.point + mouseRay.direction * 100.0f));
+        
+        RayCastHit edgeHit;
+        if ((closestPoints.first - closestPoints.second).Magnitude() < 0.2f)
+        {
+            edgeHit.hit = true;
+            edgeHit.hitPoint = closestPoints.first;
+            edgeHit.hitDistance = (edgeHit.hitPoint - mouseRay.point).Magnitude();
+        }
+        if (edgeHit.hit && edgeHit.hitDistance < closestHitEdge.hitDistance)
+        {
+            closestHitEdge = edgeHit;
+            hitEdgePtr = m_HalfEdges[i];
+        }
+    }
+    if (hitEdgePtr != nullptr)
+    {
+        outHitPoint = closestHitEdge.hitPoint;
+        outHitDistance = closestHitEdge.hitDistance;
+    }
+    return hitEdgePtr;
+}
+
+he::Vertex* he::HalfEdgeMesh::RayCastVerts(Ray mouseRay, Vec3f& outHitPoint, float& outHitDistance)
+{
+    CollisionModule* collisions = CollisionModule::Get();
+    he::Vertex* hitVertPtr = nullptr;
+    RayCastHit closestHitVert;
+    for (int i = 0; i < m_Verts.size(); ++i)
+    {
+        Sphere vertSphere;
+        vertSphere.position = m_Verts[i]->vec;
+        vertSphere.radius = 0.15f;
+        RayCastHit vertHit = collisions->RayCast(mouseRay, vertSphere);
+        if (vertHit.hitDistance < closestHitVert.hitDistance)
+        {
+            closestHitVert = vertHit;
+            hitVertPtr = m_Verts[i];
+        }
+    }
+    if (hitVertPtr != nullptr)
+    {
+        outHitPoint = closestHitVert.hitPoint;
+        outHitDistance = closestHitVert.hitDistance;
+    }
+    return hitVertPtr;
 }
 
 RayCastHit he::HalfEdgeMesh::ClickCast(Ray mouseRay, ISelectedObject*& outSelectedObject)
@@ -1611,4 +2374,5 @@ RayCastHit he::HalfEdgeMesh::ClickCast(Ray mouseRay, ISelectedObject*& outSelect
 //
 //    return closestHit;
 //}
+
 

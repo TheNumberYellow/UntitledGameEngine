@@ -13,10 +13,6 @@ namespace he
     struct HalfEdgeMesh;
 }
 
-struct Triangle
-{
-    Vec3f a, b, c;
-};
 
 Intersection Intersects(const Triangle& t, const AABB& b);
 
@@ -78,6 +74,7 @@ public:
     RayCastHit RayCast(Ray ray, Triangle tri);
     RayCastHit RayCast(Ray ray, Triangle tri, Vec3f& outBarycentric);
     RayCastHit RayCast(Ray ray, Sphere sphere);
+    RayCastHit RayCast(Ray ray, Cylinder cyl);
     RayCastHit RayCast(Ray ray, OctreeNode* node, const Mat4x4f& tempTrans);
 
     Intersection SphereIntersection(Sphere sphere, Sphere other);

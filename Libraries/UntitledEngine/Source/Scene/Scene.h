@@ -1,6 +1,5 @@
 #pragma once
 
-
 #include "Modules/ModuleManager.h"
 #include "Modules/CollisionModule.h"
 #include "Modules/GraphicsModule.h"
@@ -65,13 +64,17 @@ public:
     void UnPause();
     bool IsPaused();
 
-    Model* AddModel(Model* model);
+    Model* AddModel();
+    Model* AddModel(Model& model);
+    Model* AddModel(StaticMesh inStaticMesh, Material inMaterial);
+    Model* AddModel(std::vector<float>& vertices, std::vector<uint32_t>& indices, Material inMaterial);
     void DeleteModel(Model* model);
     
     Model* GetModelByTag(std::string tag);
     std::vector<Model*> GetModelsByTag(std::string tag);
 
-    PointLight* AddPointLight(PointLight newLight);
+    PointLight* AddPointLight();
+    PointLight* AddPointLight(PointLight& light);
     void DeletePointLight(PointLight* light);
 
     SpotLight* AddSpotLight(SpotLight newLight);
@@ -82,6 +85,9 @@ public:
 
     void AddHalfEdgeMesh(he::HalfEdgeMesh* newMesh);
     void DeleteHalfEdgeMesh(he::HalfEdgeMesh* mesh);
+
+    Decal* AddDecal(Decal newDecal);
+    void DeleteDecal(Decal* decal);
 
 #ifdef USE_EDITOR
     std::vector<IEditorClickable*>& GetGenericEditorClickables();
@@ -106,7 +112,7 @@ public:
 
     void Draw(GraphicsModule& graphics, GBuffer gBuffer, size_t camIndex = 0);
 #ifdef USE_EDITOR
-    void EditorDraw(GraphicsModule& graphics, GBuffer gBuffer, Camera* editorCam, bool drawSceneCam = true, bool debugDrawHEMeshes = false);
+    void EditorDraw(GraphicsModule& graphics, GBuffer gBuffer, Camera* editorCam, bool drawSceneCam = true);
 #endif
 
     // TODO: Unify mesh/model collisions
@@ -130,6 +136,8 @@ public:
 
 private:
 
+    Model* AddModelInternal(Model* model);
+
     void CopyInternal(const Scene& other);
 
     bool IsIgnored(Model* model, std::vector<Model*>& ignoredModels);
@@ -143,6 +151,8 @@ private:
     std::vector<PointLight*> m_PointLights;
     std::vector<DirectionalLight*> m_DirectionalLights;
     std::vector<SpotLight*> m_SpotLights;
+
+    std::vector<Decal*> m_Decals;
 
     // TODO: these might only be in editor builds (might all be converted to regular models in non-editor builds)
     std::vector<he::HalfEdgeMesh*> m_HEMeshes;
@@ -173,7 +183,7 @@ private:
 
     Material LoadMaterial(json& JsonObject);
     StaticMesh LoadStaticMesh(json& JsonObject);
-    PointLight LoadPointLight(json& JsonObject);
+    PointLight* LoadPointLight(json& JsonObject);
     DirectionalLight LoadDirectionalLight(json& JsonObject);
     SpotLight LoadSpotLight(json& JsonObject);
     Model* LoadModel(json& JsonObject, std::vector<Material>& MaterialVector, std::vector<StaticMesh>& StaticMeshVector);
@@ -189,6 +199,7 @@ private:
     static Material* DirectionalLightMaterial;
     static StaticMesh* SpotLightMesh;
     static Material* SpotLightMaterial;
+    static Texture* DecalBillboardTexture;
 #endif
 
     uGUIDGenerator m_ModelIDGenerator;

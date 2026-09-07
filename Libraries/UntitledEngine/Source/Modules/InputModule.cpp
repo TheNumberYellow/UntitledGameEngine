@@ -33,7 +33,7 @@ MouseState& SystemInputState::GetMouseState()
 
 void SystemInputState::UpdateMousePos(Vec2i newPos)
 {
-	m_MouseState.UpdateMousePos(newPos, m_MouseLocked, m_MouseCenter);
+	m_MouseState.UpdateMousePos(newPos, m_MouseLocked);
 }
 
 void SystemInputState::UpdateMouseWheel(int delta)
@@ -43,13 +43,16 @@ void SystemInputState::UpdateMouseWheel(int delta)
 
 void SystemInputState::SetMouseLocked(bool locked)
 {
-	m_MouseLocked = locked;
-}
+	if (locked)
+	{
+		Engine::LockCursor();
+	}
+	else
+	{
+		Engine::UnlockCursor();
+	}
 
-void SystemInputState::SetMouseCenter(Vec2i newCenter)
-{
-    Engine::SetCursorCenter(newCenter);
-    m_MouseCenter = newCenter;
+	m_MouseLocked = locked;
 }
 
 GamepadState& SystemInputState::GetGamepadState(int controllerIndex)
@@ -138,12 +141,6 @@ void InputModule::ClearDeltaMousePos()
 void InputModule::SetMouseLocked(bool locked)
 {
     m_LocalSystemInputState.SetMouseLocked(locked);
-    
-}
-
-void InputModule::SetMouseCenter(Vec2i newCenter)
-{
-	m_LocalSystemInputState.SetMouseCenter(newCenter);
 }
 
 GamepadState& InputModule::GetGamepadState(int controllerIndex /*= 0*/)
@@ -192,15 +189,15 @@ MouseState::MouseState(Vec2i initPos)
 	m_CurrentPos = initPos;
 }
 
-void MouseState::UpdateMousePos(Vec2i newPos, bool mouseLocked, Vec2i center)
+void MouseState::UpdateMousePos(Vec2i newPos, bool mouseLocked)
 {
-	if (mouseLocked)
-	{
-		m_PrevPos = m_CurrentPos;
-		m_CurrentPos = newPos;
-		m_DeltaMouse = m_CurrentPos - center;
-	}
-	else
+	//if (mouseLocked)
+	//{
+	//	m_PrevPos = m_CurrentPos;
+	//	m_CurrentPos = newPos;
+	//	m_DeltaMouse = m_CurrentPos - center;
+	//}
+	//else
 	{
 		m_PrevPos = m_CurrentPos;
 		m_CurrentPos = newPos;

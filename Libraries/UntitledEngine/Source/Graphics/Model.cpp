@@ -3,7 +3,7 @@
 #include "Behaviour/Behaviour.h"
 #include "Modules/CollisionModule.h"
 #include "Modules/UIModule.h"
-#include "Scene.h"
+#include "Scene/Scene.h"
 
 SelectedModel::SelectedModel(Model* InModel)
 {
@@ -20,31 +20,7 @@ void SelectedModel::Draw()
 
 bool SelectedModel::DrawInspectorPanel()
 {
-    UIModule* UI = UIModule::Get();
-
-    float oldX = ModelPtr->GetTransform().GetPosition().x;
-    float oldY = ModelPtr->GetTransform().GetPosition().y;
-    float oldZ = ModelPtr->GetTransform().GetPosition().z;
-
-    float newX = oldX;
-    float newY = oldY;
-    float newZ = oldZ;
-
-    UI->FloatDragger("X", Vec2f(130.0f, 20.0f), newX);
-    UI->FloatDragger("Y", Vec2f(130.0f, 20.0f), newY);
-    UI->FloatDragger("Z", Vec2f(130.0f, 20.0f), newZ);
-
-    if (newX != oldX || newY != oldY || newZ != oldZ)
-    {
-        ModelPtr->GetTransform().SetPosition(Vec3f(newX, newY, newZ));
-        return true;
-    }
-
-    UI->NewLine();
-
-    BehaviourRegistry::Get()->DrawEntityInspectorPanel(ModelPtr);
-
-    return false;
+    return ModelPtr->DrawInspectorPanel();
 }
 
 Transform* SelectedModel::GetTransform()
@@ -65,6 +41,36 @@ void SelectedModel::ApplyMaterial(Material& inMaterial)
 bool SelectedModel::IsEqual(const ISelectedObject& Other) const
 {
     return ModelPtr == static_cast<const SelectedModel&>(Other).ModelPtr;
+}
+
+bool Model::DrawInspectorPanel()
+{
+    UIModule* UI = UIModule::Get();
+
+    bool ret = false;
+
+    float oldX = GetTransform().GetPosition().x;
+    float oldY = GetTransform().GetPosition().y;
+    float oldZ = GetTransform().GetPosition().z;
+    float newX = oldX;
+    float newY = oldY;
+    float newZ = oldZ;
+
+    UI->FloatDragger("X", Vec2f(130.0f, 20.0f), newX);
+    UI->FloatDragger("Y", Vec2f(130.0f, 20.0f), newY);
+    UI->FloatDragger("Z", Vec2f(130.0f, 20.0f), newZ);
+
+    if (newX != oldX || newY != oldY || newZ != oldZ)
+    {
+        GetTransform().SetPosition(Vec3f(newX, newY, newZ));
+        ret = true;
+    }
+
+    UI->NewLine();
+
+    BehaviourRegistry::Get()->DrawEntityInspectorPanel(this);
+
+    return ret;
 }
 
 RayCastHit Model::ClickCast(Ray mouseRay, ISelectedObject*& outSelectedObject)

@@ -3,7 +3,7 @@
 #include "Modules/GraphicsModule.h"
 #include "Modules/UIModule.h"
 
-#include "Scene.h"
+#include "Scene/Scene.h"
 
 SelectedSpotLight::SelectedSpotLight(SpotLight* InSpotLight)
 {
@@ -23,6 +23,13 @@ void SelectedSpotLight::Draw()
     AABB LightAABB = AABB(SpotLightPtr->position - Vec3f(0.35f, 0.35f, 0.35f), SpotLightPtr->position + Vec3f(0.35f, 0.35f, 0.35f));
 
     Graphics->DebugDrawAABB(LightAABB, c_SelectedBoxColour);
+
+    float outerBaseRadius = SpotLightPtr->range * tanf(Deg2Rad(SpotLightPtr->outerAngle));
+    float innerBaseRadius = SpotLightPtr->range * tanf(Deg2Rad(SpotLightPtr->innerAngle));
+
+    Graphics->DebugDrawCone(SpotLightPtr->position + (SpotLightPtr->direction * SpotLightPtr->range), SpotLightPtr->position, outerBaseRadius, 16, 0.5f * SpotLightPtr->colour);
+    Graphics->DebugDrawCone(SpotLightPtr->position + (SpotLightPtr->direction * SpotLightPtr->range), SpotLightPtr->position, innerBaseRadius, 16, SpotLightPtr->colour);
+
 }
 
 void SelectedSpotLight::Update()
@@ -45,10 +52,8 @@ bool SelectedSpotLight::DrawInspectorPanel()
     UI->NewLine();
 
     UI->FloatDragger("Intensity", Vec2f(400.0f, 20.0f), SpotLightPtr->intensity, 0.1f, 0.0f);
+    UI->FloatDragger("Range", Vec2f(400.0f, 20.0f), SpotLightPtr->range, 0.1f, 0.0f);
 
-    UI->FloatDragger("Constant Attenuation", Vec2f(400.0f, 20.0f), SpotLightPtr->constantAttenuation, 0.01f, 0.0f);
-    UI->FloatDragger("Linear Attenuation", Vec2f(400.0f, 20.0f), SpotLightPtr->linearAttenuation, 0.01f, 0.0f);
-    UI->FloatDragger("Quadratic Attenuation", Vec2f(400.0f, 20.0f), SpotLightPtr->quadraticAttenuation, 0.01f, 0.0f);
 
     UI->NewLine();
 

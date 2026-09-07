@@ -8,14 +8,11 @@ SphereController::SphereController()
 
 void SphereController::Update(Scene* Scene, double DeltaTime)
 {
-    //InputModule::Get()->SetMouseLocked(true);
-    //InputModule::Get()->SetMouseCenter(Vec2i(50, 50));
-
-
     DeltaTime = Math::Min(DeltaTime, 0.015);
 
 
-    Vec3f InputForce = Vec3f(0.0f, 0.0f, 0.0f);
+    Vec3f InputForceKeys = Vec3f(0.0f, 0.0f, 0.0f);
+    Vec3f InputForceStick = Vec3f(0.0f, 0.0f, 0.0f);
     bool JumpPressed = false;
 
     if (InputState->GetGamepadState().IsEnabled())
@@ -24,18 +21,16 @@ void SphereController::Update(Scene* Scene, double DeltaTime)
 
         Vec2f Stick = Gamepad.GetLeftStickAxis();
 
-        InputForce += CamFacingDir * (Stick.y * abs(Stick.y));
-        InputForce += Math::cross(CamFacingDir, Vec3f(0.0f, 0.0f, 1.0f)) * (Stick.x * abs(Stick.x));
+        InputForceStick += CamFacingDir * (Stick.y * abs(Stick.y));
+        InputForceStick += Math::cross(CamFacingDir, Vec3f(0.0f, 0.0f, 1.0f)) * (Stick.x * abs(Stick.x));
 
-        JumpPressed = Gamepad.GetButtonState(Button::Face_South).justPressed;
+        JumpPressed |= Gamepad.GetButtonState(Button::Face_South).justPressed;
 
-        if (!InputForce.IsNearlyZero())
+        if (!InputForceStick.IsNearlyZero())
         {
-            //InputForce = Math::normalize(InputForce);
+            InputForceStick *= ImpulseForce;
 
-            InputForce *= ImpulseForce;
-
-            Velocity += InputForce * (float)DeltaTime;
+            //Velocity += InputForceStick * (float)DeltaTime;
         }
 
         if (Gamepad.GetButtonState(Button::Face_North))
@@ -44,34 +39,33 @@ void SphereController::Update(Scene* Scene, double DeltaTime)
             Velocity = Vec3f(0.0f, 0.0f, 0.0f);
         }
     }
-    else
     {
         if (InputState->GetKeyState(Key::W))
         {
-            InputForce += CamFacingDir;
+            InputForceKeys += CamFacingDir;
         }
         if (InputState->GetKeyState(Key::S))
         {
-            InputForce -= CamFacingDir;
+            InputForceKeys -= CamFacingDir;
         }
         if (InputState->GetKeyState(Key::A))
         {
-            InputForce -= Math::cross(CamFacingDir, Vec3f(0.0f, 0.0f, 1.0f));
+            InputForceKeys -= Math::cross(CamFacingDir, Vec3f(0.0f, 0.0f, 1.0f));
         }
         if (InputState->GetKeyState(Key::D))
         {
-            InputForce += Math::cross(CamFacingDir, Vec3f(0.0f, 0.0f, 1.0f));
+            InputForceKeys += Math::cross(CamFacingDir, Vec3f(0.0f, 0.0f, 1.0f));
         }
 
-        JumpPressed = InputState->GetKeyState(Key::Space).justPressed;
+        JumpPressed |= InputState->GetKeyState(Key::Space).justPressed;
 
-        if (!InputForce.IsNearlyZero())
+        if (!InputForceKeys.IsNearlyZero())
         {
-            InputForce = Math::normalize(InputForce);
+            InputForceKeys = Math::normalize(InputForceKeys);
 
-            InputForce *= ImpulseForce;
+            InputForceKeys *= ImpulseForce;
 
-            Velocity += InputForce * (float)DeltaTime;
+            //Velocity += InputForceKeys * (float)DeltaTime;
         }
 
         if (InputState->GetKeyState(Key::R))
@@ -81,6 +75,8 @@ void SphereController::Update(Scene* Scene, double DeltaTime)
         }
     }
 
+    // Faster with both lololol
+    Velocity += (InputForceKeys + InputForceStick) * (float)DeltaTime;
 
     Velocity.z -= 90.0f * (float)DeltaTime;
 
@@ -202,29 +198,29 @@ void SphereController::Update(Scene* Scene, double DeltaTime)
     // Begin camera stuff
     Vec3f CamCenterPoint = m_Model->GetTransform().GetPosition();
 
-    Vec2f DeltaMouse;
+    Vec2f CamMovement = Vec2f(0.0f, 0.0f);;
 
     if (InputState->GetGamepadState().IsEnabled())
     {
-        DeltaMouse = InputState->GetGamepadState().GetRightStickAxis();
+        Vec2f StickMovement = InputState->GetGamepadState().GetRightStickAxis();
         
-        DeltaMouse.y = -DeltaMouse.y;
+        StickMovement.y = -StickMovement.y;
+        
+        StickMovement.x *= 0.03f;
+        StickMovement.y *= 0.03f;
 
-        //Engine::DEBUGPrint("X: " + std::to_string(DeltaMouse.x) + ", Y: " + std::to_string(DeltaMouse.y));
-        
-        DeltaMouse.x *= 0.03f;
-        DeltaMouse.y *= 0.03f;
+        CamMovement += StickMovement;
     }
-    else
     {
-        DeltaMouse = InputState->GetMouseState().GetDeltaMousePos();
+        Vec2f MouseMovement = InputState->GetMouseState().GetDeltaMousePos();
 
-        DeltaMouse.x *= 0.005f;
-        DeltaMouse.y *= 0.005f;
+        MouseMovement.x *= 0.005f;
+        MouseMovement.y *= 0.005f;
+        CamMovement += MouseMovement;
     }
 
-    CamXAxis -= DeltaMouse.x;
-    CamYAxis -= DeltaMouse.y;
+    CamXAxis -= CamMovement.x;
+    CamYAxis -= CamMovement.y;
 
     CamYAxis = Math::ClampRadians(CamYAxis, -M_PI_2 + 0.001f, M_PI_2 - 0.001f);
 
@@ -275,7 +271,8 @@ void SphereController::DrawInspectorPanel()
 {
     UIModule* UI = UIModule::Get();
 
-    UI->TextButton("Sphere Controller Settings", Vec2f(300.0f, 20.0f), 2.0f);
+    UI->Text("Sphere Controller");
+    //UI->TextButton("Sphere Controller Settings", Vec2f(300.0f, 20.0f), 2.0f);
     UI->NewLine();
 
     UI->FloatSlider("Impulse", Vec2f(300.0f, 20.0f), ImpulseForce, 0.0f, 100.0f);
@@ -286,6 +283,8 @@ void SphereController::DrawInspectorPanel()
 
     UI->FloatSlider("Light Intensity", Vec2f(300.0f, 20.0f), LightIntensity, 0.0f, 25.0f);
 
+    UI->NewLine();
+
     UI->CheckBox("Light Enabled", LightEnabled);
 }
 
@@ -293,27 +292,25 @@ void SphereController::Initialize(Scene* Scene)
 {
     if (IsRunningLocally())
     {
-        Engine::LockCursor();
+        // Temp: make this default
+        InputState = &InputModule::Get()->m_LocalSystemInputState;
+
+        InputState->SetMouseLocked(true);
         Engine::HideCursor();
         
         SetCamera(Scene->GetCamera());
-
-        // Temp: make this default
-        InputState = &InputModule::Get()->m_LocalSystemInputState;
     }
-
 
     if (LightEnabled)
     {
-        PointLight NewLight;
+        PointLight* NewLight = Scene->AddPointLight();
 
-        NewLight.position = m_Model->GetTransform().GetPosition();
-        //NewLight.colour = MakeColour(Math::RandomInt(0, 255), Math::RandomInt(0, 255), Math::RandomInt(0, 255));
-        NewLight.colour = MakeColour(255, 255, 155);
+        NewLight->position = m_Model->GetTransform().GetPosition();
+        //NewLight->colour = MakeColour(Math::RandomInt(0, 255), Math::RandomInt(0, 255), Math::RandomInt(0, 255));
+        NewLight->colour = MakeColour(255, 255, 155);
+        NewLight->intensity = LightIntensity;
 
-        NewLight.intensity = LightIntensity;
-
-        MyLight = Scene->AddPointLight(NewLight);
+        MyLight = NewLight;
     }
 
     CamDistance = DefaultCamDistance;

@@ -158,6 +158,20 @@ void CursorState::Update(double DeltaTime)
             Dragging = DraggingMode::None;
         }
     }
+    else if (Dragging == DraggingMode::NewDecal)
+    {
+        if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).pressed)
+        {
+            Vec2i MousePos = Input->GetMouseState().GetMousePos();
+            Ray MouseRay = EditorStatePtr->GetMouseRay(*CameraPtr, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+            DraggingDecalPtr->orientation[3] = Vec4f(MouseRay.point + MouseRay.direction * 8.0f, 1.0f);
+        }
+        else
+        {
+            DraggingDecalPtr = nullptr;
+            Dragging = DraggingMode::None;
+        }
+    }
     else if (Dragging == DraggingMode::NewTexture)
     {
         Vec2i MousePos = Input->GetMouseState().GetMousePos();
@@ -178,7 +192,8 @@ void CursorState::Update(double DeltaTime)
             //    delete hitSelectedObject;
             //}
 
-            if (ClickCastApplyMaterial(MouseRay, DraggingMaterialPtr))
+            if (EditorStatePtr->GetEditorSceneViewportRect().Contains(MousePos) && 
+                ClickCastApplyMaterial(MouseRay, DraggingMaterialPtr))
             {
                 DraggingMaterialPtr = nullptr;
                 Dragging = DraggingMode::None;
@@ -358,6 +373,9 @@ void CursorState::CycleSelectMode()
         Select = SelectMode::FaceSelect;
         break;
     case SelectMode::FaceSelect:
+        Select = SelectMode::EdgeSelect;
+        break;
+    case SelectMode::EdgeSelect:
         Select = SelectMode::VertSelect;
         break;
     case SelectMode::VertSelect:
@@ -375,12 +393,12 @@ void CursorState::CycleGeometryMode()
     switch (GeoMode)
     {
     case GeometryMode::Box:
+        GeoMode = GeometryMode::Cylinder;
+        break;
+    case GeometryMode::Cylinder:
         GeoMode = GeometryMode::Plane;
         break;
     case GeometryMode::Plane:
-        GeoMode = GeometryMode::HalfEdge;
-        break;
-    case GeometryMode::HalfEdge:
         GeoMode = GeometryMode::Water;
         break;
     case GeometryMode::Water:
@@ -492,6 +510,16 @@ void CursorState::StartDraggingNewSpotLight(SpotLight* NewSpotLight)
     DraggingSpotLightPtr = NewSpotLight;
 }
 
+void CursorState::StartDraggingNewDecal(Decal* NewDecal)
+{
+    if (Dragging != DraggingMode::None)
+    {
+        return;
+    }
+    Dragging = DraggingMode::NewDecal;
+    DraggingDecalPtr = NewDecal;
+}
+
 void CursorState::StartDraggingNewMaterial(Material* NewMaterial)
 {
     if (Dragging != DraggingMode::None)
@@ -587,6 +615,10 @@ void CursorState::DrawToolSettingsPanel()
         {
             Select = SelectMode::FaceSelect;
         }
+        if (UI->TextButton("Edge", PlacementType::FIT_WIDTH, 4.0f, Select == SelectMode::EdgeSelect ? selectedColour : unselectedColour, darkTextColour))
+        {
+            Select = SelectMode::EdgeSelect;
+        }
         if (UI->TextButton("Vertex", PlacementType::FIT_WIDTH, 4.0f, Select == SelectMode::VertSelect ? selectedColour : unselectedColour, darkTextColour))
         {
             Select = SelectMode::VertSelect;
@@ -643,21 +675,59 @@ void CursorState::DrawToolSettingsPanel()
         {
             GeoMode = GeometryMode::Box;
         }
+        if (UI->TextButton("Cylinder", PlacementType::FIT_WIDTH, 4.0f, GeoMode == GeometryMode::Cylinder ? selectedColour : unselectedColour, darkTextColour))
+        {
+            GeoMode = GeometryMode::Cylinder;
+        }
         if (UI->TextButton("Plane", PlacementType::FIT_WIDTH, 4.0f, GeoMode == GeometryMode::Plane ? selectedColour : unselectedColour, darkTextColour))
         {
             GeoMode = GeometryMode::Plane;
-        }
-        if (UI->TextButton("Half-Edge", PlacementType::FIT_WIDTH, 4.0f, GeoMode == GeometryMode::HalfEdge ? selectedColour : unselectedColour, darkTextColour))
-        {
-            GeoMode = GeometryMode::HalfEdge;
         }
         if (UI->TextButton("Water", PlacementType::FIT_WIDTH, 4.0f, GeoMode == GeometryMode::Water ? selectedColour : unselectedColour, darkTextColour))
         {
             GeoMode = GeometryMode::Water;
         }
+        switch (GeoMode)
+        {
+            case GeometryMode::Box:
+                break;
+            case GeometryMode::Cylinder:
+                UI->StartFrame("Cylinder Settings", PlacementType::FIT_BOTH, 14.0f, MakeColour(23, 169, 239), false);
+                {
+                    UI->Text("Cylinder Sides: " + std::to_string(NumCylinderSegments), PlacementType::FIT_WIDTH, darkTextColour);
+                    UI->NewLine();
+                    if (UI->TextButton("<", PlacementSettings(PlacementType::SIZE, Vec2f(14.0f)), 4.0f, textColour, darkTextColour))
+                    {
+                        NumCylinderSegments--;
+                        if (NumCylinderSegments < 3)
+                        {
+                            NumCylinderSegments = 3;
+                        }
+                    }
+                    if (UI->TextButton(">", PlacementSettings(PlacementType::SIZE, Vec2f(14.0f)), 4.0f, textColour, darkTextColour))
+                    {
+                        NumCylinderSegments++;
+                        if (NumCylinderSegments > 100)
+                        {
+                            NumCylinderSegments = 100;
+                        }
+                    }
+                }
+                UI->EndFrame();
+                break;
+
+            case GeometryMode::Plane:
+                break;
+            case GeometryMode::Water:
+                break;
+            default:
+                break;
+        }
+
         break;
     case ToolMode::Vertex:
         UI->Text("Vertex Tool Settings", PlacementType::FIT_WIDTH, titleTextColour);
+        UI->CheckBox("Add caps", SliceAddCaps);
         break;
     case ToolMode::Sculpt:
         UI->Text("Sculpt Tool Settings", PlacementType::FIT_WIDTH, titleTextColour);
@@ -696,6 +766,7 @@ void CursorState::UpdateSelectTool()
         UpdateGenericSelectTool();
         break;
     case SelectMode::FaceSelect:
+    case SelectMode::EdgeSelect:
     case SelectMode::VertSelect:
         UpdateHalfEdgeSelectTool();
         break;
@@ -729,11 +800,11 @@ void CursorState::UpdateGeometryTool()
     case GeometryMode::Box:
         UpdateBoxTool();
         break;
+    case GeometryMode::Cylinder:
+        UpdateCylinderTool();
+        break;
     case GeometryMode::Plane:
         UpdatePlaneTool();
-        break;
-    case GeometryMode::HalfEdge:
-        UpdateHalfEdgeTool();
         break;
     case GeometryMode::Water:
         UpdateWaterTool();
@@ -912,6 +983,57 @@ void CursorState::UpdateHalfEdgeSelectTool()
     
     Vec2i MousePos = Input->GetMouseState().GetMousePos();
 
+    // If in face/edge/vertex select mode, draw closest half edge mesh if mouse is hovering over it
+    if (Select == SelectMode::FaceSelect || Select == SelectMode::EdgeSelect || Select == SelectMode::VertSelect)
+    {
+        Ray MouseRay = EditorStatePtr->GetMouseRay(*CameraPtr, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+
+        he::HalfEdgeMesh* ClosestMesh = nullptr;
+        RayCastHit ClosestHit;
+        for (auto& M : HalfEdgeMeshVec)
+        {
+            RayCastHit hit = M->RayCast(MouseRay);
+            if (hit.hit)
+            {
+                if (!ClosestMesh || hit.hitDistance < ClosestHit.hitDistance)
+                {
+                    ClosestMesh = M;
+                    ClosestHit = hit;
+                }
+            }
+        }
+        if (ClosestMesh)
+        {
+            ClosestMesh->EditorDraw();
+
+            // Highlight the closest face/edge/vertex if mouse is hovering over it
+            if (Select == SelectMode::FaceSelect)
+            {
+                he::Face* ClosestFace = ClosestMesh->RayCastFaces(MouseRay, ClosestHit.hitPoint, ClosestHit.hitDistance);
+                if (ClosestFace)
+                {
+                    he::DebugDrawSelectedHalfEdgeMeshFace(*ClosestMesh, ClosestFace, Vec3f(1.0f, 1.0f, 0.0f));
+                }
+            }
+            else if (Select == SelectMode::EdgeSelect)
+            {
+                he::HalfEdge* ClosestEdge = ClosestMesh->RayCastEdges(MouseRay, ClosestHit.hitPoint, ClosestHit.hitDistance);
+                if (ClosestEdge)
+                {
+                    he::DebugDrawSelectedHalfEdgeMeshEdge(*ClosestMesh, ClosestEdge, Vec3f(1.0f, 1.0f, 0.0f));
+                }
+            }
+            else if (Select == SelectMode::VertSelect)
+            {
+                he::Vertex* ClosestVert = ClosestMesh->RayCastVerts(MouseRay, ClosestHit.hitPoint, ClosestHit.hitDistance);
+                if (ClosestVert)
+                {
+                    he::DebugDrawSelectedHalfEdgeMeshVertex(*ClosestMesh, ClosestVert, Vec3f(1.0f, 1.0f, 0.0f));
+                }
+            }
+        }
+    }
+
     if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).justPressed && EditorStatePtr->GetEditorSceneViewportRect().Contains(MousePos))
     {
         Ray MouseRay = EditorStatePtr->GetMouseRay(*CameraPtr, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
@@ -940,6 +1062,26 @@ void CursorState::UpdateHalfEdgeSelectTool()
                 {
                     delete newSelectedObject;
                 }
+            }
+            else if (Select == SelectMode::EdgeSelect)
+            {
+                ISelectedObject* newSelectedObject = nullptr;
+                RayCastHit hit = M->ClickCastEdges(MouseRay, newSelectedObject);
+                if (hit.hit && hit.hitDistance < closestHit.hitDistance)
+                {
+                    if (closestSelectedObject)
+                    {
+                        delete closestSelectedObject;
+                        closestSelectedObject = nullptr;
+                    }
+                    closestHit = hit;
+                    closestSelectedObject = newSelectedObject;
+                }
+                else
+                {
+                    delete newSelectedObject;
+                }
+
             }
             else if (Select == SelectMode::FaceSelect)
             {
@@ -1348,8 +1490,19 @@ void CursorState::UpdateBoxTool()
             }
             else
             {
-                // Create the box model, add to scene
-                EditorScenePtr->AddModel(new Model(Graphics->CreateBoxModel(BoxBeingCreated)));
+                // Create the half edge mesh, add to scene
+
+                he::HalfEdgeMesh* newHeMesh = new he::HalfEdgeMesh();
+                newHeMesh->MakeAABB(BoxBeingCreated, Graphics->m_DebugMaterial);
+
+                // Test debug cylinder here
+                //Vec3f CylinderBase = BoxBeingCreated.min + Vec3f(BoxBeingCreated.XSize() / 2.0f, BoxBeingCreated.YSize() / 2.0f, 0.0f);
+                //float CylinderHeight = BoxBeingCreated.ZSize();
+                //float CylinderRadius = std::min(BoxBeingCreated.XSize(), BoxBeingCreated.YSize()) / 2.0f;
+
+                //newHeMesh->MakeCylinder(CylinderBase, CylinderRadius, CylinderHeight, NumCylinderSegments, Graphics->m_DebugMaterial);
+
+                EditorScenePtr->AddHalfEdgeMesh(newHeMesh);
             }
 
         }
@@ -1362,23 +1515,24 @@ void CursorState::UpdateBoxTool()
 
             if (PlaneHit.hit)
             {
+
                 int DeltaMouseWheel = Input->GetMouseState().GetDeltaMouseWheel();
                 if (DeltaMouseWheel > 0 || Input->GetKeyState(Key::Plus).justPressed)
                 {
-                    NewBoxHeight += GeoPlaceSnap;
+                    NewBoxHeight += TransSnap;
                 }
                 else if (DeltaMouseWheel < 0 || Input->GetKeyState(Key::Minus).justPressed)
                 {
-                    NewBoxHeight -= GeoPlaceSnap;
+                    NewBoxHeight -= TransSnap;
                 }
 
-                if (NewBoxHeight < GeoPlaceSnap) NewBoxHeight = GeoPlaceSnap;
+                if (NewBoxHeight < TransSnap) NewBoxHeight = TransSnap;
 
                 Vec3f HitPoint = PlaneHit.hitPoint;
 
-                HitPoint.x = Math::Round(HitPoint.x, GeoPlaceSnap);
-                HitPoint.y = Math::Round(HitPoint.y, GeoPlaceSnap);
-                HitPoint.z = Math::Round(HitPoint.z, GeoPlaceSnap);
+                HitPoint.x = NewBoxStartPoint.x + Math::Round(HitPoint.x - NewBoxStartPoint.x, TransSnap);
+                HitPoint.y = NewBoxStartPoint.y + Math::Round(HitPoint.y - NewBoxStartPoint.y, TransSnap);
+                HitPoint.z = NewBoxStartPoint.z + Math::Round(HitPoint.z - NewBoxStartPoint.z, TransSnap);
 
                 float minX = std::min(HitPoint.x, NewBoxStartPoint.x);
                 float minY = std::min(HitPoint.y, NewBoxStartPoint.y);
@@ -1403,22 +1557,159 @@ void CursorState::UpdateBoxTool()
             RayCastHit PlaneHit = Collisions->RayCast(MouseRay, Plane(Vec3f(0.0f, 0.0f, 0.0f), Vec3f(0.0f, 0.0f, 1.0f)));
             RayCastHit SceneHit = EditorScenePtr->RayCast(MouseRay).rayCastHit;
 
-            RayCastHit FinalHit = PlaneHit.hitDistance < SceneHit.hitDistance ? PlaneHit : SceneHit;
+            RayCastHit FinalHit = SceneHit.hit ? SceneHit : PlaneHit;
 
             if (FinalHit.hit)
             {
                 Vec3f HitPoint = FinalHit.hitPoint;
 
-                HitPoint.x = Math::Round(HitPoint.x, GeoPlaceSnap);
-                HitPoint.y = Math::Round(HitPoint.y, GeoPlaceSnap);
-                HitPoint.z = Math::Round(HitPoint.z, GeoPlaceSnap);
+                Vec3f HitNormal = FinalHit.hitNormal;
+
+                bool xAligned = abs(Math::dot(HitNormal, Vec3f(1.0f, 0.0f, 0.0f))) > 0.99f;
+                bool yAligned = abs(Math::dot(HitNormal, Vec3f(0.0f, 1.0f, 0.0f))) > 0.99f;
+                bool zAligned = abs(Math::dot(HitNormal, Vec3f(0.0f, 0.0f, 1.0f))) > 0.99f;
+
+                if (xAligned || yAligned || zAligned)
+                {
+                    if (!xAligned) HitPoint.x = Math::Round(HitPoint.x, TransSnap);
+                    if (!yAligned) HitPoint.y = Math::Round(HitPoint.y, TransSnap);
+                    if (!zAligned) HitPoint.z = Math::Round(HitPoint.z, GeoPlaceSnap);
+                }
 
                 IsCreatingNewBox = true;
                 NewBoxStartPoint = HitPoint;
             }
         }
     }
+}
 
+void CursorState::UpdateCylinderTool()
+{
+    InputModule* Input = InputModule::Get();
+    CollisionModule* Collisions = CollisionModule::Get();
+    GraphicsModule* Graphics = GraphicsModule::Get();
+
+    KeyState ClickState = Input->GetMouseState().GetMouseButtonState(MouseButton::LMB);
+
+    Vec2i MousePos = Input->GetMouseState().GetMousePos();
+
+    if (Dragging != DraggingMode::None)
+    {
+        CurrentCylinderState = CylinderState::NotCreating;
+        return;
+    }
+    if (Input->GetKeyState(Key::Escape).justPressed)
+    {
+        CurrentCylinderState = CylinderState::NotCreating;
+        return;
+    }
+
+    switch (CurrentCylinderState)
+    {
+    case CylinderState::NotCreating:
+    {
+        if (ClickState.justPressed && EditorStatePtr->GetEditorSceneViewportRect().Contains(MousePos))
+        {
+            Ray MouseRay = EditorStatePtr->GetMouseRay(*CameraPtr, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+            
+            RayCastHit SceneHit = SceneRayCastWithScenePlane(MouseRay);
+
+            if (SceneHit.hit)
+            {
+                NewCylinderStartPoint = SceneHit.hitPoint;
+                CurrentCylinderState = CylinderState::AwaitingFirstClick;
+            }
+        }
+        break;
+    }
+    case CylinderState::AwaitingFirstClick:
+    {
+        Ray MouseRay = EditorStatePtr->GetMouseRay(*CameraPtr, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
+
+        RayCastHit SceneHit = SceneRayCastWithScenePlane(MouseRay);
+        
+        if (SceneHit.hit)
+        {
+            NewCylinderStartPoint = SceneHit.hitPoint;
+        }
+        if (Input->GetMouseState().GetDeltaMouseWheel() > 0 || Input->GetKeyState(Key::Plus).justPressed)
+        {
+            NewCylinderRadius += TransSnap;
+        }
+        else if (Input->GetMouseState().GetDeltaMouseWheel() < 0 || Input->GetKeyState(Key::Minus).justPressed)
+        {
+            NewCylinderRadius -= TransSnap;
+            if (NewCylinderRadius < TransSnap) NewCylinderRadius = TransSnap;
+        }
+
+        CylinderBeingCreated.bottom = NewCylinderStartPoint;
+        CylinderBeingCreated.radius = NewCylinderRadius; // Default radius, can be adjusted based on user input
+        CylinderBeingCreated.top = NewCylinderStartPoint + Vec3f(0.0f, 0.0f, NewCylinderHeight);
+        // Debug draw the cylinder being created
+        Graphics->DebugDrawPoint(NewCylinderStartPoint, Vec3f(1.0f, 0.0f, 0.0f)); // Draw the base point
+        Graphics->DebugDrawCylinder(CylinderBeingCreated.bottom, CylinderBeingCreated.top, CylinderBeingCreated.radius, NumCylinderSegments, Vec3f(0.5f, 0.7f, 0.3f));
+
+        if (ClickState.justReleased)
+        {
+            CurrentCylinderState = CylinderState::AwaitingSecondClick;
+        }
+        break;
+    }
+
+    case CylinderState::AwaitingSecondClick:
+    {
+        if (Input->GetMouseState().GetDeltaMouseWheel() > 0 || Input->GetKeyState(Key::Plus).justPressed)
+        {
+            NewCylinderHeight += TransSnap;
+        }
+        else if (Input->GetMouseState().GetDeltaMouseWheel() < 0 || Input->GetKeyState(Key::Minus).justPressed)
+        {
+            NewCylinderHeight -= TransSnap;
+            if (NewCylinderHeight < TransSnap) NewCylinderHeight = TransSnap;
+        }
+
+        CylinderBeingCreated.radius = NewCylinderRadius; // Default radius, can be adjusted based on user input
+        CylinderBeingCreated.top = NewCylinderStartPoint + Vec3f(0.0f, 0.0f, NewCylinderHeight);
+
+        // Debug draw the cylinder being created
+        Graphics->DebugDrawPoint(NewCylinderStartPoint, Vec3f(1.0f, 0.0f, 0.0f)); // Draw the base point
+        Graphics->DebugDrawCylinder(CylinderBeingCreated.bottom, CylinderBeingCreated.top, CylinderBeingCreated.radius, NumCylinderSegments, Vec3f(0.5f, 1.0f, 0.4f));
+
+        if (ClickState.justReleased)
+        {
+            CurrentCylinderState = CylinderState::AwaitingConfirmation;
+        }
+        break;
+    }
+    case CylinderState::AwaitingConfirmation:
+    {
+        if (Input->GetMouseState().GetDeltaMouseWheel() > 0 || Input->GetKeyState(Key::Plus).justPressed)
+        {
+            NumCylinderSegments += 1;
+        }
+        else if (Input->GetMouseState().GetDeltaMouseWheel() < 0 || Input->GetKeyState(Key::Minus).justPressed)
+        {
+            NumCylinderSegments -= 1;
+            if (NumCylinderSegments < 3) NumCylinderSegments = 3;
+        }
+
+        // Debug draw the cylinder being created
+        Graphics->DebugDrawPoint(NewCylinderStartPoint, Vec3f(1.0f, 0.0f, 0.0f)); // Draw the base point
+        Graphics->DebugDrawCylinder(CylinderBeingCreated.bottom, CylinderBeingCreated.top, CylinderBeingCreated.radius, NumCylinderSegments, Vec3f(1.0f, 1.0f, 0.5f));
+
+        if (ClickState.justReleased)
+        {
+            // Create the half edge mesh, add to scene
+            he::HalfEdgeMesh* newHeMesh = new he::HalfEdgeMesh();
+
+            newHeMesh->MakeCylinder(CylinderBeingCreated.bottom, CylinderBeingCreated.radius, NewCylinderHeight, NumCylinderSegments, Graphics->m_DebugMaterial);
+
+            EditorScenePtr->AddHalfEdgeMesh(newHeMesh);
+            CurrentCylinderState = CylinderState::NotCreating;
+        }
+        break;
+    }
+    }
 }
 
 void CursorState::UpdatePlaneTool()
@@ -1438,7 +1729,7 @@ void CursorState::UpdatePlaneTool()
     {
         if (ClickState.justReleased)
         {
-            Model* NewPlane = new Model(Graphics->CreatePlaneModel(Vec2f(NewPlaneMin.x, NewPlaneMin.y), Vec2f(NewPlaneMax.x, NewPlaneMax.y), NewPlaneMin.z, NewPlaneSubdivisions));
+            Model NewPlane = Model(Graphics->CreatePlaneModel(EditorScenePtr, Vec2f(NewPlaneMin.x, NewPlaneMin.y), Vec2f(NewPlaneMax.x, NewPlaneMax.y), NewPlaneMin.z, NewPlaneSubdivisions));
             EditorScenePtr->AddModel(NewPlane);
             IsCreatingNewPlane = false;
         }
@@ -1542,124 +1833,6 @@ void CursorState::UpdatePlaneTool()
     }
 }
 
-void CursorState::UpdateHalfEdgeTool()
-{
-    // Copied from box create... likely buggy
-    InputModule* Input = InputModule::Get();
-    CollisionModule* Collisions = CollisionModule::Get();
-    GraphicsModule* Graphics = GraphicsModule::Get();
-
-    KeyState ClickState = Input->GetMouseState().GetMouseButtonState(MouseButton::LMB);
-
-    if (Dragging != DraggingMode::None)
-    {
-        IsCreatingNewBox = false;
-    }
-
-    if (IsCreatingNewBox)
-    {
-        if (ClickState.justReleased)
-        {
-            IsCreatingNewBox = false;
-
-            if (BoxBeingCreated.XSize() <= 0.0001f
-                || BoxBeingCreated.YSize() <= 0.0001f
-                || BoxBeingCreated.ZSize() < 0.0001f)
-            {
-                // Box too smol
-            }
-            else
-            {
-                // Create the half edge mesh, add to scene
-                
-                he::HalfEdgeMesh* newHeMesh = new he::HalfEdgeMesh();
-                newHeMesh->MakeAABB(BoxBeingCreated, Graphics->m_DebugMaterial);
-
-                EditorScenePtr->AddHalfEdgeMesh(newHeMesh);
-            }
-
-        }
-        else
-        {
-            Vec2i MousePos = Input->GetMouseState().GetMousePos();
-            Ray MouseRay = EditorStatePtr->GetMouseRay(*CameraPtr, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
-
-            RayCastHit PlaneHit = Collisions->RayCast(MouseRay, Plane(NewBoxStartPoint, Vec3f(0.0f, 0.0f, 1.0f)));
-
-            if (PlaneHit.hit)
-            {
-                int DeltaMouseWheel = Input->GetMouseState().GetDeltaMouseWheel();
-                if (DeltaMouseWheel > 0 || Input->GetKeyState(Key::Plus).justPressed)
-                {
-                    NewBoxHeight += TransSnap;
-                }
-                else if (DeltaMouseWheel < 0 || Input->GetKeyState(Key::Minus).justPressed)
-                {
-                    NewBoxHeight -= TransSnap;
-                }
-
-                if (NewBoxHeight < TransSnap) NewBoxHeight = TransSnap;
-
-                Vec3f HitPoint = PlaneHit.hitPoint;
-
-                HitPoint.x = NewBoxStartPoint.x + Math::Round(HitPoint.x - NewBoxStartPoint.x, TransSnap);
-                HitPoint.y = NewBoxStartPoint.y + Math::Round(HitPoint.y - NewBoxStartPoint.y, TransSnap);
-                HitPoint.z = NewBoxStartPoint.z + Math::Round(HitPoint.z - NewBoxStartPoint.z, TransSnap);
-
-                float minX = std::min(HitPoint.x, NewBoxStartPoint.x);
-                float minY = std::min(HitPoint.y, NewBoxStartPoint.y);
-
-                float maxX = std::max(HitPoint.x, NewBoxStartPoint.x);
-                float maxY = std::max(HitPoint.y, NewBoxStartPoint.y);
-
-                BoxBeingCreated.min = Vec3f(minX, minY, HitPoint.z);
-                BoxBeingCreated.max = Vec3f(maxX, maxY, HitPoint.z + NewBoxHeight);
-
-                Graphics->DebugDrawAABB(BoxBeingCreated, Vec3f(0.1f, 1.0f, 0.3f));
-            }
-        }
-    }
-    else
-    {
-        Vec2i MousePos = Input->GetMouseState().GetMousePos();
-        if (ClickState.justPressed && Dragging == DraggingMode::None && EditorStatePtr->GetEditorSceneViewportRect().Contains(MousePos))
-        {
-            Ray MouseRay = EditorStatePtr->GetMouseRay(*CameraPtr, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
-
-            RayCastHit PlaneHit = Collisions->RayCast(MouseRay, Plane(Vec3f(0.0f, 0.0f, 0.0f), Vec3f(0.0f, 0.0f, 1.0f)));
-            RayCastHit SceneHit = EditorScenePtr->RayCast(MouseRay).rayCastHit;
-
-            //RayCastHit FinalHit = PlaneHit.hitDistance < SceneHit.hitDistance ? PlaneHit : SceneHit;
-            RayCastHit FinalHit = SceneHit.hit ? SceneHit : PlaneHit;
-
-            if (FinalHit.hit)
-            {
-                Vec3f HitPoint = FinalHit.hitPoint;
-
-                Vec3f HitNormal = FinalHit.hitNormal;
-
-                bool xAligned = abs(Math::dot(HitNormal, Vec3f(1.0f, 0.0f, 0.0f))) > 0.99f;
-                bool yAligned = abs(Math::dot(HitNormal, Vec3f(0.0f, 1.0f, 0.0f))) > 0.99f;
-                bool zAligned = abs(Math::dot(HitNormal, Vec3f(0.0f, 0.0f, 1.0f))) > 0.99f;
-
-                if (xAligned || yAligned || zAligned)
-                {
-                    if (!xAligned) HitPoint.x = Math::Round(HitPoint.x, TransSnap);
-                    if (!yAligned) HitPoint.y = Math::Round(HitPoint.y, TransSnap);
-                    if (!zAligned) HitPoint.z = Math::Round(HitPoint.z, GeoPlaceSnap);
-                }
-
-                //HitPoint.x = Math::Round(HitPoint.x, GeoPlaceSnap);
-                //HitPoint.y = Math::Round(HitPoint.y, GeoPlaceSnap);
-                //HitPoint.z = Math::Round(HitPoint.z, GeoPlaceSnap);
-
-                IsCreatingNewBox = true;
-                NewBoxStartPoint = HitPoint;
-            }
-        }
-    }
-}
-
 void CursorState::UpdateWaterTool()
 {
     InputModule* Input = InputModule::Get();
@@ -1749,6 +1922,23 @@ void CursorState::UpdateSliceTool()
     GraphicsModule* Graphics = GraphicsModule::Get();
     CollisionModule* Collisions = CollisionModule::Get();
 
+    // Cycle slice option enum
+    if (Input->GetKeyState(Key::Tab).justPressed)
+    {
+        if (CurrentSliceOption == SliceOption::KeepBoth)
+        {
+            CurrentSliceOption = SliceOption::KeepFront;
+        }
+        else if (CurrentSliceOption == SliceOption::KeepFront)
+        {
+            CurrentSliceOption = SliceOption::KeepBack;
+        }
+        else if (CurrentSliceOption == SliceOption::KeepBack)
+        {
+            CurrentSliceOption = SliceOption::KeepBoth;
+        }
+    }
+
     auto& HalfEdgeMeshVec = EditorScenePtr->GetHalfEdgeMeshes();
 
     Vec2i MousePos = Input->GetMouseState().GetMousePos();
@@ -1782,9 +1972,19 @@ void CursorState::UpdateSliceTool()
             Vec2f HitPoint2D = Vec2f(Math::dot(HitPoint, BitangentVec), Math::dot(HitPoint, TangentVec));
             HitPoint2D.x = Math::Round(HitPoint2D.x, TransSnap);
             HitPoint2D.y = Math::Round(HitPoint2D.y, TransSnap);
-            Vec3f SnappedHitPoint = (BitangentVec * HitPoint2D.x) + (TangentVec * HitPoint2D.y) + (HitPlaneNormal * Math::dot(HitPoint, HitPlaneNormal));
+            
+            Vec3f SnappedHitPoint;
+            if (ShouldSnapToGrid)
+            {
+                SnappedHitPoint = (BitangentVec * HitPoint2D.x) + (TangentVec * HitPoint2D.y) + (HitPlaneNormal * Math::dot(HitPoint, HitPlaneNormal));
+            }
+            else
+            {
+                SnappedHitPoint = HitPoint;
+            }
 
-            Graphics->DebugDrawArrow(SnappedHitPoint, SnappedHitPoint + closestHit.hitNormal, Vec3f(1.0f, 0.5f, 0.5f));
+            Graphics->DebugDrawLine(SnappedHitPoint, SnappedHitPoint + HitPlaneNormal * 4.0f, Vec3f(1.0f, 0.5f, 0.5f));
+            //Graphics->DebugDrawArrow(SnappedHitPoint, SnappedHitPoint + closestHit.hitNormal, Vec3f(1.0f, 0.5f, 0.5f));
             
             CurrentSliceState = SliceState::AwaitingFirstClick;
             
@@ -1811,12 +2011,25 @@ void CursorState::UpdateSliceTool()
             Vec2f HitPoint2D = Vec2f(Math::dot(HitPoint, BitangentVec), Math::dot(HitPoint, TangentVec));
             HitPoint2D.x = Math::Round(HitPoint2D.x, TransSnap);
             HitPoint2D.y = Math::Round(HitPoint2D.y, TransSnap);
-            Vec3f SnappedHitPoint = (BitangentVec * HitPoint2D.x) + (TangentVec * HitPoint2D.y) + (SliceHitPlane.normal * Math::dot(HitPoint, SliceHitPlane.normal));
-
+            
+            Vec3f SnappedHitPoint;
+            if (ShouldSnapToGrid)
+            {
+                SnappedHitPoint = (BitangentVec * HitPoint2D.x) + (TangentVec * HitPoint2D.y) + (SliceHitPlane.normal * Math::dot(HitPoint, SliceHitPlane.normal));
+            }
+            else
+            {
+                SnappedHitPoint = HitPoint;
+            }
 
             Graphics->DebugDrawArrow(SnappedHitPoint, SnappedHitPoint + SliceHitPlane.normal, Vec3f(1.0f, 0.5f, 0.5f));
             Graphics->DebugDrawArrow(SliceStartPoint, SliceStartPoint + SliceHitPlane.normal, Vec3f(0.5f, 1.0f, 0.5f));
-            Graphics->DebugDrawLine(SliceStartPoint + (SliceHitPlane.normal * 0.01f), SnappedHitPoint + (SliceHitPlane.normal * 0.01f), Vec3f(1.0f, 1.0f, 1.0f));
+
+            Plane SlicePlane;
+            SlicePlane.center = SliceStartPoint + ((SnappedHitPoint - SliceStartPoint) * 0.5f);
+            SlicePlane.normal = Math::cross((SnappedHitPoint - SliceStartPoint).GetNormalized(), SliceHitPlane.normal).GetNormalized();
+
+            PreviewSlice(SliceTargetMesh, SlicePlane);
 
             MouseState mouseState = Input->GetMouseState();
             if (mouseState.GetMouseButtonState(MouseButton::LMB).justPressed)
@@ -1830,22 +2043,61 @@ void CursorState::UpdateSliceTool()
     {
         Graphics->DebugDrawArrow(SliceEndPoint, SliceEndPoint + SliceHitPlane.normal, Vec3f(0.5f, 1.0f, 0.5f));
         Graphics->DebugDrawArrow(SliceStartPoint, SliceStartPoint + SliceHitPlane.normal, Vec3f(0.5f, 1.0f, 0.5f));
-        Graphics->DebugDrawLine(SliceStartPoint + (SliceHitPlane.normal * 0.01f), SliceEndPoint + (SliceHitPlane.normal * 0.01f), Vec3f(1.0f, 1.0f, 1.0f));
 
         Plane SlicePlane;
         SlicePlane.center = SliceStartPoint + ((SliceEndPoint - SliceStartPoint) * 0.5f);
         SlicePlane.normal = Math::cross((SliceEndPoint - SliceStartPoint).GetNormalized(), SliceHitPlane.normal).GetNormalized();
 
-        Graphics->DebugDrawPlane(SlicePlane, (SliceEndPoint - SliceStartPoint).Magnitude(), Vec3f(0.5f, 1.0f, 0.5f));
+        PreviewSlice(SliceTargetMesh, SlicePlane);
 
-        if (Input->GetKeyState(Key::Enter).pressed)
+        if (Input->GetKeyState(Key::Enter).pressed || Input->GetKeyState(Key::Space).pressed)
         {
-            SliceTargetMesh->SliceFaces(SlicePlane);
-            // TODO: slice operation
+            he::HalfEdgeMesh* NewFrontMesh = nullptr;
+            he::HalfEdgeMesh* NewBackMesh = nullptr;
 
-            //EditorStatePtr->EditorScene.DeleteHalfEdgeMesh(SliceTargetMesh);
-            //SliceTargetMesh = nullptr;
-            //CurrentSliceState = SliceState::NotSlicing;
+            if (CurrentSliceOption == SliceOption::KeepBoth)
+            {
+                NewFrontMesh = new he::HalfEdgeMesh();
+                NewBackMesh = new he::HalfEdgeMesh();
+            }
+            if (CurrentSliceOption == SliceOption::KeepFront)
+            {
+                NewFrontMesh = new he::HalfEdgeMesh();
+            }
+            if (CurrentSliceOption == SliceOption::KeepBack)
+            {
+                NewBackMesh = new he::HalfEdgeMesh();
+            }
+
+            if (SliceTargetMesh->Slice(SlicePlane, NewFrontMesh, NewBackMesh, SliceAddCaps))
+            {
+                // Delete the original mesh, add the new meshes to the scene
+                EditorStatePtr->EditorScene.DeleteHalfEdgeMesh(SliceTargetMesh);
+                if (NewFrontMesh)
+                {
+                    EditorStatePtr->EditorScene.AddHalfEdgeMesh(NewFrontMesh);
+                }
+                if (NewBackMesh)
+                {
+                    EditorStatePtr->EditorScene.AddHalfEdgeMesh(NewBackMesh);
+                }
+            }
+            else
+            {
+                if (NewFrontMesh)
+                {
+                    delete NewFrontMesh;
+                }
+                if (NewBackMesh)
+                {
+                    delete NewBackMesh;
+                }
+            }
+
+            UnselectAll();
+
+            SliceTargetMesh = nullptr;
+            CurrentSliceState = SliceState::NotSlicing;
         }
     }
 
@@ -1853,6 +2105,66 @@ void CursorState::UpdateSliceTool()
     {
         CurrentSliceState = SliceState::NotSlicing;
         SliceTargetMesh = nullptr;
+    }
+}
+
+void CursorState::PreviewSlice(he::HalfEdgeMesh* TargetMesh, Plane SlicePlane)
+{
+    GraphicsModule* Graphics = GraphicsModule::Get();
+
+    std::vector<he::PolygonFace> polys;
+
+    he::ConvertHalfEdgeMeshToPolys(*TargetMesh, polys);
+
+    std::vector<he::PolygonFace> frontFaces;
+    std::vector<he::PolygonFace> backFaces;
+
+    for (auto& poly : polys)
+    {
+        he::PolygonFace frontPoly, backPoly;
+        he::SplitPolygonByPlane(poly, SlicePlane, frontPoly, backPoly);
+        if (!frontPoly.Vertices.empty())
+        {
+            frontFaces.push_back(frontPoly);
+        }
+        if (!backPoly.Vertices.empty())
+        {
+            backFaces.push_back(backPoly);
+        }
+    }
+
+    // Preview the slice result by drawing the front faces in one color and the back faces in another color
+    Colour frontFaceColour = MakeColour(0, 255, 0);
+    Colour backFaceColour = MakeColour(0, 255, 0);;
+    switch (CurrentSliceOption)
+    {
+    case SliceOption::KeepBoth:
+        break;
+    case SliceOption::KeepFront:
+        backFaceColour = MakeColour(255, 0, 0);
+        break;
+    case SliceOption::KeepBack:
+        frontFaceColour = MakeColour(255, 0, 0);
+        break;
+    }
+
+    for (auto& poly : frontFaces)
+    {
+        for (int i = 0; i < poly.Vertices.size(); ++i)
+        {
+            Vec3f v0 = poly.Vertices[i];
+            Vec3f v1 = poly.Vertices[(i + 1) % poly.Vertices.size()];
+            Graphics->DebugDrawLine(v0, v1, frontFaceColour);
+        }
+    }
+    for (auto& poly : backFaces)
+    {
+        for (int i = 0; i < poly.Vertices.size(); ++i)
+        {
+            Vec3f v0 = poly.Vertices[i];
+            Vec3f v1 = poly.Vertices[(i + 1) % poly.Vertices.size()];
+            Graphics->DebugDrawLine(v0, v1, backFaceColour);
+        }
     }
 }
 
@@ -2037,6 +2349,33 @@ void CursorState::RotateSelectedTransforms(Quaternion Rotation)
     Vec3f ProxyPos = SelectedProxyTransform.GetPosition();
 
 
+}
+
+RayCastHit CursorState::SceneRayCastWithScenePlane(Ray mouseRay)
+{
+    InputModule* Input = InputModule::Get();
+    CollisionModule* Collisions = CollisionModule::Get();
+
+    RayCastHit PlaneHit = Collisions->RayCast(mouseRay, Plane(Vec3f(0.0f, 0.0f, 0.0f), Vec3f(0.0f, 0.0f, 1.0f)));
+    RayCastHit SceneHit = EditorScenePtr->RayCast(mouseRay).rayCastHit;
+    RayCastHit FinalHit = SceneHit.hit ? SceneHit : PlaneHit;
+
+    if (FinalHit.hit)
+    {
+        Vec3f HitPoint = FinalHit.hitPoint;
+        Vec3f HitNormal = FinalHit.hitNormal;
+        bool xAligned = abs(Math::dot(HitNormal, Vec3f(1.0f, 0.0f, 0.0f))) > 0.99f;
+        bool yAligned = abs(Math::dot(HitNormal, Vec3f(0.0f, 1.0f, 0.0f))) > 0.99f;
+        bool zAligned = abs(Math::dot(HitNormal, Vec3f(0.0f, 0.0f, 1.0f))) > 0.99f;
+        if (xAligned || yAligned || zAligned)
+        {
+            if (!xAligned) HitPoint.x = Math::Round(HitPoint.x, TransSnap);
+            if (!yAligned) HitPoint.y = Math::Round(HitPoint.y, TransSnap);
+            if (!zAligned) HitPoint.z = Math::Round(HitPoint.z, GeoPlaceSnap);
+        }
+        FinalHit.hitPoint = HitPoint;
+    }
+    return FinalHit;
 }
 
 ISelectedObject* CursorState::ClickCastGeneric(Ray mouseRay)

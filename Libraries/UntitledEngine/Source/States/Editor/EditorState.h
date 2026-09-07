@@ -144,10 +144,12 @@ private:
     Texture playButtonTexture;
 
     Texture genericSelectToolTexture;
-    Texture faceSelectToolTexture;
     Texture vertexSelectToolTexture;
+    Texture edgeSelectToolTexture;
+    Texture faceSelectToolTexture;
 
     Texture boxToolTexture;
+    Texture cylinderToolTexture;
     Texture planeToolTexture;
     Texture waterToolTexture;
 
@@ -167,6 +169,7 @@ private:
     Texture cameraEntityTexture;
     Texture brainEntityTexture;
     Texture billboardEntityTexture;
+    Texture decalEntityTexture;
 
     Material WhiteMaterial;
 
@@ -218,6 +221,9 @@ private:
     float EntityCamXAxis = 0.0f;
     float EntityCamYAxis = 0.0f;
 
+    bool EntityCamMoving = false;
+
+    bool LightEnabled = true;
     bool UseStaticLight = false;
 
     Scene EntityEditorScene;

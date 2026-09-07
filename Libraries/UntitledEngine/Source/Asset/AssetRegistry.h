@@ -1,19 +1,15 @@
 #pragma once
 
+#include "Asset.h"
+#include "Graphics/HotspotTexture.h"
+#include "Platform/RendererPlatform.h"
+#include "Utils/FilePath.h"
+
 #include <string>
 #include <unordered_map>
-#include "Utils/FilePath.h"
-#include "Platform/RendererPlatform.h"
 
 class GraphicsModule;
 
-class Asset
-{
-public:
-    FilePath Path;
-    bool LoadedFromFile = false;
-    bool Loaded = false;
-};
 
 class Texture : public Asset
 {
@@ -52,6 +48,7 @@ public:
     }
 };
 
+
 class AssetRegistry
 {
 public:
@@ -64,6 +61,7 @@ public:
 
     Texture* LoadTexture(FilePath Path, bool LazyLoad = false);
     StaticMesh* LoadStaticMesh(FilePath Path);
+    HotspotTexture* LoadHotspotTexture(FilePath Path);
 
     Texture_ID DefaultTexture;
 
@@ -73,6 +71,7 @@ private:
 
     std::unordered_map<std::string, Texture*> m_LoadedTextures;
     std::unordered_map<std::string, StaticMesh> m_LoadedStaticMeshes;
+    std::unordered_map<std::string, HotspotTexture> m_LoadedHotspotTextures;
 
     GraphicsModule* m_GraphicsModule;
 

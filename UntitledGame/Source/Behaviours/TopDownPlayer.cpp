@@ -25,8 +25,8 @@ void TopDownPlayer::Update(Scene* Scene, double DeltaTime)
     if (!Started)
     {
         AssetRegistry* Registry = AssetRegistry::Get();
-        GhostModelPrototype = Graphics.CreateModel(*Registry->LoadStaticMesh("Assets/models/Ghost.obj"), Graphics.CreateMaterial(Registry->LoadTexture("Assets/textures/Ghost.png")));
-        BulletModelPrototype = Graphics.CreateModel(*Registry->LoadStaticMesh("Assets/models/Buckyball.obj"), Graphics.CreateMaterial(Registry->LoadTexture("Assets/textures/transpink.png")));
+        GhostModelPrototype = Graphics.CreateModel(Scene, *Registry->LoadStaticMesh("Assets/models/Ghost.obj"), Graphics.CreateMaterial(Registry->LoadTexture("Assets/textures/Ghost.png")));
+        BulletModelPrototype = Graphics.CreateModel(Scene, *Registry->LoadStaticMesh("Assets/models/Buckyball.obj"), Graphics.CreateMaterial(Registry->LoadTexture("Assets/textures/transpink.png")));
 
         Started = true;
     }
@@ -37,7 +37,7 @@ void TopDownPlayer::Update(Scene* Scene, double DeltaTime)
     {
         GhostSpawnTimer += GhostSpawnPeriod;
 
-        Model* NewGhostModel = new Model(Graphics.CloneModel(GhostModelPrototype));
+        Model* NewGhostModel = Scene->AddModel(GhostModelPrototype);
 
         float Angle = Math::RandomFloat(0.0f, Deg2Rad(360.0f));
         Vec2f NewGhostPos2D = Vec2f(sin(Angle) * 60.0f, cos(Angle) * 60.0f);
@@ -46,14 +46,12 @@ void TopDownPlayer::Update(Scene* Scene, double DeltaTime)
 
         NewGhostModel->GetTransform().SetScale(Vec3f(0.5f, 0.5f, 0.5f));
 
-        Model* What = Scene->AddModel(NewGhostModel);
-
-        Ghost* GhostBehaviour = static_cast<Ghost*>(BehaviourRegistry::Get()->AttachNewBehaviour("Ghost", What));
+        Ghost* GhostBehaviour = static_cast<Ghost*>(BehaviourRegistry::Get()->AttachNewBehaviour("Ghost", NewGhostModel));
 
         GhostBehaviour->GhostSpeed = Math::RandomFloat(3.0f, 6.0f);
         GhostBehaviour->SetTarget(m_Model);
 
-        What->m_Name = "Ghost";
+        NewGhostModel->m_Name = "Ghost";
 
         GhostCount++;
 
@@ -202,7 +200,7 @@ void TopDownPlayer::Update(Scene* Scene, double DeltaTime)
         {
             BulletShootTimer += BulletShootPeriod;
 
-            Model* NewBulletModel = new Model(Graphics.CloneModel(BulletModelPrototype));
+            Model* NewBulletModel = Scene->AddModel(BulletModelPrototype);
 
             Vec3f MyPos = m_Model->GetTransform().GetPosition();
             MyPos.z += 2.5f;
@@ -210,9 +208,7 @@ void TopDownPlayer::Update(Scene* Scene, double DeltaTime)
             NewBulletModel->GetTransform().SetPosition(MyPos + (LastDir * 1.5f));
             NewBulletModel->GetTransform().SetScale(Vec3f(0.5f, 0.5f, 0.5f));
 
-            Model* What = Scene->AddModel(NewBulletModel);
-
-            TopDownBullet* BulletBehaviour = static_cast<TopDownBullet*>(BehaviourRegistry::Get()->AttachNewBehaviour("TopDownBullet", What));
+            TopDownBullet* BulletBehaviour = static_cast<TopDownBullet*>(BehaviourRegistry::Get()->AttachNewBehaviour("TopDownBullet", NewBulletModel));
 
             BulletBehaviour->Direction = LastDir;
         }

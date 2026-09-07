@@ -16,7 +16,6 @@ static HWND WindowHandle;
 static HINSTANCE Instance;
 static ModuleManager Modules;
 
-static Vec2i cursorCenter;
 static bool cursorLocked = false;
 static bool cursorHidden = false;
 
@@ -24,6 +23,11 @@ static bool inFocus = false;
 
 static int64_t TICKS_PER_SECOND;
 static int64_t LAST_FRAME_TICK_COUNT;
+
+static UINT RawInputBufferSize = 64 * sizeof(RAWINPUT);
+static void* RawInputBuffer = nullptr;
+
+static Vec2i CursorResetPos = Vec2i(0, 0);
 
 // Convert a wide Unicode string to an UTF8 string
 std::string utf8_encode(const std::wstring& wstr)
@@ -126,14 +130,10 @@ void Engine::FatalError(std::string errorMessage)
     exit(EXIT_FAILURE);
 }
 
-void Engine::SetCursorCenter(Vec2i center)
-{
-    cursorCenter = center;
-}
-
 void Engine::LockCursor()
 {
     cursorLocked = true;
+    CursorResetPos = GetMousePosition();
 }
 
 void Engine::UnlockCursor()
@@ -414,11 +414,6 @@ void Engine::SetWindowTitleText(std::string Text)
     SetWindowTextA(WindowHandle, Text.c_str());
 }
 
-void WarpMouseToWindowCenter()
-{
-    Engine::SetMousePosition(cursorCenter);
-}
-
 void GetKeyboardState(InputModule& inputs)
 {
     inputs.SetKeyDown(Key::A, GetAsyncKeyState('A'));
@@ -481,6 +476,8 @@ void GetKeyboardState(InputModule& inputs)
     inputs.GetMouseState().SetMouseButtonDown(MouseButton::LMB, GetAsyncKeyState(VK_LBUTTON));
     inputs.GetMouseState().SetMouseButtonDown(MouseButton::RMB, GetAsyncKeyState(VK_RBUTTON));
     inputs.GetMouseState().SetMouseButtonDown(MouseButton::MIDDLE, GetAsyncKeyState(VK_MBUTTON));
+    inputs.GetMouseState().SetMouseButtonDown(MouseButton::BACK, GetAsyncKeyState(VK_XBUTTON1));
+    inputs.GetMouseState().SetMouseButtonDown(MouseButton::FORWARD, GetAsyncKeyState(VK_XBUTTON2));
 }
 
 void GetControllerState(InputModule& inputs)
@@ -677,10 +674,33 @@ LRESULT CALLBACK WindowProc(_In_ HWND WindowHandle, _In_ UINT Message, _In_ WPAR
         return DefWindowProc(WindowHandle, Message, wParam, lParam);
     case WM_SETFOCUS:
         inFocus = true;
-        
         break;
     case WM_KILLFOCUS:
         inFocus = false;
+        break;
+    case WM_INPUT:
+        if (cursorLocked)
+        {
+            for (;;)
+            {
+                UINT dwSize = RawInputBufferSize;
+                GetRawInputData((HRAWINPUT)lParam, RID_INPUT, RawInputBuffer, &dwSize, sizeof(RAWINPUTHEADER));
+                RAWINPUT* raw = (RAWINPUT*)RawInputBuffer;
+                if (raw->header.dwType == RIM_TYPEMOUSE)
+                {
+                    if (modules->AreAllModulesInitialized())
+                    {
+                        InputModule* input = modules->GetInput();
+                        input->GetMouseState().SetDeltaPos(Vec2i(raw->data.mouse.lLastX, raw->data.mouse.lLastY));
+                    }
+                }
+                // Check if there are more raw input messages in the queue
+                if (GetRawInputData((HRAWINPUT)lParam, RID_INPUT, NULL, &dwSize, sizeof(RAWINPUTHEADER)) == 0)
+                {
+                    break; // No more messages to process
+                }
+            }
+        }
         break;
     default:
         return DefWindowProc(WindowHandle, Message, wParam, lParam);
@@ -765,6 +785,21 @@ int WinMain(_In_ HINSTANCE InInstance, _In_opt_ HINSTANCE InPreviousInstance, _I
         }
     }
 
+    // Set up raw input
+    // Just register mouse for now
+    RAWINPUTDEVICE Rid[1];
+    Rid[0].usUsagePage = 0x01; // HID_USAGE_PAGE_GENERIC
+    Rid[0].usUsage = 0x02;     // HID_USAGE_GENERIC_MOUSE
+    Rid[0].dwFlags = 0;
+    Rid[0].hwndTarget = WindowHandle;
+
+    if (!RegisterRawInputDevices(Rid, 1, sizeof(Rid[0])))
+    {
+        Engine::FatalError("Failed to register raw input device.");
+    }
+
+    RawInputBuffer = malloc(RawInputBufferSize);
+
     // Set up modules
     Renderer renderer;
     NetworkInterface networkInterface;
@@ -790,8 +825,6 @@ int WinMain(_In_ HINSTANCE InInstance, _In_opt_ HINSTANCE InPreviousInstance, _I
     Modules.SetNetwork(&Network);
 
     Vec2i screenSize = Engine::GetClientAreaSize();
-    cursorCenter.x = screenSize.x / 2;
-    cursorCenter.y = screenSize.y / 2;
 
     std::string args = CommandLine;
 
@@ -800,6 +833,15 @@ int WinMain(_In_ HINSTANCE InInstance, _In_opt_ HINSTANCE InPreviousInstance, _I
 
     while (running)
     {
+        // Pre-message queue processing
+        if (cursorLocked)
+        {
+            Input.GetMouseState().ClearDeltaMousePos();
+
+            // Lock the cursor to the reset position
+            Engine::SetMousePosition(CursorResetPos);
+        }
+
         MSG Message = {};
         while (PeekMessage(&Message, WindowHandle, 0, 0, PM_REMOVE))
         {
@@ -807,19 +849,15 @@ int WinMain(_In_ HINSTANCE InInstance, _In_opt_ HINSTANCE InPreviousInstance, _I
             DispatchMessage(&Message);
         }
 
-
         if (Engine::IsWindowFocused())
         {
-            Input.UpdateMousePos(Engine::GetMousePosition());
-            Input.SetMouseLocked(cursorLocked);
+            if (!cursorLocked)
+            {
+                Input.UpdateMousePos(Engine::GetMousePosition());
+            }
 
             GetKeyboardState(Input);
             GetControllerState(Input);
-
-            if (cursorLocked)
-            {
-                WarpMouseToWindowCenter();
-            }
         }
         else
         {

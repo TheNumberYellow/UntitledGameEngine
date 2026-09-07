@@ -10,9 +10,6 @@ void ClientGameState::OnInitialized(ArgsList args)
     ViewportBuffer = graphics->CreateGBuffer(Engine::GetClientAreaSize());
     graphics->InitializeDebugDraw(ViewportBuffer.FinalOutput);
 
-    Rect ViewportRect = GetViewportRect();
-    Input->SetMouseCenter(ViewportRect.Center());
-
     TestFont = TextModule::Get()->LoadFont("Assets/fonts/ARLRDBD.TTF", 30);
 }
 
@@ -139,7 +136,6 @@ void ClientGameState::OnResize()
 
         ViewportCamera->SetScreenSize(ViewportRect.size);
         Graphics->ResizeGBuffer(ViewportBuffer, ViewportRect.size);
-        Input->SetMouseCenter(ViewportRect.Center());
     }
 }
 
@@ -287,7 +283,7 @@ void ClientGameState::ProcessPacketData(const std::string& data)
 
             if (PacketData.contains("TextureO"))
             {
-                Model NewModel = Graphics->CreateModel(
+                Model* NewModel = CurrentScene.AddModel(
                     *Registry->LoadStaticMesh(PacketData["Mesh"].get<std::string>()),
                     Graphics->CreateMaterial(
                         Registry->LoadTexture(PacketData["TextureA"].get<std::string>()),
@@ -296,12 +292,10 @@ void ClientGameState::ProcessPacketData(const std::string& data)
                         Registry->LoadTexture(PacketData["TextureM"].get<std::string>()),
                         Registry->LoadTexture(PacketData["TextureO"].get<std::string>())
                     ));
-
-                CurrentScene.AddModel(new Model(NewModel));
             }
             else if (PacketData.contains("TextureM"))
             {
-                Model NewModel = Graphics->CreateModel(
+                Model* NewModel = CurrentScene.AddModel(
                     *Registry->LoadStaticMesh(PacketData["Mesh"].get<std::string>()), 
                     Graphics->CreateMaterial(
                         Registry->LoadTexture(PacketData["TextureA"].get<std::string>()),
@@ -310,40 +304,33 @@ void ClientGameState::ProcessPacketData(const std::string& data)
                         Registry->LoadTexture(PacketData["TextureM"].get<std::string>())
                     ));
 
-                CurrentScene.AddModel(new Model(NewModel));
             }
             else if (PacketData.contains("TextureR"))
             {
-                Model NewModel = Graphics->CreateModel(
+                Model* NewModel = CurrentScene.AddModel(
                     *Registry->LoadStaticMesh(PacketData["Mesh"].get<std::string>()), 
                     Graphics->CreateMaterial(
                         Registry->LoadTexture(PacketData["TextureA"].get<std::string>()),
                         Registry->LoadTexture(PacketData["TextureN"].get<std::string>()),
                         Registry->LoadTexture(PacketData["TextureR"].get<std::string>())
                     ));
-
-                CurrentScene.AddModel(new Model(NewModel));
             }
             else if (PacketData.contains("TextureN"))
             {
-                Model NewModel = Graphics->CreateModel(
+                Model* NewModel = CurrentScene.AddModel(
                     *Registry->LoadStaticMesh(PacketData["Mesh"].get<std::string>()), 
                     Graphics->CreateMaterial(
                         Registry->LoadTexture(PacketData["TextureA"].get<std::string>()),
                         Registry->LoadTexture(PacketData["TextureN"].get<std::string>())
                     ));
-
-                CurrentScene.AddModel(new Model(NewModel));
             }
             else
             {
-                Model NewModel = Graphics->CreateModel(
+                Model* NewModel = CurrentScene.AddModel(
                     *Registry->LoadStaticMesh(PacketData["Mesh"].get<std::string>()), 
                     Graphics->CreateMaterial(
                         Registry->LoadTexture(PacketData["TextureA"].get<std::string>())
                     ));
-
-                CurrentScene.AddModel(new Model(NewModel));
             }
         }
         if (typeStr == "RTL" && InScene)

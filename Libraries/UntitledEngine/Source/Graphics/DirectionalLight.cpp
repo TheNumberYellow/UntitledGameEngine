@@ -3,7 +3,7 @@
 #include "Modules/GraphicsModule.h"
 #include "Modules/UIModule.h"
 
-#include "Scene.h"
+#include "Scene/Scene.h"
 
 SelectedDirectionalLight::SelectedDirectionalLight(DirectionalLight* InDirLight)
 {

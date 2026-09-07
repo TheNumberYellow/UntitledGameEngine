@@ -1,6 +1,7 @@
 #include "Scene.h"
 
 #include "Behaviour/Behaviour.h"
+#include "Graphics/HotspotTexture.h"
 #include "HalfEdge/HalfEdge.h"
 
 #include <iostream>
@@ -22,6 +23,7 @@ StaticMesh* Scene::DirectionalLightMesh = nullptr;
 Material* Scene::DirectionalLightMaterial = nullptr;
 StaticMesh* Scene::SpotLightMesh = nullptr;
 Material* Scene::SpotLightMaterial = nullptr;
+Texture* Scene::DecalBillboardTexture = nullptr;
 
 #endif
 
@@ -72,6 +74,10 @@ Scene::Scene()
     {
         SpotLightMaterial = new Material(Graphics->CreateMaterial((Registry->LoadTexture("Assets/textures/whiteTexture.png"))));
     }
+    if (!DecalBillboardTexture)
+    {
+        DecalBillboardTexture = Registry->LoadTexture("Assets/images/decalTool.png");
+    }
 #endif
 
 }
@@ -119,17 +125,28 @@ bool Scene::IsPaused()
     return m_Paused;
 }
 
-Model* Scene::AddModel(Model* model)
+Model* Scene::AddModel()
 {
-    uGUID newModelID = m_ModelIDGenerator.Generate();
+    return AddModelInternal(new Model(this));
+}
 
-    m_Models[newModelID] = model;
+Model* Scene::AddModel(Model& model)
+{
+    Model* newModel = AddModelInternal(new Model(this, model.m_StaticMesh, model.m_Material));
+    newModel->SetTransform(model.GetTransform());
+    newModel->SetType(model.Type);
 
-#ifdef USE_EDITOR
-    m_GenericEditorClickables.push_back(model);
-#endif
+    return newModel;
+}
 
-    return m_Models[newModelID];
+Model* Scene::AddModel(StaticMesh inStaticMesh, Material inMaterial)
+{
+    return AddModelInternal(new Model(this, inStaticMesh, inMaterial));
+}
+
+Model* Scene::AddModel(std::vector<float>& vertices, std::vector<uint32_t>& indices, Material inMaterial)
+{
+    return AddModelInternal(new Model(this, GraphicsModule::Get()->CreateStaticMesh(vertices, indices), inMaterial));
 }
 
 Model* Scene::GetModelByTag(std::string tag)
@@ -157,15 +174,27 @@ std::vector<Model*> Scene::GetModelsByTag(std::string tag)
     return result;
 }
 
-PointLight* Scene::AddPointLight(PointLight newLight)
+PointLight* Scene::AddPointLight()
 {
-    PointLight* newLightPtr = new PointLight(newLight);
+    PointLight* newLightPtr = new PointLight(this);
     m_PointLights.push_back(newLightPtr);
 
 #ifdef USE_EDITOR
     m_GenericEditorClickables.push_back(newLightPtr);
 #endif
     
+    return m_PointLights.back();
+}
+
+PointLight* Scene::AddPointLight(PointLight& light)
+{
+    PointLight* newLightPtr = new PointLight(light);
+    m_PointLights.push_back(newLightPtr);
+
+#ifdef USE_EDITOR
+    m_GenericEditorClickables.push_back(newLightPtr);
+#endif
+
     return m_PointLights.back();
 }
 
@@ -277,6 +306,33 @@ void Scene::DeleteHalfEdgeMesh(he::HalfEdgeMesh* mesh)
     }
 }
 
+Decal* Scene::AddDecal(Decal newDecal)
+{
+    Decal* newDecalPtr = new Decal(newDecal);
+    m_Decals.push_back(newDecalPtr);
+#ifdef USE_EDITOR
+    m_GenericEditorClickables.push_back(newDecalPtr);
+#endif
+    return m_Decals.back();
+}
+
+void Scene::DeleteDecal(Decal* decal)
+{
+#ifdef USE_EDITOR
+    auto clickableIt = std::find(m_GenericEditorClickables.begin(), m_GenericEditorClickables.end(), decal);
+    if (clickableIt != m_GenericEditorClickables.end())
+    {
+        m_GenericEditorClickables.erase(clickableIt);
+    }
+#endif
+    auto it = std::find(m_Decals.begin(), m_Decals.end(), decal);
+    if (it != m_Decals.end())
+    {
+        m_Decals.erase(it);
+        delete decal;
+    }
+}
+
 #ifdef USE_EDITOR
 std::vector<IEditorClickable*>& Scene::GetGenericEditorClickables()
 {
@@ -384,21 +440,9 @@ void Scene::Draw(GraphicsModule& graphics, GBuffer gBuffer, size_t camIndex)
 }
 
 #ifdef USE_EDITOR
-void Scene::EditorDraw(GraphicsModule& graphics, GBuffer gBuffer, Camera* editorCam, bool drawSceneCam, bool debugDrawHEMeshes)
+void Scene::EditorDraw(GraphicsModule& graphics, GBuffer gBuffer, Camera* editorCam, bool drawSceneCam)
 {
-    if (InputModule::Get()->GetKeyState(Key::C).justPressed)
-    {
-        debugDrawHEMeshes = !debugDrawHEMeshes;
-    }
-
     PushSceneRenderCommandsInternal(graphics);
-    if (debugDrawHEMeshes)
-    {
-        for (auto& heMesh : m_HEMeshes)
-        {
-            heMesh->EditorDraw();
-        }
-    }
     
     assert(editorCam);
     for (PointLight* Light : m_PointLights)
@@ -413,7 +457,6 @@ void Scene::EditorDraw(GraphicsModule& graphics, GBuffer gBuffer, Camera* editor
     }
     for (DirectionalLight* Light : m_DirectionalLights)
     {
-
         StaticMeshRenderCommand RenderCommand;
         RenderCommand.m_Mesh = DirectionalLightMesh->Id;
         RenderCommand.m_Material = *DirectionalLightMaterial;
@@ -446,7 +489,16 @@ void Scene::EditorDraw(GraphicsModule& graphics, GBuffer gBuffer, Camera* editor
 
         graphics.AddRenderCommand(RenderCommand);
     }
+    for (Decal* decal : m_Decals)
+    {
+        BillboardRenderCommand BillboardRC;
+        BillboardRC.m_Colour = Vec3f(1.0f, 1.0f, 1.0f);
+        BillboardRC.m_Position = Vec3f(decal->orientation.m_Rows[3].x, decal->orientation.m_Rows[3].y, decal->orientation.m_Rows[3].z);
+        BillboardRC.m_Texture = DecalBillboardTexture->GetID();
+        BillboardRC.m_Size = 0.5f;
 
+        graphics.AddRenderCommand(BillboardRC);
+    }
     if (drawSceneCam)
     {
         for (Camera& Cam : m_Cameras)
@@ -780,7 +832,7 @@ void Scene::Load(std::string FileName)
     }
     for (json& PointLightJson : PointLightsJson)
     {
-        AddPointLight(LoadPointLight(PointLightJson));
+        LoadPointLight(PointLightJson);
     }
     for (json& DirLightJson : DirLightsJson)
     {
@@ -795,11 +847,11 @@ void Scene::Load(std::string FileName)
         Model* AddedModel;
         if (ModelJson.contains("Buffer"))
         {
-            AddedModel = AddModel(LoadRawModel(ModelJson, MaterialVec));
+            AddedModel = LoadRawModel(ModelJson, MaterialVec);
         }
         else
         {
-            AddedModel = AddModel(LoadModel(ModelJson, MaterialVec, StaticMeshVec));
+            AddedModel = LoadModel(ModelJson, MaterialVec, StaticMeshVec);
         }
     }
     for (json& HEMeshJson : HEMeshesJson)
@@ -904,12 +956,12 @@ void Scene::LegacyLoad(std::string FileName)
                 BoxAABB.min.x = std::stof(LineTokens[At++]); BoxAABB.min.y = std::stof(LineTokens[At++]); BoxAABB.min.z = std::stof(LineTokens[At++]);
                 BoxAABB.max.x = std::stof(LineTokens[At++]); BoxAABB.max.y = std::stof(LineTokens[At++]); BoxAABB.max.z = std::stof(LineTokens[At++]);
 
-                NewModel = new Model(Graphics->CreateBoxModel(BoxAABB, SceneMaterials[MaterialIndex]));
+                NewModel = new Model(Graphics->CreateBoxModel(this, BoxAABB, SceneMaterials[MaterialIndex]));
             }
             else
             {
                 int StaticMeshIndex = std::stoi(LineTokens[1]);
-                NewModel = new Model(Graphics->CreateModel(SceneStaticMeshes[StaticMeshIndex], SceneMaterials[MaterialIndex]));
+                NewModel = new Model(Graphics->CreateModel(this, SceneStaticMeshes[StaticMeshIndex], SceneMaterials[MaterialIndex]));
             }
 
             Mat4x4f EntityTransform;
@@ -979,6 +1031,17 @@ void Scene::Clear()
     m_Cameras.push_back(Camera());
 }
 
+Model* Scene::AddModelInternal(Model* model)
+{
+    uGUID newModelID = m_ModelIDGenerator.Generate();
+    m_Models[newModelID] = model;
+
+#ifdef USE_EDITOR
+    m_GenericEditorClickables.push_back(model);
+#endif
+    return model;
+}
+
 void Scene::CopyInternal(const Scene& other)
 {
     Clear();
@@ -988,9 +1051,7 @@ void Scene::CopyInternal(const Scene& other)
 
     for (auto it : other.m_Models)
     {
-        Model* newModel = new Model(*it.second);
-        AddModel(newModel);
-
+        Model* newModel = AddModel(*it.second);
 
         Behaviour* oldBehaviour = BehaviourRegistry::Get()->GetBehaviourAttachedToEntity(it.second);
         if (oldBehaviour)
@@ -1040,7 +1101,7 @@ void Scene::PushSceneRenderCommandsInternal(GraphicsModule& graphics)
     {
         if (heMesh->m_RepModelsNeedUpdate)
         {
-            graphics.UpdateHEMeshModel(heMesh);
+            graphics.UpdateHEMeshModel(this, heMesh);
             heMesh->m_RepModelsNeedUpdate = false;
         }
 
@@ -1071,9 +1132,7 @@ void Scene::PushSceneRenderCommandsInternal(GraphicsModule& graphics)
         LightRC.m_Position = Light->position;
         LightRC.m_Intensity = Light->intensity;
 
-        LightRC.m_ConstantAttenuation = Light->constantAttenuation;
-        LightRC.m_LinearAttenuation = Light->linearAttenuation;
-        LightRC.m_QuadraticAttenuation = Light->quadraticAttenuation;
+        LightRC.m_Radius = Light->radius;
 
         LightRC.m_CastShadows = Light->castShadows;
 
@@ -1088,9 +1147,7 @@ void Scene::PushSceneRenderCommandsInternal(GraphicsModule& graphics)
         
         SLightRC.m_Intensity = SLight->intensity;
         
-        SLightRC.m_ConstantAttenuation = SLight->constantAttenuation;
-        SLightRC.m_LinearAttenuation = SLight->linearAttenuation;
-        SLightRC.m_QuadraticAttenuation = SLight->quadraticAttenuation;
+        SLightRC.m_Range = SLight->range;
 
         SLightRC.m_InnerAngle = SLight->innerAngle;
         SLightRC.m_OuterAngle = SLight->outerAngle;
@@ -1151,6 +1208,7 @@ void Scene::SavePointLight(json& JsonObject, PointLight& PointLight)
     JsonObject["Position"] = { PointLight.position.x, PointLight.position.y, PointLight.position.z };
     JsonObject["Colour"] = { PointLight.colour.x, PointLight.colour.y, PointLight.colour.z };
     JsonObject["Intensity"] = PointLight.intensity;
+    JsonObject["Radius"] = PointLight.radius;
 }
 
 void Scene::SaveDirectionalLight(json& JsonObject, DirectionalLight& DirLight)
@@ -1166,9 +1224,7 @@ void Scene::SaveSpotLight(json& JsonObject, SpotLight& SpotLight)
     JsonObject["Direction"] = { SpotLight.direction.x, SpotLight.direction.y, SpotLight.direction.z };
     JsonObject["Colour"] = { SpotLight.colour.x, SpotLight.colour.y, SpotLight.colour.z };
     JsonObject["Intensity"] = SpotLight.intensity;
-    JsonObject["ConstantAttenuation"] = SpotLight.constantAttenuation;
-    JsonObject["LinearAttenuation"] = SpotLight.linearAttenuation;
-    JsonObject["QuadraticAttenuation"] = SpotLight.quadraticAttenuation;
+    JsonObject["Range"] = SpotLight.range;
     JsonObject["InnerAngle"] = SpotLight.innerAngle;
     JsonObject["OuterAngle"] = SpotLight.outerAngle;
 }
@@ -1258,15 +1314,23 @@ void Scene::SaveHEMesh(json& JsonObject, he::HalfEdgeMesh* HeMesh, std::vector<M
 
         FaceJson["R"] = face->textureRot;
 
-        FaceJson["OverrideUV"] = face->useUVOverride;
-        if (face->useUVOverride)
+
+        if (face->appliedHotspotTexture)
         {
-            for (Vec2f& UV : face->uvOverrides)
+            FaceJson["HotspotTex"] = face->appliedHotspotTexture->m_Path.GetRelativePath();
+        }
+        else
+        {        
+            // Soon to be deprecated
+            FaceJson["OverrideUV"] = face->useUVOverride;
+            if (face->useUVOverride)
             {
-                FaceJson["UVOverride"].push_back({ UV.x, UV.y });
+                for (Vec2f& UV : face->uvOverrides)
+                {
+                    FaceJson["UVOverride"].push_back({ UV.x, UV.y });
+                }
             }
         }
-
 
         int64_t HEIndex = 0;
 
@@ -1404,8 +1468,10 @@ StaticMesh Scene::LoadStaticMesh(json& JsonObject)
     return *AssetRegistry::Get()->LoadStaticMesh(path);
 }
 
-PointLight Scene::LoadPointLight(json& JsonObject)
+PointLight* Scene::LoadPointLight(json& JsonObject)
 {
+    PointLight* NewPointLight = AddPointLight();
+
     auto Pos = JsonObject["Position"];
     auto Colour = JsonObject["Colour"];
 
@@ -1414,12 +1480,14 @@ PointLight Scene::LoadPointLight(json& JsonObject)
     
     float Intensity = JsonObject["Intensity"];
 
-    PointLight PLight;
-    PLight.position = VecPos;
-    PLight.colour = VecColour;
-    PLight.intensity = Intensity;
+    float Radius = JsonObject.contains("Radius") ? JsonObject["Radius"].get<float>() : 5.0f;
 
-    return PLight;
+    NewPointLight->position = VecPos;
+    NewPointLight->colour = VecColour;
+    NewPointLight->intensity = Intensity;
+    NewPointLight->radius = Radius;
+
+    return NewPointLight;
 }
 
 DirectionalLight Scene::LoadDirectionalLight(json& JsonObject)
@@ -1456,9 +1524,6 @@ SpotLight Scene::LoadSpotLight(json& JsonObject)
     Vec3f VecDir = Vec3f(Dir[0], Dir[1], Dir[2]);
     Vec3f VecColour = Vec3f(Clr[0], Clr[1], Clr[2]);
     float Intensity = JsonObject["Intensity"];
-    float ConstantAttenuation = JsonObject["ConstantAttenuation"];
-    float LinearAttenuation = JsonObject["LinearAttenuation"];
-    float QuadraticAttenuation = JsonObject["QuadraticAttenuation"];
     float InnerAngle = JsonObject["InnerAngle"];
     float OuterAngle = JsonObject["OuterAngle"];
     SpotLight SLight;
@@ -1466,9 +1531,7 @@ SpotLight Scene::LoadSpotLight(json& JsonObject)
     SLight.direction = VecDir;
     SLight.colour = VecColour;
     SLight.intensity = Intensity;
-    SLight.constantAttenuation = ConstantAttenuation;
-    SLight.linearAttenuation = LinearAttenuation;
-    SLight.quadraticAttenuation = QuadraticAttenuation;
+    SLight.range = JsonObject.contains("Range") ? JsonObject["Range"].get<float>() : 10.0f;
     SLight.innerAngle = InnerAngle;
     SLight.outerAngle = OuterAngle;
     return SLight;
@@ -1476,8 +1539,11 @@ SpotLight Scene::LoadSpotLight(json& JsonObject)
 
 Model* Scene::LoadModel(json& JsonObject, std::vector<Material>& MaterialVector, std::vector<StaticMesh>& StaticMeshVector)
 {
+
     Material ModelMat = MaterialVector[JsonObject["MatID"]];
     StaticMesh ModelMesh = StaticMeshVector[JsonObject["MeshID"]];
+    
+    Model* NewModel = AddModel(ModelMesh, ModelMat);
 
     auto Trans = JsonObject["Transform"];
 
@@ -1487,7 +1553,6 @@ Model* Scene::LoadModel(json& JsonObject, std::vector<Material>& MaterialVector,
     TransMat[2] = { Trans[8], Trans[9], Trans[10], Trans[11] };
     TransMat[3] = { Trans[12], Trans[13], Trans[14], Trans[15] };
 
-    Model* NewModel = new Model(ModelMesh, ModelMat);
     NewModel->GetTransform().SetTransformMatrix(TransMat);
 
     for (std::string Behaviour : JsonObject["Behaviours"])
@@ -1506,8 +1571,11 @@ Model* Scene::LoadModel(json& JsonObject, std::vector<Material>& MaterialVector,
 Model* Scene::LoadRawModel(json& JsonObject, std::vector<Material>& MaterialVector)
 {
     Material ModelMat = MaterialVector[JsonObject["MatID"]];
+    
     std::vector<float> MeshBuffer = JsonObject["Buffer"][0];
     std::vector<unsigned int> IndexBuffer = JsonObject["Buffer"][1];
+
+    Model* NewModel = AddModel(MeshBuffer, IndexBuffer, ModelMat);
 
     auto Trans = JsonObject["Transform"];
 
@@ -1516,11 +1584,7 @@ Model* Scene::LoadRawModel(json& JsonObject, std::vector<Material>& MaterialVect
     TransMat[1] = { Trans[4], Trans[5], Trans[6], Trans[7] };
     TransMat[2] = { Trans[8], Trans[9], Trans[10], Trans[11] };
     TransMat[3] = { Trans[12], Trans[13], Trans[14], Trans[15] };
-
-    GraphicsModule* Graphics = GraphicsModule::Get();
-
-    Model* NewModel = new Model(Graphics->LoadModel(MeshBuffer, IndexBuffer, ModelMat));
-
+   
     NewModel->GetTransform().SetTransformMatrix(TransMat);
 
     for (std::string Behaviour : JsonObject["Behaviours"])
@@ -1557,13 +1621,25 @@ he::HalfEdgeMesh* Scene::LoadHEMesh(json& JsonObject, std::vector<Material>& Mat
             newFace->flipFace = FaceJson["Flip"];
         }
 
-        if (FaceJson.contains("OverrideUV") && FaceJson["OverrideUV"])
+        if (FaceJson.contains("HotspotTex") && FaceJson["HotspotTex"] != "")
         {
-            for (json& UVJson : FaceJson["UVOverride"])
+            std::string HotspotPath = FaceJson["HotspotTex"];
+            if (HotspotPath.find("Assets") == std::string::npos) HotspotPath = "Assets/" + HotspotPath;
+            newFace->appliedHotspotTexture = AssetRegistry::Get()->LoadHotspotTexture(HotspotPath);
+        
+            //newFace->ApplyHotspotTexture(*newFace->appliedHotspotTexture);
+        }
+        else
+        {
+            // Soon to be deprecated
+            if (FaceJson.contains("OverrideUV") && FaceJson["OverrideUV"])
             {
-                newFace->uvOverrides.push_back(Vec2f(UVJson[0], UVJson[1]));
+                for (json& UVJson : FaceJson["UVOverride"])
+                {
+                    newFace->uvOverrides.push_back(Vec2f(UVJson[0], UVJson[1]));
+                }
+                newFace->useUVOverride = true;
             }
-            newFace->useUVOverride = true;
         }
 
         NewHEMesh->m_Faces.push_back(newFace);
@@ -1614,6 +1690,14 @@ he::HalfEdgeMesh* Scene::LoadHEMesh(json& JsonObject, std::vector<Material>& Mat
         NewHEMesh->m_Verts[index]->halfEdge = NewHEMesh->m_HalfEdges[VertexJson["HE"]];
 
         index++;
+    }
+
+    for (he::Face* face : NewHEMesh->m_Faces)
+    {
+        if (face->appliedHotspotTexture != nullptr)
+        {
+            face->ApplyHotspotTexture(*face->appliedHotspotTexture);
+        }
     }
 
     return NewHEMesh;

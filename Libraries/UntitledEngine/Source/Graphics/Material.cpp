@@ -1,5 +1,8 @@
 #include "Material.h"
 
+#include "Asset/AssetRegistry.h"
+
+
 void Material::Save(json& JsonObject)
 {
     JsonObject[0] = m_Albedo->Path.GetRelativePath();
@@ -30,5 +33,34 @@ Material Material::Load(json& JsonObject)
     Texture* AO = AssetRegistry::Get()->LoadTexture(aoPath);
 
     return Material(Albedo, Normal, Roughness, Metallic, AO);
+}
+
+bool operator<(const Material& lhs, const Material& rhs)
+{
+    size_t lhsTotal = 0;
+    size_t rhsTotal = 0;
+
+    lhsTotal = lhs.m_Albedo->GetID() +
+        lhs.m_Normal->GetID() +
+        lhs.m_Metallic->GetID() +
+        lhs.m_Roughness->GetID() +
+        lhs.m_AO->GetID();
+
+    rhsTotal = rhs.m_Albedo->GetID() +
+        rhs.m_Normal->GetID() +
+        rhs.m_Metallic->GetID() +
+        rhs.m_Roughness->GetID() +
+        rhs.m_AO->GetID();
+
+    return lhsTotal < rhsTotal;
+}
+
+bool operator==(const Material& lhs, const Material& rhs)
+{
+    return lhs.m_Albedo->GetID() == rhs.m_Albedo->GetID()
+        && lhs.m_Normal->GetID() == rhs.m_Normal->GetID()
+        && lhs.m_Metallic->GetID() == rhs.m_Metallic->GetID()
+        && lhs.m_Roughness->GetID() == rhs.m_Roughness->GetID()
+        && lhs.m_AO->GetID() == rhs.m_AO->GetID();
 }
 

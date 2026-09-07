@@ -3,7 +3,7 @@
 #include "..\FileLoader.h"
 
 #include "HalfEdge/HalfEdge.h"  
-#include "Scene.h"
+#include "Scene/Scene.h"
 
 #include <future>
 #include <random>
@@ -27,7 +27,8 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
     , m_IsDebugDrawInitialized(false)
     , m_IsDebugDrawAttachedToFBuffer(false)
     , m_TexturedMeshFormat({ VertAttribute::Vec3f, VertAttribute::Vec3f, VertAttribute::Vec4f, VertAttribute::Vec2f })
-    , m_DebugVertFormat({ VertAttribute::Vec3f })
+    // DebugVertFormat = 3D position, and colour
+    , m_DebugVertFormat({ VertAttribute::Vec3f, VertAttribute::Vec4f })
     , m_RenderMode(RenderMode::DEFAULT)
 {
 
@@ -467,16 +468,16 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
 	#version 400
 
 	uniform mat4x4 Camera;	
-    uniform vec3 Colour;
 
 	in vec3 VertPosition;
+    in vec4 Colour;
 
 	smooth out vec4 FragColour;
 
 	void main()
 	{
 		gl_Position = Camera * vec4(VertPosition, 1.0);
-		FragColour = vec4(Colour, 1.0);
+		FragColour = Colour;
 	}
 	)";
 
@@ -1318,9 +1319,7 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
     uniform vec3 LightPosition;
     uniform vec3 LightColour;
 
-    uniform float ConstantAtten;
-    uniform float LinearAtten;
-    uniform float QuadraticAtten;
+    uniform float LightRadius;
 
     uniform vec3 CameraPos;
     
@@ -1444,15 +1443,8 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
         float distance = length(LightPosition - Position);
         
         // calculate attenuation
-        float constant = ConstantAtten;
-        float linear = LinearAtten;
-        float quadratic = QuadraticAtten;
-
-        float attenuation = 1.0 / (constant + linear * distance + quadratic * distance * distance);        
-        //float linear = 0.001;
-        //float quadratic = 0.02;
-        //float attenuation = 1.0 / (1.0 + linear * distance + quadratic * distance * distance);
-        //attenuation *= 20.0;
+        float attenuation = 1.0;      
+        attenuation = smoothstep(LightRadius, 0.0, distance);
         
         vec3 radiance = LightColour * attenuation;
         float randomTiny = (random(Position) - 0.5) * 0.05;
@@ -1486,10 +1478,12 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
         Lo += (kD / PI + specular) * radiance * NdotL;  // note that we already multiplied the BRDF by the Fresnel (kS) so we won't multiply by kS again
 
         float shadow = ShadowCalculation(Position, LightPosition, Normal);
+
+
         vec3 color = (1.0 - shadow) * Lo * AO;
-        //vec3 color = (1.0) * Lo * AO;
         OutColour = vec4(color, 1.0); 
-        //OutColour = vec4(vec3(shadow), 1.0);  
+        
+        //OutColour = vec4(radiance, 1.0);
     }   
         
     )";
@@ -1566,10 +1560,7 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
     uniform vec3 LightPosition;
     uniform vec3 LightDirection;
     uniform vec3 LightColour;
-
-    uniform float ConstantAtten;
-    uniform float LinearAtten;
-    uniform float QuadraticAtten;
+    uniform float LightRange;
 
     uniform float InnerAngle;
     uniform float OuterAngle;
@@ -1695,10 +1686,8 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
         float distance = length(LightPosition - Position);
         
         // calculate attenuation        
-        float constant = ConstantAtten;
-        float linear = LinearAtten;
-        float quadratic = QuadraticAtten;
-        float attenuation = 1.0 / (constant + linear * distance + quadratic * distance * distance);
+        float attenuation = 1.0;      
+        attenuation = smoothstep(LightRange, 0.0, distance);
 
         vec3 radiance = LightColour * attenuation;
         
@@ -1906,7 +1895,7 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
     m_LightTexture = m_Renderer.LoadTexture("Assets/images/light.png", TextureMode::LINEAR, TextureMode::NEAREST);
 
     //AssetRegistry* Registry = AssetRegistry::Get();
-    m_UnitSphereMesh = LoadMesh("Assets/models/UnitSphere.obj");
+    m_UnitSphereMesh = LoadMesh("Assets/models/UnitSphereLess.obj");
     m_UnitCubeMesh = LoadMesh("Assets/models/UnitCube.obj");
 
     s_Instance = this;
@@ -2244,34 +2233,34 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam)
         {
             if (Command.m_CastShadows)
             {
-                float lightRange;
+                //float lightRange;
 
-                // TODO(fraser): test attenuation ranges
-                if (Command.m_QuadraticAttenuation > 0.0f)
-                {
-                    lightRange = sqrt(Command.m_Intensity / (Command.m_QuadraticAttenuation * 0.01f));
-                }
-                else if (Command.m_LinearAttenuation > 0.0f)
-                {
-                    lightRange = Command.m_Intensity / (Command.m_LinearAttenuation * 0.01f);
-                }
-                else
-                {
-                    lightRange = 200.0f; // Arbitrary large distance if no attenuation
-                }
+                //// TODO(fraser): test attenuation ranges
+                //if (Command.m_QuadraticAttenuation > 0.0f)
+                //{
+                //    lightRange = sqrt(Command.m_Intensity / (Command.m_QuadraticAttenuation * 0.01f));
+                //}
+                //else if (Command.m_LinearAttenuation > 0.0f)
+                //{
+                //    lightRange = Command.m_Intensity / (Command.m_LinearAttenuation * 0.01f);
+                //}
+                //else
+                //{
+                //    lightRange = 200.0f; // Arbitrary large distance if no attenuation
+                //}
 
                 m_Renderer.SetActiveShader(m_PointShadowShader);
                 for (int i = 0; i < 6; i++)
                 {
                     SetActiveCubemapFace(m_PointLightShadowCubemap, i);
-                    Mat4x4f shadowProj = Math::GenerateProjectionMatrix(90.0f, 1.0f, 0.001f, lightRange);
+                    Mat4x4f shadowProj = Math::GenerateProjectionMatrix(90.0f, 1.0f, 0.001f, Command.m_Radius);
                     Mat4x4f shadowView = Math::GenerateViewMatrix(Command.m_Position, GetPointLightDirectionForCubemapFace(i),
                         GetPointLightUpVecForCubemapFace(i));
 
                     Mat4x4f shadowVP = shadowProj * shadowView;
                     m_Renderer.SetShaderUniformMat4x4f(m_PointShadowShader, "ShadowVP", shadowVP);
                     m_Renderer.SetShaderUniformVec3f(m_PointShadowShader, "LightPos", Command.m_Position);
-                    m_Renderer.SetShaderUniformFloat(m_PointShadowShader, "FarPlane", lightRange);
+                    m_Renderer.SetShaderUniformFloat(m_PointShadowShader, "FarPlane", Command.m_Radius);
                     for (StaticMeshRenderCommand& MeshCommand : m_StaticMeshRenderCommands)
                     {
                         if (!MeshCommand.m_CastShadows)
@@ -2294,7 +2283,7 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam)
 
                     Transform lightTransform;
                     lightTransform.SetPosition(Command.m_Position);
-                    lightTransform.SetScale(Vec3f(lightRange, lightRange, lightRange));
+                    lightTransform.SetScale(Vec3f(Command.m_Radius, Command.m_Radius, Command.m_Radius));
                     m_Renderer.SetShaderUniformMat4x4f(m_GBufferPointLightShaderWithShadow, "Transformation", lightTransform.GetTransformMatrix());
 
                     m_Renderer.SetShaderUniformVec3f(m_GBufferPointLightShaderWithShadow, "CameraPos", Cam.GetPosition());
@@ -2310,11 +2299,9 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam)
 
                     m_Renderer.SetShaderUniformVec3f(m_GBufferPointLightShaderWithShadow, "LightPosition", Command.m_Position);
                     m_Renderer.SetShaderUniformVec3f(m_GBufferPointLightShaderWithShadow, "LightColour", Command.m_Colour * Command.m_Intensity);
-                    m_Renderer.SetShaderUniformFloat(m_GBufferPointLightShaderWithShadow, "FarPlane", lightRange);
+                    m_Renderer.SetShaderUniformFloat(m_GBufferPointLightShaderWithShadow, "LightRadius", Command.m_Radius);
 
-                    m_Renderer.SetShaderUniformFloat(m_GBufferPointLightShaderWithShadow, "ConstantAtten", Command.m_ConstantAttenuation);
-                    m_Renderer.SetShaderUniformFloat(m_GBufferPointLightShaderWithShadow, "LinearAtten", Command.m_LinearAttenuation);
-                    m_Renderer.SetShaderUniformFloat(m_GBufferPointLightShaderWithShadow, "QuadraticAtten", Command.m_QuadraticAttenuation);
+                    m_Renderer.SetShaderUniformFloat(m_GBufferPointLightShaderWithShadow, "FarPlane", Command.m_Radius);
 
                     m_Renderer.DisableDepthTesting();
                     m_Renderer.SetCulling(Cull::Front);
@@ -2337,23 +2324,7 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam)
         for (SpotLightRenderCommand& Command : m_SpotLightRenderCommands)
         {
             // Create spot light shadow map
-            float lightRange;
-            
-            // TODO(fraser): test attenuation ranges
-            if (Command.m_QuadraticAttenuation > 0.0f)
-            {
-                lightRange = sqrt(Command.m_Intensity / (Command.m_QuadraticAttenuation * 0.01f));
-            }
-            else if (Command.m_LinearAttenuation > 0.0f)
-            {
-                lightRange = Command.m_Intensity / (Command.m_LinearAttenuation * 0.01f);
-            }
-            else
-            {
-                lightRange = 200.0f; // Arbitrary large distance if no attenuation
-            }
-
-            //Engine::DEBUGPrint("Light range: " + std::to_string(lightRange));
+            float lightRange = Command.m_Range;
 
             m_Renderer.SetActiveShader(m_SpotShadowShader);
 
@@ -2402,10 +2373,7 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam)
                 m_Renderer.SetShaderUniformVec3f(m_GBufferSpotLightShaderWithShadow, "LightPosition", Command.m_Position);
                 m_Renderer.SetShaderUniformVec3f(m_GBufferSpotLightShaderWithShadow, "LightDirection", Command.m_Direction);
                 m_Renderer.SetShaderUniformVec3f(m_GBufferSpotLightShaderWithShadow, "LightColour", Command.m_Colour * Command.m_Intensity);
-                
-                m_Renderer.SetShaderUniformFloat(m_GBufferSpotLightShaderWithShadow, "ConstantAtten", Command.m_ConstantAttenuation);
-                m_Renderer.SetShaderUniformFloat(m_GBufferSpotLightShaderWithShadow, "LinearAtten", Command.m_LinearAttenuation);
-                m_Renderer.SetShaderUniformFloat(m_GBufferSpotLightShaderWithShadow, "QuadraticAtten", Command.m_QuadraticAttenuation);
+                m_Renderer.SetShaderUniformFloat(m_GBufferSpotLightShaderWithShadow, "LightRange", lightRange);
 
                 m_Renderer.SetShaderUniformFloat(m_GBufferSpotLightShaderWithShadow, "FarPlane", lightRange);
 
@@ -2696,17 +2664,17 @@ Material GraphicsModule::CreateMaterial(Texture* AlbedoMap)
     return Result;
 }
 
-Model GraphicsModule::CreateModel(StaticMesh inStaticMesh, Material inMaterial)
+Model GraphicsModule::CreateModel(Scene* inScene, StaticMesh inStaticMesh, Material inMaterial)
 {
-    return Model(inStaticMesh, inMaterial);
+    return Model(inScene, inStaticMesh, inMaterial);
 }
 
-Model GraphicsModule::CloneModel(const Model& original)
+Model GraphicsModule::CloneModel(Scene* inScene, const Model& original)
 {
-    return Model(original.m_StaticMesh, original.m_Material);
+    return Model(inScene, original.m_StaticMesh, original.m_Material);
 }
 
-Model GraphicsModule::LoadModel(std::vector<float>& BufferData, std::vector<unsigned int>& IndexData, Material Mat)
+Model GraphicsModule::LoadModel(Scene* inScene, std::vector<float>& BufferData, std::vector<unsigned int>& IndexData, Material Mat)
 {
     StaticMesh_ID MeshID = m_Renderer.LoadMesh(m_TexturedMeshFormat, BufferData, IndexData);
 
@@ -2714,17 +2682,17 @@ Model GraphicsModule::LoadModel(std::vector<float>& BufferData, std::vector<unsi
     Mesh.Id = MeshID;
     Mesh.LoadedFromFile = false;
 
-    Model Result = Model(Mesh, Mat);
+    Model Result = Model(inScene, Mesh, Mat);
 
     return Result;
 }
 
-Model GraphicsModule::CreateBoxModel(AABB box)
+Model GraphicsModule::CreateBoxModel(Scene* inScene, AABB box)
 {
-    return CreateBoxModel(box, m_DebugMaterial);
+    return CreateBoxModel(inScene, box, m_DebugMaterial);
 }
 
-Model GraphicsModule::CreateBoxModel(AABB box, Material material)
+Model GraphicsModule::CreateBoxModel(Scene* inScene, AABB box, Material material)
 {
     Vec3f min = box.min;
     Vec3f max = box.max;
@@ -2806,15 +2774,25 @@ Model GraphicsModule::CreateBoxModel(AABB box, Material material)
     boxMesh.Id = boxMeshId;
     boxMesh.LoadedFromFile = false;
 
-    Model result = Model(boxMesh, material);
+    Model result = Model(inScene, boxMesh, material);
     result.GetTransform().SetPosition(averagePoint);
     result.Type = ModelType::BLOCK;
 
     return result;
 }
 
-void GraphicsModule::UpdateHEMeshModel(he::HalfEdgeMesh* mesh)
+void GraphicsModule::UpdateHEMeshModel(Scene* inScene, he::HalfEdgeMesh* mesh)
 {
+    std::vector<he::FaceIsland> faceIslands = he::BuildFaceIslands(*mesh);
+
+    for (he::Face* face : mesh->m_Faces)
+    {
+        if (face->appliedHotspotTexture != nullptr)
+        {
+            face->ApplyHotspotTexture(*face->appliedHotspotTexture);
+        }
+    }
+
     size_t numFaces = mesh->m_Faces.size();
 
     for (auto& repModel : mesh->m_RepModels)
@@ -2921,6 +2899,7 @@ void GraphicsModule::UpdateHEMeshModel(he::HalfEdgeMesh* mesh)
         std::vector<unsigned int> Indices;
 
         std::vector<Vec3f> positions;
+        std::vector<Vec3f> normals;
         std::vector<Vec2f> uvCoords;
 
         he::HalfEdge* initialHalfEdge = face->halfEdge;
@@ -2933,6 +2912,48 @@ void GraphicsModule::UpdateHEMeshModel(he::HalfEdgeMesh* mesh)
             he::Vertex* thisVert = currentHalfEdge->vert;
 
             positions.push_back(thisVert->vec);
+
+            Vec3f n = face->GetNormal();
+
+            std::vector<he::Face*> adjacentFaces;
+
+            // Loop through all faces touching this vert, add to n if they're in the same island as this face
+            if (mesh->m_BlendIslands) 
+            {
+                he::HalfEdge* initialItHalfEdge = currentHalfEdge;
+                he::HalfEdge* currItHalfEdge = initialItHalfEdge;
+
+                do
+                {
+                    he::Face* currItFace = currItHalfEdge->face;
+
+                    if (currItFace != face && !currItHalfEdge->isSeam)
+                    {
+                        adjacentFaces.push_back(currItFace);
+                    }
+
+                    currItHalfEdge = currItHalfEdge->twin->next;
+                } while (currItHalfEdge != initialItHalfEdge && currItHalfEdge != nullptr);
+
+                for (he::Face* adjFace : adjacentFaces)
+                {
+                    for (he::FaceIsland& island : faceIslands)
+                    {
+                        if (std::find(island.Faces.begin(), island.Faces.end(), face) != island.Faces.end())
+                        {
+                            if (std::find(island.Faces.begin(), island.Faces.end(), adjFace) != island.Faces.end())
+                            {
+                                n += adjFace->GetNormal();
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            n = Math::normalize(n);
+            normals.push_back(n);
+
             if (face->useUVOverride)
             {
                 uvCoords.push_back(face->uvOverrides[uvOverrideCounter]);
@@ -2948,7 +2969,7 @@ void GraphicsModule::UpdateHEMeshModel(he::HalfEdgeMesh* mesh)
         for (int i = 0; i < positions.size(); ++i)
         {
             Vec3f pos = positions[i];
-            Vec3f normal;
+            Vec3f normal = normals[i];
 
             Vec3f a, b, c;
             if (i <= 2)
@@ -2970,55 +2991,14 @@ void GraphicsModule::UpdateHEMeshModel(he::HalfEdgeMesh* mesh)
             ba = Math::normalize(ba);
             ca = Math::normalize(ca);
 
-            Vec3f cross = Math::cross(ca, ba);
-            normal = Math::normalize(cross);
 
             if (face->flipFace)
             {
                 normal = -normal;
             }
 
-            //Vec2f texCoords;
-            //Vec3f planeOrigin = positions[0];
-            //Vec3f planeNormal = normal;
-
-            //// Get closest vector on plane to up vector
-            //Vec3f upVec = Math::ProjectVecOnPlane(Vec3f::Up(), Plane(planeOrigin, planeNormal));
-            //
-            //if (upVec.IsNearlyZero())
-            //{
-            //    upVec = Vec3f(1.0f, 0.0f, 0.0f);
-            //}
-            //else
-            //{
-            //    upVec = upVec.GetNormalized();
-            //}
-
-            //// Rotate by face uv rotation
-            //upVec = Math::rotate(upVec, face->textureRot, planeNormal);
-
-            //Vec3f leftVec = Math::cross(normal, upVec);
-
-            //Vec3f relativePoint = pos - planeOrigin;
-
-            //texCoords.x = Math::dot(relativePoint, leftVec);
-            //texCoords.y = Math::dot(relativePoint, upVec);
-
-            //{
-            //    texCoords.x *= 0.2f;
-            //    texCoords.y *= 0.2f;
-            //}
-            //
-            //// Apply uv nudge
-            //texCoords.x += face->textureNudgeU;
-            //texCoords.y += face->textureNudgeV;
-
-            //// Apply uv scale
-            //texCoords.x *= face->textureScaleU;
-            //texCoords.y *= face->textureScaleV;
-
             Vec2f texCoords;
-            Vec3f vertToOrigin = pos;// -bestRectStartPos;
+            Vec3f vertToOrigin = pos;
             float edgeProj = Math::dot(vertToOrigin, bestRectRight);
             float normalProj = Math::dot(vertToOrigin, bestRectUp);
 
@@ -3077,7 +3057,7 @@ void GraphicsModule::UpdateHEMeshModel(he::HalfEdgeMesh* mesh)
 
         //if (face->material)
         {
-            mesh->m_RepModels.push_back(Model(heMesh, face->material));
+            mesh->m_RepModels.push_back(Model(inScene, heMesh, face->material));
         }
         //else
         //{
@@ -3086,12 +3066,12 @@ void GraphicsModule::UpdateHEMeshModel(he::HalfEdgeMesh* mesh)
     }
 }
 
-Model GraphicsModule::CreatePlaneModel(Vec2f min, Vec2f max, float elevation, int subsections)
+Model GraphicsModule::CreatePlaneModel(Scene* inScene, Vec2f min, Vec2f max, float elevation, int subsections)
 {
-    return CreatePlaneModel(min, max, m_DebugMaterial, elevation, subsections);
+    return CreatePlaneModel(inScene, min, max, m_DebugMaterial, elevation, subsections);
 }
 
-Model GraphicsModule::CreatePlaneModel(Vec2f min, Vec2f max, Material material, float elevation, int subsections)
+Model GraphicsModule::CreatePlaneModel(Scene* inScene, Vec2f min, Vec2f max, Material material, float elevation, int subsections)
 {
     int Rows = subsections;
     int Columns = subsections;
@@ -3152,7 +3132,7 @@ Model GraphicsModule::CreatePlaneModel(Vec2f min, Vec2f max, Material material, 
     planeMesh.Id = planeMeshId;
     planeMesh.LoadedFromFile = false;
 
-    Model result = Model(planeMesh, material);
+    Model result = Model(inScene, planeMesh, material);
     result.GetTransform().SetPosition(AveragePoint);
     result.Type = ModelType::PLANE;
 
@@ -3267,6 +3247,15 @@ void GraphicsModule::SetDirectionalLight(DirectionalLight dirLight)
     m_Renderer.SetShaderUniformVec3f(m_TexturedMeshShader, "SunColour", dirLight.colour);
 }
 
+StaticMesh GraphicsModule::CreateStaticMesh(std::vector<float>& BufferData, std::vector<unsigned int>& IndexData)
+{
+    StaticMesh_ID MeshID = m_Renderer.LoadMesh(m_TexturedMeshFormat, BufferData, IndexData);
+    StaticMesh Mesh;
+    Mesh.Id = MeshID;
+    Mesh.LoadedFromFile = false;
+    return Mesh;
+}
+
 std::vector<float> GraphicsModule::GetModelVertexBuffer(Model& model)
 {
     return m_Renderer.GetMeshVertexData(model.m_StaticMesh.Id);
@@ -3286,7 +3275,8 @@ void GraphicsModule::OnFrameStart()
 
     if (m_IsDebugDrawInitialized)
     {
-        m_DebugLineMap.clear();
+        m_DebugLineInfos.clear();
+        m_DebugTriangleInfos.clear();
     }
    
 }
@@ -3304,8 +3294,8 @@ void GraphicsModule::OnFrameEnd()
 
 void GraphicsModule::InitializeDebugDraw()
 {
-    m_DebugDrawMesh = m_Renderer.CreateEmptyMesh(m_DebugVertFormat, false);
-    m_Renderer.SetMeshDrawType(m_DebugDrawMesh, DrawType::Line);
+    m_DebugDrawMesh = m_Renderer.CreateEmptyMesh(m_DebugVertFormat, true);
+    m_Renderer.SetMeshDrawType(m_DebugDrawMesh, DrawType::Triangle);
     m_IsDebugDrawInitialized = true;
 }
 
@@ -3316,21 +3306,23 @@ void GraphicsModule::InitializeDebugDraw(Framebuffer_ID fBuffer)
     m_DebugFBuffer = fBuffer;
 }
 
-void GraphicsModule::DebugDrawLine(Vec3f a, Vec3f b, Vec3f colour)
+void GraphicsModule::DebugDrawLine(Vec3f a, Vec3f b, Vec3f colour, float thickness)
 {
     assert(m_IsDebugDrawInitialized);
 
-    if (m_DebugLineMap.find(colour) == m_DebugLineMap.end())
-    {
-        m_DebugLineMap[colour] = std::vector<float>();
-    }
+    DebugDrawLineInfo lineInfo;
 
-    m_DebugLineMap[colour].insert(m_DebugLineMap[colour].end(), { a.x, a.y, a.z, b.x, b.y, b.z });
+    lineInfo.a = a;
+    lineInfo.b = b;
+    lineInfo.colour = Vec4f(colour.x, colour.y, colour.z, 1.0f);
+    lineInfo.thickness = thickness;
+
+    m_DebugLineInfos.push_back(lineInfo);
 }
 
-void GraphicsModule::DebugDrawLine(LineSegment line, Vec3f colour)
+void GraphicsModule::DebugDrawLine(LineSegment line, Vec3f colour, float thickness)
 {
-    DebugDrawLine(line.a, line.b, colour);
+    DebugDrawLine(line.a, line.b, colour, thickness);
 }
 
 void GraphicsModule::DebugDrawModelMesh(Model model, Vec3f colour)
@@ -3394,17 +3386,18 @@ void GraphicsModule::DebugDrawPoint(Vec3f p, Vec3f colour)
 {
     assert(m_IsDebugDrawInitialized);
 
-    if (m_DebugLineMap.find(colour) == m_DebugLineMap.end())
-    {
-        m_DebugLineMap[colour] = std::vector<float>();
-    }
 
-    m_DebugLineMap[colour].insert(m_DebugLineMap[colour].end(), {
-        p.x, p.y - 0.5f, p.z, p.x, p.y + 0.5f, p.z,
-        p.x - 0.5f, p.y, p.z, p.x + 0.5f, p.y, p.z,
-        p.x, p.y, p.z - 0.5f, p.x, p.y, p.z + 0.5f,
+    //if (m_DebugLineMap.find(colour) == m_DebugLineMap.end())
+    //{
+    //    m_DebugLineMap[colour] = std::vector<float>();
+    //}
 
-        });
+    //m_DebugLineMap[colour].insert(m_DebugLineMap[colour].end(), {
+    //    p.x, p.y - 0.5f, p.z, p.x, p.y + 0.5f, p.z,
+    //    p.x - 0.5f, p.y, p.z, p.x + 0.5f, p.y, p.z,
+    //    p.x, p.y, p.z - 0.5f, p.x, p.y, p.z + 0.5f,
+
+    //    });
 }
 
 void GraphicsModule::DebugDrawSphere(Vec3f p, float radius /*= 1.0f*/, Vec3f colour /*= Vec3f(1.0f, 1.0f, 1.0f)*/)
@@ -3463,15 +3456,117 @@ void GraphicsModule::DebugDrawArrow(Vec3f a, Vec3f b, Vec3f colour)
 {
     DebugDrawLine(a, b, colour);
 
-    Vec3f dir = Math::normalize(a - b);
+    // Draw arrow head as a cone
+    Vec3f dir = b - a;
 
-    Vec3f head = Math::Lerp(b, a, 0.1f);
+    Vec3f up = Math::normalize(dir);
 
-    DebugDrawPoint(b, colour);
-    //DebugDrawLine(b, Math::rotate(head, 0.08f, Math::cross(dir, Vec3f(0.0f, 0.0f, 1.0f))), colour);
-    //DebugDrawLine(b, Math::rotate(head, -0.08f, Math::cross(dir, Vec3f(0.0f, 0.0f, 1.0f))), colour);
+    Vec3f right = Math::cross(up, Vec3f(0.0f, 0.0f, 1.0f));
 
-    // TODO: not correct, come back to this
+    if (right.IsNearlyZero())
+    {
+        right = Math::normalize(Math::cross(up, Vec3f(0.0f, 1.0f, 0.0f)));
+    }
+
+    right = Math::normalize(right);
+
+    Vec3f forward = Math::cross(right, up);
+
+    float arrowHeadLength = 0.2f * Math::magnitude(dir);
+
+    Vec3f arrowHeadBase = b - up * arrowHeadLength;
+
+
+    DebugDrawCone(arrowHeadBase, b, arrowHeadLength * 0.5f, 5, colour);
+
+
+}
+
+void GraphicsModule::DebugDrawCylinder(Vec3f base, Vec3f tip, float radius, int numSegments, Vec3f colour)
+{
+    Vec3f dir = tip - base;
+    Vec3f up = Math::normalize(dir);
+    Vec3f right = Math::cross(up, Vec3f(0.0f, 0.0f, 1.0f));
+    if (right.IsNearlyZero())
+    {
+        right = Math::normalize(Math::cross(up, Vec3f(0.0f, 1.0f, 0.0f)));
+    }
+    
+    right = Math::normalize(right);
+    
+    Vec3f forward = Math::cross(right, up);
+    std::vector<Vec3f> basePoints;
+    std::vector<Vec3f> tipPoints;
+    for (int i = 0; i < numSegments; ++i)
+    {
+        float angle = (i / (float)numSegments) * 2.0f * 3.1415f;
+        Vec3f offset = (right * cosf(angle) + forward * sinf(angle)) * radius;
+        basePoints.push_back(base + offset);
+        tipPoints.push_back(tip + offset);
+    }
+    for (int i = 0; i < numSegments; ++i)
+    {
+        int nextIndex = (i + 1) % numSegments;
+        DebugDrawLine(basePoints[i], basePoints[nextIndex], colour);
+        DebugDrawLine(tipPoints[i], tipPoints[nextIndex], colour);
+        DebugDrawLine(basePoints[i], tipPoints[i], colour);
+    }
+}
+
+void GraphicsModule::DebugDrawFrustum(Vec3f pos, Vec3f forward, Vec3f up, float fov, float aspectRatio, float nearPlane, float farPlane, Vec3f colour)
+{
+
+    
+}
+
+void GraphicsModule::DebugDrawCone(Vec3f base, Vec3f tip, float baseRadius, int numSegments, Vec3f colour)
+{
+    Vec3f axis = base - tip;
+    float height = Math::magnitude(axis);
+
+    axis /= height;
+
+    // Find 2 vectors perpendicular to the axis
+    Vec3f reference;
+
+    if (std::abs(axis.x) < 0.9f)
+        reference = Vec3f(1.0f, 0.0f, 0.0f);
+    else
+        reference = Vec3f(0.0f, 1.0f, 0.0f);
+
+    Vec3f u = Math::normalize(Math::cross(axis, reference));
+    Vec3f v = Math::normalize(Math::cross(axis, u));
+
+    Vec3f previousPoint;
+
+    for (int i = 0; i <= numSegments; ++i)
+    {
+        float t = (float)i / numSegments;
+        float angle = t * 2.0f * 3.1415f;
+
+        Vec3f point = base + 
+            u * (std::cos(angle) * baseRadius) + 
+            v * (std::sin(angle) * baseRadius);
+
+        if (i > 0)
+        {
+            DebugDrawLine(previousPoint, point, colour);
+        }
+        DebugDrawLine(tip, point, colour);
+
+        previousPoint = point;
+    }
+
+}
+
+void GraphicsModule::DebugDrawTriangle(Vec3f a, Vec3f b, Vec3f c, Vec4f colour)
+{
+    DebugDrawTriangleInfo triInfo;
+    triInfo.a = a;
+    triInfo.b = b;
+    triInfo.c = c;
+    triInfo.colour = colour;
+    m_DebugTriangleInfos.push_back(triInfo);
 }
 
 void GraphicsModule::DebugDrawPlane(Vec3f pointOnPlane, Vec3f planeNormal, float planeSize, Vec3f colour)
@@ -3491,6 +3586,8 @@ void GraphicsModule::DebugDrawPlane(Vec3f pointOnPlane, Vec3f planeNormal, float
     DebugDrawLine(corner2, corner3, colour);
     DebugDrawLine(corner3, corner4, colour);
     DebugDrawLine(corner4, corner1, colour);
+
+    DebugDrawArrow(pointOnPlane, pointOnPlane + planeNormal * planeSize, colour);
 }
 
 void GraphicsModule::DebugDrawPlane(Plane plane, float planeSize, Vec3f colour)
@@ -3511,16 +3608,93 @@ void GraphicsModule::SetRenderMode(RenderMode mode)
 void GraphicsModule::DrawDebugDrawMesh(Camera cam)
 {
     m_Renderer.ClearMesh(m_DebugDrawMesh);
-    m_Renderer.SetActiveShader(m_DebugLineShader);
-    if (m_DebugLineMap.size() > 0)
+    if (m_DebugLineInfos.size() > 0)
     {
-        m_Renderer.SetShaderUniformMat4x4f(m_DebugLineShader, "Camera", cam.GetCamMatrix());
-        for (auto& it : m_DebugLineMap)
+        // Create mesh data for all lines in m_DebugLineMap, with each line being a quad with thickness
+        std::vector<float> vertices;
+        std::vector<ElementIndex> indices;
+        
+        unsigned int indexOffset = 0;
+
+        for (auto& lineInfo : m_DebugLineInfos)
         {
-            m_Renderer.UpdateMeshData(m_DebugDrawMesh, m_DebugVertFormat, it.second);
-            m_Renderer.SetShaderUniformVec3f(m_DebugLineShader, "Colour", it.first);
-            m_Renderer.DrawMesh(m_DebugDrawMesh);
+            Vec3f a = lineInfo.a;
+            Vec3f b = lineInfo.b;
+            Vec4f colour = lineInfo.colour;
+            float thickness = lineInfo.thickness;
+
+            Vec3f dir = b - a;
+            Vec3f up = Math::normalize(dir);
+
+            Vec3f camPos = cam.GetPosition();
+
+            Vec3f right = Math::cross(up, Math::normalize(camPos - a));
+            if (right.IsNearlyZero())
+            {
+                right = Math::normalize(Math::cross(up, Math::normalize(camPos - a)));
+            }
+
+            right = Math::normalize(right) * thickness * 0.5f;
+            
+            std::vector<float> lineVertices =
+            {
+                // Position                                     // Colour
+                a.x - right.x, a.y - right.y, a.z - right.z,    colour.x, colour.y, colour.z, colour.w,
+                a.x + right.x, a.y + right.y, a.z + right.z,    colour.x, colour.y, colour.z, colour.w,
+                b.x + right.x, b.y + right.y, b.z + right.z,    colour.x, colour.y, colour.z, colour.w,
+                b.x - right.x, b.y - right.y, b.z - right.z,    colour.x, colour.y, colour.z, colour.w
+            };
+
+            std::vector<ElementIndex> lineIndices =
+            {
+                indexOffset, indexOffset + 2, indexOffset + 1,
+                indexOffset, indexOffset + 3, indexOffset + 2
+            };
+
+            vertices.insert(vertices.end(), lineVertices.begin(), lineVertices.end());
+            indices.insert(indices.end(), lineIndices.begin(), lineIndices.end());
+
+            indexOffset += 4;
         }
+
+        m_Renderer.UpdateMeshData(m_DebugDrawMesh, m_DebugVertFormat, vertices, indices);
+
+        m_Renderer.SetActiveShader(m_DebugLineShader);
+        m_Renderer.SetShaderUniformMat4x4f(m_DebugLineShader, "Camera", cam.GetCamMatrix());
+        m_Renderer.DrawMesh(m_DebugDrawMesh);
+    }
+
+    m_Renderer.ClearMesh(m_DebugDrawMesh);
+    if (m_DebugTriangleInfos.size() > 0)
+    {
+        std::vector<float> vertices;
+        std::vector<ElementIndex> indices;
+        unsigned int indexOffset = 0;
+        for (auto& triInfo : m_DebugTriangleInfos)
+        {
+            Vec3f a = triInfo.a;
+            Vec3f b = triInfo.b;
+            Vec3f c = triInfo.c;
+            Vec4f colour = triInfo.colour;
+            std::vector<float> triVertices =
+            {
+                // Position                 // Colour
+                a.x, a.y, a.z,              colour.x, colour.y, colour.z, colour.w,
+                b.x, b.y, b.z,              colour.x, colour.y, colour.z, colour.w,
+                c.x, c.y, c.z,              colour.x, colour.y, colour.z, colour.w
+            };
+            std::vector<ElementIndex> triIndices =
+            {
+                indexOffset, indexOffset + 1, indexOffset + 2
+            };
+            vertices.insert(vertices.end(), triVertices.begin(), triVertices.end());
+            indices.insert(indices.end(), triIndices.begin(), triIndices.end());
+            indexOffset += 3;
+        }
+        m_Renderer.UpdateMeshData(m_DebugDrawMesh, m_DebugVertFormat, vertices, indices);
+        m_Renderer.SetActiveShader(m_DebugLineShader);
+        m_Renderer.SetShaderUniformMat4x4f(m_DebugLineShader, "Camera", cam.GetCamMatrix());
+        m_Renderer.DrawMesh(m_DebugDrawMesh);
     }
 }
 

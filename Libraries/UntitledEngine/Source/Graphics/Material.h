@@ -1,9 +1,10 @@
 #pragma once
-#include "Asset/AssetRegistry.h"
 
 #include <json.hpp>
 
 using json = nlohmann::json;
+
+class Texture;
 
 struct Material
 {
@@ -20,33 +21,7 @@ struct Material
     void Save(json& JsonObject);
     static Material Load(json& JsonObject);
 
-    friend bool operator<(const Material& lhs, const Material& rhs)
-    {
+    friend bool operator<(const Material& lhs, const Material& rhs);
 
-        size_t lhsTotal = 0;
-        size_t rhsTotal = 0;
-
-        lhsTotal = lhs.m_Albedo->GetID() +
-            lhs.m_Normal->GetID() +
-            lhs.m_Metallic->GetID() +
-            lhs.m_Roughness->GetID() + 
-            lhs.m_AO->GetID();
-
-        rhsTotal = rhs.m_Albedo->GetID() +
-            rhs.m_Normal->GetID() +
-            rhs.m_Metallic->GetID() +
-            rhs.m_Roughness->GetID() +
-            rhs.m_AO->GetID();
-
-        return lhsTotal < rhsTotal;
-    }
-
-    friend bool operator==(const Material& lhs, const Material& rhs)
-    {
-        return lhs.m_Albedo->GetID() == rhs.m_Albedo->GetID()
-            && lhs.m_Normal->GetID() == rhs.m_Normal->GetID()
-            && lhs.m_Metallic->GetID() == rhs.m_Metallic->GetID()
-            && lhs.m_Roughness->GetID() == rhs.m_Roughness->GetID()
-            && lhs.m_AO->GetID() == rhs.m_AO->GetID();
-    }
+    friend bool operator==(const Material& lhs, const Material& rhs);
 };

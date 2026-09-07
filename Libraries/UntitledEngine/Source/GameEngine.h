@@ -12,7 +12,7 @@
 
 #include "Behaviour/Behaviour.h"
 
-#include "Scene.h"
+#include "Scene/Scene.h"
 
 #include "MeshGenerator.h"
 #include "FileLoader.h"

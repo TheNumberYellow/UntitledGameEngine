@@ -772,6 +772,11 @@ void UIModule::FloatSlider(std::string name, Vec2f size, float& outNum, float mi
     FloatSliderInternal(name, TotalSize, outNum, min, max, vertical, drawText, colour);
 }
 
+void UIModule::FloatSlider(std::string name, PlacementSettings placeSettings, float& outNum, float min, float max, bool vertical, bool drawText, Vec3f colour)
+{
+    // TODO: implementation
+}
+
 bool UIModule::FloatDragger(std::string name, PlacementSettings placeSettings, float& outNum, float speed, float min, float max)
 {
     if (!IsActive())
@@ -780,6 +785,15 @@ bool UIModule::FloatDragger(std::string name, PlacementSettings placeSettings, f
     }
     
     return FloatDraggerInternal(name, placeSettings, outNum, speed, min, max);
+}
+
+bool UIModule::IntDragger(std::string name, PlacementSettings placeSettings, int& outNum, float speed, int min, int max)
+{
+    if (!IsActive())
+    {
+        return false;
+    }
+    return IntDraggerInternal(name, placeSettings, outNum, speed, min, max);
 }
 
 void UIModule::NewLine(float lineHeight)
@@ -1034,6 +1048,8 @@ void UIModule::FloatSliderInternal(std::string name, Rect rect, float& outNum, f
 
 bool UIModule::FloatDraggerInternal(std::string name, PlacementSettings placeSettings, float& outNum, float speed, float min, float max)
 {
+    bool returnValue = false;
+    
     if (!IsActive())
     {
         return false;
@@ -1042,12 +1058,14 @@ bool UIModule::FloatDraggerInternal(std::string name, PlacementSettings placeSet
     FloatDraggerState* DraggerState = GetFloatDraggerState(name);
     if (DraggerState->dragging)
     {
+        // Was dragging last frame, check if mouse is still down
         if (!Engine::GetMouseDown())
         {
             DraggerState->dragging = false;
+            m_Input.SetMouseLocked(false);
+            Engine::ShowCursor();
+            Engine::SetMouseCursor(CursorType::Arrow);
         }
-        Engine::ShowCursor();
-        Engine::SetMouseCursor(CursorType::Arrow);
     }
 
     Rect rect = SizeElement(placeSettings);
@@ -1056,6 +1074,7 @@ bool UIModule::FloatDraggerInternal(std::string name, PlacementSettings placeSet
     if (click.clicking && !DraggerState->dragging)
     {
         DraggerState->dragging = true;
+        m_Input.SetMouseLocked(true);
     }
     else if (!click.clicking && click.hovering)
     {
@@ -1071,34 +1090,36 @@ bool UIModule::FloatDraggerInternal(std::string name, PlacementSettings placeSet
         Vec2f MousePos = m_Input.GetMouseState().GetMousePos();
 
         // Mouse looping behaviour
-        if (MousePos.x < rect.location.x)
-        {
-            Engine::SetMousePosition(Vec2f(rect.location.x + rect.size.x, MousePos.y));
-            m_Input.GetMouseState().UpdateMousePos(Engine::GetMousePosition(), false, Vec2i());
+        //Engine::SetMousePosition(MousePos - MouseDelta);
+        //m_Input.ClearDeltaMousePos();
+        //if (MousePos.x < rect.location.x)
+        //{
+        //    Engine::SetMousePosition(Vec2f(rect.location.x + rect.size.x, MousePos.y));
+        //    m_Input.GetMouseState().UpdateMousePos(Engine::GetMousePosition(), false, Vec2i());
 
-            // TODO (fraser): This may affect other code which uses the delta mouse pos, consider a better solution
-            m_Input.ClearDeltaMousePos();
-        }
-        else if (MousePos.x > rect.location.x + rect.size.x)
-        {
-            Engine::SetMousePosition(Vec2f(rect.location.x, MousePos.y));
-            m_Input.GetMouseState().UpdateMousePos(Engine::GetMousePosition(), false, Vec2i());
-            m_Input.ClearDeltaMousePos();
-        }
-        if (MousePos.y < rect.location.y)
-        {
-            Engine::SetMousePosition(Vec2f(MousePos.x, rect.location.y + rect.size.y));
-            m_Input.GetMouseState().UpdateMousePos(Engine::GetMousePosition(), false, Vec2i());
-        }
-        else if (MousePos.y > rect.location.y + rect.size.y)
-        {
-            Engine::SetMousePosition(Vec2f(MousePos.x, rect.location.y));
-            m_Input.GetMouseState().UpdateMousePos(Engine::GetMousePosition(), false, Vec2i());
-        }
+        //    // TODO (fraser): This may affect other code which uses the delta mouse pos, consider a better solution
+        //    m_Input.ClearDeltaMousePos();
+        //}
+        //else if (MousePos.x > rect.location.x + rect.size.x)
+        //{
+        //    Engine::SetMousePosition(Vec2f(rect.location.x, MousePos.y));
+        //    m_Input.GetMouseState().UpdateMousePos(Engine::GetMousePosition(), false, Vec2i());
+        //    m_Input.ClearDeltaMousePos();
+        //}
+        //if (MousePos.y < rect.location.y)
+        //{
+        //    Engine::SetMousePosition(Vec2f(MousePos.x, rect.location.y + rect.size.y));
+        //    m_Input.GetMouseState().UpdateMousePos(Engine::GetMousePosition(), false, Vec2i());
+        //}
+        //else if (MousePos.y > rect.location.y + rect.size.y)
+        //{
+        //    Engine::SetMousePosition(Vec2f(MousePos.x, rect.location.y));
+        //    m_Input.GetMouseState().UpdateMousePos(Engine::GetMousePosition(), false, Vec2i());
+        //}
 
         // Hide mouse cursor while dragging
         Engine::HideCursor();
-        return true;
+        returnValue = true;
     }
 
     if (ShouldDraw(rect))
@@ -1113,7 +1134,12 @@ bool UIModule::FloatDraggerInternal(std::string name, PlacementSettings placeSet
         //m_Renderer.EnableDepthTesting();
     }
 
-    return false;
+    return returnValue;
+}
+
+bool UIModule::IntDraggerInternal(std::string name, PlacementSettings placeSettings, int& outNum, float speed, int min, int max)
+{
+    return false; // TODO: implement int dragger
 }
 
 Rect UIModule::SizeElement(PlacementSettings settings)
@@ -1581,6 +1607,18 @@ FloatDraggerState* UIModule::GetFloatDraggerState(std::string name)
     return &m_FloatDraggerStates[ID];
 }
 
+IntDraggerState* UIModule::GetIntDraggerState(std::string name)
+{
+    ElementID ID = GetElementID(name);
+    auto got = m_IntDraggerStates.find(ID);
+    if (got == m_IntDraggerStates.end())
+    {
+        m_IntDraggerStates.emplace(ID, IntDraggerState());
+    }
+    m_IntDraggerStates[ID].m_Alive = true;
+    return &m_IntDraggerStates[ID];
+}
+
 Rect UIModule::GetFrame()
 {
     if (m_SubRectStack.empty())
@@ -1667,6 +1705,18 @@ void UIModule::ResetAllElementAliveFlags()
     {
         TextEntry.second.m_Alive = false;
     }
+    for (auto& FloatSlider : m_FloatSliderStates)
+    {
+        FloatSlider.second.m_Alive = false;
+    }
+    for (auto& FloatDragger : m_FloatDraggerStates)
+    {
+        FloatDragger.second.m_Alive = false;
+    }
+    for (auto& IntDragger : m_IntDraggerStates)
+    {
+        IntDragger.second.m_Alive = false;
+    }
 }
 
 void UIModule::RemoveInactiveElements()
@@ -1689,6 +1739,27 @@ void UIModule::RemoveInactiveElements()
     {
         if (!it->second.m_Alive)
             it = m_TextEntryStates.erase(it);
+        else
+            ++it;
+    }
+    for (auto it = m_FloatSliderStates.begin(); it != m_FloatSliderStates.end();)
+    {
+        if (!it->second.m_Alive)
+            it = m_FloatSliderStates.erase(it);
+        else
+            ++it;
+    }
+    for (auto it = m_FloatDraggerStates.begin(); it != m_FloatDraggerStates.end();)
+    {
+        if (!it->second.m_Alive)
+            it = m_FloatDraggerStates.erase(it);
+        else
+            ++it;
+    }
+    for (auto it = m_IntDraggerStates.begin(); it != m_IntDraggerStates.end();)
+    {
+        if (!it->second.m_Alive)
+            it = m_IntDraggerStates.erase(it);
         else
             ++it;
     }

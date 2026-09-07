@@ -49,16 +49,16 @@ void DungeonCornerstone::Update(Scene* Scene, double DeltaTime)
 void DungeonCornerstone::AddBlock(AABB block, Material mat)
 {
     GraphicsModule* Graphics = GraphicsModule::Get();
+    Model NewBlock = Graphics->CreateBoxModel(ContainingScene, block, mat);
 
-    ContainingScene->AddModel(new Model(Graphics->CreateBoxModel(block, mat)));
+    ContainingScene->AddModel(NewBlock);
 }
 
 void DungeonCornerstone::AddHallway(AABB hallway, bool xDirection)
 {
-    PointLight Light;
-    Light.position = hallway.Center();
-    Light.colour = Vec3f(255.f / 255.f, 191.f / 255.f, 0.f / 255.f);
-    ContainingScene->AddPointLight(Light);
+    PointLight* Light = ContainingScene->AddPointLight();
+    Light->position = hallway.Center();
+    Light->colour = Vec3f(255.f / 255.f, 191.f / 255.f, 0.f / 255.f);
 
     Vec3f MinFloor = Vec3f(hallway.min.x, hallway.min.y, hallway.min.z - FloorHeight);
     Vec3f MaxFloor = Vec3f(hallway.max.x, hallway.max.y, hallway.min.z);

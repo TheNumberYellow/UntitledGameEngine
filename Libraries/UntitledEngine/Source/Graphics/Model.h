@@ -5,6 +5,7 @@
 #include "Material.h"
 #include "Interfaces/EditorClickable_i.h"
 #include "RenderableInterface.h"
+#include "Scene/SceneObject.h"
 
 class Model;
 class Scene;
@@ -49,28 +50,62 @@ public:
 };
 
 class Model : 
-    public IEditorClickable, 
-    public Component
+    public IEditorClickable 
+    , public SceneObject
 {
 public:
     Model()
-        : m_Transform()
+        : SceneObject(nullptr)
+        , m_Transform()
     {}
-    Model(StaticMesh inStaticMesh, Material inMaterial)
-        : m_StaticMesh(inStaticMesh)
+
+    Model(Scene* inScene)
+        : SceneObject(inScene)
+        , m_Transform()
+    {}
+    Model(Scene* inScene, StaticMesh inStaticMesh, Material inMaterial)
+        : SceneObject(inScene)
+        , m_Transform()
+        , m_StaticMesh(inStaticMesh)
         , m_Material(inMaterial)
     {
     }
+    Model(Scene* inScene, StaticMesh inStaticMesh, Material inMaterial, Transform inTransform)
+        : SceneObject(inScene)
+        , m_Transform(inTransform)
+        , m_StaticMesh(inStaticMesh)
+        , m_Material(inMaterial)
+    {
+    }
+
+
+    bool DrawInspectorPanel() override;
 
     Transform& GetTransform()
     {
         return m_Transform;
     }
 
+    void SetTransform(Transform inTransform)
+    {
+        m_Transform = inTransform;
+    }
+
+    void SetStaticMesh(StaticMesh inStaticMesh)
+    {
+        m_StaticMesh = inStaticMesh;
+    }
+
     void SetMaterial(Material inMaterial)
     {
         m_Material = inMaterial;
     }
+
+    void SetType(ModelType inType)
+    {
+        Type = inType;
+    }
+
 
     virtual RayCastHit ClickCast(Ray mouseRay, ISelectedObject*& outSelectedObject) override;
 

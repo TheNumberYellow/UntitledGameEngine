@@ -6,10 +6,10 @@ void TopDownBullet::Update(Scene* Scene, double DeltaTime)
 {
     if (!Initialized)
     {
-        PointLight NewLight;
-        NewLight.colour = Vec3f(191.f / 255.f, 64.f / 255.f, 191.f / 255.f);
+        PointLight* NewLight = Scene->AddPointLight();
+        NewLight->colour = Vec3f(191.f / 255.f, 64.f / 255.f, 191.f / 255.f);
 
-        Light = Scene->AddPointLight(NewLight);
+        Light = NewLight;
 
         Initialized = true;
     }

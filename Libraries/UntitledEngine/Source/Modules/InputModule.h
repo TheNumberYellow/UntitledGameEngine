@@ -10,6 +10,8 @@ enum class MouseButton
 	LMB,
 	RMB,
 	MIDDLE,
+	BACK,
+	FORWARD,
 
 	Count
 };
@@ -137,7 +139,7 @@ public:
     MouseState();
 
 	MouseState(Vec2i initPos);
-	void UpdateMousePos(Vec2i newPos, bool mouseLocked, Vec2i center);
+	void UpdateMousePos(Vec2i newPos, bool mouseLocked);
 	void UpdateMouseWheel(int delta);
 
 	void SetDeltaPos(Vec2i newDelta);
@@ -213,7 +215,6 @@ public:
     void UpdateMouseWheel(int delta);
 
     void SetMouseLocked(bool locked);
-    void SetMouseCenter(Vec2i newCenter);
 
     GamepadState& GetGamepadState(int controllerIndex = 0);
 
@@ -232,7 +233,6 @@ private:
 	std::queue<char> m_CharQueue;
 
     bool m_MouseLocked;
-    Vec2i m_MouseCenter;
 
 };
 
@@ -253,7 +253,6 @@ public:
 	void ClearDeltaMousePos();
 
 	void SetMouseLocked(bool locked);
-	void SetMouseCenter(Vec2i newCenter);
 
 	GamepadState& GetGamepadState(int controllerIndex = 0);
 

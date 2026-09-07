@@ -13,10 +13,7 @@ struct SpotLightRenderCommand
     Vec3f m_Direction;
 
     float m_Intensity;
-
-    float m_ConstantAttenuation;
-    float m_LinearAttenuation;
-    float m_QuadraticAttenuation;
+    float m_Range;
 
     float m_InnerAngle;
     float m_OuterAngle;
@@ -49,9 +46,7 @@ struct SpotLight : public IEditorClickable
     
     float intensity = 10.0f;
 
-    float constantAttenuation = 1.0f;
-    float linearAttenuation = 0.1f;
-    float quadraticAttenuation = 0.1f;
+    float range = 10.0f;
     
     float innerAngle = 15.0f;
     float outerAngle = 30.0f;

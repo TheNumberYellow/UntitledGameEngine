@@ -3,6 +3,7 @@
 #include "Components/Component.h"
 #include "Math/Vector.h"
 #include "Interfaces/EditorClickable_i.h"
+#include "Scene/SceneObject.h"
 
 class PointLight;
 
@@ -12,14 +13,15 @@ struct PointLightRenderCommand
     Vec3f m_Position;
     float m_Intensity;
 
-    float m_ConstantAttenuation;
-    float m_LinearAttenuation;
-    float m_QuadraticAttenuation;
+    float m_Radius;
+    //float m_ConstantAttenuation;
+    //float m_LinearAttenuation;
+    //float m_QuadraticAttenuation;
 
     bool m_CastShadows;
 };
 
-class SelectedPointLight : public ISelectedObject, public Component
+class SelectedPointLight : public ISelectedObject
 {
 public:
     SelectedPointLight(PointLight* InPointLight);
@@ -37,15 +39,25 @@ private:
     Transform Trans;
 };
 
-struct PointLight : public IEditorClickable
+struct PointLight 
+    : public IEditorClickable
+    , public SceneObject
 {
+    PointLight(Scene* inScene)
+        : SceneObject(inScene)
+    {}
+
+    virtual bool DrawInspectorPanel() override;
+
     Vec3f position = Vec3f(0.0f, 0.0f, 0.0f);
     Colour colour = Colour(1.0f, 1.0f, 1.0f);
     float intensity = 1.0f;
     
-    float constantAttenuation = 1.0f;
-    float linearAttenuation = 0.1f;
-    float quadraticAttenuation = 0.1f;
+    float radius = 5.0f;
+
+    //float constantAttenuation = 1.0f;
+    //float linearAttenuation = 0.1f;
+    //float quadraticAttenuation = 0.1f;
 
     bool castShadows = true;
 

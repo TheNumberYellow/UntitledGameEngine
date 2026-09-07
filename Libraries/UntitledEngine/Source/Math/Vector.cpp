@@ -320,6 +320,45 @@ Colour MakeColour(int r, int g, int b)
     return Colour((float)r / 255.f, (float)g / 255.f, (float)b / 255.f);
 }
 
+Colour MakeColourHSV(double h, double s, double v)
+{
+    double r = 0, g = 0, b = 0;
+
+    // If saturation is 0, the color is a shade of gray
+    if (s <= 0.0) {
+        r = v;
+        g = v;
+        b = v;
+    }
+    else {
+        if (h >= 360.0) h = 0.0;
+        h /= 60.0; // Divide into 6 sectors
+
+        int i = static_cast<int>(std::floor(h)); // Sector index
+        double f = h - i;                      // Factorial/fractional part of h
+
+        double p = v * (1.0 - s);
+        double q = v * (1.0 - (s * f));
+        double t = v * (1.0 - (s * (1.0 - f)));
+
+        switch (i) {
+        case 0:  r = v;     g = t;      b = p;      break;
+        case 1:  r = q;     g = v;      b = p;      break;
+        case 2:  r = p;     g = v;      b = t;      break;
+        case 3:  r = p;     g = q;      b = v;      break;
+        case 4:  r = t;     g = p;      b = v;      break;
+        default: r = v;     g = p;      b = q;      break; // Case 5
+        }
+    }
+
+    // Scale to 0-255 integer range
+    return MakeColour(
+        static_cast<uint8_t>(std::round(r * 255.0)),
+        static_cast<uint8_t>(std::round(g * 255.0)),
+        static_cast<uint8_t>(std::round(b * 255.0))
+    );
+}
+
 float& Vec4f::operator[](int index)
 {
     switch (index)
