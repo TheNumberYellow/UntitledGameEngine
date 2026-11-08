@@ -1,16 +1,16 @@
 {
     "LastEditorCameraDir": [
-        -0.46009981632232666,
-        0.7164033651351929,
-        -0.5245369672775269
+        -0.09656471014022827,
+        0.8368051052093506,
+        -0.5389367938041687
     ],
     "LastEditorCameraPos": [
-        13.888557434082031,
-        14.874037742614746,
-        15.291654586791992
+        8.572295188903809,
+        -44.304725646972656,
+        5.916891098022461
     ],
     "LastOpenLevel": "Assets/levels/TestBed.lvl",
     "LastRotSnapEnabled": true,
-    "LastTransSnapEnabled": false,
-    "TransSnapIndex": 4
+    "LastTransSnapEnabled": true,
+    "TransSnapIndex": 3
 }

@@ -36,7 +36,7 @@ bool SelectedDirectionalLight::DrawInspectorPanel()
     UIModule* UI = UIModule::Get();
 
 
-    UI->Text("Colour", c_InspectorColour);
+    UI->Text("Colour", DirLightPtr->colour);
 
     UI->FloatSlider("R", Vec2f(400.0f, 20.0f), DirLightPtr->colour.r);
     UI->FloatSlider("G", Vec2f(400.0f, 20.0f), DirLightPtr->colour.g);
@@ -59,7 +59,7 @@ Transform* SelectedDirectionalLight::GetTransform()
 
 void SelectedDirectionalLight::DeleteObject()
 {
-    ScenePtr->DeleteDirectionalLight(DirLightPtr);
+    ScenePtr->DeleteObject(DirLightPtr);
 }
 
 bool SelectedDirectionalLight::IsEqual(const ISelectedObject& Other) const

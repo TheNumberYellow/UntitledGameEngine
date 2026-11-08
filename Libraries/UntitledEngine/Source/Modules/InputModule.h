@@ -143,6 +143,7 @@ public:
 	void UpdateMouseWheel(int delta);
 
 	void SetDeltaPos(Vec2i newDelta);
+    void AddToDeltaPos(Vec2i delta);
 
     void ClearDeltaMousePos();
 

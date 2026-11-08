@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Interfaces/EditorClickable_i.h"
+#include "Scene/SceneObject.h"
 
 class DirectionalLight;
 
@@ -31,8 +32,11 @@ private:
     Transform Trans;
 };
 
-struct DirectionalLight : public IEditorClickable
+struct DirectionalLight
+    : public IEditorClickable
+    , public SceneObject
 {
+
     // Position is unused in rendering - only for editor purposes
     Vec3f position = Vec3f(0.0f, 0.0f, 0.0f);
     Vec3f direction = Vec3f(0.0f, 0.0f, -1.0f);

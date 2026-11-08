@@ -25,6 +25,7 @@ class GraphicsModule;
 namespace he
 {
     struct HalfEdgeMesh;
+    struct PolygonFace;
 }
 
 struct GBuffer
@@ -93,6 +94,23 @@ struct AmbientLightRenderCommand
     Vec3f m_Light;
 };
 
+struct SkyboxRenderCommand
+{
+    Cubemap_ID m_Cubemap;
+};
+
+struct ProceduralSkyRenderCommand
+{
+    Colour m_ZenithColour;
+    Colour m_HorizonColour;
+    Colour m_GroundColour;
+
+    float m_ZenithExponent;
+    float m_GroundExponent;
+
+    float m_HorizonFalloff;
+};
+
 class GraphicsModule
     : public IResizeable
 {
@@ -111,7 +129,8 @@ public:
     void AddRenderCommand(SpotLightRenderCommand Command);
     void AddRenderCommand(DirectionalLightRenderCommand Command);
     void AddRenderCommand(AmbientLightRenderCommand Command);
-
+    void AddRenderCommand(SkyboxRenderCommand Command);
+    void AddRenderCommand(ProceduralSkyRenderCommand Command);
 
     // Render all submitted render commands into the specified buffer
     //void Render(Framebuffer_ID OutBuffer, Camera Cam, DirectionalLight DirLight);
@@ -146,17 +165,20 @@ public:
     Material CreateMaterial(Texture* AlbedoMap, Texture* NormalMap);
     Material CreateMaterial(Texture* AlbedoMap);
 
-    Model CreateModel(Scene* inScene, StaticMesh inStaticMesh, Material inMaterial);
+    Model CreateModel(StaticMesh inStaticMesh, Material inMaterial);
 
-    Model CloneModel(Scene* inScene, const Model& original);
+    Model CloneModel(const Model& original);
 
-    Model LoadModel(Scene* inScene, std::vector<float>& BufferData, std::vector<unsigned int>& IndexData, Material Mat);
+    Model LoadModel(std::vector<float>& BufferData, std::vector<unsigned int>& IndexData, Material Mat);
 
     //TODO(fraser) Going to want something that's not a model for level geometry like this, something that can be edited easily (and which doesn't need use a transform matrix)
-    Model CreateBoxModel(Scene* inScene, AABB box);
-    Model CreateBoxModel(Scene* inScene, AABB box, Material texture);
+    Model CreateBoxModel(AABB box);
+    Model CreateBoxModel(AABB box, Material texture);
 
     void UpdateHEMeshModel(Scene* inScene, he::HalfEdgeMesh* mesh);
+
+    std::vector<he::PolygonFace> GetPolygonsInsideDecalProjectionCube(Decal& decal, he::HalfEdgeMesh* mesh);
+    void UpdateDecalRepModel(Decal* decal, Scene* inScene);
 
     Model CreatePlaneModel(Scene* inScene, Vec2f min, Vec2f max, float elevation = 0.0f, int subsections = 1);
     Model CreatePlaneModel(Scene* inScene, Vec2f min, Vec2f max, Material material, float elevation = 0.0f, int subsections = 1);
@@ -225,6 +247,7 @@ public:
     Shader_ID m_SpotShadowShader;
 private:
     Shader_ID m_SkyboxShader;
+    Shader_ID m_ProceduralSkyShader;
     Shader_ID m_DebugLineShader;
     Shader_ID m_UIShader;
 
@@ -239,6 +262,8 @@ public:
     Material m_DebugMaterial;
 
 private:
+
+    Material m_TestMaterial;
 
     VertexBufferFormat m_TexturedMeshFormat;
 
@@ -287,6 +312,8 @@ private:
     std::vector<SpotLightRenderCommand> m_SpotLightRenderCommands;
     std::vector<DirectionalLightRenderCommand> m_DirectionalLightRenderCommands;
     std::vector<AmbientLightRenderCommand> m_AmbientLightRenderCommands;
+    std::vector<SkyboxRenderCommand> m_SkyboxRenderCommands;
+    std::vector<ProceduralSkyRenderCommand> m_ProceduralSkyRenderCommands;
 
     // Deferred rendering meshes
     StaticMesh m_UnitSphereMesh;

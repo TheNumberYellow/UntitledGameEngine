@@ -11,7 +11,7 @@ public:
     virtual void DrawInspectorPanel() override;
 
 private:
-    PointLight* LanternLight = nullptr;
+    std::shared_ptr<PointLight> LanternLight = nullptr;
     Vec3f lightOffset = Vec3f(0.0f, 0.0f, 2.0f);
 
     float StrobeTimer = 0.0f;

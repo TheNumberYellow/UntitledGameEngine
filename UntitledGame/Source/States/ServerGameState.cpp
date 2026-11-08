@@ -15,7 +15,7 @@ void ServerGameState::OnInitialized(ArgsList args)
     graphics->InitializeDebugDraw(ViewportBuffer.FinalOutput);
 
     AssetRegistry* Registry = AssetRegistry::Get();
-    SphereModelPrototype = graphics->CreateModel(&CurrentScene, *Registry->LoadStaticMesh("Assets/models/UVBall.obj"), graphics->CreateMaterial(Registry->LoadTexture("Assets/textures/marble.jpg")));
+    SphereModelPrototype = graphics->CreateModel(*Registry->LoadStaticMesh("Assets/models/UVBall.obj"), graphics->CreateMaterial(Registry->LoadTexture("Assets/textures/marble.jpg")));
 
 
     TestFont = TextModule::Get()->LoadFont("Assets/fonts/ARLRDBD.TTF", 30);
@@ -286,19 +286,19 @@ void ServerGameState::SendSceneUpdatePacket()
     {
         //for (auto& it : CurrentScene.m_Models)
         {
-            json ModelInfo;
-            ModelInfo["ID"] = it.first;
+            //json ModelInfo;
+            //ModelInfo["ID"] = it.first;
 
-            Mat4x4f ModTrans = it.second->GetTransform().GetTransformMatrix();
+            //Mat4x4f ModTrans = it.second->GetTransform().GetTransformMatrix();
 
-            ModelInfo["T"] = {
-                ModTrans[0].x, ModTrans[0].y, ModTrans[0].z, ModTrans[0].w,
-                ModTrans[1].x, ModTrans[1].y, ModTrans[1].z, ModTrans[1].w,
-                ModTrans[2].x, ModTrans[2].y, ModTrans[2].z, ModTrans[2].w,
-                ModTrans[3].x, ModTrans[3].y, ModTrans[3].z, ModTrans[3].w,
-            };
+            //ModelInfo["T"] = {
+            //    ModTrans[0].x, ModTrans[0].y, ModTrans[0].z, ModTrans[0].w,
+            //    ModTrans[1].x, ModTrans[1].y, ModTrans[1].z, ModTrans[1].w,
+            //    ModTrans[2].x, ModTrans[2].y, ModTrans[2].z, ModTrans[2].w,
+            //    ModTrans[3].x, ModTrans[3].y, ModTrans[3].z, ModTrans[3].w,
+            //};
 
-            ModelList.push_back(ModelInfo);
+            //ModelList.push_back(ModelInfo);
         }
     }
 
@@ -334,10 +334,10 @@ void ServerGameState::SpawnSphere(ClientID id)
     GraphicsModule* graphics = GraphicsModule::Get();
     NetworkModule* network = NetworkModule::Get();
 
-    Model* NewSphereModel = CurrentScene.AddModel(SphereModelPrototype);
+    std::shared_ptr<Model> NewSphereModel = CurrentScene.CreateObject<Model>(SphereModelPrototype);
     NewSphereModel->GetTransform().SetPosition(Vec3f(0.0f, 0.0f, 5.0f));
 
-    SphereController* NewBehaviour = static_cast<SphereController*>(BehaviourRegistry::Get()->AttachNewBehaviour("SphereController", NewSphereModel));
+    SphereController* NewBehaviour = static_cast<SphereController*>(BehaviourRegistry::Get()->AttachNewBehaviour("SphereController", NewSphereModel.get()));
     NewBehaviour->SetRunningLocally(false);
     NewBehaviour->Initialize(&CurrentScene);
 

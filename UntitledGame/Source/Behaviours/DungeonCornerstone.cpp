@@ -48,48 +48,49 @@ void DungeonCornerstone::Update(Scene* Scene, double DeltaTime)
 
 void DungeonCornerstone::AddBlock(AABB block, Material mat)
 {
-    GraphicsModule* Graphics = GraphicsModule::Get();
-    Model NewBlock = Graphics->CreateBoxModel(ContainingScene, block, mat);
+    //GraphicsModule* Graphics = GraphicsModule::Get();
+    //Model NewBlock = Graphics->CreateBoxModel(block, mat);
 
-    ContainingScene->AddModel(NewBlock);
+    //Model* NewModel = ContainingScene->AddModel();
+    //*NewModel = NewBlock;
 }
 
 void DungeonCornerstone::AddHallway(AABB hallway, bool xDirection)
 {
-    PointLight* Light = ContainingScene->AddPointLight();
-    Light->position = hallway.Center();
-    Light->colour = Vec3f(255.f / 255.f, 191.f / 255.f, 0.f / 255.f);
+    //PointLight* Light = ContainingScene->AddPointLight();
+    //Light->position = hallway.Center();
+    //Light->colour = Vec3f(255.f / 255.f, 191.f / 255.f, 0.f / 255.f);
 
-    Vec3f MinFloor = Vec3f(hallway.min.x, hallway.min.y, hallway.min.z - FloorHeight);
-    Vec3f MaxFloor = Vec3f(hallway.max.x, hallway.max.y, hallway.min.z);
-    AABB Floor = AABB(MinFloor, MaxFloor);
+    //Vec3f MinFloor = Vec3f(hallway.min.x, hallway.min.y, hallway.min.z - FloorHeight);
+    //Vec3f MaxFloor = Vec3f(hallway.max.x, hallway.max.y, hallway.min.z);
+    //AABB Floor = AABB(MinFloor, MaxFloor);
 
-    Vec3f MinCeil = Vec3f(hallway.min.x, hallway.min.y, hallway.max.z);
-    Vec3f MaxCeil = Vec3f(hallway.max.x, hallway.max.y, hallway.max.z + FloorHeight);
-    AABB Ceil = AABB(MinCeil, MaxCeil);
+    //Vec3f MinCeil = Vec3f(hallway.min.x, hallway.min.y, hallway.max.z);
+    //Vec3f MaxCeil = Vec3f(hallway.max.x, hallway.max.y, hallway.max.z + FloorHeight);
+    //AABB Ceil = AABB(MinCeil, MaxCeil);
 
-    AABB LeftWall;
-    AABB RightWall;
+    //AABB LeftWall;
+    //AABB RightWall;
 
-    if (xDirection)
-    {
-        Vec3f MinWall = Vec3f(hallway.min.x, hallway.max.y, hallway.min.z);
-        Vec3f MaxWall = Vec3f(hallway.max.x, hallway.max.y + FloorHeight, hallway.max.z);
-    
-        LeftWall = AABB(MinWall, MaxWall);
+    //if (xDirection)
+    //{
+    //    Vec3f MinWall = Vec3f(hallway.min.x, hallway.max.y, hallway.min.z);
+    //    Vec3f MaxWall = Vec3f(hallway.max.x, hallway.max.y + FloorHeight, hallway.max.z);
+    //
+    //    LeftWall = AABB(MinWall, MaxWall);
 
-        MinWall -= Vec3f(0.0f, hallway.YSize() + FloorHeight, 0.0f);
-        MaxWall -= Vec3f(0.0f, hallway.YSize() + FloorHeight, 0.0f);
+    //    MinWall -= Vec3f(0.0f, hallway.YSize() + FloorHeight, 0.0f);
+    //    MaxWall -= Vec3f(0.0f, hallway.YSize() + FloorHeight, 0.0f);
 
-        RightWall = AABB(MinWall, MaxWall);
-    }
-    else
-    {
+    //    RightWall = AABB(MinWall, MaxWall);
+    //}
+    //else
+    //{
 
-    }
+    //}
 
-    AddBlock(Floor, GroundMat);
-    AddBlock(Ceil, GroundMat);
-    AddBlock(LeftWall, GroundMat);
-    AddBlock(RightWall, GroundMat);
+    //AddBlock(Floor, GroundMat);
+    //AddBlock(Ceil, GroundMat);
+    //AddBlock(LeftWall, GroundMat);
+    //AddBlock(RightWall, GroundMat);
 }

@@ -6,7 +6,6 @@
 #include "States/Editor/CursorState.h"
 
 class Model;
-struct HalfEdgeMesh;
 struct HotspotTexture;
 
 namespace he
@@ -14,6 +13,7 @@ namespace he
     struct Face;
     struct HalfEdge;
     struct Vertex;
+    struct HalfEdgeMesh;
 
     // Helper structs for half edge operation
     struct PolygonFace
@@ -28,8 +28,6 @@ namespace he
     {
         std::vector<he::Face*> Faces;
     };
-
-
 
     // Helper functions for half edge operations
     void ConvertHalfEdgeMeshToPolys(HalfEdgeMesh& mesh, std::vector<PolygonFace>& outPolys);
@@ -217,7 +215,8 @@ namespace he
         virtual bool DrawInspectorPanel() override;
         virtual Transform* GetTransform() override;
         virtual void DeleteObject() override;
-
+        
+        HalfEdgeMesh* m_HalfEdgeMesh;
     private:
 
         virtual bool IsEqual(const ISelectedObject& other) const override;
@@ -229,11 +228,11 @@ namespace he
         Mat4x4f edgeOffsetA;
         Mat4x4f edgeOffsetB;
 
-        HalfEdgeMesh* m_HalfEdgeMesh;
-
     };
 
-    struct HalfEdgeMesh : public IEditorClickable
+    struct HalfEdgeMesh
+        : public IEditorClickable
+        , public SceneObject
     {
         void MakeQuad();
         void MakeAABB(AABB inAABB, Material inMaterial);
@@ -252,7 +251,13 @@ namespace he
 
         void SplitEdge(HalfEdge* inEdge);
 
-        bool Slice(Plane inPlane, HalfEdgeMesh* outFrontMesh = nullptr, HalfEdgeMesh* outBackMesh = nullptr, bool addCaps = true);
+        bool Slice(
+            Plane inPlane, 
+            HalfEdgeMesh* outFrontMesh = nullptr, 
+            HalfEdgeMesh* outBackMesh = nullptr, 
+            bool addCaps = true, 
+            bool createSeparateMeshes = true
+        );
         void SliceFaces(Plane inPlane);
 
         void EditorDraw();

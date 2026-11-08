@@ -3,7 +3,7 @@
 #include <mutex>
 #include <stack>
 
-#define uGUID unsigned int
+#define uGUID long long
 
 class uGUIDGenerator
 {

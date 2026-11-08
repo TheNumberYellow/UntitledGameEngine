@@ -3,10 +3,12 @@
 #include "Modules/GraphicsModule.h"
 #include "Modules/UIModule.h"
 
+#include "HalfEdge/HalfEdge.h"
+
 #include "Scene/Scene.h"
 
 
-SelectedDecal::SelectedDecal(Decal* inDecalPtr)
+SelectedDecal::SelectedDecal(std::shared_ptr<Decal> inDecalPtr)
 {
     DecalPtr = inDecalPtr;
 
@@ -23,7 +25,7 @@ void SelectedDecal::Draw()
     Graphics->DebugDrawAABB(DecalProjectorAABB, Vec3f(1.0f, 0.0f, 1.0f), Trans.GetTransformMatrix());
 
     // Draw arrow to show the direction of the decal projection
-    Vec3f forwardVector = Vec3f(-1.0f, 0.0f, 0.0f) * Trans.GetRotation();
+    Vec3f forwardVector = Vec3f(0.0f, 0.0f, -1.0f) * Trans.GetRotation();
     Vec3f arrowStart = Trans.GetPosition() - (forwardVector * Trans.GetScale() * 0.5f);
     Vec3f arrowEnd = Trans.GetPosition();
 
@@ -39,6 +41,27 @@ void SelectedDecal::Draw()
             Graphics->DebugDrawPlane(plane, 1.0f, Vec3f(1.0f, 0.0f, 0.0f));
         }
     }
+    if (Input->IsKeyDown(Key::C))
+    {
+        std::vector<he::PolygonFace> faces;
+        // Loop through half edge meshes in the scene and get all faces that are inside the decal's projection cube
+        for (auto& mesh : ScenePtr->GetHalfEdgeMeshes())
+        {
+            std::vector<he::PolygonFace> meshFaces = GraphicsModule::Get()->GetPolygonsInsideDecalProjectionCube(*DecalPtr, mesh.get());
+            faces.insert(faces.end(), meshFaces.begin(), meshFaces.end());
+        }
+
+        // Debug draw the faces that are inside the decal's projection cube
+        for (const he::PolygonFace& face : faces)
+        {
+            for (size_t i = 0; i < face.Vertices.size(); i++)
+            {
+                Vec3f a = face.Vertices[i];
+                Vec3f b = face.Vertices[(i + 1) % face.Vertices.size()];
+                Graphics->DebugDrawLine(a, b, Vec3f(0.0f, 1.0f, 0.0f), 0.02f);
+            }
+        }
+    }
 
 }
 
@@ -49,6 +72,15 @@ void SelectedDecal::Update()
 
 bool SelectedDecal::DrawInspectorPanel()
 {
+    UIModule* UI = UIModule::Get();
+
+    if (UI->TextButton("Update Decal"))
+    {
+        GraphicsModule* Graphics = GraphicsModule::Get();
+        Graphics->UpdateDecalRepModel(DecalPtr.get(), ScenePtr);
+        return true;
+    }
+
     return false;
 }
 
@@ -59,7 +91,7 @@ Transform* SelectedDecal::GetTransform()
 
 void SelectedDecal::DeleteObject()
 {
-    ScenePtr->DeleteDecal(DecalPtr);
+    ScenePtr->DeleteObject(DecalPtr);
 }
 
 bool SelectedDecal::IsEqual(const ISelectedObject& Other) const
@@ -106,6 +138,15 @@ std::vector<Plane> Decal::GetProjectionCubePlanes()
     return planes;
 }
 
+Vec3f Decal::GetLocalDecalSpacePosition(Vec3f worldPos)
+{
+    // Get the inverse of the orientation matrix
+    Mat4x4f invOrientation = Math::inv(orientation);
+    // Transform the world position into local decal space
+    Vec3f localPos = Math::mult(worldPos, invOrientation);
+    return localPos;
+}
+
 RayCastHit Decal::ClickCast(Ray mouseRay, ISelectedObject*& outSelectedObject)
 {
     CollisionModule* collisions = CollisionModule::Get();
@@ -118,7 +159,7 @@ RayCastHit Decal::ClickCast(Ray mouseRay, ISelectedObject*& outSelectedObject)
 
     if (result.hit)
     {
-        outSelectedObject = new SelectedDecal(this);
+        outSelectedObject = new SelectedDecal(std::shared_ptr<Decal>(this));
     }
     return result;
 }

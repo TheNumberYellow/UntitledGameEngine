@@ -4,7 +4,7 @@ REGISTER_BEHAVIOUR(Lantern);
 
 void Lantern::Initialize(Scene* Scene)
 {
-    PointLight* Light = Scene->AddPointLight();
+    std::shared_ptr<PointLight> Light = Scene->CreateObject<PointLight>();
     Light->position = m_Model->GetTransform().GetPosition() + lightOffset;
     Light->colour = Vec3f(255.f / 255.f, 191.f / 255.f, 0.f / 255.f);
     Light->intensity = 2.0f;

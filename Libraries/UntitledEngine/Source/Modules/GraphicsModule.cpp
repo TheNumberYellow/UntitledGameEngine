@@ -457,11 +457,396 @@ GraphicsModule::GraphicsModule(Renderer& renderer)
 
     void main()
     {
-        OutColour = texture(SkyBox, TexCoords);
+        vec3 dir = normalize(TexCoords);
+        OutColour = texture(SkyBox, dir);
     }
     )";
 
     m_SkyboxShader = m_Renderer.LoadShader(vertShaderSource, fragShaderSource);
+
+    // ~~~~~~~~~~~~~~~~~~~~~Procedural sky shader code~~~~~~~~~~~~~~~~~~~~~ //
+    vertShaderSource = R"(
+    #version 400
+
+    in vec3 aPos;
+
+    uniform mat4 projection;
+    uniform mat4 view;
+
+    out vec3 TexCoords;
+    
+    void main()
+    {
+        TexCoords = vec3(aPos.x, aPos.y, aPos.z);
+        gl_Position = projection * view * vec4(aPos, 1.0);
+        gl_Position.z = gl_Position.w;
+    }
+    )";
+
+    fragShaderSource = R"(
+    #version 400
+
+    #define PI 3.14159265359
+
+    in vec3 TexCoords;
+
+    uniform vec3 ZenithColour;
+    uniform vec3 HorizonColour;
+    uniform vec3 GroundColour;
+
+    //uniform float ZenithExponent;
+    //uniform float GroundExponent;
+
+    //uniform float HorizonFalloff;
+    
+    out vec4 OutColour;
+
+    float hash(ivec3 p)
+    {
+        uint x = uint(p.x);
+        uint y = uint(p.y);
+        uint z = uint(p.z);
+
+        uint h =
+            x * 1664525u +
+            y * 1013904223u +
+            z * 374761393u;
+
+        h ^= h >> 16;
+        h *= 2246822519u;
+        h ^= h >> 13;
+        h *= 3266489917u;
+        h ^= h >> 16;
+
+        return float(h) / 4294967295.0;
+    }
+
+
+    // ------------------------------------------------------------
+    // Convert direction -> cubemap face + UV
+    //
+    // UV is in [0,1].
+    // ------------------------------------------------------------
+
+    vec2 directionToCubeUV(vec3 d, out int face)
+    {
+        vec3 a = abs(d);
+
+        if (a.x >= a.y && a.x >= a.z)
+        {
+            if (d.x > 0.0)
+            {
+                // +X
+                face = 0;
+
+                return vec2(
+                    -d.z / a.x,
+                     d.y / a.x
+                ) * 0.5 + 0.5;
+            }
+            else
+            {
+                // -X
+                face = 1;
+
+                return vec2(
+                     d.z / a.x,
+                     d.y / a.x
+                ) * 0.5 + 0.5;
+            }
+        }
+
+        if (a.y >= a.x && a.y >= a.z)
+        {
+            if (d.y > 0.0)
+            {
+                // +Y
+                face = 2;
+
+                return vec2(
+                     d.x / a.y,
+                    -d.z / a.y
+                ) * 0.5 + 0.5;
+            }
+            else
+            {
+                // -Y
+                face = 3;
+
+                return vec2(
+                     d.x / a.y,
+                     d.z / a.y
+                ) * 0.5 + 0.5;
+            }
+        }
+
+        if (d.z > 0.0)
+        {
+            // +Z
+            face = 4;
+
+            return vec2(
+                 d.x / a.z,
+                 d.y / a.z
+            ) * 0.5 + 0.5;
+        }
+        else
+        {
+            // -Z
+            face = 5;
+
+            return vec2(
+                -d.x / a.z,
+                 d.y / a.z
+            ) * 0.5 + 0.5;
+        }
+    }
+
+
+    // ------------------------------------------------------------
+    // Convert cubemap face + UV -> direction
+    // ------------------------------------------------------------
+
+    vec3 cubeUVToDirection(int face, vec2 uv)
+    {
+        // Convert [0,1] -> [-1,1]
+        vec2 p = uv * 2.0 - 1.0;
+
+        vec3 d;
+
+        if (face == 0)
+        {
+            // +X
+            d = vec3(
+                 1.0,
+                 p.y,
+                -p.x
+            );
+        }
+        else if (face == 1)
+        {
+            // -X
+            d = vec3(
+                -1.0,
+                 p.y,
+                 p.x
+            );
+        }
+        else if (face == 2)
+        {
+            // +Y
+            d = vec3(
+                 p.x,
+                 1.0,
+                -p.y
+            );
+        }
+        else if (face == 3)
+        {
+            // -Y
+            d = vec3(
+                 p.x,
+                -1.0,
+                 p.y
+            );
+        }
+        else if (face == 4)
+        {
+            // +Z
+            d = vec3(
+                 p.x,
+                 p.y,
+                 1.0
+            );
+        }
+        else
+        {
+            // -Z
+            d = vec3(
+                -p.x,
+                 p.y,
+                -1.0
+            );
+        }
+
+        return normalize(d);
+    }
+
+    float rand(vec2 co) {
+        return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
+    }
+
+    
+
+    vec2 getSkyboxUV(vec3 dir) {
+        // 1. Normalize the direction vector
+        vec3 d = normalize(dir);
+    
+        // 2. Calculate longitude (-PI to PI) and latitude (-PI/2 to PI/2)
+        float lon = atan(d.y, d.x);
+        float lat = asin(d.z);
+    
+        // 3. Map to [0.0, 1.0] range
+        float u = (lon + PI) / (2.0 * PI);
+        float v = (lat + (PI / 2.0)) / PI;
+    
+        return vec2(u, v);
+    }
+
+    void main()
+    {
+
+        vec3 dir = normalize(TexCoords);
+
+        float height = dir.z;
+        vec3 skyColour = vec3(1.0, 1.0, 1.0);
+
+        if (height >= 0.0)
+        {
+            //float t = pow(height, ZenithExponent);
+            float t = smoothstep(0.0, 1.0, height);
+            skyColour = mix(HorizonColour, ZenithColour, t);            
+        }
+        else
+        {
+            //float t = pow(-height, GroundExponent);
+            float t = smoothstep(0.0, -1.0, height);;
+            skyColour = mix(HorizonColour, GroundColour, t);
+        }
+
+        //float horizonDistance = abs(height);
+
+        //float horizonFactor = exp(-horizonDistance * HorizonFalloff);
+        
+        //skyColour = mix(skyColour, HorizonColour, horizonFactor * 0.25);
+
+        // Noise
+        float noise = rand(dir.xz);
+
+        noise = noise - 0.5;        
+
+        skyColour = skyColour + (noise / 255.0);
+
+        // Stars
+        const float GRID_SIZE = 512.0;
+    
+        const float STAR_PROBABILITY = 0.0005;
+
+        int face;
+        vec2 cubeUV = directionToCubeUV(dir, face);
+
+        vec2 gridPosition = cubeUV * GRID_SIZE;
+
+        ivec2 cell = ivec2(floor(gridPosition));
+
+        ivec3 hashCell = ivec3(cell, face);
+
+        float starRandom = hash(hashCell);
+
+        if (starRandom < STAR_PROBABILITY)
+        {
+            // ----------------------------------------------------
+            // Generate random star position inside the cell
+            // ----------------------------------------------------
+
+            float randomX =
+                hash(hashCell + ivec3(17, 53, 101));
+
+            float randomY =
+                hash(hashCell + ivec3(71, 29, 137));
+
+            // Keep the star away from the edge of the cell.
+            //
+            // This means we don't need to check neighboring cells
+            // and also avoids ugly stars being cut in half at cell
+            // boundaries.
+            vec2 localPosition =
+                mix(
+                    vec2(0.15),
+                    vec2(0.85),
+                    vec2(randomX, randomY)
+                );
+
+            vec2 starUV =
+                (vec2(cell) + localPosition) / GRID_SIZE;
+
+
+            // ----------------------------------------------------
+            // Convert star position back into a 3D direction
+            // ----------------------------------------------------
+
+            vec3 starDirection =
+                cubeUVToDirection(face, starUV);
+
+
+            // ----------------------------------------------------
+            // Angular distance from star
+            // ----------------------------------------------------
+
+            float cosAngle =
+                dot(dir, starDirection);
+
+
+            // Convert our desired angular radius into a
+            // cosine threshold.
+            //
+            // Larger value = smaller star.
+            const float STAR_RADIUS = 0.0015;
+
+            float cosRadius =
+                cos(STAR_RADIUS);
+
+            float star =
+                smoothstep(
+                    cosRadius,
+                    1.0,
+                    cosAngle
+                );
+
+
+            // ----------------------------------------------------
+            // Random star brightness
+            // ----------------------------------------------------
+
+            float brightnessRandom =
+                hash(hashCell + ivec3(113, 7, 211));
+
+            float brightness =
+                mix(
+                    0.5,
+                    1.5,
+                    brightnessRandom
+                );
+
+            skyColour +=
+                star *
+                brightness *
+                vec3(1.0);
+
+        }
+        //vec2 st = getSkyboxUV(dir);
+
+
+        //vec2 grid = st * 100.0;
+        //vec2 cell = floor(grid);
+        //vec2 localPos = fract(grid);
+        //
+        //float rnd = rand(cell);
+        //
+        //if (rnd > 0.95)
+        //{
+        //    float dist = length(localPos - 0.5);
+
+        //    float star = smoothstep(0.15, 0.0, dist);
+
+        //    skyColour += vec3(star);
+        //}
+
+        OutColour = vec4(skyColour, 1.0);
+    }
+    )";
+
+    m_ProceduralSkyShader = m_Renderer.LoadShader(vertShaderSource, fragShaderSource);
 
     // ~~~~~~~~~~~~~~~~~~~~~Debug line shader code~~~~~~~~~~~~~~~~~~~~~ //
     vertShaderSource = R"(
@@ -1917,6 +2302,14 @@ void GraphicsModule::Initialize()
 
     m_DebugMaterial = CreateMaterial(Registry->LoadTexture("Assets/textures/White_Debug.png"),
         Registry->LoadTexture("Assets/textures/White_Debug.norm.png"));
+
+    m_TestMaterial = CreateMaterial(Registry->LoadTexture("Assets/textures/pirate-gold.png"),
+        Registry->LoadTexture("Assets/textures/pirate-gold.norm.png"),
+        Registry->LoadTexture("Assets/textures/pirate-gold.rough.png"),
+        Registry->LoadTexture("Assets/textures/pirate-gold.metal.png"),
+        Registry->LoadTexture("Assets/textures/pirate-gold.ao.png"));
+
+    //m_TestMaterial = CreateMaterial(Registry->LoadTexture("Assets/textures/blotches.png"));
 }
 
 GBuffer GraphicsModule::CreateGBuffer(Vec2i Size)
@@ -2006,6 +2399,16 @@ void GraphicsModule::AddRenderCommand(AmbientLightRenderCommand Command)
     m_AmbientLightRenderCommands.push_back(Command);
 }
 
+void GraphicsModule::AddRenderCommand(SkyboxRenderCommand Command)
+{
+    m_SkyboxRenderCommands.push_back(Command);
+}
+
+void GraphicsModule::AddRenderCommand(ProceduralSkyRenderCommand Command)
+{
+    m_ProceduralSkyRenderCommands.push_back(Command);
+}
+
 static Vec3f GetPointLightDirectionForCubemapFace(int faceIndex)
 {
     switch (faceIndex)
@@ -2075,28 +2478,66 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam)
 
     // TEMP: skybox code blech
 
-    m_Renderer.SetActiveFBuffer(Buffer.SkyBuffer);
-    m_Renderer.SetActiveShader(m_SkyboxShader);
-    m_Renderer.ClearColourBuffer();
+    for (SkyboxRenderCommand& Command : m_SkyboxRenderCommands)
+    {
+        m_Renderer.SetActiveFBuffer(Buffer.SkyBuffer);
 
-    m_Renderer.SetShaderUniformMat4x4f(m_SkyboxShader, "projection", Cam.GetProjectionMatrix());
+        m_Renderer.SetActiveShader(m_SkyboxShader);
+        m_Renderer.ClearColourBuffer();
 
-    Mat4x4f newView = Cam.GetViewMatrix();
+        m_Renderer.SetShaderUniformMat4x4f(m_SkyboxShader, "projection", Cam.GetProjectionMatrix());
 
-    newView[3][0] = 0.0f;
-    newView[3][1] = 0.0f;
-    newView[3][2] = 0.0f;
-    newView[3][3] = 1.0f;
+        Mat4x4f newView = Cam.GetViewMatrix();
 
-    newView[0][3] = 0.0f;
-    newView[1][3] = 0.0f;
-    newView[2][3] = 0.0f;
+        newView[3][0] = 0.0f;
+        newView[3][1] = 0.0f;
+        newView[3][2] = 0.0f;
+        newView[3][3] = 1.0f;
 
-    m_Renderer.SetShaderUniformMat4x4f(m_SkyboxShader, "view", newView);
+        newView[0][3] = 0.0f;
+        newView[1][3] = 0.0f;
+        newView[2][3] = 0.0f;
 
-    m_Renderer.SetActiveCubemap(m_SkyboxCubemap, "SkyBox");
+        m_Renderer.SetShaderUniformMat4x4f(m_SkyboxShader, "view", newView);
+
+        m_Renderer.SetActiveCubemap(m_SkyboxCubemap, "SkyBox");
     
-    m_Renderer.DrawMesh(m_SkyboxMesh);
+        m_Renderer.DrawMesh(m_SkyboxMesh);
+    }
+
+    for (ProceduralSkyRenderCommand& Command : m_ProceduralSkyRenderCommands)
+    {
+        m_Renderer.SetActiveFBuffer(Buffer.SkyBuffer);
+
+        m_Renderer.SetActiveShader(m_ProceduralSkyShader);
+        m_Renderer.ClearColourBuffer();
+
+        m_Renderer.SetShaderUniformMat4x4f(m_ProceduralSkyShader, "projection", Cam.GetProjectionMatrix());
+
+        Mat4x4f newView = Cam.GetViewMatrix();
+
+        newView[3][0] = 0.0f;
+        newView[3][1] = 0.0f;
+        newView[3][2] = 0.0f;
+        newView[3][3] = 1.0f;
+
+        newView[0][3] = 0.0f;
+        newView[1][3] = 0.0f;
+        newView[2][3] = 0.0f;
+
+        m_Renderer.SetShaderUniformMat4x4f(m_ProceduralSkyShader, "view", newView);
+
+        m_Renderer.SetShaderUniformVec3f(m_ProceduralSkyShader, "ZenithColour", Command.m_ZenithColour);
+        m_Renderer.SetShaderUniformVec3f(m_ProceduralSkyShader, "HorizonColour", Command.m_HorizonColour);
+        m_Renderer.SetShaderUniformVec3f(m_ProceduralSkyShader, "GroundColour", Command.m_GroundColour);
+
+        //m_Renderer.SetShaderUniformFloat(m_ProceduralSkyShader, "ZenithExponent", Command.m_ZenithExponent);
+        //m_Renderer.SetShaderUniformFloat(m_ProceduralSkyShader, "GroundExponent", Command.m_GroundExponent);
+
+        //m_Renderer.SetShaderUniformFloat(m_ProceduralSkyShader, "HorizonFalloff", Command.m_HorizonFalloff);
+
+        m_Renderer.DrawMesh(m_SkyboxMesh);
+    }
 
     // Temp skybox code end
 
@@ -2441,6 +2882,9 @@ void GraphicsModule::Render(GBuffer Buffer, Camera Cam)
     m_PointLightRenderCommands.clear();
     m_SpotLightRenderCommands.clear();
     m_DirectionalLightRenderCommands.clear();
+    m_AmbientLightRenderCommands.clear();
+    m_SkyboxRenderCommands.clear();
+    m_ProceduralSkyRenderCommands.clear();
 
     m_Renderer.EnableStencilTesting();
 
@@ -2664,17 +3108,17 @@ Material GraphicsModule::CreateMaterial(Texture* AlbedoMap)
     return Result;
 }
 
-Model GraphicsModule::CreateModel(Scene* inScene, StaticMesh inStaticMesh, Material inMaterial)
+Model GraphicsModule::CreateModel(StaticMesh inStaticMesh, Material inMaterial)
 {
-    return Model(inScene, inStaticMesh, inMaterial);
+    return Model(inStaticMesh, inMaterial);
 }
 
-Model GraphicsModule::CloneModel(Scene* inScene, const Model& original)
+Model GraphicsModule::CloneModel(const Model& original)
 {
-    return Model(inScene, original.m_StaticMesh, original.m_Material);
+    return Model(original.m_StaticMesh, original.m_Material);
 }
 
-Model GraphicsModule::LoadModel(Scene* inScene, std::vector<float>& BufferData, std::vector<unsigned int>& IndexData, Material Mat)
+Model GraphicsModule::LoadModel(std::vector<float>& BufferData, std::vector<unsigned int>& IndexData, Material Mat)
 {
     StaticMesh_ID MeshID = m_Renderer.LoadMesh(m_TexturedMeshFormat, BufferData, IndexData);
 
@@ -2682,17 +3126,17 @@ Model GraphicsModule::LoadModel(Scene* inScene, std::vector<float>& BufferData, 
     Mesh.Id = MeshID;
     Mesh.LoadedFromFile = false;
 
-    Model Result = Model(inScene, Mesh, Mat);
+    Model Result = Model(Mesh, Mat);
 
     return Result;
 }
 
-Model GraphicsModule::CreateBoxModel(Scene* inScene, AABB box)
+Model GraphicsModule::CreateBoxModel(AABB box)
 {
-    return CreateBoxModel(inScene, box, m_DebugMaterial);
+    return CreateBoxModel(box, m_DebugMaterial);
 }
 
-Model GraphicsModule::CreateBoxModel(Scene* inScene, AABB box, Material material)
+Model GraphicsModule::CreateBoxModel(AABB box, Material material)
 {
     Vec3f min = box.min;
     Vec3f max = box.max;
@@ -2774,7 +3218,7 @@ Model GraphicsModule::CreateBoxModel(Scene* inScene, AABB box, Material material
     boxMesh.Id = boxMeshId;
     boxMesh.LoadedFromFile = false;
 
-    Model result = Model(inScene, boxMesh, material);
+    Model result = Model(boxMesh, material);
     result.GetTransform().SetPosition(averagePoint);
     result.Type = ModelType::BLOCK;
 
@@ -3057,12 +3501,106 @@ void GraphicsModule::UpdateHEMeshModel(Scene* inScene, he::HalfEdgeMesh* mesh)
 
         //if (face->material)
         {
-            mesh->m_RepModels.push_back(Model(inScene, heMesh, face->material));
+            mesh->m_RepModels.push_back(Model(heMesh, face->material));
         }
         //else
         //{
         //    mesh->m_RepModels.push_back(Model(heMesh, m_DebugMaterial));
         //}
+    }
+}
+
+std::vector<he::PolygonFace> GraphicsModule::GetPolygonsInsideDecalProjectionCube(Decal& decal, he::HalfEdgeMesh* mesh)
+{
+    std::vector<he::PolygonFace> result;
+
+    // Get decal projection cube plane
+    std::vector<Plane> decalPlanes = decal.GetProjectionCubePlanes();
+
+    std::vector<he::PolygonFace> meshFaces;
+    he::ConvertHalfEdgeMeshToPolys(*mesh, meshFaces);
+
+    for (he::PolygonFace& face : meshFaces)
+    {
+        he::PolygonFace clippedFace = face;
+        he::PolygonFace frontPolyFace;
+        for (Plane& plane : decalPlanes)
+        {
+            he::SplitPolygonByPlane(clippedFace, plane, frontPolyFace, clippedFace);
+        }
+        result.push_back(clippedFace);
+    }
+
+    return result;
+}
+
+void GraphicsModule::UpdateDecalRepModel(Decal* decal, Scene* inScene)
+{
+    if (decal->m_RepModel)
+    {
+        m_Renderer.DeleteMesh(decal->m_RepModel->m_StaticMesh.Id);
+        delete decal->m_RepModel;
+    }
+
+    std::vector<he::PolygonFace> clippedFaces;
+
+    for (std::shared_ptr<he::HalfEdgeMesh> heMesh : inScene->GetHalfEdgeMeshes())
+    {
+        std::vector<he::PolygonFace> facesInsideDecal = GetPolygonsInsideDecalProjectionCube(*decal, heMesh.get());
+        clippedFaces.insert(clippedFaces.end(), facesInsideDecal.begin(), facesInsideDecal.end());
+    }
+
+    // Create a new mesh from the clipped faces
+    std::vector<float> Vertices;
+
+    std::vector<unsigned int> Indices;
+
+    for (he::PolygonFace& face : clippedFaces)
+    {
+        if (face.Vertices.size() < 3)
+        {
+            continue;
+        }
+
+        // Triangulate the face (assuming it's convex)
+        for (int i = 1; i < face.Vertices.size() - 1; ++i)
+        {
+            Vec3f a = face.Vertices[0];
+            Vec3f b = face.Vertices[i];
+            Vec3f c = face.Vertices[i + 1];
+            Vec3f normal = Math::cross(b - a, c - a).GetNormalized();
+
+            // Move vertices slightly along the normal to avoid z-fighting with the underlying mesh
+            a += normal * -0.01f;
+            b += normal * -0.01f;
+            c += normal * -0.01f;
+
+            // Get UVs based on position in decal space
+            Vec3f decalSpacePosA = decal->GetLocalDecalSpacePosition(a);
+            Vec3f decalSpacePosB = decal->GetLocalDecalSpacePosition(b);
+            Vec3f decalSpacePosC = decal->GetLocalDecalSpacePosition(c);
+
+            Vec2f uvA = Vec2f(decalSpacePosA.x - 0.5f, decalSpacePosA.y - 0.5f);
+            Vec2f uvB = Vec2f(decalSpacePosB.x - 0.5f, decalSpacePosB.y - 0.5f);
+            Vec2f uvC = Vec2f(decalSpacePosC.x - 0.5f, decalSpacePosC.y - 0.5f);
+
+            Vertices.insert(Vertices.end(),
+                {
+                    a.x, a.y, a.z, normal.x, normal.y, normal.z, 1.0f, 1.0f, 1.0f, 1.0f, uvA.x, uvA.y,
+                    b.x, b.y, b.z, normal.x, normal.y, normal.z, 1.0f, 1.0f, 1.0f, 1.0f, uvB.x, uvB.y,
+                    c.x, c.y, c.z, normal.x, normal.y, normal.z, 1.0f, 1.0f, 1.0f, 1.0f, uvC.x, uvC.y
+                });
+            Indices.insert(Indices.end(), { (unsigned int)Indices.size(), (unsigned int)Indices.size() + 1, (unsigned int)Indices.size() + 2 });
+
+        }
+
+        StaticMesh_ID decalMeshId = m_Renderer.LoadMesh(m_TexturedMeshFormat, Vertices, Indices);
+
+        StaticMesh decalMesh;
+        decalMesh.Id = decalMeshId;
+        decalMesh.LoadedFromFile = false;
+
+        decal->m_RepModel = new Model(decalMesh, m_TestMaterial);
     }
 }
 
@@ -3132,7 +3670,7 @@ Model GraphicsModule::CreatePlaneModel(Scene* inScene, Vec2f min, Vec2f max, Mat
     planeMesh.Id = planeMeshId;
     planeMesh.LoadedFromFile = false;
 
-    Model result = Model(inScene, planeMesh, material);
+    Model result = Model(planeMesh, material);
     result.GetTransform().SetPosition(AveragePoint);
     result.Type = ModelType::PLANE;
 

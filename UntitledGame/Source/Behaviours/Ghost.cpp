@@ -27,7 +27,7 @@ void Ghost::Update(Scene* Scene, double DeltaTime)
                 PlayerBehaviour->Hurt();
             }
 
-            Scene->DeleteModel(m_Model);
+            Scene->DeleteObject(m_Model);
 
             return;
         }

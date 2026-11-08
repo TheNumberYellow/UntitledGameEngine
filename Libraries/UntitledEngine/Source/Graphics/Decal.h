@@ -2,13 +2,15 @@
 
 #include "Interfaces/EditorClickable_i.h"
 #include "Math/Geometry.h"
+#include "Scene/SceneObject.h"
 
 class Decal;
+class Model;
 
 class SelectedDecal : public ISelectedObject
 {
 public:
-    SelectedDecal(Decal* inDecalPtr);
+    SelectedDecal(std::shared_ptr<Decal> inDecalPtr);
 
     virtual void Draw() override;
     virtual void Update() override;
@@ -19,15 +21,21 @@ public:
 private:
     virtual bool IsEqual(const ISelectedObject& Other) const override;
     
-    Decal* DecalPtr;
+    std::shared_ptr<Decal> DecalPtr;
     Transform Trans;
 };
 
-struct Decal : public IEditorClickable
+struct Decal 
+    : public IEditorClickable
+    , public SceneObject
 {
     Decal();
 
     std::vector<Plane> GetProjectionCubePlanes();
+
+    Vec3f GetLocalDecalSpacePosition(Vec3f worldPos);
+
+    Model* m_RepModel = nullptr;
 
     Mat4x4f orientation;
 

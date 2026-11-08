@@ -359,6 +359,74 @@ Colour MakeColourHSV(double h, double s, double v)
     );
 }
 
+Colour RGBtoHSV(Colour rgb)
+{
+    // RGB is from 0.0 to 1.0
+    float r = rgb.x;
+    float g = rgb.y;
+    float b = rgb.z;
+
+    float max = Math::Max(r, Math::Max(g, b));
+    float min = Math::Min(r, Math::Min(g, b));
+
+    float h, s, v = max;
+
+    float delta = max - min;
+
+    if (max == 0.0f) {
+        s = 0.0f;
+        h = 0.0f; // Undefined, maybe NaN?
+    }
+    else {
+        s = delta / max;
+        if (delta == 0.0f) {
+            h = 0.0f; // Undefined, maybe NaN?
+        }
+        else if (max == r) {
+            h = 60.0f * (fmod(((g - b) / delta), 6.0f));
+        }
+        else if (max == g) {
+            h = 60.0f * (((b - r) / delta) + 2.0f);
+        }
+        else { // max == b
+            h = 60.0f * (((r - g) / delta) + 4.0f);
+        }
+        if (h < 0.0f) {
+            h += 360.0f;
+        }
+    }
+
+    return Colour(h, s, v);
+}
+
+Colour HSVtoRGB(Colour hsv)
+{
+    float h = hsv.x;
+    float s = hsv.y;
+    float v = hsv.z;
+    float r, g, b;
+    if (s == 0.0f) {
+        r = g = b = v; // Achromatic (grey)
+    }
+    else {
+        h /= 60.0f; // Divide into 6 sectors
+        int i = static_cast<int>(std::floor(h));
+        float f = h - i; // Factorial/fractional part of h
+        float p = v * (1.0f - s);
+        float q = v * (1.0f - (s * f));
+        float t = v * (1.0f - (s * (1.0f - f)));
+        switch (i) {
+        case 0: r = v; g = t; b = p; break;
+        case 1: r = q; g = v; b = p; break;
+        case 2: r = p; g = v; b = t; break;
+        case 3: r = p; g = q; b = v; break;
+        case 4: r = t; g = p; b = v; break;
+        default: r = v; g = p; b = q; break; // Case 5
+        }
+    }
+    return Colour(r, g, b);
+}
+
 float& Vec4f::operator[](int index)
 {
     switch (index)

@@ -20,6 +20,26 @@ struct EntityCreateInfo
 
 };
 
+enum class SceneObjectActionType
+{
+    NONE,
+    CREATE,
+    DELETE,
+    MODIFY
+};
+
+struct SceneObjectAction
+{
+    SceneObjectActionType Type = SceneObjectActionType::NONE;
+    uGUID ObjectID = 0;
+
+    // Pointer to the object
+    // For DELETE, this will be the object that was deleted
+    // For CREATE, this will be the object that was created
+    // For MODIFY, this will be the pre-modified object (so we can undo the modification)
+    SceneObject* Object = nullptr;
+};
+
 enum class GameType
 {
     SINGLEPLAYER,
@@ -311,6 +331,7 @@ private:
     const Colour c_Button = c_RetroGrey;
     const Colour c_SelectedButton = c_RetroOrange;
     const Colour c_Tab = c_RetroOrange;
+    const Colour c_Hierarchy = c_RetroDarkGrey;
     const Colour c_Inspector = c_RetroGrey;
     const Colour c_ResourceButton = c_RetroGrey;
 

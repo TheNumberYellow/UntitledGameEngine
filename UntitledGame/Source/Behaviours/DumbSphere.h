@@ -24,6 +24,6 @@ private:
 
     float ImpulseForce = 30.0f;
 
-    PointLight* MyLight = nullptr;
+    std::shared_ptr<PointLight> MyLight = nullptr;
 };
 

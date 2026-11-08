@@ -6,7 +6,7 @@ void TopDownBullet::Update(Scene* Scene, double DeltaTime)
 {
     if (!Initialized)
     {
-        PointLight* NewLight = Scene->AddPointLight();
+        std::shared_ptr<PointLight> NewLight = Scene->CreateObject<PointLight>();
         NewLight->colour = Vec3f(191.f / 255.f, 64.f / 255.f, 191.f / 255.f);
 
         Light = NewLight;
@@ -22,8 +22,8 @@ void TopDownBullet::Update(Scene* Scene, double DeltaTime)
 
     if (BulletLifeTime <= 0.0f)
     {
-        Scene->DeletePointLight(Light);
-        Scene->DeleteModel(m_Model);
+        Scene->DeleteObject(Light);
+        Scene->DeleteObject(m_Model);
         return;
     }
 
@@ -47,7 +47,7 @@ void TopDownBullet::Update(Scene* Scene, double DeltaTime)
 
         if (Dist < 1.0f)
         {
-            Scene->DeleteModel(G);
+            Scene->DeleteObject(G);
             //Scene->DeleteModel(m_Model);
             //return;
         }

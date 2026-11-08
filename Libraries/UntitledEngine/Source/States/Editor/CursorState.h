@@ -137,11 +137,11 @@ public:
     TransformMode GetTransMode();
     GeometryMode GetGeoMode();
 
-    void StartDraggingNewModel(Model* NewModel);
-    void StartDraggingNewPointLight(PointLight* NewPointLight);
-    void StartDraggingNewDirectionalLight(DirectionalLight* NewDirLight);
-    void StartDraggingNewSpotLight(SpotLight* NewSpotLight);
-    void StartDraggingNewDecal(Decal* NewDecal);
+    void StartDraggingNewModel(std::shared_ptr<Model> NewModel);
+    void StartDraggingNewPointLight(std::shared_ptr<PointLight> NewPointLight);
+    void StartDraggingNewDirectionalLight(std::shared_ptr<DirectionalLight> NewDirLight);
+    void StartDraggingNewSpotLight(std::shared_ptr<SpotLight> NewSpotLight);
+    void StartDraggingNewDecal(std::shared_ptr<Decal> NewDecal);
     void StartDraggingNewMaterial(Material* NewMaterial);
     void StartDraggingNewBehaviour(std::string NewBehaviourName);
 
@@ -202,6 +202,8 @@ private:
     void ApplyMaterialToSelectedObjects(Material& material);
     void ApplyHotspotTextureToSelectedObjects(HotspotTexture& hotspotTexture);
 
+    void TranslateSelectedObjectOffsets(Vec3f offset);
+
     ToolMode Tool = ToolMode::Select;
     DraggingMode Dragging = DraggingMode::None;
 
@@ -211,12 +213,11 @@ private:
     GeometryMode GeoMode = GeometryMode::Box;
     VertexMode VertMode = VertexMode::Slice;
 
-    Model* DraggingModelPtr = nullptr;
-    PointLight* DraggingPointLightPtr = nullptr;
-    DirectionalLight* DraggingDirectionalLightPtr = nullptr;
-    SpotLight* DraggingSpotLightPtr = nullptr;
-    Decal* DraggingDecalPtr = nullptr;
-
+    std::shared_ptr<Model> DraggingModelPtr = nullptr;
+    std::shared_ptr<PointLight> DraggingPointLightPtr = nullptr;
+    std::shared_ptr<DirectionalLight> DraggingDirectionalLightPtr = nullptr;
+    std::shared_ptr<SpotLight> DraggingSpotLightPtr = nullptr;
+    std::shared_ptr<Decal> DraggingDecalPtr = nullptr;
     Material* DraggingMaterialPtr = nullptr;
     std::string DraggingBehaviourName;
 
@@ -230,6 +231,7 @@ private:
     Vec3f ObjectRelativeHitPoint;
     Vec3f InitialObjectPosition;
     float ObjectDistanceAtHit;
+    bool OffsettingGizmo = false;
 
     std::vector<float> TransSnaps =
     {
@@ -313,8 +315,9 @@ private:
     Vec3f SliceStartPoint;
     Vec3f SliceEndPoint;
     Plane SliceHitPlane;
-    he::HalfEdgeMesh* SliceTargetMesh = nullptr;
+    std::shared_ptr<he::HalfEdgeMesh> SliceTargetMesh = nullptr;
     bool SliceAddCaps = true;
+    bool SliceCreateSeparateMeshes = true;
 
     // Sculpt mode state
     float SculptSpeed = 3.0f;

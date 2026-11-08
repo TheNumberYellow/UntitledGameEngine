@@ -109,6 +109,10 @@ PlacementSettings::PlacementSettings(PlacementType inType, Vec2f v)
     {
         rect = Rect(Vec2f(0.0f, 0.0f), v);
     }
+    if (inType == PlacementType::FOLLOW_MOUSE)
+    {
+        size = v;
+    }
 }
 
 PlacementSettings::PlacementSettings(PlacementType inType, Rect r)
@@ -667,10 +671,21 @@ void UIModule::EndFrame()
             frameState->verticalOffset = std::clamp(frameState->verticalOffset, 0.0f, frameState->maxElementOffset);
         }
 
+        float vertOffset = frameState->verticalOffset;
+        float maxOffset = frameState->maxElementOffset;
+
+        //Engine::DEBUGPrintf("Vert offset: {}", vertOffset);
+        //Engine::DEBUGPrintf("Max offset: {}", maxOffset);
+
+
         FloatSliderInternal(frameState->name + "_Slider", SliderRect, frameState->verticalOffset, 0.0f, frameState->maxElementOffset, true, false);
     }
     else
     {
+        if (frameState->name == "Resources")
+        {
+            Engine::DEBUGPrint("No scrolling needed for Resources frame.");
+        }
         frameState->scrollingNeeded = false;
     }
 }
@@ -774,7 +789,13 @@ void UIModule::FloatSlider(std::string name, Vec2f size, float& outNum, float mi
 
 void UIModule::FloatSlider(std::string name, PlacementSettings placeSettings, float& outNum, float min, float max, bool vertical, bool drawText, Vec3f colour)
 {
-    // TODO: implementation
+    if (!IsActive())
+    {
+        return;
+    }
+
+    Rect TotalSize = PlaceElement(placeSettings);
+    FloatSliderInternal(name, TotalSize, outNum, min, max, vertical, drawText, colour);
 }
 
 bool UIModule::FloatDragger(std::string name, PlacementSettings placeSettings, float& outNum, float speed, float min, float max)
@@ -794,6 +815,15 @@ bool UIModule::IntDragger(std::string name, PlacementSettings placeSettings, int
         return false;
     }
     return IntDraggerInternal(name, placeSettings, outNum, speed, min, max);
+}
+
+bool UIModule::ColourPicker(std::string name, PlacementSettings placeSettings, Colour& outColour)
+{
+    if (!IsActive())
+    {
+        return false;
+    }
+    return ColourPickerInternal(name, placeSettings, outColour);
 }
 
 void UIModule::NewLine(float lineHeight)
@@ -932,16 +962,24 @@ void UIModule::FloatSliderInternal(std::string name, Rect rect, float& outNum, f
 {
     if (!IsActive())
     {
+        if (name == "Resources_Slider")
+        {
+            Engine::DEBUGPrint("Resources_Slider inactive");
+        }
         return;
     }
 
     FloatSliderState* SliderState = GetFloatSliderState(name);
 
-    if (SliderState->dragging)
+    if (SliderState->sliding)
     {
         if (!Engine::GetMouseDown())
         {
-            SliderState->dragging = false;
+            if (vertical)
+            {
+                Engine::DEBUGPrintf("Stopped sliding {}", (void*)&SliderState);
+            }
+            SliderState->sliding = false;
         }
     }
 
@@ -1010,13 +1048,14 @@ void UIModule::FloatSliderInternal(std::string name, Rect rect, float& outNum, f
 
     bool SliderContainsMouse = InputModule::Get()->GetMouseState().GetMouseButtonState(MouseButton::LMB).justPressed && TotalSize.Contains(Engine::GetMousePosition());
 
-    if ((SliderClick.clicking || SliderContainsMouse) && !SliderState->dragging)
+    if ((SliderClick.clicking || SliderContainsMouse) && !SliderState->sliding)
     {
         // Initial grab of slider
-        SliderState->dragging = true;
+        Engine::DEBUGPrintf("Started sliding {}", (void*)&SliderState);
+        SliderState->sliding = true;
     }
 
-    if (SliderState->dragging)
+    if (SliderState->sliding)
     {
         Vec2f MousePos = Engine::GetMousePosition();
 
@@ -1044,6 +1083,17 @@ void UIModule::FloatSliderInternal(std::string name, Rect rect, float& outNum, f
         outNum = Math::Lerp(min, max, MouseVal);
     }
 
+    if (vertical)
+    {
+        if (SliderState->sliding)
+        {
+            Engine::DEBUGPrintf("Sliding {}", (void*)&SliderState);
+        }
+        else
+        {
+            Engine::DEBUGPrintf("Not Sliding {}", (void*)&SliderState);
+        }
+    }
 }
 
 bool UIModule::FloatDraggerInternal(std::string name, PlacementSettings placeSettings, float& outNum, float speed, float min, float max)
@@ -1089,33 +1139,6 @@ bool UIModule::FloatDraggerInternal(std::string name, PlacementSettings placeSet
 
         Vec2f MousePos = m_Input.GetMouseState().GetMousePos();
 
-        // Mouse looping behaviour
-        //Engine::SetMousePosition(MousePos - MouseDelta);
-        //m_Input.ClearDeltaMousePos();
-        //if (MousePos.x < rect.location.x)
-        //{
-        //    Engine::SetMousePosition(Vec2f(rect.location.x + rect.size.x, MousePos.y));
-        //    m_Input.GetMouseState().UpdateMousePos(Engine::GetMousePosition(), false, Vec2i());
-
-        //    // TODO (fraser): This may affect other code which uses the delta mouse pos, consider a better solution
-        //    m_Input.ClearDeltaMousePos();
-        //}
-        //else if (MousePos.x > rect.location.x + rect.size.x)
-        //{
-        //    Engine::SetMousePosition(Vec2f(rect.location.x, MousePos.y));
-        //    m_Input.GetMouseState().UpdateMousePos(Engine::GetMousePosition(), false, Vec2i());
-        //    m_Input.ClearDeltaMousePos();
-        //}
-        //if (MousePos.y < rect.location.y)
-        //{
-        //    Engine::SetMousePosition(Vec2f(MousePos.x, rect.location.y + rect.size.y));
-        //    m_Input.GetMouseState().UpdateMousePos(Engine::GetMousePosition(), false, Vec2i());
-        //}
-        //else if (MousePos.y > rect.location.y + rect.size.y)
-        //{
-        //    Engine::SetMousePosition(Vec2f(MousePos.x, rect.location.y));
-        //    m_Input.GetMouseState().UpdateMousePos(Engine::GetMousePosition(), false, Vec2i());
-        //}
 
         // Hide mouse cursor while dragging
         Engine::HideCursor();
@@ -1142,6 +1165,22 @@ bool UIModule::IntDraggerInternal(std::string name, PlacementSettings placeSetti
     return false; // TODO: implement int dragger
 }
 
+bool UIModule::ColourPickerInternal(std::string name, PlacementSettings placeSettings, Colour& outColour)
+{
+    if (!IsActive())
+    {
+        return false;
+    }
+
+    bool ret = false;
+
+    FloatSlider("R", PlacementSettings(PlacementType::FIT_WIDTH), outColour.r, 0.0f, 1.0f, false, true, Colour(outColour.r, 0.0f, 0.0f));
+    FloatSlider("G", PlacementSettings(PlacementType::FIT_WIDTH), outColour.g, 0.0f, 1.0f, false, true, Colour(0.0f, outColour.g, 0.0f));
+    FloatSlider("B", PlacementSettings(PlacementType::FIT_WIDTH), outColour.b, 0.0f, 1.0f, false, true, Colour(0.0f, 0.0f, outColour.b));
+
+    return false;
+}
+
 Rect UIModule::SizeElement(PlacementSettings settings)
 {
     Rect ElementBounds;
@@ -1150,6 +1189,10 @@ Rect UIModule::SizeElement(PlacementSettings settings)
     CursorInfo& CurrentCursor = CursorStack.top();
 
     CursorInfo NewCursor = CurrentCursor;
+
+    bool isAbsolute =
+        settings.type == PlacementType::RECT_ABSOLUTE
+        || settings.type == PlacementType::FOLLOW_MOUSE;
 
     if (settings.type == PlacementType::RECT)
     {
@@ -1216,8 +1259,15 @@ Rect UIModule::SizeElement(PlacementSettings settings)
             ElementBounds.size.y = availableHeight;
         }
     }
+    else if (settings.type == PlacementType::FOLLOW_MOUSE)
+    {
+        ElementBounds.size = settings.size;
+        InputModule* input = InputModule::Get();
 
-    if (settings.type != PlacementType::RECT_ABSOLUTE)
+        ElementBounds.location = input->GetMouseState().GetMousePos();
+    }
+
+    if (!isAbsolute)
     {
         if (CurrentCursor.Top.x + ElementBounds.size.x > CurrentFrame.location.x + CurrentFrame.size.x)
         {
@@ -1238,7 +1288,7 @@ Rect UIModule::SizeElement(PlacementSettings settings)
     }
 
 
-    if (!m_FrameStateStack.empty())
+    if (!m_FrameStateStack.empty() && !isAbsolute)
     {
         FrameState* frameState = m_FrameStateStack.back();
 
@@ -1265,6 +1315,10 @@ Rect UIModule::PlaceElement(PlacementSettings settings)
     Rect CurrentFrame = GetFrame();
     CursorInfo& CurrentCursor = CursorStack.top();
 
+    bool isAbsolute =
+        settings.type == PlacementType::RECT_ABSOLUTE
+        || settings.type == PlacementType::FOLLOW_MOUSE;
+
     if (settings.type == PlacementType::RECT)
     {
         ElementBounds = settings.rect;
@@ -1329,8 +1383,15 @@ Rect UIModule::PlaceElement(PlacementSettings settings)
             ElementBounds.size.y = availableHeight;
         }
     }
+    else if (settings.type == PlacementType::FOLLOW_MOUSE)
+    {
+        ElementBounds.size = settings.size;
+        InputModule* input = InputModule::Get();
 
-    if (settings.type != PlacementType::RECT_ABSOLUTE)
+        ElementBounds.location = input->GetMouseState().GetMousePos();
+    }
+
+    if (!isAbsolute)
     {
         if (CurrentCursor.Top.x + ElementBounds.size.x > CurrentFrame.location.x + CurrentFrame.size.x)
         {
@@ -1350,7 +1411,7 @@ Rect UIModule::PlaceElement(PlacementSettings settings)
         CurrentCursor.Top.x += ElementBounds.size.x;
     }
 
-    if (!m_FrameStateStack.empty())
+    if (!m_FrameStateStack.empty() && !isAbsolute)
     {
         FrameState* frameState = m_FrameStateStack.back();
 
@@ -1619,6 +1680,18 @@ IntDraggerState* UIModule::GetIntDraggerState(std::string name)
     return &m_IntDraggerStates[ID];
 }
 
+ColourPickerState* UIModule::GetColourPickerState(std::string name)
+{
+    ElementID ID = GetElementID(name);
+    auto got = m_ColourPickerStates.find(ID);
+    if (got == m_ColourPickerStates.end())
+    {
+        m_ColourPickerStates.emplace(ID, ColourPickerState());
+    }
+    m_ColourPickerStates[ID].m_Alive = true;
+    return &m_ColourPickerStates[ID];
+}
+
 Rect UIModule::GetFrame()
 {
     if (m_SubRectStack.empty())
@@ -1745,7 +1818,10 @@ void UIModule::RemoveInactiveElements()
     for (auto it = m_FloatSliderStates.begin(); it != m_FloatSliderStates.end();)
     {
         if (!it->second.m_Alive)
+        {
+            Engine::DEBUGPrint("KILLED SOMETHING!!!");
             it = m_FloatSliderStates.erase(it);
+        }
         else
             ++it;
     }

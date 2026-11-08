@@ -681,24 +681,25 @@ LRESULT CALLBACK WindowProc(_In_ HWND WindowHandle, _In_ UINT Message, _In_ WPAR
     case WM_INPUT:
         if (cursorLocked)
         {
-            for (;;)
+            if (modules->AreAllModulesInitialized())
             {
-                UINT dwSize = RawInputBufferSize;
-                GetRawInputData((HRAWINPUT)lParam, RID_INPUT, RawInputBuffer, &dwSize, sizeof(RAWINPUTHEADER));
-                RAWINPUT* raw = (RAWINPUT*)RawInputBuffer;
-                if (raw->header.dwType == RIM_TYPEMOUSE)
+                for (;;)
                 {
-                    if (modules->AreAllModulesInitialized())
+                    UINT dwSize = RawInputBufferSize;
+                    GetRawInputData((HRAWINPUT)lParam, RID_INPUT, RawInputBuffer, &dwSize, sizeof(RAWINPUTHEADER));
+                    RAWINPUT* raw = (RAWINPUT*)RawInputBuffer;
+                    if (raw->header.dwType == RIM_TYPEMOUSE)
                     {
                         InputModule* input = modules->GetInput();
-                        input->GetMouseState().SetDeltaPos(Vec2i(raw->data.mouse.lLastX, raw->data.mouse.lLastY));
+                        input->GetMouseState().AddToDeltaPos(Vec2i(raw->data.mouse.lLastX, raw->data.mouse.lLastY));
+                    }
+                    // Check if there are more raw input messages in the queue
+                    if (GetRawInputData((HRAWINPUT)lParam, RID_INPUT, NULL, &dwSize, sizeof(RAWINPUTHEADER)) == 0)
+                    {
+                        break; // No more messages to process
                     }
                 }
-                // Check if there are more raw input messages in the queue
-                if (GetRawInputData((HRAWINPUT)lParam, RID_INPUT, NULL, &dwSize, sizeof(RAWINPUTHEADER)) == 0)
-                {
-                    break; // No more messages to process
-                }
+
             }
         }
         break;

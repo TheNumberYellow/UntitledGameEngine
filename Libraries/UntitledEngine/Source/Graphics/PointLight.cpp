@@ -43,7 +43,7 @@ Transform* SelectedPointLight::GetTransform()
 
 void SelectedPointLight::DeleteObject()
 {
-    ScenePtr->DeletePointLight(PointLightPtr);
+    ScenePtr->DeleteObject(PointLightPtr);
 }
 
 bool SelectedPointLight::IsEqual(const ISelectedObject& Other) const
@@ -56,14 +56,32 @@ bool PointLight::DrawInspectorPanel()
     UIModule* UI = UIModule::Get();
 
     Vec3f Pos = position;
-    Vec3f Col = colour;
+    Colour Col = colour;
+
+    Colour HSBColour = RGBtoHSV(Col);
+
 
     UI->Text("Colour", Col);
+    UI->NewLine();
+
+    static float testFloat = 50.0f;
+
+    UI->FloatSlider("H", Vec2f(400.0f, 20.0f), HSBColour.r, 0.0f, 359.99f);
+    UI->FloatSlider("S", Vec2f(400.0f, 20.0f), HSBColour.g, 0.0f, 1.0f);
+    UI->FloatSlider("B", Vec2f(400.0f, 20.0f), HSBColour.b, 0.0f, 1.0f);
+
+    Colour newCol = HSVtoRGB(HSBColour);
+    colour = newCol;
+
     UI->NewLine();
 
     UI->FloatSlider("R", Vec2f(400.0f, 20.0f), colour.r);
     UI->FloatSlider("G", Vec2f(400.0f, 20.0f), colour.g);
     UI->FloatSlider("B", Vec2f(400.0f, 20.0f), colour.b);
+
+
+    UI->NewLine();
+
 
     UI->Text("Intensity", intensity * Vec3f(1.0f));
     UI->NewLine();

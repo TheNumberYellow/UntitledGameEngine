@@ -171,6 +171,7 @@ void InputModule::ResetAllInputState()
 void InputModule::OnFrameEnd()
 {
 	UpdateMouseWheel(0);
+	ClearDeltaMousePos();
 	ClearCharacters();
 }
 
@@ -213,6 +214,11 @@ void MouseState::UpdateMouseWheel(int delta)
 void MouseState::SetDeltaPos(Vec2i newDelta)
 {
 	m_DeltaMouse = newDelta;
+}
+
+void MouseState::AddToDeltaPos(Vec2i delta)
+{
+    m_DeltaMouse += delta;
 }
 
 void MouseState::ClearDeltaMousePos()

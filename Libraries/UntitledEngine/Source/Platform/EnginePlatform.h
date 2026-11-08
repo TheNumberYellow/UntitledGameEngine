@@ -2,6 +2,7 @@
 
 #include "..\Math\Math.h"
 
+#include <format>
 #include <string>
 
 enum class CursorType
@@ -35,6 +36,13 @@ namespace Engine
     extern bool GetMouseDown(int button = 0);
 
     extern void DEBUGPrint(std::string string);
+    
+    template <typename... Args>
+    extern void DEBUGPrintf(std::format_string<Args...> fmt, Args&&... args)
+    {
+        std::string str = std::format(fmt, std::forward<Args>(args)...);
+        DEBUGPrint(str);
+    }
     extern void Alert(std::string message);
     extern void Error(std::string errorMessage);
     extern void FatalError(std::string errorMessage);

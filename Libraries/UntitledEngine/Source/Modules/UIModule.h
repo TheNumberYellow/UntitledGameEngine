@@ -73,7 +73,7 @@ struct TextEntryState : public ElementState
 struct FloatSliderState : public ElementState
 {
     float percentage = 0.0f;
-    bool dragging = false;
+    bool sliding = false;
 };
 
 struct FloatDraggerState : public ElementState
@@ -86,6 +86,11 @@ struct IntDraggerState : public ElementState
     bool dragging = false;
 };
 
+struct ColourPickerState : public ElementState
+{
+    bool dragging = false;
+};
+
 enum class PlacementType
 {
     SIZE,
@@ -93,7 +98,8 @@ enum class PlacementType
     RECT_ABSOLUTE,
     FIT_WIDTH,
     FIT_HEIGHT,
-    FIT_BOTH
+    FIT_BOTH,
+    FOLLOW_MOUSE
 };
 
 struct PlacementSettings
@@ -166,6 +172,7 @@ public:
 
     bool IntDragger(std::string name, PlacementSettings placeSettings, int& outNum, float speed = 0.1f, int min = std::numeric_limits<int>::lowest(), int max = std::numeric_limits<int>::max());
 
+    bool ColourPicker(std::string name, PlacementSettings placeSettings, Colour& outColour);
 
     void NewLine(float lineHeight = 0.0f);
 
@@ -191,6 +198,8 @@ private:
 
     bool IntDraggerInternal(std::string name, PlacementSettings placeSettings, int& outNum, float speed, int min, int max);
 
+    bool ColourPickerInternal(std::string name, PlacementSettings placeSettings, Colour& outColour);
+
     // Returns the bounds of an element given a placement setting, without advancing the cursor
     Rect SizeElement(PlacementSettings settings);
 
@@ -209,6 +218,7 @@ private:
     FloatSliderState* GetFloatSliderState(std::string name);
     FloatDraggerState* GetFloatDraggerState(std::string name);
     IntDraggerState* GetIntDraggerState(std::string name);
+    ColourPickerState* GetColourPickerState(std::string name);
 
     Rect GetFrame();
 
@@ -233,6 +243,7 @@ private:
     std::unordered_map<ElementID, FloatSliderState> m_FloatSliderStates;
     std::unordered_map<ElementID, FloatDraggerState> m_FloatDraggerStates;
     std::unordered_map<ElementID, IntDraggerState> m_IntDraggerStates;
+    std::unordered_map<ElementID, ColourPickerState> m_ColourPickerStates;
 
     size_t m_HashCount = 0;
 

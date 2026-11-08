@@ -43,10 +43,6 @@ struct PointLight
     : public IEditorClickable
     , public SceneObject
 {
-    PointLight(Scene* inScene)
-        : SceneObject(inScene)
-    {}
-
     virtual bool DrawInspectorPanel() override;
 
     Vec3f position = Vec3f(0.0f, 0.0f, 0.0f);

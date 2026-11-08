@@ -99,7 +99,6 @@ void ClientGameState::Update(double DeltaTime)
         // Send inputs
         SendInputPacket();
 
-        //CurrentScene.Update(DeltaTime);
         CurrentScene.Draw(*graphics, ViewportBuffer);
         graphics->ResetFrameBuffer();
         
@@ -235,9 +234,6 @@ void ClientGameState::ProcessPacketData(const std::string& data)
 
         if (typeStr == "LC")
         {
-            //Engine::LockCursor();
-            //Engine::HideCursor();
-
             CurrentScene.Load(PacketData["L"].get<std::string>());
             CurrentScene.Initialize();
             ViewportCamera = CurrentScene.GetCamera();
@@ -283,7 +279,7 @@ void ClientGameState::ProcessPacketData(const std::string& data)
 
             if (PacketData.contains("TextureO"))
             {
-                Model* NewModel = CurrentScene.AddModel(
+                CurrentScene.CreateObject<Model>(
                     *Registry->LoadStaticMesh(PacketData["Mesh"].get<std::string>()),
                     Graphics->CreateMaterial(
                         Registry->LoadTexture(PacketData["TextureA"].get<std::string>()),
@@ -295,7 +291,7 @@ void ClientGameState::ProcessPacketData(const std::string& data)
             }
             else if (PacketData.contains("TextureM"))
             {
-                Model* NewModel = CurrentScene.AddModel(
+                CurrentScene.CreateObject<Model>(
                     *Registry->LoadStaticMesh(PacketData["Mesh"].get<std::string>()), 
                     Graphics->CreateMaterial(
                         Registry->LoadTexture(PacketData["TextureA"].get<std::string>()),
@@ -307,7 +303,7 @@ void ClientGameState::ProcessPacketData(const std::string& data)
             }
             else if (PacketData.contains("TextureR"))
             {
-                Model* NewModel = CurrentScene.AddModel(
+                CurrentScene.CreateObject<Model>(
                     *Registry->LoadStaticMesh(PacketData["Mesh"].get<std::string>()), 
                     Graphics->CreateMaterial(
                         Registry->LoadTexture(PacketData["TextureA"].get<std::string>()),
@@ -317,7 +313,7 @@ void ClientGameState::ProcessPacketData(const std::string& data)
             }
             else if (PacketData.contains("TextureN"))
             {
-                Model* NewModel = CurrentScene.AddModel(
+                CurrentScene.CreateObject<Model>(
                     *Registry->LoadStaticMesh(PacketData["Mesh"].get<std::string>()), 
                     Graphics->CreateMaterial(
                         Registry->LoadTexture(PacketData["TextureA"].get<std::string>()),
@@ -326,7 +322,7 @@ void ClientGameState::ProcessPacketData(const std::string& data)
             }
             else
             {
-                Model* NewModel = CurrentScene.AddModel(
+                CurrentScene.CreateObject<Model>(
                     *Registry->LoadStaticMesh(PacketData["Mesh"].get<std::string>()), 
                     Graphics->CreateMaterial(
                         Registry->LoadTexture(PacketData["TextureA"].get<std::string>())

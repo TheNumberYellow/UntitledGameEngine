@@ -56,15 +56,15 @@ struct Vec3f
 {
     union
     {
-        float x, r;
+        float x, r, h;
     };
     union
     {
-        float y, g;
+        float y, g, s;
     };
     union
     {
-        float z, b;
+        float z, b, v;
     };
 
     Vec3f(float x, float y, float z) : x(x), y(y), z(z) {}
@@ -125,6 +125,8 @@ using Colour = Vec3f;
 
 Colour MakeColour(int r, int g, int b);
 Colour MakeColourHSV(double h, double s, double v);
+Colour RGBtoHSV(Colour rgb);
+Colour HSVtoRGB(Colour hsb);
 
 class Vec3fHash
 {

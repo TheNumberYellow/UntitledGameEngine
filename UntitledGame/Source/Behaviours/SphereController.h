@@ -39,7 +39,7 @@ private:
 
     Vec3f CamFacingDir = Vec3f(1.0f, 0.0f, 0.0f);
 
-    PointLight* MyLight = nullptr;
+    std::shared_ptr<PointLight> MyLight = nullptr;
 
     bool TrailEnabled = false;
     bool LightEnabled = false;

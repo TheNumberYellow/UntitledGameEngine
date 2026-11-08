@@ -55,24 +55,17 @@ class Model :
 {
 public:
     Model()
-        : SceneObject(nullptr)
-        , m_Transform()
+        : m_Transform()
     {}
 
-    Model(Scene* inScene)
-        : SceneObject(inScene)
-        , m_Transform()
-    {}
-    Model(Scene* inScene, StaticMesh inStaticMesh, Material inMaterial)
-        : SceneObject(inScene)
-        , m_Transform()
+    Model(StaticMesh inStaticMesh, Material inMaterial)
+        : m_Transform()
         , m_StaticMesh(inStaticMesh)
         , m_Material(inMaterial)
     {
     }
-    Model(Scene* inScene, StaticMesh inStaticMesh, Material inMaterial, Transform inTransform)
-        : SceneObject(inScene)
-        , m_Transform(inTransform)
+    Model(StaticMesh inStaticMesh, Material inMaterial, Transform inTransform)
+        : m_Transform(inTransform)
         , m_StaticMesh(inStaticMesh)
         , m_Material(inMaterial)
     {

@@ -69,13 +69,11 @@ void DumbSphere::Initialize(Scene* Scene)
 {
     InputState = &InputModule::Get()->m_LocalSystemInputState;
 
-    PointLight NewLight(Scene);
+    MyLight = Scene->CreateObject<PointLight>();
 
-    NewLight.position = m_Model->GetTransform().GetPosition();
+    MyLight->position = m_Model->GetTransform().GetPosition();
     //NewLight.colour = MakeColour(Math::RandomInt(0, 255), Math::RandomInt(0, 255), Math::RandomInt(0, 255));
-    NewLight.colour = MakeColour(155, 255, 155);
+    MyLight->colour = MakeColour(155, 255, 155);
 
-    NewLight.intensity = 0.5f;
-
-    MyLight = Scene->AddPointLight(NewLight);
+    MyLight->intensity = 0.5f;
 }

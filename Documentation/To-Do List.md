@@ -1,10 +1,10 @@
 # Graphics
 ### Lighting
 ###### Point Lights
-- [ ] Improve point light performance using deferred rendering (or look into forward+ rendering)
-- [ ] Add omni-directional shadow casting for point lights
+- [x] Improve point light performance using deferred rendering (or look into forward+ rendering)
+- [x] Add omni-directional shadow casting for point lights
 ###### Spot Lights
-- [ ] Add spot lights
+- [x] Add spot lights
 
 - [ ] User-configurable skyboxes
 - [ ] Image Based Lighting

@@ -30,7 +30,7 @@ Transform* SelectedModel::GetTransform()
 
 void SelectedModel::DeleteObject()
 {
-    ScenePtr->DeleteModel(ModelPtr);
+    ScenePtr->DeleteObject(ModelPtr);
 }
 
 void SelectedModel::ApplyMaterial(Material& inMaterial)

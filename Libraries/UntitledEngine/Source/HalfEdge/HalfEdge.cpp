@@ -7,15 +7,16 @@
 #include "Modules/UIModule.h"
 #include "Scene/Scene.h"
 
-void he::ConvertHalfEdgeMeshToPolys(HalfEdgeMesh& mesh, std::vector<PolygonFace>& outPolys)
+
+void he::ConvertHalfEdgeMeshToPolys(he::HalfEdgeMesh& mesh, std::vector<he::PolygonFace>& outPolys)
 {
     outPolys.clear();
-    for (Face* face : mesh.m_Faces)
+    for (he::Face* face : mesh.m_Faces)
     {
-        PolygonFace poly;
+        he::PolygonFace poly;
         poly.OriginalFace = face;
-        HalfEdge* startEdge = face->halfEdge;
-        HalfEdge* currentEdge = startEdge;
+        he::HalfEdge* startEdge = face->halfEdge;
+        he::HalfEdge* currentEdge = startEdge;
         do
         {
             poly.Vertices.push_back(currentEdge->vert->vec);
@@ -724,7 +725,7 @@ bool he::SelectedHalfEdgeMesh::DrawInspectorPanel()
 {
     UIModule* ui = UIModule::Get();
 
-    if (ui->CheckBox("Blend islands", m_HalfEdgeMesh->m_BlendIslands))
+    if (ui->CheckBox("Smooth islands", m_HalfEdgeMesh->m_BlendIslands))
     {
         return true;
     }
@@ -739,7 +740,7 @@ Transform* he::SelectedHalfEdgeMesh::GetTransform()
 
 void he::SelectedHalfEdgeMesh::DeleteObject()
 {
-    ScenePtr->DeleteHalfEdgeMesh(m_HalfEdgeMesh);
+    ScenePtr->DeleteObject(m_HalfEdgeMesh);
 }
 
 void he::SelectedHalfEdgeMesh::ApplyMaterial(Material& inMaterial)
@@ -1114,12 +1115,16 @@ void he::SelectedHalfEdgeEdge::Draw()
 
 void he::SelectedHalfEdgeEdge::Update()
 {
-
     m_HalfEdgeMesh->m_RepModelsNeedUpdate = true;
 
     m_EdgePtr->vert->vec = Vec3f(0.0f, 0.0f, 0.0f) * (m_Transform.GetTransformMatrix() * edgeOffsetA);
     m_EdgePtr->next->vert->vec = Vec3f(0.0f, 0.0f, 0.0f) * (m_Transform.GetTransformMatrix() * edgeOffsetB);
 
+    InputModule* Input = InputModule::Get();
+    if (Input->GetKeyState(Key::E).justPressed)
+    {
+        m_HalfEdgeMesh->SplitEdge(m_EdgePtr);
+    }
 }
 
 bool he::SelectedHalfEdgeEdge::DrawInspectorPanel()
@@ -1611,75 +1616,41 @@ void he::HalfEdgeMesh::ExtrudeFace(he::Face* inFace)
 
 void he::HalfEdgeMesh::SplitEdge(HalfEdge* inEdge)
 {
-    he::HalfEdge* twinEdge = inEdge->twin;
-
-    he::Vertex* v0 = inEdge->vert;
-    he::Vertex* v1 = inEdge->next->vert;
-
-    // Create midpoint vertex
-    Vec3f mid = (v0->vec + v1->vec) * 0.5f;
-    he::Vertex* midVert = new he::Vertex(mid);
-    m_Verts.push_back(midVert);
-
-    // Create new half-edges
-    he::HalfEdge* newEdge = new he::HalfEdge();
-    he::HalfEdge* newTwinEdge = new he::HalfEdge();
-    m_HalfEdges.push_back(newEdge);
-    m_HalfEdges.push_back(newTwinEdge);
-
-    he::HalfEdge* inNext = inEdge->next;
-
-    newEdge->vert = midVert;
-    newEdge->face = inEdge->face;
-    newEdge->next = inNext;
-
-    inEdge->next = newEdge;
-
-    he::HalfEdge* twinNext = twinEdge->next;
-
-    newTwinEdge->vert = midVert;
-    newTwinEdge->face = twinEdge->face;
-    newTwinEdge->next = twinNext;
-
-    twinEdge->next = newTwinEdge;
-
-    inEdge->twin = newTwinEdge;
-    newEdge->twin = twinEdge;
-
-    midVert->halfEdge = newEdge;
-
-    //// Rewire original half-edge
-    //inEdge->vert = midVert;
-
-    //// Setup new half-edge
-    //newEdge->vert = v1;
-    //newEdge->face = inEdge->face;
-    //newEdge->next = inEdge->next;
-
-    //inEdge->next = newEdge;
-
-    //// Rewire twin half-edge
-    //he::HalfEdge* twinNext = twinEdge->next;
-
-    //twinEdge->vert = midVert;
-
-    //newTwinEdge->vert = v0;
-    //newTwinEdge->face = twinEdge->face;
-    //newTwinEdge->next = twinNext;
-
-    //twinEdge->next = newTwinEdge;
-
-    //// Fix twins
-    //inEdge->twin = newTwinEdge;
-    //newTwinEdge->twin = inEdge;
-
-    //newEdge->twin = twinEdge;
-    //twinEdge->twin = newEdge;
-
-    //midVert->halfEdge = newEdge;
+    // Create new vertex at midpoint of edge
+    Vec3f midPoint = (inEdge->vert->vec + inEdge->next->vert->vec) / 2.0f;
+    he::Vertex* newVertex = new he::Vertex(midPoint);
+    m_Verts.push_back(newVertex);
+    // Create new half edge for the split edge
+    he::HalfEdge* newHalfEdge = new he::HalfEdge();
+    m_HalfEdges.push_back(newHalfEdge);
+    // Update the original half edge to point to the new vertex
+    newHalfEdge->vert = inEdge->next->vert;
+    inEdge->next->vert = newVertex;
+    // Update the next pointers to include the new half edge
+    newHalfEdge->next = inEdge->next;
+    inEdge->next = newHalfEdge;
+    // Update the twin relationship if applicable
+    if (inEdge->twin)
+    {
+        he::HalfEdge* twinHalfEdge = inEdge->twin;
+        he::HalfEdge* newTwinHalfEdge = new he::HalfEdge();
+        m_HalfEdges.push_back(newTwinHalfEdge);
+        newTwinHalfEdge->vert = twinHalfEdge->next->vert;
+        twinHalfEdge->next->vert = newVertex;
+        newTwinHalfEdge->next = twinHalfEdge->next;
+        twinHalfEdge->next = newTwinHalfEdge;
+        // Set up twin relationships
+        newHalfEdge->twin = newTwinHalfEdge;
+        newTwinHalfEdge->twin = newHalfEdge;
+    }
 }
 
-bool he::HalfEdgeMesh::Slice(Plane inPlane, HalfEdgeMesh* outFrontMesh, HalfEdgeMesh* outBackMesh, bool addCaps)
+bool he::HalfEdgeMesh::Slice(
+    Plane inPlane, 
+    HalfEdgeMesh* outFrontMesh, 
+    HalfEdgeMesh* outBackMesh, 
+    bool addCaps, 
+    bool createSeparateMeshes)
 {
     // First turn half edge mesh into vector of polys for easier processing
     std::vector<PolygonFace> polys;
@@ -1728,8 +1699,15 @@ bool he::HalfEdgeMesh::Slice(Plane inPlane, HalfEdgeMesh* outFrontMesh, HalfEdge
         {
             AddPolygonToHalfEdgeMesh(*outFrontMesh, frontPoly, frontPoly.OriginalFace ? frontPoly.OriginalFace->material : defaultMat);
         }
+        if (!createSeparateMeshes)
+        {
+            for (PolygonFace& backPoly : backPolys)
+            {
+                AddPolygonToHalfEdgeMesh(*outFrontMesh, backPoly, backPoly.OriginalFace ? backPoly.OriginalFace->material : defaultMat);
+            }
+        }
     }
-    if (outBackMesh)
+    if (outBackMesh && createSeparateMeshes)
     {
         for (PolygonFace& backPoly : backPolys)
         {
@@ -1737,7 +1715,7 @@ bool he::HalfEdgeMesh::Slice(Plane inPlane, HalfEdgeMesh* outFrontMesh, HalfEdge
         }
     }
 
-    if (!addCaps)
+    if (!addCaps || !createSeparateMeshes)
     {
         return true;
     }
@@ -2273,7 +2251,20 @@ RayCastHit he::HalfEdgeMesh::ClickCast(Ray mouseRay, ISelectedObject*& outSelect
             tri.a = faceVerts[0];
             tri.b = faceVerts[j];
             tri.c = faceVerts[j + 1];
+            
+            
             RayCastHit newHit = collisions->RayCast(mouseRay, tri);
+            
+            // Temp draw triangle green if hit red otherwise
+            //if (newHit.hit)
+            //{
+            //    graphics->DebugDrawTriangle(tri.a, tri.b, tri.c, Vec4f(MakeColour(0, 255, 0), 1.0f));
+            //}
+            //else
+            //{
+            //    graphics->DebugDrawTriangle(tri.a, tri.b, tri.c, Vec4f(MakeColour(255, 0, 0), 1.0f));
+            //}
+
             if (newHit.hit)
             {
                 outSelectedObject = new SelectedHalfEdgeMesh(this);

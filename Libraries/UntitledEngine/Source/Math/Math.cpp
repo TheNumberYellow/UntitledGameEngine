@@ -200,15 +200,6 @@ Vec4f Math::mult(Vec4f vec, Mat4x4f mat)
 
 Vec3f Math::mult(Vec3f vec, Mat4x4f mat)
 {
-    //Vec4f point = Vec4f(vec.x, vec.y, vec.z, 1.0f);
-
-    //Vec4f result;
-
-    //result[0] = mat[0][0] * point.x + mat[1][0] * point.y + mat[2][0] * point.z + mat[3][0] * point.w;
-    //result[1] = mat[0][1] * point.x + mat[1][1] * point.y + mat[2][1] * point.z + mat[3][1] * point.w;
-    //result[2] = mat[0][2] * point.x + mat[1][2] * point.y + mat[2][2] * point.z + mat[3][2] * point.w;
-
-    //return Vec3f(result.x, result.y, result.z);
     Vec4f point = Vec4f(vec.x, vec.y, vec.z, 1.0f);
 
     Vec4f result;

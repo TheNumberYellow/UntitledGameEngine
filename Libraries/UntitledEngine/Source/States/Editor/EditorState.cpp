@@ -222,7 +222,7 @@ void EditorState::UpdateEditor(double DeltaTime)
 
     if (CursorLocked)
     {
-        MoveCamera(&ViewportCamera, 0.003f, DeltaTime);
+        MoveCamera(&ViewportCamera, 0.001f, DeltaTime);
     }
 
     if (Engine::IsWindowFocused())
@@ -245,7 +245,10 @@ void EditorState::UpdateEditor(double DeltaTime)
             }
         }
 
-        if (Input->GetMouseState().GetMouseButtonState(MouseButton::RMB).pressed)
+        Rect ViewportRect = GetEditorSceneViewportRect();
+        bool MouseInViewport = ViewportRect.Contains(Input->GetMouseState().GetMousePos());
+            
+        if (Input->GetMouseState().GetMouseButtonState(MouseButton::RMB).pressed && MouseInViewport)
         {
             Input->SetMouseLocked(true);
             Engine::HideCursor();
@@ -258,10 +261,10 @@ void EditorState::UpdateEditor(double DeltaTime)
             CursorLocked = false;
         }
 
-        if (Input->GetMouseState().GetMouseButtonState(MouseButton::MIDDLE).pressed)
+        if (Input->GetMouseState().GetMouseButtonState(MouseButton::MIDDLE).pressed && MouseInViewport)
         {
             Input->SetMouseLocked(true);
-            Engine::HideCursor();
+            Engine::HideCursor();            
             
             // Click and drag to pan the camera
             Vec2i MouseDelta = Input->GetMouseState().GetDeltaMousePos();
@@ -269,14 +272,13 @@ void EditorState::UpdateEditor(double DeltaTime)
             Vec3f Right = Math::normalize(ViewportCamera.GetPerpVector());
             Vec3f Up = Math::normalize(Math::cross(ViewportCamera.GetDirection(), Right));
 
-            ViewportCamera.Move(Right * MouseDelta.x * 0.05f);
-            ViewportCamera.Move(Up * MouseDelta.y * 0.05f);
+            ViewportCamera.Move(Right * MouseDelta.x * 0.02f);
+            ViewportCamera.Move(Up * MouseDelta.y * 0.02f);
         }
         else if (Input->GetMouseState().GetMouseButtonState(MouseButton::MIDDLE).justReleased)
         {
             Input->SetMouseLocked(false);
             Engine::ShowCursor();
-            //CursorLocked = false;
         }
 
         // "Zoom" the camera with the mouse wheel
@@ -284,7 +286,7 @@ void EditorState::UpdateEditor(double DeltaTime)
         // Only allow zooming when not in geometry mode, since that mode uses the mouse wheel for scaling the geometry
         if (ToolMode != ToolMode::Geometry)
         {
-            if (CursorLocked)
+            if (MouseInViewport)
             {
                 int MouseWheelDelta = Input->GetMouseState().GetDeltaMouseWheel();
 
@@ -370,7 +372,6 @@ void EditorState::UpdateEditor(double DeltaTime)
         }
     }
     UI->EndFrame();
-
 }
 
 void EditorState::UpdateGame(double DeltaTime)
@@ -444,13 +445,12 @@ void EditorState::LoadEditorResources()
 
     // Create translation gizmo models
     xAxisArrow = Graphics->CreateModel(
-        &EditorScene,
         *Registry->LoadStaticMesh("Assets/models/ArrowSmooth.obj"),
         Graphics->CreateMaterial(RedTexture)
     );
 
-    yAxisArrow = Graphics->CloneModel(&EditorScene, xAxisArrow);
-    zAxisArrow = Graphics->CloneModel(&EditorScene, xAxisArrow);
+    yAxisArrow = Graphics->CloneModel(xAxisArrow);
+    zAxisArrow = Graphics->CloneModel(xAxisArrow);
     
     xAxisArrow.GetTransform().SetScale(Vec3f(0.2f, 1.0f, 0.2f));
     yAxisArrow.GetTransform().SetScale(Vec3f(0.2f, 1.0f, 0.2f));
@@ -463,20 +463,18 @@ void EditorState::LoadEditorResources()
     zAxisArrow.SetMaterial(Graphics->CreateMaterial(BlueTexture));
 
     TranslateBall = Graphics->CreateModel(
-        &EditorScene,
         *Registry->LoadStaticMesh("Assets/models/Buckyball.obj"),
         Graphics->CreateMaterial(PurpleTexture)
     );
 
     // Create rotation gizmo models
     xAxisRing = Graphics->CreateModel(
-        &EditorScene,
         *Registry->LoadStaticMesh("Assets/models/RotationHoop.obj"),
         Graphics->CreateMaterial(RedTexture)
     );
 
-    yAxisRing = Graphics->CloneModel(&EditorScene, xAxisRing);
-    zAxisRing = Graphics->CloneModel(&EditorScene, xAxisRing);
+    yAxisRing = Graphics->CloneModel(xAxisRing);
+    zAxisRing = Graphics->CloneModel(xAxisRing);
 
     xAxisRing.GetTransform().Rotate(Quaternion(Vec3f(0.0f, 0.0f, 1.0f), -(float)M_PI_2));
     zAxisRing.GetTransform().Rotate(Quaternion(Vec3f(1.0f, 0.0f, 0.0f), (float)M_PI_2));
@@ -486,13 +484,12 @@ void EditorState::LoadEditorResources()
 
     // Create scaling gizmo models
     xScaleWidget = Graphics->CreateModel(
-        &EditorScene,
         *Registry->LoadStaticMesh("Assets/models/ScaleWidget.obj"),
         Graphics->CreateMaterial(RedTexture)
     );
 
-    yScaleWidget = Graphics->CloneModel(&EditorScene, xScaleWidget);
-    zScaleWidget = Graphics->CloneModel(&EditorScene, xScaleWidget);
+    yScaleWidget = Graphics->CloneModel(xScaleWidget);
+    zScaleWidget = Graphics->CloneModel(xScaleWidget);
 
     xScaleWidget.GetTransform().Rotate(Quaternion(Vec3f(0.0f, 1.0f, 0.0f), (float)M_PI_2));
     yScaleWidget.GetTransform().Rotate(Quaternion(Vec3f(1.0f, 0.0f, 0.0f), -(float)M_PI_2));
@@ -505,7 +502,6 @@ void EditorState::LoadEditorResources()
     zScaleWidget.SetMaterial(Graphics->CreateMaterial(BlueTexture));
 
     ScaleRing = Graphics->CreateModel(
-        &EditorScene,
         *Registry->LoadStaticMesh("Assets/models/ScaleRing.obj"),
         Graphics->CreateMaterial(PurpleTexture)
     );
@@ -561,7 +557,7 @@ std::vector<Model> EditorState::LoadModels(GraphicsModule& graphics)
             StaticMesh newMesh = *Registry->LoadStaticMesh(fileName);
             
             // For now we load all models with a temporary white texture
-            Model newModel = graphics.CreateModel(&EditorScene, newMesh, WhiteMaterial);
+            Model newModel = graphics.CreateModel(newMesh, WhiteMaterial);
 
             LoadedModels.push_back(newModel);
         }
@@ -1178,7 +1174,7 @@ void EditorState::DrawEntityEditor()
             {
                 if (UI->TextButton(AModel.m_StaticMesh.Path.GetFileNameNoExt(), Vec2f(120.0f, 40.0f), 10.0f, c_ResourceButton))
                 {
-                    EntityEditorScene.AddModel(AModel);
+                    std::shared_ptr<Model> NewModelPtr = EntityEditorScene.CreateObject<Model>(AModel);
                 }
             }
         }
@@ -1211,11 +1207,11 @@ void EditorState::DrawEntityEditor()
         {
             if (UI->ImgButton("LightEntity", lightEntityTexture, Vec2f(80.0f, 80.0f), 12.0f, c_ResourceButton))
             {
-                EntityEditorScene.AddPointLight();
+                EntityEditorScene.CreateObject<PointLight>();
             }
             if (UI->ImgButton("DirectionalLightEntity", directionalLightEntityTexture, Vec2f(80.0f, 80.0f), 12.0f, c_ResourceButton))
             {
-                EntityEditorScene.AddDirectionalLight(DirectionalLight());
+                EntityEditorScene.CreateObject<DirectionalLight>();
             }
             if (UI->ImgButton("CameraEntity", cameraEntityTexture, Vec2f(80.0f, 80.0f), 12.0f, c_ResourceButton))
             {
@@ -1891,7 +1887,7 @@ void EditorState::DrawResourcesPanel(Scene& FocusedScene)
                     {
                         if (!Cursor.IsDraggingSomething())
                         {
-                            Model* AddedModel = FocusedScene.AddModel(AModel);
+                            std::shared_ptr<Model> AddedModel = FocusedScene.CreateObject<Model>(AModel);
                             Cursor.StartDraggingNewModel(AddedModel);
                         }
                     }
@@ -1962,9 +1958,7 @@ void EditorState::DrawResourcesPanel(Scene& FocusedScene)
                 {
                     if (!Cursor.IsDraggingSomething())
                     {
-                        PointLight NewLight = PointLight(&EditorScene);
-
-                        PointLight* PointLightPtr = FocusedScene.AddPointLight(NewLight);
+                        std::shared_ptr<PointLight> PointLightPtr = FocusedScene.CreateObject<PointLight>();
                         Cursor.StartDraggingNewPointLight(PointLightPtr);
                     }
                 }
@@ -1972,8 +1966,7 @@ void EditorState::DrawResourcesPanel(Scene& FocusedScene)
                 {
                     if (!Cursor.IsDraggingSomething())
                     {
-                        DirectionalLight NewDirLight = DirectionalLight();
-                        DirectionalLight* DirLightPtr = FocusedScene.AddDirectionalLight(NewDirLight);
+                        std::shared_ptr<DirectionalLight> DirLightPtr = FocusedScene.CreateObject<DirectionalLight>();
                         Cursor.StartDraggingNewDirectionalLight(DirLightPtr);
                     }
                 }
@@ -1981,8 +1974,7 @@ void EditorState::DrawResourcesPanel(Scene& FocusedScene)
                 {
                     if (!Cursor.IsDraggingSomething())
                     {
-                        SpotLight NewSpotLight = SpotLight();
-                        SpotLight* SpotLightPtr = FocusedScene.AddSpotLight(NewSpotLight);
+                        std::shared_ptr<SpotLight> SpotLightPtr = FocusedScene.CreateObject<SpotLight>();
                         Cursor.StartDraggingNewSpotLight(SpotLightPtr);
                     }
                 }
@@ -1990,8 +1982,7 @@ void EditorState::DrawResourcesPanel(Scene& FocusedScene)
                 {
                     if (!Cursor.IsDraggingSomething())
                     {
-                        Decal NewDecal = Decal();
-                        Decal* DecalPtr = FocusedScene.AddDecal(NewDecal);
+                        std::shared_ptr<Decal> DecalPtr = FocusedScene.CreateObject<Decal>();
                         Cursor.StartDraggingNewDecal(DecalPtr);
                     }
                 }
@@ -2091,16 +2082,17 @@ void EditorState::DrawInspectorPanel()
     Vec2i ScreenSize = Engine::GetClientAreaSize();
     Rect ViewportRect = GetEditorSceneViewportRect();
 
-    Rect InspectorPanelRect = Rect( Vec2f(ViewportRect.location.x + ViewportRect.size.x, ViewportRect.location.y), 
-                                    Vec2f(ScreenSize.x - (ViewportRect.location.x + ViewportRect.size.x), ScreenSize.y - ViewportRect.location.y));
+    Rect HierarchyPanelRect = Rect( Vec2f(ViewportRect.location.x + ViewportRect.size.x, ViewportRect.location.y), 
+                                    Vec2f(ScreenSize.x - (ViewportRect.location.x + ViewportRect.size.x), 0.5f * (ScreenSize.y - ViewportRect.location.y)));
 
-    UI->StartFrame("Settings", PlacementSettings(PlacementType::RECT_ABSOLUTE, InspectorPanelRect), 16.0f, c_Inspector);
+    UI->StartFrame("Settings", PlacementSettings(PlacementType::RECT_ABSOLUTE, HierarchyPanelRect), 16.0f, c_Hierarchy);
     {
-        if (UI->StartTab("Inspector"))
+        if (UI->StartTab("Scene Hierarchy"))
         {
-            Cursor.DrawInspectorPanel();
+            //EditorScene.Dr
         }
         UI->EndTab();
+
 
         if (UI->StartTab("Scene"))
         {
@@ -2108,6 +2100,15 @@ void EditorState::DrawInspectorPanel()
         }
         UI->EndTab();
 
+    }
+    UI->EndFrame();
+
+    Rect InspectorPanelRect = Rect(Vec2f(ViewportRect.location.x + ViewportRect.size.x, HierarchyPanelRect.location.y + HierarchyPanelRect.size.y),
+        Vec2f(ScreenSize.x - (ViewportRect.location.x + ViewportRect.size.x), ScreenSize.y - (HierarchyPanelRect.location.y + HierarchyPanelRect.size.y)));
+
+    UI->StartFrame("Inspector", PlacementSettings(PlacementType::RECT_ABSOLUTE, InspectorPanelRect), 16.0f, c_Inspector);
+    {
+        Cursor.DrawInspectorPanel();
     }
     UI->EndFrame();
 
@@ -2119,10 +2120,10 @@ void EditorState::DrawEntityInspectorPanel()
 
     for (auto& model : EntityEditorScene.m_Models)
     {
-        UI->Text(std::to_string(model.first));
-        UI->NewLine();
-        model.second->DrawInspectorPanel();
-        UI->NewLine();
+        //UI->Text(std::to_string(model.first));
+        //UI->NewLine();
+        //model.second->DrawInspectorPanel();
+        //UI->NewLine();
 
     }
     for (auto& pointLight : EntityEditorScene.m_PointLights)

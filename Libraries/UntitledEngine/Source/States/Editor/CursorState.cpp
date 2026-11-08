@@ -54,7 +54,7 @@ void CursorState::Update(double DeltaTime)
             Vec3f NewDraggingModelPos;
             if (Input->GetKeyState(Key::Ctrl).pressed)
             {
-                SceneRayCastHit SceneHit = EditorScenePtr->RayCast(MouseRay, { DraggingModelPtr });
+                SceneRayCastHit SceneHit = EditorScenePtr->RayCast(MouseRay, { DraggingModelPtr.get()});
 
                 if (SceneHit.rayCastHit.hit)
                 {
@@ -177,7 +177,7 @@ void CursorState::Update(double DeltaTime)
         Vec2i MousePos = Input->GetMouseState().GetMousePos();
         if (Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).pressed)
         {
-            UI->ImgPanel(*DraggingMaterialPtr->m_Albedo, Rect(Vec2f(MousePos), Vec2f(40.0f, 40.0f)));
+            UI->ImgPanel(*DraggingMaterialPtr->m_Albedo, PlacementSettings(PlacementType::FOLLOW_MOUSE, Vec2f(40.0f, 40.0f)));
         }
         else
         {
@@ -325,6 +325,7 @@ void CursorState::ResetAllState()
     //SelectedObjects.clear();
 
     Axis = EditingAxis::None;
+    OffsettingGizmo = false;
 
     IsCreatingNewBox = false;
 }
@@ -464,7 +465,7 @@ GeometryMode CursorState::GetGeoMode()
     return GeoMode;
 }
 
-void CursorState::StartDraggingNewModel(Model* NewModel)
+void CursorState::StartDraggingNewModel(std::shared_ptr<Model> NewModel)
 {
     if (Dragging != DraggingMode::None)
     {
@@ -476,7 +477,7 @@ void CursorState::StartDraggingNewModel(Model* NewModel)
     DraggingModelPtr = NewModel;
 }
 
-void CursorState::StartDraggingNewPointLight(PointLight* NewPointLight)
+void CursorState::StartDraggingNewPointLight(std::shared_ptr<PointLight> NewPointLight)
 {
     if (Dragging != DraggingMode::None)
     {
@@ -488,7 +489,7 @@ void CursorState::StartDraggingNewPointLight(PointLight* NewPointLight)
     DraggingPointLightPtr = NewPointLight;
 }
 
-void CursorState::StartDraggingNewDirectionalLight(DirectionalLight* NewDirLight)
+void CursorState::StartDraggingNewDirectionalLight(std::shared_ptr<DirectionalLight> NewDirLight)
 {
     if (Dragging != DraggingMode::None)
     {
@@ -500,7 +501,7 @@ void CursorState::StartDraggingNewDirectionalLight(DirectionalLight* NewDirLight
     DraggingDirectionalLightPtr = NewDirLight;
 }
 
-void CursorState::StartDraggingNewSpotLight(SpotLight* NewSpotLight)
+void CursorState::StartDraggingNewSpotLight(std::shared_ptr<SpotLight> NewSpotLight)
 {
     if (Dragging != DraggingMode::None)
     {
@@ -510,7 +511,7 @@ void CursorState::StartDraggingNewSpotLight(SpotLight* NewSpotLight)
     DraggingSpotLightPtr = NewSpotLight;
 }
 
-void CursorState::StartDraggingNewDecal(Decal* NewDecal)
+void CursorState::StartDraggingNewDecal(std::shared_ptr<Decal> NewDecal)
 {
     if (Dragging != DraggingMode::None)
     {
@@ -728,6 +729,7 @@ void CursorState::DrawToolSettingsPanel()
     case ToolMode::Vertex:
         UI->Text("Vertex Tool Settings", PlacementType::FIT_WIDTH, titleTextColour);
         UI->CheckBox("Add caps", SliceAddCaps);
+        UI->CheckBox("Create Separate Meshes", SliceCreateSeparateMeshes);
         break;
     case ToolMode::Sculpt:
         UI->Text("Sculpt Tool Settings", PlacementType::FIT_WIDTH, titleTextColour);
@@ -988,7 +990,7 @@ void CursorState::UpdateHalfEdgeSelectTool()
     {
         Ray MouseRay = EditorStatePtr->GetMouseRay(*CameraPtr, MousePos, EditorStatePtr->GetEditorSceneViewportRect());
 
-        he::HalfEdgeMesh* ClosestMesh = nullptr;
+        std::shared_ptr<he::HalfEdgeMesh> ClosestMesh = nullptr;
         RayCastHit ClosestHit;
         for (auto& M : HalfEdgeMeshVec)
         {
@@ -1131,6 +1133,12 @@ void CursorState::UpdateTranslateTool()
         || SelectedObjects.empty())
     {
         Axis = EditingAxis::None;
+        
+        if (OffsettingGizmo)
+        {
+            TranslateSelectedObjectOffsets(SelectedProxyTransform.GetPosition() - InitialObjectPosition);
+            OffsettingGizmo = false;
+        }
         UpdateSelectTool();
         return;
     }
@@ -1141,35 +1149,49 @@ void CursorState::UpdateTranslateTool()
     CollisionModule* Collisions = CollisionModule::Get();
 
     Vec3f SelectedPos = SelectedProxyTransform.GetPosition();
-    //Vec3f SelectedPos = SelectedObjects[0]->GetTransform()->GetPosition();
 
     if (Axis == EditingAxis::None && Input->GetMouseState().GetMouseButtonState(MouseButton::LMB).justPressed)
     {
+        bool holdingShift = false;
+        if (Input->GetKeyState(Key::Tab).pressed)
+        {
+            holdingShift = true;
+        }
+
+        bool hitGizmo = false;
         RayCastHit ClosestHit;
         if (RayCastHit XHit = Collisions->RayCast(MouseRay, *XAxisTrans); XHit.hit)
         {
+            hitGizmo = true;
             ClosestHit = XHit;
             Axis = EditingAxis::X;
             ObjectRelativeHitPoint = XHit.hitPoint - SelectedPos;
         }
         if (RayCastHit YHit = Collisions->RayCast(MouseRay, *YAxisTrans); YHit.hit && YHit.hitDistance < ClosestHit.hitDistance)
         {
+            hitGizmo = true;
             ClosestHit = YHit;
             Axis = EditingAxis::Y;
             ObjectRelativeHitPoint = YHit.hitPoint - SelectedPos;
         }
         if (RayCastHit ZHit = Collisions->RayCast(MouseRay, *ZAxisTrans); ZHit.hit && ZHit.hitDistance < ClosestHit.hitDistance)
         {
+            hitGizmo = true;
             ClosestHit = ZHit;
             Axis = EditingAxis::Z;
             ObjectRelativeHitPoint = ZHit.hitPoint - SelectedPos;
         }
         if (RayCastHit OmniHit = Collisions->RayCast(MouseRay, *TransBall); OmniHit.hit && OmniHit.hitDistance < ClosestHit.hitDistance)
         {
+            hitGizmo = true;
             ClosestHit = OmniHit;
             Axis = EditingAxis::Omni;
             ObjectRelativeHitPoint = OmniHit.hitPoint - SelectedPos;
             ObjectDistanceAtHit = Math::magnitude(OmniHit.hitPoint - CameraPtr->GetPosition());
+        }
+        if (holdingShift && hitGizmo)
+        {
+            OffsettingGizmo = true;
         }
         InitialObjectPosition = SelectedPos;
     }
@@ -1262,6 +1284,10 @@ void CursorState::UpdateTranslateTool()
                 {
                     IgnoredMeshes.push_back(SHFace->m_HalfEdgeMesh);
                 }
+                if (he::SelectedHalfEdgeEdge* SHEdge = dynamic_cast<he::SelectedHalfEdgeEdge*>(SelectedObj.second))
+                {
+                    IgnoredMeshes.push_back(SHEdge->m_HalfEdgeMesh);
+                }
                 if (he::SelectedHalfEdgeVertex* SHVert = dynamic_cast<he::SelectedHalfEdgeVertex*>(SelectedObj.second))
                 {
                     IgnoredMeshes.push_back(SHVert->m_HalfEdgeMesh);
@@ -1292,6 +1318,7 @@ void CursorState::UpdateRotateTool()
         || SelectedObjects.empty())
     {
         Axis = EditingAxis::None;
+        OffsettingGizmo = false;
         UpdateSelectTool();
         return;
     }
@@ -1410,6 +1437,7 @@ void CursorState::UpdateScaleTool()
         // Reset scale widget modifier when not actively scaling to prevent it getting stuck at a smaller/larger size after a scale operation
         ScaleWidgetModifier = 1.0f;
         Axis = EditingAxis::None;
+        OffsettingGizmo = false;
         UpdateSelectTool();
         return;
     }
@@ -1492,17 +1520,8 @@ void CursorState::UpdateBoxTool()
             {
                 // Create the half edge mesh, add to scene
 
-                he::HalfEdgeMesh* newHeMesh = new he::HalfEdgeMesh();
+                std::shared_ptr<he::HalfEdgeMesh> newHeMesh = EditorScenePtr->CreateObject<he::HalfEdgeMesh>();
                 newHeMesh->MakeAABB(BoxBeingCreated, Graphics->m_DebugMaterial);
-
-                // Test debug cylinder here
-                //Vec3f CylinderBase = BoxBeingCreated.min + Vec3f(BoxBeingCreated.XSize() / 2.0f, BoxBeingCreated.YSize() / 2.0f, 0.0f);
-                //float CylinderHeight = BoxBeingCreated.ZSize();
-                //float CylinderRadius = std::min(BoxBeingCreated.XSize(), BoxBeingCreated.YSize()) / 2.0f;
-
-                //newHeMesh->MakeCylinder(CylinderBase, CylinderRadius, CylinderHeight, NumCylinderSegments, Graphics->m_DebugMaterial);
-
-                EditorScenePtr->AddHalfEdgeMesh(newHeMesh);
             }
 
         }
@@ -1700,11 +1719,9 @@ void CursorState::UpdateCylinderTool()
         if (ClickState.justReleased)
         {
             // Create the half edge mesh, add to scene
-            he::HalfEdgeMesh* newHeMesh = new he::HalfEdgeMesh();
+            std::shared_ptr<he::HalfEdgeMesh> newHeMesh = EditorScenePtr->CreateObject<he::HalfEdgeMesh>();
 
             newHeMesh->MakeCylinder(CylinderBeingCreated.bottom, CylinderBeingCreated.radius, NewCylinderHeight, NumCylinderSegments, Graphics->m_DebugMaterial);
-
-            EditorScenePtr->AddHalfEdgeMesh(newHeMesh);
             CurrentCylinderState = CylinderState::NotCreating;
         }
         break;
@@ -1729,8 +1746,15 @@ void CursorState::UpdatePlaneTool()
     {
         if (ClickState.justReleased)
         {
-            Model NewPlane = Model(Graphics->CreatePlaneModel(EditorScenePtr, Vec2f(NewPlaneMin.x, NewPlaneMin.y), Vec2f(NewPlaneMax.x, NewPlaneMax.y), NewPlaneMin.z, NewPlaneSubdivisions));
-            EditorScenePtr->AddModel(NewPlane);
+            Model NewPlane = Model();
+            std::shared_ptr<Model> NewModel = 
+                EditorScenePtr->CreateObject<Model>(
+                    Graphics->CreatePlaneModel(
+                        EditorScenePtr, 
+                        Vec2f(NewPlaneMin.x, NewPlaneMin.y), 
+                        Vec2f(NewPlaneMax.x, NewPlaneMax.y), 
+                        NewPlaneMin.z, NewPlaneSubdivisions));
+
             IsCreatingNewPlane = false;
         }
         else
@@ -2029,7 +2053,7 @@ void CursorState::UpdateSliceTool()
             SlicePlane.center = SliceStartPoint + ((SnappedHitPoint - SliceStartPoint) * 0.5f);
             SlicePlane.normal = Math::cross((SnappedHitPoint - SliceStartPoint).GetNormalized(), SliceHitPlane.normal).GetNormalized();
 
-            PreviewSlice(SliceTargetMesh, SlicePlane);
+            PreviewSlice(SliceTargetMesh.get(), SlicePlane);
 
             MouseState mouseState = Input->GetMouseState();
             if (mouseState.GetMouseButtonState(MouseButton::LMB).justPressed)
@@ -2048,7 +2072,7 @@ void CursorState::UpdateSliceTool()
         SlicePlane.center = SliceStartPoint + ((SliceEndPoint - SliceStartPoint) * 0.5f);
         SlicePlane.normal = Math::cross((SliceEndPoint - SliceStartPoint).GetNormalized(), SliceHitPlane.normal).GetNormalized();
 
-        PreviewSlice(SliceTargetMesh, SlicePlane);
+        PreviewSlice(SliceTargetMesh.get(), SlicePlane);
 
         if (Input->GetKeyState(Key::Enter).pressed || Input->GetKeyState(Key::Space).pressed)
         {
@@ -2069,17 +2093,17 @@ void CursorState::UpdateSliceTool()
                 NewBackMesh = new he::HalfEdgeMesh();
             }
 
-            if (SliceTargetMesh->Slice(SlicePlane, NewFrontMesh, NewBackMesh, SliceAddCaps))
+            if (SliceTargetMesh->Slice(SlicePlane, NewFrontMesh, NewBackMesh, SliceAddCaps, SliceCreateSeparateMeshes))
             {
                 // Delete the original mesh, add the new meshes to the scene
-                EditorStatePtr->EditorScene.DeleteHalfEdgeMesh(SliceTargetMesh);
+                EditorScenePtr->DeleteObject(SliceTargetMesh);
                 if (NewFrontMesh)
                 {
-                    EditorStatePtr->EditorScene.AddHalfEdgeMesh(NewFrontMesh);
+                    EditorScenePtr->CreateObject<he::HalfEdgeMesh>(*NewFrontMesh);
                 }
                 if (NewBackMesh)
                 {
-                    EditorStatePtr->EditorScene.AddHalfEdgeMesh(NewBackMesh);
+                    EditorScenePtr->CreateObject<he::HalfEdgeMesh>(*NewBackMesh);
                 }
             }
             else
@@ -2213,7 +2237,7 @@ void CursorState::DeleteSelectedObjects()
     for (auto& Object : SelectedObjects)
     {
         Object.second->DeleteObject();
-        delete Object.second;
+        delete Object.second; 
     }
 
     SelectedObjects.clear();
@@ -2285,6 +2309,9 @@ void CursorState::RecalculateProxyAndObjectOffsets()
 
 void CursorState::UpdateSelectedTransformsBasedOnProxy()
 {
+    if (OffsettingGizmo)
+        return;
+
     Vec3f ProxyPos = SelectedProxyTransform.GetPosition();
 
     // Handle translation
@@ -2448,9 +2475,9 @@ bool CursorState::ClickCastApplyMaterial(Ray mouseRay, Material* material)
         closestSelectedObject = nullptr;
         closestHit = RayCastHit();
         
-        std::vector<he::HalfEdgeMesh*> heMeshes = EditorScenePtr->GetHalfEdgeMeshes();
+        std::vector<std::shared_ptr<he::HalfEdgeMesh>> heMeshes = EditorScenePtr->GetHalfEdgeMeshes();
 
-        for (he::HalfEdgeMesh* heMesh : heMeshes)
+        for (std::shared_ptr<he::HalfEdgeMesh> heMesh : heMeshes)
         {
             ISelectedObject* newSelectedFace = nullptr;
             RayCastHit newHit = heMesh->ClickCastFaces(mouseRay, newSelectedFace);
@@ -2497,6 +2524,15 @@ void CursorState::ApplyHotspotTextureToSelectedObjects(HotspotTexture& hotspotTe
         Object.second->ApplyHotspotTexture(hotspotTexture);
     }
 }
+void CursorState::TranslateSelectedObjectOffsets(Vec3f offset)
+{
+    for (auto& Object : SelectedObjects)
+    {
+        Vec3f initialOffset = Object.first.Offset;
+        Object.first.Offset = initialOffset + offset;
+    }
+}
+
 void CursorState::IncrementTransSnap()
 {
     TransSnapIndex++;

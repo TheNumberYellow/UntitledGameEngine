@@ -43,15 +43,19 @@ bool SelectedSpotLight::DrawInspectorPanel()
     UIModule* UI = UIModule::Get();
 
     static std::string ColourString = "Colour";
-    UI->TextEntry("Colour", ColourString, Vec2f(250.0f, 20.0f), c_InspectorColour);
+    UI->TextEntry("Colour", ColourString, Vec2f(400.0f, 20.0f), SpotLightPtr->colour);
 
-    UI->FloatSlider("R", Vec2f(400.0f, 20.0f), SpotLightPtr->colour.r);
-    UI->FloatSlider("G", Vec2f(400.0f, 20.0f), SpotLightPtr->colour.g);
-    UI->FloatSlider("B", Vec2f(400.0f, 20.0f), SpotLightPtr->colour.b);
+    //UI->FloatSlider("R", PlacementSettings(PlacementType::FIT_WIDTH), SpotLightPtr->colour.r);
+    //UI->FloatSlider("G", PlacementSettings(PlacementType::FIT_WIDTH), SpotLightPtr->colour.g);
+    //UI->FloatSlider("B", PlacementSettings(PlacementType::FIT_WIDTH), SpotLightPtr->colour.b);
 
-    UI->NewLine();
+    UI->NewLine(20.0f);
 
-    UI->FloatDragger("Intensity", Vec2f(400.0f, 20.0f), SpotLightPtr->intensity, 0.1f, 0.0f);
+    UI->ColourPicker("Colour_Picker", PlacementSettings(PlacementType::FIT_WIDTH), SpotLightPtr->colour);
+
+    UI->NewLine(20.0f);
+
+    UI->FloatDragger("Intensity", PlacementSettings(PlacementType::FIT_WIDTH), SpotLightPtr->intensity, 0.1f, 0.0f);
     UI->FloatDragger("Range", Vec2f(400.0f, 20.0f), SpotLightPtr->range, 0.1f, 0.0f);
 
 
@@ -70,7 +74,7 @@ Transform* SelectedSpotLight::GetTransform()
 
 void SelectedSpotLight::DeleteObject()
 {
-    ScenePtr->DeleteSpotLight(SpotLightPtr);
+    ScenePtr->DeleteObject(SpotLightPtr);
 }
 
 bool SelectedSpotLight::IsEqual(const ISelectedObject& Other) const

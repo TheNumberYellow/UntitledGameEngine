@@ -3,6 +3,7 @@
 #include "Components/Component.h"
 #include "Math/Vector.h"
 #include "Interfaces/EditorClickable_i.h"
+#include "Scene/SceneObject.h"
 
 class SpotLight;
 
@@ -38,7 +39,9 @@ private:
     Transform Trans;
 };
 
-struct SpotLight : public IEditorClickable
+struct SpotLight 
+    : public IEditorClickable
+    , public SceneObject
 {
     Vec3f position = Vec3f(0.0f, 0.0f, 0.0f);
     Vec3f direction = Vec3f(0.0f, 0.0f, -1.0f);

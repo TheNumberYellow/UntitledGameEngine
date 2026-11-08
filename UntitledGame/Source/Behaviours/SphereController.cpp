@@ -8,12 +8,16 @@ SphereController::SphereController()
 
 void SphereController::Update(Scene* Scene, double DeltaTime)
 {
+    bool LastGrounded = Grounded;
+
     DeltaTime = Math::Min(DeltaTime, 0.015);
 
 
     Vec3f InputForceKeys = Vec3f(0.0f, 0.0f, 0.0f);
     Vec3f InputForceStick = Vec3f(0.0f, 0.0f, 0.0f);
     bool JumpPressed = false;
+
+    const Vec3f ResetPosition = Vec3f(-22.0f, -20.0f, 23.0f);
 
     if (InputState->GetGamepadState().IsEnabled())
     {
@@ -35,7 +39,7 @@ void SphereController::Update(Scene* Scene, double DeltaTime)
 
         if (Gamepad.GetButtonState(Button::Face_North))
         {
-            m_Model->GetTransform().SetPosition(Vec3f(0.0f, 0.0f, 5.0f));
+            m_Model->GetTransform().SetPosition(ResetPosition);
             Velocity = Vec3f(0.0f, 0.0f, 0.0f);
         }
     }
@@ -70,7 +74,7 @@ void SphereController::Update(Scene* Scene, double DeltaTime)
 
         if (InputState->GetKeyState(Key::R))
         {
-            m_Model->GetTransform().SetPosition(Vec3f(0.0f, 0.0f, 5.0f));
+            m_Model->GetTransform().SetPosition(ResetPosition);
             Velocity = Vec3f(0.0f, 0.0f, 0.0f);
         }
     }
@@ -129,7 +133,15 @@ void SphereController::Update(Scene* Scene, double DeltaTime)
 
         if (Math::dot(SceneIntersection.penetrationNormal, Vec3f(0.0f, 0.0f, -1.0f)) > 0.6f)
         {
+            
             Grounded = true;
+
+            if (!LastGrounded)
+            {
+                // If we just landed and ball was spinning, apply a force in the direction of the spin
+                
+
+            }
 
             // Apply some friction when grounded based on delta time
             //Velocity = Velocity * (1.0f - (0.2f * (float)DeltaTime));
@@ -159,6 +171,16 @@ void SphereController::Update(Scene* Scene, double DeltaTime)
             m_Model->GetTransform().Rotate(LastRot);
             //m_Model->GetTransform().SetRotation(m_Model->GetTransform().GetRotation().GetNormalized());
 
+        }
+
+        Vec3f ballPos = m_Model->GetTransform().GetPosition();
+        if (Grounded)
+        {
+            GraphicsModule::Get()->DebugDrawArrow(ballPos, ballPos + -SceneIntersection.penetrationNormal * 3.0f, Colour(0.0f, 1.0f, 0.0f));
+        }
+        else
+        {
+            GraphicsModule::Get()->DebugDrawArrow(ballPos, ballPos + -SceneIntersection.penetrationNormal * 3.0f, Colour(1.0f, 0.0f, 0.0f));
         }
 
     }
@@ -206,16 +228,14 @@ void SphereController::Update(Scene* Scene, double DeltaTime)
         
         StickMovement.y = -StickMovement.y;
         
-        StickMovement.x *= 0.03f;
-        StickMovement.y *= 0.03f;
-
-        CamMovement += StickMovement;
+        const float StickMult = 4.0f;
+        CamMovement += StickMovement * StickMult * DeltaTime;
     }
     {
         Vec2f MouseMovement = InputState->GetMouseState().GetDeltaMousePos();
 
-        MouseMovement.x *= 0.005f;
-        MouseMovement.y *= 0.005f;
+        MouseMovement.x *= 0.001f;
+        MouseMovement.y *= 0.001f;
         CamMovement += MouseMovement;
     }
 
@@ -303,7 +323,7 @@ void SphereController::Initialize(Scene* Scene)
 
     if (LightEnabled)
     {
-        PointLight* NewLight = Scene->AddPointLight();
+        std::shared_ptr<PointLight> NewLight = Scene->CreateObject<PointLight>();
 
         NewLight->position = m_Model->GetTransform().GetPosition();
         //NewLight->colour = MakeColour(Math::RandomInt(0, 255), Math::RandomInt(0, 255), Math::RandomInt(0, 255));
